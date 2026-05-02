@@ -1,6 +1,6 @@
 """PhanTichCamXuc - Phân tích cảm xúc văn bản tiếng Việt."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import numpy as np
 
@@ -114,7 +114,6 @@ class PhanTichCamXuc:
 
         if self._da_huan_luyen and self._mo_hinh is not None:
             try:
-                from vietnamese_ai.models.classifier import PhanLoai
                 vec = self._xl.ma_hoa_tfidf([text])
                 nhan_idx = self._mo_hinh.du_doan(vec)[0]
                 nhan = self._nhan_map.get(nhan_idx, "neutral")

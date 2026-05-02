@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 import numpy as np
 
 try:
-    from underthesea import word_tokenize, pos_tag, sentiment
+    from underthesea import pos_tag, sentiment, word_tokenize
     _CO_UNDERTHESEA = True
 except ImportError:
     _CO_UNDERTHESEA = False

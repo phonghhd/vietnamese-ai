@@ -1,7 +1,6 @@
 """TheoDoiThiNghiem - Theo dõi và quản lý thí nghiệm học máy."""
 
 import json
-import os
 import time
 from datetime import datetime
 from pathlib import Path

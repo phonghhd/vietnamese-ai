@@ -1,6 +1,5 @@
 """Tạo đặc trưng - Feature Engineering."""
 
-from typing import List, Optional
 
 import numpy as np
 

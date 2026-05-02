@@ -3,12 +3,12 @@
 from typing import Any, Dict, Optional
 
 import numpy as np
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.linear_model import ElasticNet, Lasso, Ridge
 from sklearn.linear_model import LinearRegression as SKLinearRegression
-from sklearn.linear_model import Ridge, Lasso, ElasticNet
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 from vietnamese_ai.models.base import BaseModel
 

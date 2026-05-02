@@ -1,7 +1,7 @@
 """TimKiemThamSo - Hyperparameter tuning."""
 
 import itertools
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 

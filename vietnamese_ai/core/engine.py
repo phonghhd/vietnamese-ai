@@ -1,7 +1,7 @@
 """Engine - Cỗ máy chính điều phối toàn bộ quy trình học máy."""
 
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 

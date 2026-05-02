@@ -1,6 +1,6 @@
 """BieuDo - Các biểu đồ trực quan hóa."""
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -75,7 +75,7 @@ class BieuDo:
         plt.title(tieu_de, fontsize=14)
         plt.colorbar()
 
-        nhan = ten_lop or [str(l) for l in cac_lop]
+        nhan = ten_lop or [str(lop) for lop in cac_lop]
         tick_marks = np.arange(so_lop)
         plt.xticks(tick_marks, nhan, rotation=45)
         plt.yticks(tick_marks, nhan)

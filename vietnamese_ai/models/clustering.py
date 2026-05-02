@@ -1,11 +1,11 @@
 """Phân cụm - Các thuật toán học không giám sát."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import numpy as np
-from sklearn.cluster import KMeans as SKKMeans
 from sklearn.cluster import DBSCAN, AgglomerativeClustering
-from sklearn.metrics import silhouette_score, calinski_harabasz_score
+from sklearn.cluster import KMeans as SKKMeans
+from sklearn.metrics import silhouette_score
 
 from vietnamese_ai.models.base import BaseModel
 

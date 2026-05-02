@@ -1,9 +1,7 @@
 """CLI chính cho Vietnamese AI Framework."""
 
 import argparse
-import json
 import sys
-from pathlib import Path
 
 import numpy as np
 
@@ -182,8 +180,8 @@ def cmd_predict(args):
 
 def cmd_serve(args):
     """Khởi động API server từ CLI."""
-    from vietnamese_ai.models.base import BaseModel
     from vietnamese_ai.api.server import ServerDonGian
+    from vietnamese_ai.models.base import BaseModel
     from vietnamese_ai.utils.logger import Logger
 
     logger = Logger("CLI-Serve")
@@ -210,7 +208,7 @@ def cmd_evaluate(args):
     X, y = _doc_du_lieu_csv(args.data, args.target)
 
     logger.info(f"Đánh giá trên {len(X)} mẫu")
-    diem = mo_hinh.danh_gia(X, y)
+    mo_hinh.danh_gia(X, y)
 
     nhiem_vu = Validator.kiem_tra_nhiem_vu(y)
     du_doan = mo_hinh.du_doan(X)

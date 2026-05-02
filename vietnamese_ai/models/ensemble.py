@@ -1,15 +1,15 @@
 """Mô hình tập hợp - Ensemble methods."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 from sklearn.ensemble import (
-    VotingClassifier,
-    VotingRegressor,
-    BaggingClassifier,
-    BaggingRegressor,
     AdaBoostClassifier,
     AdaBoostRegressor,
+    BaggingClassifier,
+    BaggingRegressor,
+    VotingClassifier,
+    VotingRegressor,
 )
 from sklearn.metrics import accuracy_score, mean_squared_error
 

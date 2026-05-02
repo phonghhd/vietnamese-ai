@@ -1,6 +1,6 @@
 """Metrics - Các chỉ số đánh giá mô hình."""
 
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 
