@@ -1,6 +1,7 @@
 """Pipeline - Quy trình học máy tự động."""
 
 import pickle
+import warnings
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
@@ -137,7 +138,10 @@ class Pipeline:
         return 0.0
 
     def luu(self, duong_dan: str) -> None:
-        """Lưu pipeline ra file pickle."""
+        """Lưu pipeline ra file pickle.
+
+        Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải pipeline từ nguồn tin cậy.
+        """
         duong_dan = Path(duong_dan)
         duong_dan.parent.mkdir(parents=True, exist_ok=True)
         with open(duong_dan, "wb") as f:
@@ -146,7 +150,15 @@ class Pipeline:
 
     @classmethod
     def tai(cls, duong_dan: str) -> "Pipeline":
-        """Tải pipeline từ file pickle."""
+        """Tải pipeline từ file pickle.
+
+        Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải file từ nguồn tin cậy.
+        """
+        warnings.warn(
+            "Đang tải pipeline từ pickle. Chỉ tải file từ nguồn tin cậy "
+            "để tránh mã độc (remote code execution).",
+            stacklevel=2,
+        )
         with open(duong_dan, "rb") as f:
             pipe = pickle.load(f)
         pipe.logger.info(f"Đã tải pipeline từ: {duong_dan}")

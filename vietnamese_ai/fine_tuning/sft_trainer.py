@@ -240,35 +240,11 @@ class SFTTrainer:
         self, model: Any, du_lieu_train: List[Dict],
         du_lieu_val: Optional[List[Dict]], callback: Optional[Callable],
     ) -> Dict[str, Any]:
-        """NumPy fallback training."""
-        bat_dau = time.time()
-
-        for epoch in range(self.so_vong):
-            epoch_loss = 0.0
-            steps = 0
-
-            for mau in du_lieu_train:
-                loss_val = np.random.exponential(1.0 / (epoch + 1))
-                epoch_loss += loss_val
-                steps += 1
-                self._global_step += 1
-
-                if callback and self._global_step % self.logging_steps == 0:
-                    callback(self._global_step, epoch_loss / max(1, steps))
-
-            avg_loss = epoch_loss / max(1, steps)
-            self._history["train_loss"].append(avg_loss)
-            self.logger.info(f"Epoch {epoch+1}/{self.so_vong}: loss={avg_loss:.4f}")
-
-        tong_thoi_gian = time.time() - bat_dau
-
-        return {
-            "tong_thoi_gian": round(tong_thoi_gian, 2),
-            "so_epoch": self.so_vong,
-            "global_step": self._global_step,
-            "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0,
-            "history": self._history,
-        }
+        """NumPy fallback - yêu cầu PyTorch cho SFT training thực sự."""
+        raise ImportError(
+            "SFTTrainer yêu cầu PyTorch để huấn luyện. "
+            "Cài đặt: pip install torch hoặc pip install vietnamese-ai[torch]"
+        )
 
     def _cap_nhat_lr(self, optimizer: Any, step: int, warmup_steps: int, tong_steps: int):
         if step < warmup_steps:

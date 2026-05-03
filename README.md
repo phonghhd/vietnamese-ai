@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/version-9.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-352%2F352-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-376%2F376-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
@@ -543,7 +543,7 @@ ruff check vietnamese_ai/ tests/
 ```
 
 ```
-============================= 352 passed ==============================
+============================= 376 passed ==============================
 ```
 
 ---

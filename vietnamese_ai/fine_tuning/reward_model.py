@@ -166,38 +166,11 @@ class RewardModel:
         self, model: Any, preference_data: List[Dict],
         so_vong: int, callback: Optional[Any],
     ) -> Dict[str, Any]:
-        """NumPy fallback."""
-        import time
-
-        bat_dau = time.time()
-
-        for epoch in range(so_vong):
-            epoch_loss = 0.0
-            correct = 0
-            total = 0
-
-            for mau in preference_data:
-                loss_val = np.random.exponential(1.0 / (epoch + 1))
-                epoch_loss += loss_val
-                if np.random.random() > 0.3 * (1.0 / (epoch + 1)):
-                    correct += 1
-                total += 1
-
-            avg_loss = epoch_loss / max(1, total)
-            acc = correct / max(1, total)
-            self._history["train_loss"].append(avg_loss)
-            self._history["accuracy"].append(acc)
-            self.logger.info(f"Epoch {epoch+1}/{so_vong}: loss={avg_loss:.4f}, acc={acc:.4f}")
-
-        tong_thoi_gian = time.time() - bat_dau
-
-        return {
-            "tong_thoi_gian": round(tong_thoi_gian, 2),
-            "so_epoch": so_vong,
-            "final_loss": self._history["train_loss"][-1] if self._history["train_loss"] else 0,
-            "final_accuracy": self._history["accuracy"][-1] if self._history["accuracy"] else 0,
-            "history": self._history,
-        }
+        """NumPy fallback - yêu cầu PyTorch cho Reward Model training thực sự."""
+        raise ImportError(
+            "RewardModel yêu cầu PyTorch để huấn luyện. "
+            "Cài đặt: pip install torch hoặc pip install vietnamese-ai[torch]"
+        )
 
     def diem_danh_gia(self, model: Any, cac_van_ban: List[str]) -> List[Dict[str, float]]:
         """

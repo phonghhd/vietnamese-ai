@@ -1,6 +1,7 @@
 """Base Model - Lớp trừu tượng cơ sở cho tất cả mô hình."""
 
 import pickle
+import warnings
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict
@@ -49,7 +50,10 @@ class BaseModel(ABC):
         return self.tham_so.copy()
 
     def luu(self, duong_dan: str) -> None:
-        """Lưu mô hình ra file."""
+        """Lưu mô hình ra file (pickle format).
+
+        Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải mô hình từ nguồn tin cậy.
+        """
         duong_dan = Path(duong_dan)
         duong_dan.parent.mkdir(parents=True, exist_ok=True)
         with open(duong_dan, "wb") as f:
@@ -57,7 +61,17 @@ class BaseModel(ABC):
 
     @classmethod
     def tai(cls, duong_dan: str) -> "BaseModel":
-        """Tải mô hình từ file."""
+        """Tải mô hình từ file pickle.
+
+        Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải mô hình từ nguồn tin cậy.
+        Sử dụng :func:`vietnamese_ai.utils.io_utils.LuuTai.tai_an_toan` để kiểm tra hash trước khi tải.
+        """
+        warnings.warn(
+            "Đang tải mô hình từ pickle. Chỉ tải file từ nguồn tin cậy "
+            "để tránh mã độc (remote code execution). Sử dụng LuuTai.tai_an_toan() "
+            "để kiểm tra hash trước khi tải.",
+            stacklevel=2,
+        )
         with open(duong_dan, "rb") as f:
             return pickle.load(f)
 

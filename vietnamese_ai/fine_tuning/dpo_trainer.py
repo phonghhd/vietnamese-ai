@@ -270,46 +270,11 @@ class DPOTrainer:
         self, model: Any, ref_model: Any,
         preference_data: List[Dict], callback: Optional[Callable],
     ) -> Dict[str, Any]:
-        """NumPy fallback."""
-        bat_dau = time.time()
-
-        for epoch in range(self.so_vong):
-            epoch_loss = 0.0
-            chosen_rewards = []
-            rejected_rewards = []
-            steps = 0
-
-            for mau in preference_data:
-                loss_val = np.random.exponential(0.5 / (epoch + 1))
-                chosen_r = np.random.normal(0.5, 0.1)
-                rejected_r = np.random.normal(-0.5, 0.1)
-
-                epoch_loss += loss_val
-                chosen_rewards.append(chosen_r)
-                rejected_rewards.append(rejected_r)
-                steps += 1
-                self._global_step += 1
-
-                if callback and self._global_step % self.logging_steps == 0:
-                    callback(self._global_step, epoch_loss / max(1, steps))
-
-            avg_loss = epoch_loss / max(1, steps)
-            self._history["train_loss"].append(avg_loss)
-            self._history["chosen_rewards"].append(float(np.mean(chosen_rewards)))
-            self._history["rejected_rewards"].append(float(np.mean(rejected_rewards)))
-            self._history["reward_margin"].append(
-                float(np.mean(chosen_rewards) - np.mean(rejected_rewards))
-            )
-
-        tong_thoi_gian = time.time() - bat_dau
-
-        return {
-            "tong_thoi_gian": round(tong_thoi_gian, 2),
-            "so_epoch": self.so_vong,
-            "global_step": self._global_step,
-            "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0,
-            "history": self._history,
-        }
+        """NumPy fallback - yêu cầu PyTorch cho DPO training thực sự."""
+        raise ImportError(
+            "DPOTrainer yêu cầu PyTorch để huấn luyện. "
+            "Cài đặt: pip install torch hoặc pip install vietnamese-ai[torch]"
+        )
 
     def lay_lich_su(self) -> Dict[str, List[float]]:
         return self._history.copy()
