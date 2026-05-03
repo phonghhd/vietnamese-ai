@@ -1,0 +1,33 @@
+name: 🚀 Deploy Vietnamese-AI Docs
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+
+# Cấp quyền cho Action được phép ghi đè lên nhánh gh-pages
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    name: 🛠️ Build & Deploy Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Lấy mã nguồn về
+        uses: actions/checkout@v4
+
+      - name: 🐍 Cài đặt Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Cài đặt thư viện MkDocs & Giao diện Material
+        run: |
+          pip install mkdocs-material
+
+      - name: 🌐 Build và xuất bản lên GitHub Pages
+        run: mkdocs gh-deploy --force
