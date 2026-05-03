@@ -30,8 +30,14 @@ jobs:
     - name: Install package
       run: pip install -e . --no-deps
 
+    - name: Debug info
+      run: |
+        python --version
+        pip list
+        python -c "import vietnamese_ai; print('OK:', vietnamese_ai.__version__)"
+
     - name: Run tests
-      run: pytest tests/ -v --tb=short -W default::UserWarning
+      run: pytest tests/ -v --tb=long
 
   lint:
     runs-on: ubuntu-latest
