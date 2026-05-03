@@ -7,7 +7,7 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-
+  workflow_dispatch:
 # Cấp quyền cho Action được phép ghi đè lên nhánh gh-pages
 permissions:
   contents: write
