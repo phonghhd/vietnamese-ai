@@ -7,8 +7,8 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-  workflow_dispatch:
-# Cấp quyền cho Action được phép ghi đè lên nhánh gh-pages
+  workflow_dispatch: 
+
 permissions:
   contents: write
 
@@ -28,6 +28,7 @@ jobs:
       - name: 📦 Cài đặt thư viện MkDocs & Giao diện Material
         run: |
           pip install mkdocs-material
+          pip install "mkdocstrings[python]"
 
       - name: 🌐 Build và xuất bản lên GitHub Pages
         run: mkdocs gh-deploy --force
