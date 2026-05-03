@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-4.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-57%2F57-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-230%2F230-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
@@ -39,7 +39,7 @@
 | Framework AI lớn quá phức tạp cho người mới | API đơn giản, học trong 5 phút |
 | Tài liệu toàn bằng tiếng Anh | Tài liệu và ví dụ 100% tiếng Việt |
 | Thiếu toolkit xử lý văn bản tiếng Việt | Tích hợp sẵn underthesea + TF-IDF + stopwords |
-| Không có framework "all-in-one" cho người Việt | Models + Preprocessing + CV + Tuning + API + CLI + Docker |
+| Không có framework "all-in-one" cho người Việt | Models + Preprocessing + CV + Tuning + API + CLI + Docker + SaaS + Studio + LLM |
 
 ---
 
@@ -48,11 +48,16 @@
 ### Cơ bản
 
 ```bash
+pip install vietnamese-ai
+```
+
+### Từ source
+
+```bash
 git clone https://github.com/phonghhd/vietnamese-ai.git
 cd vietnamese-ai
 python -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
 pip install -e .
 ```
 
@@ -60,6 +65,12 @@ pip install -e .
 
 ```bash
 pip install -e ".[nlp]"
+```
+
+### Với Deep Learning (PyTorch)
+
+```bash
+pip install -e ".[torch]"
 ```
 
 ### Tất cả tính năng
@@ -104,7 +115,34 @@ pip install -e ".[all]"
 | Module | Chức năng |
 |---|---|
 | `AutoML` | Tự động chọn mô hình + thuật toán tốt nhất |
+| `TimKiemKienTruc` | Neural Architecture Search (NAS) - tìm kiến trúc MLP tối ưu |
 | `TheoDoiThiNghiem` | Theo dõi thí nghiệm (tương thích MLflow) |
+
+### Mobile/Edge & Federated Learning
+
+| Module | Chức năng |
+|---|---|
+| `TriKhaiDiDong` | Triển khai TFLite, CoreML, ONNX Mobile + quantization INT8 |
+| `HocLienKet` | Federated Learning (FedAvg, Differential Privacy, Client Sampling) |
+
+### Real-time ML Pipeline
+
+| Module | Chức năng |
+|---|---|
+| `PipelineThoiGianThuc` | Real-time pipeline: Message Queue, Feature Store, latency tracking |
+
+### Cloud Platform & No-code Studio
+
+| Module | Chức năng |
+|---|---|
+| `NenTangDichVu` | SaaS platform: multi-tenant workspace, API keys, quota, model deploy |
+| `StudioKeoTha` | No-code Studio: kéo thả pipeline, templates, save/load JSON |
+
+### Vietnamese LLM
+
+| Module | Chức năng |
+|---|---|
+| `VietnameseLLM` | N-gram language model: text generation, completion, perplexity, templates |
 
 ### Interpretability & Augmentation
 
@@ -129,6 +167,7 @@ vai train --data FILE --model M       Huấn luyện mô hình
 vai predict --model M --input FILE    Dự đoán
 vai evaluate --model M --data FILE    Đánh giá
 vai serve --model M --port 8080       API server
+vai web --port 5000                   No-code web interface
 ```
 
 ---
@@ -158,20 +197,15 @@ ket_qua = kdc.chay(PhanLoai(thuat_toan="logistic"), X, y)
 print(f"Điểm CV: {ket_qua['diem_trung_binh']:.4f} (+/- {ket_qua['do_lech_chuan']:.4f})")
 ```
 
-### Hyperparameter Tuning
+### AutoML
 
 ```python
-from vietnamese_ai import TimKiemThamSo, PhanLoai
+from vietnamese_ai import AutoML
 
-ts = TimKiemThamSo(so_fold=5)
-ket_qua = ts.tim_kiem_luoi(
-    lop_mo_hinh=PhanLoai,
-    luoi_tham_so={
-        'thuat_toan': ['logistic', 'knn', 'rung_ngau_nhien'],
-    },
-    X=X_train, y=y_train
-)
-print(f"Tham số tốt nhất: {ket_qua['tham_so_tot_nhat']}")
+auto = AutoML(so_fold=5)
+ket_qua = auto.fit(X_train, y_train)
+print(f"Mô hình tốt nhất: {ket_qua['thuat_toan_tot_nhat']}")
+du_doan = auto.predict(X_test)
 ```
 
 ### Pipeline + Save/Load
@@ -184,45 +218,56 @@ pipe.them_buoc("chuan_hoa", XuLySo())
 pipe.them_buoc("phan_loai", PhanLoai(thuat_toan="gradient_boosting"))
 pipe.fit(X_train, y_train)
 
-# Lưu
 pipe.luu("models/pipe.pkl")
-
-# Tải lại
 pipe2 = Pipeline.tai("models/pipe.pkl")
 du_doan = pipe2.predict(X_test)
 ```
 
-### Xử lý văn bản tiếng Việt (underthesea)
+### Xử lý văn bản tiếng Việt
 
 ```python
 from vietnamese_ai import XuLyVanBan
 
 xl = XuLyVanBan()
-
-# Tách từ chuẩn (nhận diện từ ghép)
 xl.tach_tu("Trí tuệ nhân tạo rất hay")
 # → ['trí_tuệ_nhân_tạo', 'rất', 'hay']
 
-# Phân tích cảm xúc
 xl.phan_tich_cam_xuc("Sản phẩm rất tốt, tôi rất hài lòng")
 # → 'positive'
 
-# Gán nhãn từ loại
-xl.gan_nhan_tu_loai("Học máy rất thú vị")
-# → [('Học', 'V'), ('máy', 'N'), ('rất', 'R'), ('thú vị', 'A')]
-
-# TF-IDF
 tfidf = xl.ma_hoa_tfidf(["văn bản 1", "văn bản 2"])
 ```
 
-### Mạng nơ-ron
+### No-code Studio
 
 ```python
-from vietnamese_ai import MangNron
+from vietnamese_ai import StudioKeoTha
 
-mang = MangNron(lop_an=[64, 32], ham_kich_hoat="relu", so_vong=100)
-mang.huan_luyen(X_train, y_train)
-print(f"Độ chính xác: {mang.danh_gia(X_test, y_test):.4f}")
+studio = StudioKeoTha()
+studio.tai_template("phan_loai_co_ban")
+ket_qua = studio.chay()
+print(ket_qua['trang_thai'])  # 'thanh_cong'
+```
+
+### Vietnamese LLM
+
+```python
+from vietnamese_ai import VietnameseLLM
+
+llm = VietnameseLLM(bac=3)
+llm.huan_luyen(cac_van_ban, so_vong=5)
+van_ban = llm.sinh_van_ban("học máy là", do_dai=50)
+goi_y = llm.lay_tu_ke_tiep("trí tuệ nhân", top_n=5)
+```
+
+### Federated Learning
+
+```python
+from vietnamese_ai import HocLienKet, PhanLoai
+
+hl = HocLienKet(so_client=5, so_vong=10)
+ket_qua = hl.huan_luyen(PhanLoai, X, y, thuat_toan="logistic")
+print(f"Điểm global: {ket_qua['diem_toan_cuc']:.4f}")
 ```
 
 ---
@@ -232,47 +277,28 @@ print(f"Độ chính xác: {mang.danh_gia(X_test, y_test):.4f}")
 Sau khi cài đặt, sử dụng lệnh `vai`:
 
 ```bash
-# Thông tin framework
 vai info
-
-# Huấn luyện từ file CSV
 vai train --data data.csv --model logistic --output model.pkl --test-size 0.2
-
-# Dự đoán
 vai predict --model model.pkl --input new_data.csv --output results.csv
-
-# Đánh giá
 vai evaluate --model model.pkl --data test.csv
-
-# Khởi động API server
 vai serve --model model.pkl --port 8080
+vai web --port 5000
 ```
 
 ---
 
 ## Docker
 
-### Build và chạy
-
 ```bash
-# Build image
 docker build -t vietnamese-ai .
-
-# Khởi động API server
 docker run -p 8080:8080 -v ./models:/app/models vietnamese-ai serve --model /app/models/model.pkl --port 8080
 ```
 
 ### Docker Compose
 
 ```bash
-# Tạo thư mục
 mkdir -p data models
-
-# Copy dữ liệu vào data/
-# Huấn luyện
 docker-compose run vai-train
-
-# Khởi động server
 docker-compose up vai-serve
 ```
 
@@ -281,15 +307,12 @@ docker-compose up vai-serve
 ## API Server
 
 ```bash
-# Khởi động
 vai serve --model model.pkl --port 8080
 
-# Gửi request
 curl -X POST http://localhost:8080/du_doan \
   -H "Content-Type: application/json" \
   -d '{"du_lieu": [[1.0, 2.0, 3.0, 4.0, 5.0]]}'
 
-# Kiểm tra sức khỏe
 curl http://localhost:8080/suc_khoe
 ```
 
@@ -322,6 +345,15 @@ curl http://localhost:8080/suc_khoe
 | `tim_kiem_luoi(lop_mo_hinh, luoi_tham_so, X, y)` | Grid Search |
 | `tim_kiem_ngau_nhien(lop_mo_hinh, pham_vi_tham_so, X, y, so_lan)` | Random Search |
 
+### AutoML(so_fold, chuan_hoa)
+
+| Phương thức | Mô tả |
+|---|---|
+| `fit(X, y)` | Tự động tìm mô hình tốt nhất |
+| `predict(X)` | Dự đoán với mô hình tốt nhất |
+| `danh_gia(X, y)` | Đánh giá |
+| `bao_cao()` | Báo cáo so sánh thuật toán |
+
 ### Pipeline(ten)
 
 | Phương thức | Mô tả |
@@ -331,6 +363,59 @@ curl http://localhost:8080/suc_khoe
 | `predict(X)` | Dự đoán |
 | `luu(duong_dan)` | Lưu pipeline |
 | `Pipeline.tai(duong_dan)` | Tải pipeline |
+
+### TriKhaiDiDong()
+
+| Phương thức | Mô tả |
+|---|---|
+| `xuat_tflite(mo_hinh, duong_dan, kich_thuoc_dau_vao)` | Xuất TFLite |
+| `xuat_coreml(mo_hinh, duong_dan, kich_thuoc_dau_vao)` | Xuất CoreML |
+| `xuat_onnx_mobile(mo_hinh, duong_dan, kich_thuoc_dau_vao)` | Xuất ONNX Mobile |
+| `luong_hoa_int8(duong_dan_goc, duong_dan_moi)` | Quantize INT8 |
+| `benchmark_edge(mo_hinh, kich_thuoc_dau_vao, so_lan)` | Benchmark |
+
+### HocLienKet(so_client, so_vong, ty_le_client, rieng_tu_differntial)
+
+| Phương thức | Mô tả |
+|---|---|
+| `huan_luyen(lop_mo_hinh, X, y, **tham_so)` | Federated Learning |
+| `du_doan(lop_mo_hinh, X, **tham_so)` | Dự đoán global model |
+| `lay_lich_su()` | Lịch sử rounds |
+| `bao_cao()` | Báo cáo FL |
+
+### StudioKeoTha(ten)
+
+| Phương thức | Mô tả |
+|---|---|
+| `them_node(loai, ten, vi_tri, tham_so)` | Thêm node |
+| `ket_noi(tu_node, den_node)` | Kết nối nodes |
+| `chay()` | Chạy pipeline |
+| `tai_template(ten)` | Tải template |
+| `luu(duong_dan)` | Lưu config |
+| `StudioKeoTha.tai(duong_dan)` | Tải config |
+
+### VietnameseLLM(bac, lam_mo)
+
+| Phương thức | Mô tả |
+|---|---|
+| `huan_luyen(cac_van_ban, so_vong)` | Huấn luyện LLM |
+| `sinh_van_ban(khoi_dau, do_dai, nhiet_do)` | Sinh văn bản |
+| `hoan_thanh_cau(dau_vao, so_lua_chon)` | Hoàn thành câu |
+| `tinh_perplexity(text)` | Tính perplexity |
+| `lay_tu_ke_tiep(text, top_n)` | Gợi ý từ tiếp theo |
+| `sinh_theo_template(ten, tham_so)` | Sinh theo template |
+| `luu(duong_dan)` / `VietnameseLLM.tai(duong_dan)` | Save/Load |
+
+### NenTangDichVu(duong_dan)
+
+| Phương thức | Mô tả |
+|---|---|
+| `tao_workspace(ten, chu_so_huu, goi_dich_vu)` | Tạo workspace |
+| `tao_api_key(ma_workspace)` | Tạo API key |
+| `dang_ky_model(ma_workspace, ten, mo_hinh)` | Đăng ký model |
+| `deploy_model(ma_workspace, ma_model)` | Deploy model |
+| `du_doan(ma_workspace, ma_deployment, du_lieu)` | Dự đoán |
+| `thong_ke_usage(ma_workspace)` | Thống kê sử dụng |
 
 ### XuLyVanBan(tu_dung, su_dung_underthesea)
 
@@ -352,20 +437,48 @@ vietnamese-ai/
 │   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo
 │   ├── models/            # PhanLoai, HoiQuy, PhanCum, MangNron, MoHinhTapHop
 │   ├── preprocessing/     # XuLyVanBan, XuLySo, TaoDacTrung
+│   ├── automl/            # AutoML, TimKiemKienTruc (NAS)
+│   ├── nlp/               # PhanTichCamXuc, PhoBERTWrapper
+│   ├── embeddings/        # Word2VecTiengViet, FastTextTiengViet
+│   ├── deep_learning/     # MangSau, LopDense, LopDropout
+│   ├── vision/            # PhanLoaiHinhAnh
+│   ├── timeseries/        # DuDoanChuoiThoiGian
+│   ├── mobile/            # TriKhaiDiDong (TFLite, CoreML, ONNX Mobile)
+│   ├── federated/         # HocLienKet (FedAvg, Differential Privacy)
+│   ├── realtime/          # PipelineThoiGianThuc (Message Queue, Feature Store)
+│   ├── saas/              # NenTangDichVu (Cloud Platform SaaS)
+│   ├── studio/            # StudioKeoTha (No-code Studio)
+│   ├── llm/               # VietnameseLLM (N-gram LM, text generation)
+│   ├── streaming/         # XuLyStream (real-time processing)
+│   ├── export/            # XuatONNX
+│   ├── registry/          # QuanLyMoHinh (Model Registry)
+│   ├── cloud/             # CloudDeployment, Marketplace
+│   ├── distributed/       # PhanTanHuanLuyen, MultiGPUTrainer
+│   ├── enterprise/        # HeThongXacThuc, NhatKyHoatDong
+│   ├── hub/               # ModelHub
+│   ├── plugins/           # PluginManager
+│   ├── augmentation/      # TangCuongVanBan
+│   ├── interpretability/  # GiaiThichMoHinh
+│   ├── experiment_tracking/ # TheoDoiThiNghiem
+│   ├── web/               # UngDungWeb (No-code Web UI)
 │   ├── utils/             # Logger, Metrics, Validator, LuuTai
 │   ├── visualization/     # BieuDo
 │   ├── datasets/          # DuLieuMau
 │   ├── api/               # ServerDonGian
 │   └── cli/               # CLI (vai command)
-├── tests/                 # 45 tests
+├── tests/                 # 230 tests
 ├── examples/              # Ví dụ sử dụng
 ├── Dockerfile
 ├── docker-compose.yml
+├── pyproject.toml
 ├── setup.py
 ├── requirements.txt
 ├── README.md
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── SECURITY.md
 ├── LICENSE
-└── CONTRIBUTING.md
+└── MANIFEST.in
 ```
 
 ---
@@ -373,39 +486,47 @@ vietnamese-ai/
 ## Chạy test
 
 ```bash
+# Chạy toàn bộ test
 pytest tests/ -v
-# ========================= 45 passed =========================
+
+# Chạy với coverage
+pytest tests/ -v --cov=vietnamese_ai --cov-report=html
+
+# Chạy lint
+ruff check vietnamese_ai/ tests/
+```
+
+```
+============================= 230 passed ==============================
 ```
 
 ---
 
 ## Roadmap
 
-### v1.0.0 - Production Release
+### Đã hoàn thành (v1.0 - v4.0)
 
-- [x] 6 mô hình học máy (PhanLoai, HoiQuy, PhanCum, MangNron, MoHinhTapHop)
-- [x] NLP tiếng Việt (Word2Vec, FastText, Sentiment, underthesea)
-- [x] AutoML (tự động chọn mô hình tốt nhất)
-- [x] Cross-validation + Hyperparameter Tuning
-- [x] Model Interpretability (Feature Importance, Permutation, LIME)
-- [x] Experiment Tracking (MLflow compatible)
-- [x] Data Augmentation cho văn bản tiếng Việt
-- [x] Pipeline (save/load)
-- [x] CLI tool (`vai` command)
-- [x] Docker + docker-compose
-- [x] API Server
-- [x] CI/CD (GitHub Actions)
-- [x] PyPI publishing (`pip install vietnamese-ai`)
-- [x] MkDocs documentation
-- [x] 57 test cases
+| Version | Tính năng |
+|---|---|
+| v1.0 | Models, Preprocessing, NLP, AutoML, CV, Tuning, Pipeline, CLI, Docker, API |
+| v1.1 | Deep Learning, CNN, Time Series, PhoBERT |
+| v1.2 | Web UI, Model Registry, Streaming, ONNX Export |
+| v2.0 | Multi-GPU, Distributed, Model Hub, Plugin System, Cloud Deploy, Marketplace, Enterprise |
+| v3.0 | Mobile/Edge, NAS, Federated Learning, Real-time Pipeline |
+| v4.0 | Cloud Platform SaaS, No-code Studio, Vietnamese LLM |
 
-### v1.1.0 - Kế hoạch
+### Vision tương lai
 
-- [ ] Deep Learning GPU (PyTorch backend)
-- [ ] Pre-trained models (PhoBERT, ViBERT)
-- [ ] Image classification (CNN)
-- [ ] Time series forecasting
-- [ ] No-code/low-code interface
+- **Vietnamese AI Cloud**: Platform SaaS hoàn chỉnh với billing, monitoring
+- **Edge AI Runtime**: Chạy mô hình trên thiết bị IoT, mobile native
+- **Vietnamese LLM lớn**: Fine-tune LLM cho tiếng Việt với RLHF
+- **AI Education**: Platform dạy AI tiếng Việt cho sinh viên
+
+---
+
+## Đóng góp
+
+Xem [CONTRIBUTING.md](CONTRIBUTING.md) để biết quy trình đóng góp.
 
 ---
 

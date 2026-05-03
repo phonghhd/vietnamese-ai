@@ -52,6 +52,11 @@ Ví dụ sử dụng:
     eval_parser.add_argument("--data", required=True, help="Đường dẫn file dữ liệu test (CSV)")
     eval_parser.add_argument("--target", default=None, help="Tên cột nhãn")
 
+    # === WEB ===
+    web_parser = subparsers.add_parser("web", help="Khởi động giao diện web no-code")
+    web_parser.add_argument("--port", type=int, default=5000, help="Port (mặc định: 5000)")
+    web_parser.add_argument("--host", default="0.0.0.0", help="Host (mặc định: 0.0.0.0)")
+
     return parser
 
 
@@ -224,6 +229,14 @@ def cmd_evaluate(args):
     print()
 
 
+def cmd_web(args):
+    """Khởi động giao diện web no-code."""
+    from vietnamese_ai.web.app import UngDungWeb
+
+    app = UngDungWeb(port=args.port, host=args.host)
+    app.chay()
+
+
 def main():
     """Entry point cho CLI."""
     parser = _tao_parser()
@@ -243,6 +256,8 @@ def main():
         cmd_serve(args)
     elif args.command == "evaluate":
         cmd_evaluate(args)
+    elif args.command == "web":
+        cmd_web(args)
     else:
         parser.print_help()
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai"
-version = "1.0.0"
+version = "4.0.0"
 description = "Framework AI thuần tiếng Việt cho Python - Vietnamese AI Framework"
 readme = "README.md"
 license = {text = "MIT"}
@@ -41,6 +41,8 @@ dependencies = [
 
 [project.optional-dependencies]
 nlp = ["underthesea>=6.0"]
+torch = ["torch>=2.0"]
+transformers = ["transformers>=4.30", "torch>=2.0"]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -55,6 +57,8 @@ docs = [
 ]
 all = [
     "underthesea>=6.0",
+    "torch>=2.0",
+    "transformers>=4.30",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "black>=23.0",

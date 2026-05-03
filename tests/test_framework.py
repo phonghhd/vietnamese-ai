@@ -3,18 +3,18 @@
 import numpy as np
 import pytest
 
-from vietnamese_ai.models.classifier import PhanLoai
-from vietnamese_ai.models.regression import HoiQuy
-from vietnamese_ai.models.clustering import PhanCum
-from vietnamese_ai.models.neural_net import MangNron
-from vietnamese_ai.preprocessing.text import XuLyVanBan
-from vietnamese_ai.preprocessing.numerical import XuLySo
-from vietnamese_ai.preprocessing.feature_engineering import TaoDacTrung
-from vietnamese_ai.utils.metrics import Metrics
-from vietnamese_ai.utils.validators import Validator
 from vietnamese_ai.core.engine import Engine
 from vietnamese_ai.core.pipeline import Pipeline
 from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.models.classifier import PhanLoai
+from vietnamese_ai.models.clustering import PhanCum
+from vietnamese_ai.models.neural_net import MangNron
+from vietnamese_ai.models.regression import HoiQuy
+from vietnamese_ai.preprocessing.feature_engineering import TaoDacTrung
+from vietnamese_ai.preprocessing.numerical import XuLySo
+from vietnamese_ai.preprocessing.text import XuLyVanBan
+from vietnamese_ai.utils.metrics import Metrics
+from vietnamese_ai.utils.validators import Validator
 
 
 class TestPhanLoai:
@@ -452,3 +452,372 @@ class TestTheoDoiThiNghiem:
         td.log_metric("accuracy", 0.95)
         ket_qua = td.ket_thuc()
         assert ket_qua["trang_thai"] == "hoan_tat"
+
+
+class TestMangSau:
+    def test_numpy_backend(self):
+        from vietnamese_ai.deep_learning.mang_sau import MangSau
+
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=100, so_dac_trung=5)
+        X_train, X_test, y_train, y_test = XuLySo.chia_du_lieu(X, y)
+
+        mang = MangSau(lop_an=[16, 8], so_vong=10, kich_thuoc_batch=32)
+        mang.huan_luyen(X_train, y_train)
+        assert mang.da_huan_luyen
+        du_doan = mang.du_doan(X_test)
+        assert len(du_doan) == len(X_test)
+
+    def test_danh_gia(self):
+        from vietnamese_ai.deep_learning.mang_sau import MangSau
+
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=100, so_dac_trung=3)
+        mang = MangSau(lop_an=[8], so_vong=5)
+        mang.huan_luyen(X, y)
+        diem = mang.danh_gia(X, y)
+        assert diem > 0
+
+
+class TestDuDoanChuoiThoiGian:
+    def test_exponential(self):
+        from vietnamese_ai.timeseries.forecaster import DuDoanChuoiThoiGian
+
+        du_lieu = np.sin(np.linspace(0, 10, 100)) + np.random.randn(100) * 0.1
+        dstg = DuDoanChuoiThoiGian(phuong_phap="exponential")
+        dstg.huan_luyen(du_lieu)
+        du_doan = dstg.du_doan(10)
+        assert len(du_doan) == 10
+
+    def test_linear_trend(self):
+        from vietnamese_ai.timeseries.forecaster import DuDoanChuoiThoiGian
+
+        du_lieu = np.arange(50, dtype=float) + np.random.randn(50) * 0.1
+        dstg = DuDoanChuoiThoiGian(phuong_phap="linear_trend")
+        dstg.huan_luyen(du_lieu)
+        du_doan = dstg.du_doan(10)
+        assert len(du_doan) == 10
+        assert du_doan[-1] > du_lieu[-1]  # upward trend
+
+    def test_window_regression(self):
+        from vietnamese_ai.timeseries.forecaster import DuDoanChuoiThoiGian
+
+        du_lieu = np.sin(np.linspace(0, 20, 200)) + np.random.randn(200) * 0.1
+        dstg = DuDoanChuoiThoiGian(phuong_phap="window_regression", cua_so=10)
+        dstg.huan_luyen(du_lieu)
+        du_doan = dstg.du_doan(5)
+        assert len(du_doan) == 5
+
+    def test_danh_gia(self):
+        from vietnamese_ai.timeseries.forecaster import DuDoanChuoiThoiGian
+
+        du_lieu = np.sin(np.linspace(0, 10, 100))
+        dstg = DuDoanChuoiThoiGian(phuong_phap="exponential")
+        dstg.huan_luyen(du_lieu)
+        diem = dstg.danh_gia(np.zeros(10), du_lieu[-10:])
+        assert isinstance(diem, float)
+
+
+class TestPhanLoaiHinhAnh:
+    def test_numpy_fallback(self):
+        from vietnamese_ai.vision.image_classifier import PhanLoaiHinhAnh
+
+        X = np.random.rand(50, 1, 8, 8)
+        y = np.random.randint(0, 3, 50)
+        plha = PhanLoaiHinhAnh(so_lop=3)
+        plha.huan_luyen(X, y)
+        du_doan = plha.du_doan(X[:10])
+        assert len(du_doan) == 10
+
+
+class TestLopDense:
+    def test_tien(self):
+        from vietnamese_ai.deep_learning.layers import LopDense
+
+        lop = LopDense(5, 3, ham_kich_hoat="relu")
+        X = np.random.rand(10, 5)
+        ket_qua = lop.tien(X)
+        assert ket_qua.shape == (10, 3)
+
+    def test_softmax(self):
+        from vietnamese_ai.deep_learning.layers import LopDense
+
+        lop = LopDense(5, 3, ham_kich_hoat="softmax")
+        X = np.random.rand(10, 5)
+        ket_qua = lop.tien(X)
+        assert ket_qua.shape == (10, 3)
+        assert np.allclose(ket_qua.sum(axis=1), 1.0)
+
+
+class TestQuanLyMoHinh:
+    def test_dang_ky_va_tai(self, tmp_path):
+        from vietnamese_ai.registry.model_registry import QuanLyMoHinh
+
+        ql = QuanLyMoHinh(str(tmp_path / "registry"))
+
+        pl = PhanLoai(thuat_toan="logistic")
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50)
+        pl.huan_luyen(X, y)
+
+        ver = ql.dang_ky(pl, ten="test_model", metrics={"accuracy": 0.95})
+        assert ver is not None
+
+        mo_hinh = ql.tai("test_model")
+        assert mo_hinh is not None
+
+    def test_danh_sach(self, tmp_path):
+        from vietnamese_ai.registry.model_registry import QuanLyMoHinh
+
+        ql = QuanLyMoHinh(str(tmp_path / "registry"))
+
+        pl = PhanLoai(thuat_toan="logistic")
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50)
+        pl.huan_luyen(X, y)
+
+        ql.dang_ky(pl, ten="model_a", version="1.0")
+        ql.dang_ky(pl, ten="model_b", version="1.0")
+
+        ds = ql.danh_sach()
+        assert len(ds) == 2
+
+    def test_promote(self, tmp_path):
+        from vietnamese_ai.registry.model_registry import QuanLyMoHinh
+
+        ql = QuanLyMoHinh(str(tmp_path / "registry"))
+
+        pl = PhanLoai(thuat_toan="logistic")
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50)
+        pl.huan_luyen(X, y)
+
+        ql.dang_ky(pl, ten="model", version="1.0")
+        ql.promote("model", "1.0", "production")
+
+        mo_hinh = ql.tai("model", "production")
+        assert mo_hinh is not None
+
+
+class TestXuLyStream:
+    def test_them_du_lieu(self):
+        from vietnamese_ai.streaming.processor import XuLyStream
+
+        stream = XuLyStream(kich_thuoc_cua_so=50)
+        for gv in np.random.randn(20):
+            stream.them_du_lieu(gv)
+        assert len(stream) == 20
+
+    def test_thong_ke(self):
+        from vietnamese_ai.streaming.processor import XuLyStream
+
+        stream = XuLyStream()
+        stream.them_nhieu([1.0, 2.0, 3.0, 4.0, 5.0])
+        tk = stream.lay_thong_ke()
+        assert "trung_binh" in tk
+        assert tk["trung_binh"] == 3.0
+
+    def test_bat_thuong(self):
+        from vietnamese_ai.streaming.processor import XuLyStream
+
+        stream = XuLyStream(nguong_bat_thuong=2.0)
+        du_lieu = list(np.random.randn(20)) + [100.0]
+        ket_qua = stream.them_nhieu(du_lieu)
+        bat_thuong = [k for k in ket_qua if k["la_bat_thuong"]]
+        assert len(bat_thuong) >= 1
+
+
+class TestXuatONNX:
+    def test_khoi_tao(self):
+        from vietnamese_ai.export.onnx_export import XuatONNX
+
+        xuat = XuatONNX()
+        assert xuat is not None
+
+
+class TestMultiGPU:
+    def test_khoi_tao(self):
+        from vietnamese_ai.distributed.multi_gpu import MultiGPUTrainer
+
+        trainer = MultiGPUTrainer()
+        assert isinstance(trainer.so_gpu, int)
+
+    def test_cpu_fallback(self):
+        from vietnamese_ai.distributed.multi_gpu import MultiGPUTrainer
+
+        trainer = MultiGPUTrainer()
+        pl = PhanLoai(thuat_toan="logistic")
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50)
+        ket_qua = trainer.huan_luyen(pl, X, y)
+        assert "thiet_bi" in ket_qua
+
+
+class TestPhanTanHuanLuyen:
+    def test_huan_luyen(self):
+        from vietnamese_ai.distributed.distributed import PhanTanHuanLuyen
+
+        pt = PhanTanHuanLuyen(so_worker=2)
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=200)
+        ket_qua = pt.huan_luyen(PhanLoai, X, y, thuat_toan="logistic")
+        assert ket_qua["so_worker"] == 2
+        assert ket_qua["tong_mau"] == 200
+
+
+class TestModelHub:
+    def test_dang_ky_va_tim_kiem(self, tmp_path):
+        from vietnamese_ai.hub.model_hub import ModelHub
+
+        hub = ModelHub(str(tmp_path / "hub"))
+        pl = PhanLoai(thuat_toan="logistic")
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50)
+        pl.huan_luyen(X, y)
+
+        hub.dang_ky(pl, ten="test_model", tac_gia="test", tags=["test"])
+        ds = hub.tim_kiem(tags=["test"])
+        assert len(ds) >= 1
+
+    def test_danh_gia_sao(self, tmp_path):
+        from vietnamese_ai.hub.model_hub import ModelHub
+
+        hub = ModelHub(str(tmp_path / "hub"))
+        pl = PhanLoai(thuat_toan="logistic")
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50)
+        pl.huan_luyen(X, y)
+
+        hub.dang_ky(pl, ten="model_a", tac_gia="test")
+        hub.danh_gia_sao("test/model_a", sao=5)
+        ds = hub.tim_kiem()
+        assert ds[0]["danh_gia_sao"] == 5.0
+
+
+class TestPluginManager:
+    def test_dang_ky_plugin(self):
+        from vietnamese_ai.plugins.plugin_manager import PluginManager
+
+        pm = PluginManager()
+
+        @pm.dang_ky_plugin("test_plugin")
+        def test_func():
+            return 42
+
+        plugin = pm.lay_plugin("test_plugin")
+        assert plugin() == 42
+
+    def test_hook(self):
+        from vietnamese_ai.plugins.plugin_manager import PluginManager
+
+        pm = PluginManager()
+        called = []
+
+        @pm.hook("pre_train")
+        def on_pre_train(**kwargs):
+            called.append(True)
+
+        pm.chay_hook("pre_train")
+        assert len(called) == 1
+
+    def test_danh_sach(self):
+        from vietnamese_ai.plugins.plugin_manager import PluginManager
+
+        pm = PluginManager()
+
+        @pm.dang_ky_plugin("p1")
+        def f1():
+            pass
+
+        @pm.dang_ky_plugin("p2")
+        def f2():
+            pass
+
+        ds = pm.danh_sach()
+        assert len(ds) == 2
+
+
+class TestHeThongXacThuc:
+    def test_dang_ky_va_dang_nhap(self, tmp_path):
+        from vietnamese_ai.enterprise.auth import HeThongXacThuc
+
+        auth = HeThongXacThuc(str(tmp_path / "auth"))
+        auth.dang_ky("admin", "pass123", vai_tro="admin")
+        token = auth.dang_nhap("admin", "pass123")
+        assert len(token) > 0
+
+    def test_kiem_tra_quyen(self, tmp_path):
+        from vietnamese_ai.enterprise.auth import HeThongXacThuc
+
+        auth = HeThongXacThuc(str(tmp_path / "auth"))
+        auth.dang_ky("viewer", "pass", vai_tro="viewer")
+        token = auth.dang_nhap("viewer", "pass")
+
+        assert auth.kiem_tra_quyen(token, "view") is True
+        assert auth.kiem_tra_quyen(token, "train") is False
+
+    def test_api_key(self, tmp_path):
+        from vietnamese_ai.enterprise.auth import HeThongXacThuc
+
+        auth = HeThongXacThuc(str(tmp_path / "auth"))
+        auth.dang_ky("dev", "pass", vai_tro="developer")
+        api_key = auth.tao_api_key("dev")
+        assert api_key.startswith("vai_")
+
+
+class TestNhatKyHoatDong:
+    def test_ghi_va_tim_kiem(self, tmp_path):
+        from vietnamese_ai.enterprise.audit import NhatKyHoatDong
+
+        nk = NhatKyHoatDong(str(tmp_path / "audit"))
+        nk.ghi("train", "admin", "Huấn luyện mô hình")
+        nk.ghi("predict", "user1", "Dự đoán dữ liệu mới")
+
+        ket_qua = nk.tim_kiem(nguoi_dung="admin")
+        assert len(ket_qua) == 1
+
+    def test_thong_ke(self, tmp_path):
+        from vietnamese_ai.enterprise.audit import NhatKyHoatDong
+
+        nk = NhatKyHoatDong(str(tmp_path / "audit"))
+        nk.ghi("train", "admin", "Test")
+        nk.ghi("predict", "user1", "Test")
+
+        tk = nk.thong_ke()
+        assert tk["tong_ban_ghi"] == 2
+
+
+class TestCloudDeployment:
+    def test_tao_docker_config(self, tmp_path):
+        from pathlib import Path
+
+        from vietnamese_ai.cloud.deployment import CloudDeployment
+
+        deploy = CloudDeployment()
+        duong_dan = deploy.tao_docker_config("test_model", str(tmp_path / "deploy"))
+        assert Path(duong_dan).exists()
+        assert (Path(duong_dan) / "Dockerfile").exists()
+
+
+class TestMarketplace:
+    def test_dang_ky_va_tim_kiem(self, tmp_path):
+        from vietnamese_ai.cloud.marketplace import Marketplace
+
+        mp = Marketplace(str(tmp_path / "market"))
+        mp.dang_ky(ten="sentiment", loai="model", tac_gia="test", tags=["nlp"])
+        mp.dang_ky(ten="prices", loai="dataset", tac_gia="test", tags=["finance"])
+
+        ds = mp.tim_kiem(category="model")
+        assert len(ds) == 1
+        assert ds[0]["ten"] == "sentiment"
+
+    def test_danh_gia(self, tmp_path):
+        from vietnamese_ai.cloud.marketplace import Marketplace
+
+        mp = Marketplace(str(tmp_path / "market"))
+        mp.dang_ky(ten="test", loai="model")
+        mp.danh_gia("anonymous/test", sao=4, binh_luan="Hay")
+
+        ds = mp.tim_kiem()
+        assert ds[0]["danh_gia_sao"] == 4.0
+
+    def test_thong_ke(self, tmp_path):
+        from vietnamese_ai.cloud.marketplace import Marketplace
+
+        mp = Marketplace(str(tmp_path / "market"))
+        mp.dang_ky(ten="a", loai="model")
+        mp.dang_ky(ten="b", loai="dataset")
+
+        tk = mp.thong_ke()
+        assert tk["tong_items"] == 2
