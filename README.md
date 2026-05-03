@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-4.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-9.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-230%2F230-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-352%2F352-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
@@ -143,6 +143,50 @@ pip install -e ".[all]"
 | Module | Chức năng |
 |---|---|
 | `VietnameseLLM` | N-gram language model: text generation, completion, perplexity, templates |
+
+### PyTorch Training & Fine-tuning (Phase 7-8)
+
+| Module | Chức năng |
+|---|---|
+| `HuanLuyenPyTorch` | PyTorch trainer: GPU, mixed precision, gradient accumulation, early stopping, checkpoint |
+| `UnslothWrapper` | Unsloth integration: 2x faster fine-tune, LoRA, QLoRA, quantization |
+| `XuatGGUF` | GGUF export/import: Q4_K, Q5_K, Q8_0 quantization cho llama.cpp |
+| `HuggingFaceWrapper` | HuggingFace: load pretrained, fine-tune, push to Hub |
+| `TransformerModel` | Transformer: Multi-Head Attention, Encoder, Decoder |
+| `VietnameseTokenizer` | Tokenizer: BPE, WordPiece cho tiếng Việt |
+
+### PEFT & Instruction Tuning (Phase 6)
+
+| Module | Chức năng |
+|---|---|
+| `PEFTConfig` | Cấu hình LoRA, QLoRA, Prefix Tuning, Prompt Tuning |
+| `LoRAPeft` | Enhanced LoRA PEFT: auto-detect layers, merge/unmerge, save/load adapter |
+| `InstructionTuningTrainer` | Instruction tuning: Alpaca/ShareGPT, warmup + cosine decay |
+
+### SFT, DPO & RLHF (Phase 7)
+
+| Module | Chức năng |
+|---|---|
+| `SFTTrainer` | Supervised Fine-Tuning: cross-entropy, gradient accumulation, mixed precision |
+| `DPOTrainer` | Direct Preference Optimization: Bradley-Terry loss, beta annealing |
+| `RewardModel` | Reward model: Bradley-Terry training, score normalization |
+| `RLHFPipeline` | Full RLHF: SFT → Reward Model → DPO end-to-end |
+
+### GPT Pre-training (Phase 8)
+
+| Module | Chức năng |
+|---|---|
+| `GPTModel` | GPT decoder-only: causal attention, GELU, pre-norm, weight tying |
+| `PreTrainer` | Pre-training trainer: causal LM, warmup + cosine, checkpointing |
+| `TextDataset` | Text dataset: sliding window, character-level vocab, batch iterator |
+
+### Vietnamese LLM & Evaluation (Phase 9)
+
+| Module | Chức năng |
+|---|---|
+| `ModelConfig` | Model presets: tiny(10M), small(125M), medium(350M), large(1.3B), xl(2.7B), 7B |
+| `LMEvalHarness` | LM evaluation: perplexity, classification, generation, QA, cloze, few-shot |
+| `BenchmarkRunner` | Benchmark runner: perplexity, generation, sentiment, speed, QA |
 
 ### Interpretability & Augmentation
 
@@ -441,6 +485,8 @@ vietnamese-ai/
 │   ├── nlp/               # PhanTichCamXuc, PhoBERTWrapper
 │   ├── embeddings/        # Word2VecTiengViet, FastTextTiengViet
 │   ├── deep_learning/     # MangSau, LopDense, LopDropout
+│   ├── fine_tuning/       # HuanLuyenPyTorch, UnslothWrapper, HuggingFaceWrapper, PEFT, SFT, DPO, RLHF
+│   ├── transformer/       # MultiHeadAttention, TransformerModel, GPTModel, PreTrainer, TextDataset, VietnameseTokenizer
 │   ├── vision/            # PhanLoaiHinhAnh
 │   ├── timeseries/        # DuDoanChuoiThoiGian
 │   ├── mobile/            # TriKhaiDiDong (TFLite, CoreML, ONNX Mobile)
@@ -448,9 +494,9 @@ vietnamese-ai/
 │   ├── realtime/          # PipelineThoiGianThuc (Message Queue, Feature Store)
 │   ├── saas/              # NenTangDichVu (Cloud Platform SaaS)
 │   ├── studio/            # StudioKeoTha (No-code Studio)
-│   ├── llm/               # VietnameseLLM (N-gram LM, text generation)
+│   ├── llm/               # VietnameseLLM, ModelConfig, LMEvalHarness, BenchmarkRunner
 │   ├── streaming/         # XuLyStream (real-time processing)
-│   ├── export/            # XuatONNX
+│   ├── export/            # XuatONNX, XuatGGUF
 │   ├── registry/          # QuanLyMoHinh (Model Registry)
 │   ├── cloud/             # CloudDeployment, Marketplace
 │   ├── distributed/       # PhanTanHuanLuyen, MultiGPUTrainer
@@ -466,7 +512,7 @@ vietnamese-ai/
 │   ├── datasets/          # DuLieuMau
 │   ├── api/               # ServerDonGian
 │   └── cli/               # CLI (vai command)
-├── tests/                 # 230 tests
+├── tests/                 # 270 tests
 ├── examples/              # Ví dụ sử dụng
 ├── Dockerfile
 ├── docker-compose.yml
@@ -497,14 +543,14 @@ ruff check vietnamese_ai/ tests/
 ```
 
 ```
-============================= 230 passed ==============================
+============================= 352 passed ==============================
 ```
 
 ---
 
 ## Roadmap
 
-### Đã hoàn thành (v1.0 - v4.0)
+### Đã hoàn thành (v1.0 - v9.0)
 
 | Version | Tính năng |
 |---|---|
@@ -514,13 +560,19 @@ ruff check vietnamese_ai/ tests/
 | v2.0 | Multi-GPU, Distributed, Model Hub, Plugin System, Cloud Deploy, Marketplace, Enterprise |
 | v3.0 | Mobile/Edge, NAS, Federated Learning, Real-time Pipeline |
 | v4.0 | Cloud Platform SaaS, No-code Studio, Vietnamese LLM |
+| v5.0 | PyTorch Trainer, Unsloth, GGUF, HuggingFace, Transformer, Tokenizer |
+| v6.0 | PEFTConfig, LoRAPeft, Instruction Tuning (Alpaca/ShareGPT) |
+| v7.0 | SFT, DPO, Reward Model, RLHF Pipeline |
+| v8.0 | GPT Decoder-Only Pre-training, TextDataset, PreTrainer |
+| v9.0 | Vietnamese LLM Configs (125M-7B), LM Eval Harness, Benchmark Runner |
 
-### Vision tương lai
+### Tech Stack tương lai
 
-- **Vietnamese AI Cloud**: Platform SaaS hoàn chỉnh với billing, monitoring
-- **Edge AI Runtime**: Chạy mô hình trên thiết bị IoT, mobile native
-- **Vietnamese LLM lớn**: Fine-tune LLM cho tiếng Việt với RLHF
-- **AI Education**: Platform dạy AI tiếng Việt cho sinh viên
+- **Fine-tuning**: Unsloth (2x nhanh), LoRA, QLoRA, PEFT
+- **Quantization**: GGUF (llama.cpp), GPTQ, AWQ
+- **Training**: DeepSpeed ZeRO, FSDP, Gradient Checkpointing
+- **Inference**: vLLM, TGI, llama.cpp
+- **Models**: Llama, Mistral, Qwen, Gemma, PhoGPT
 
 ---
 

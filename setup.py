@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="vietnamese-ai",
-    version="4.0.0",
+    version="9.0.0",
     author="EvoNet AI Team",
     author_email="huynhduongphong9@gmail.com",
     description="Framework AI thuần tiếng Việt cho Python - Học máy đơn giản, API tiếng Việt, Production-ready",

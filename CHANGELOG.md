@@ -2,38 +2,118 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v9.0.0 (2026-05-04)
+
+### Vietnamese LLM Configs, LM Eval Harness & Benchmarks
+
+**Model Configs (`ModelConfig`):**
+- Pre-defined presets: vnlm-tiny (10M), vnlm-small (125M), vnlm-medium (350M), vnlm-large (1.3B), vnlm-xl (2.7B), vnlm-7b (6.8B)
+- Parameter counting (so_tham_so, so_tham_so_str)
+- Config serialization (to_dict, from_dict)
+
+**LM Evaluation Harness (`LMEvalHarness`):**
+- Multi-task evaluation framework (5 built-in tasks)
+- Custom task registration
+- Perplexity, classification, generation, QA, cloze evaluation
+- Few-shot support
+- Result aggregation and reporting
+
+**Benchmark Runner (`BenchmarkRunner`):**
+- Vietnamese-specific benchmarks (corpus, QA, sentiment)
+- Perplexity, generation quality, sentiment accuracy
+- Inference speed benchmarking (latency p50/p95/p99)
+- Comprehensive report generation
+
+## v8.0.0 (2026-05-04)
+
+### GPT Pre-training từ đầu
+
+**GPT Model (`GPTModel`):**
+- GPT-style decoder-only architecture (NumPy)
+- Causal self-attention with masking
+- GELU activation, pre-norm LayerNorm
+- Sinusoidal positional encoding
+- Weight tying (embedding ↔ output projection)
+- Autoregressive text generation (top-k, nucleus sampling)
+- Cross-entropy loss computation
+
+**Pre-training Trainer (`PreTrainer`):**
+- Causal language modeling training loop
+- Learning rate warmup + cosine decay
+- Periodic evaluation on validation set
+- Callback system
+
+**Text Dataset (`TextDataset`):**
+- Character-level vocabulary building
+- Sliding window chunking
+- Train/val split
+- Batch iteration with input_ids/targets
+- Encode/decode functions
+
+## v7.0.0 (2026-05-04)
+
+### SFT, DPO & RLHF Training Pipeline
+
+**SFT Trainer (`SFTTrainer`):**
+- Supervised Fine-Tuning training loop
+- Cross-entropy loss on instruction data
+- Gradient accumulation and clipping
+- Learning rate warmup + cosine decay
+- Validation evaluation
+
+**DPO Trainer (`DPOTrainer`):**
+- Direct Preference Optimization
+- Bradley-Terry preference loss
+- KL divergence regularization (beta parameter)
+- Label smoothing support
+- Reward margin tracking
+
+**Reward Model (`RewardModel`):**
+- Reward model training from preference pairs
+- Score normalization (mean/std)
+- Preference accuracy tracking
+- Evaluation with normalized scores
+
+**RLHF Pipeline (`RLHFPipeline`):**
+- Full RLHF: SFT → Reward Model → DPO
+- Modular design (chạy từng bước hoặc full pipeline)
+- Training history aggregation
+- End-to-end results reporting
+
+## v6.0.0 (2026-05-04)
+
+### PEFT & Instruction Tuning
+
+**PEFT Config (`PEFTConfig`):**
+- Unified configuration cho LoRA, QLoRA, Prefix Tuning, Prompt Tuning
+- Preset constructors: `PEFTConfig.lora()`, `PEFTConfig.qlora()`
+- Validation và serialization (to_dict, from_dict)
+
+**LoRA PEFT (`LoRAPeft`):**
+- Enhanced LoRA integration với PyTorch nn.Module
+- Auto-detect và apply LoRA lên Linear layers
+- Merge/Unmerge weights
+- Save/Load adapter weights only
+- Trainable parameter statistics
+
+**Instruction Tuning Trainer (`InstructionTuningTrainer`):**
+- Support Alpaca và ShareGPT formats
+- Gradient accumulation với warmup + cosine decay
+- PyTorch và NumPy backends
+- Callback system
+
+## v5.0.0 (2026-05-04)
+
+### PyTorch Trainer, Unsloth, GGUF, HuggingFace, Transformer, Tokenizer
+
+- PyTorch Trainer (GPU, Mixed Precision, Gradient Accumulation, Early Stopping)
+- Unsloth Integration (2x faster fine-tune, LoRA/QLoRA)
+- GGUF Export/Import (quantize Q4_K, Q5_K, Q8_0)
+- HuggingFace Integration (load pretrained, fine-tune, push to Hub)
+- Transformer Architecture (Multi-Head Attention, Encoder, Decoder)
+- Vietnamese Tokenizer (BPE, WordPiece)
+
 ## v4.0.0 (2026-05-04)
-
-### Cloud Platform, No-code Studio & Vietnamese LLM
-
-**Cloud Platform SaaS (`NenTangDichVu`):**
-- Multi-tenant workspace management (create, delete, upgrade plans)
-- API key generation and authentication
-- Model registry per workspace
-- Model deployment management
-- Usage tracking (API calls, predictions, storage)
-- Quota enforcement per plan (free/starter/pro/enterprise)
-- Data persistence to JSON
-
-**No-code Studio (`StudioKeoTha`):**
-- Visual node-based pipeline builder (6 node types: data, preprocessing, model, evaluate, visual, export)
-- Node connection management (connect, disconnect)
-- Topological sort execution engine
-- 3 built-in templates (classification, regression, model comparison)
-- Pipeline save/load to JSON
-- Canvas state management
-
-**Vietnamese LLM (`VietnameseLLM`):**
-- N-gram language model (bigram, trigram, 4-gram)
-- Text generation with temperature control
-- Multi-choice text completion
-- Perplexity calculation
-- Next-word prediction (top-k)
-- Template-based generation (5 built-in templates)
-- Model save/load to JSON
-
-- Thêm 71 test cases mới (tổng: 230 tests)
-- Version bump: 4.0.0
 
 ## v3.0.0 (2026-05-04)
 

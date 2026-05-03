@@ -46,6 +46,10 @@ nav:
     - Cloud SaaS: guides/saas.md
     - No-code Studio: guides/studio.md
     - Vietnamese LLM: guides/llm.md
+    - PEFT & Instruction Tuning: guides/peft.md
+    - SFT, DPO & RLHF: guides/sft-dpo-rlhf.md
+    - GPT Pre-training: guides/gpt-pretraining.md
+    - Evaluation & Benchmarks: guides/evaluation.md
   - API Reference:
     - Models: api/models.md
     - Preprocessing: api/preprocessing.md
@@ -58,6 +62,10 @@ nav:
     - Studio: api/studio.md
     - LLM: api/llm.md
     - NAS: api/nas.md
+    - PEFT: api/peft.md
+    - Training (SFT/DPO/RLHF): api/training.md
+    - GPT & PreTrainer: api/gpt.md
+    - Evaluation: api/evaluation.md
   - Changelog: changelog.md
 
 markdown_extensions:

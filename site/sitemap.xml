@@ -13,7 +13,15 @@
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/api/evaluation/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
          <loc>https://phonghhd.github.io/vietnamese-ai/api/federated/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/api/gpt/</loc>
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
@@ -33,6 +41,10 @@
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/api/peft/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
          <loc>https://phonghhd.github.io/vietnamese-ai/api/preprocessing/</loc>
          <lastmod>2026-05-03</lastmod>
     </url>
@@ -46,6 +58,10 @@
     </url>
     <url>
          <loc>https://phonghhd.github.io/vietnamese-ai/api/studio/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/api/training/</loc>
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
@@ -69,7 +85,15 @@
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/guides/evaluation/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
          <loc>https://phonghhd.github.io/vietnamese-ai/guides/federated/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/guides/gpt-pretraining/</loc>
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
@@ -78,6 +102,10 @@
     </url>
     <url>
          <loc>https://phonghhd.github.io/vietnamese-ai/guides/mobile/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/guides/peft/</loc>
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
@@ -94,6 +122,10 @@
     </url>
     <url>
          <loc>https://phonghhd.github.io/vietnamese-ai/guides/saas/</loc>
+         <lastmod>2026-05-03</lastmod>
+    </url>
+    <url>
+         <loc>https://phonghhd.github.io/vietnamese-ai/guides/sft-dpo-rlhf/</loc>
          <lastmod>2026-05-03</lastmod>
     </url>
     <url>
