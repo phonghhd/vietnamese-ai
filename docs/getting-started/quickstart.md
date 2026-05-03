@@ -57,6 +57,38 @@ pipe.fit(X_train, y_train)
 pipe.luu("model.pkl")
 ```
 
+## No-code Studio
+
+```python
+from vietnamese_ai import StudioKeoTha
+
+studio = StudioKeoTha()
+studio.tai_template("phan_loai_co_ban")
+ket_qua = studio.chay()
+print(ket_qua['trang_thai'])  # 'thanh_cong'
+```
+
+## Vietnamese LLM
+
+```python
+from vietnamese_ai import VietnameseLLM
+
+llm = VietnameseLLM(bac=3)
+llm.huan_luyen(cac_van_ban, so_vong=5)
+van_ban = llm.sinh_van_ban("học máy là", do_dai=50)
+goi_y = llm.lay_tu_ke_tiep("trí tuệ nhân", top_n=5)
+```
+
+## Federated Learning
+
+```python
+from vietnamese_ai import HocLienKet, PhanLoai
+
+hl = HocLienKet(so_client=5, so_vong=10)
+ket_qua = hl.huan_luyen(PhanLoai, X, y, thuat_toan="logistic")
+print(f"Điểm global: {ket_qua['diem_toan_cuc']:.4f}")
+```
+
 ## CLI
 
 ```bash
@@ -64,4 +96,5 @@ vai info
 vai train --data data.csv --model logistic --output model.pkl
 vai predict --model model.pkl --input new.csv
 vai serve --model model.pkl --port 8080
+vai web --port 5000
 ```

@@ -1,5 +1,5 @@
 site_name: Vietnamese AI Framework
-site_description: Framework AI thuần tiếng Việt cho Python
+site_description: Framework AI thuần tiếng Việt cho Python - Học máy đơn giản, API tiếng Việt, Production-ready
 site_url: https://phonghhd.github.io/vietnamese-ai
 repo_url: https://github.com/phonghhd/vietnamese-ai
 repo_name: phonghhd/vietnamese-ai
@@ -40,11 +40,24 @@ nav:
     - Xử lý văn bản: guides/text-processing.md
     - AutoML: guides/automl.md
     - Pipeline: guides/pipeline.md
+    - Mobile/Edge: guides/mobile.md
+    - Federated Learning: guides/federated.md
+    - Real-time Pipeline: guides/realtime.md
+    - Cloud SaaS: guides/saas.md
+    - No-code Studio: guides/studio.md
+    - Vietnamese LLM: guides/llm.md
   - API Reference:
     - Models: api/models.md
     - Preprocessing: api/preprocessing.md
     - Core: api/core.md
     - Utils: api/utils.md
+    - Mobile/Edge: api/mobile.md
+    - Federated: api/federated.md
+    - Real-time: api/realtime.md
+    - Cloud SaaS: api/saas.md
+    - Studio: api/studio.md
+    - LLM: api/llm.md
+    - NAS: api/nas.md
   - Changelog: changelog.md
 
 markdown_extensions:
