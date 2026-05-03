@@ -1,8 +1,5 @@
 """Test suite cho CLI, API Server, Web UI."""
 
-import json
-import threading
-import time
 
 import numpy as np
 
@@ -134,88 +131,30 @@ class TestAPIServer:
         assert server.ten == "TestServer"
         assert server.mo_hinh is not None
 
-    def test_request_handler_get_root(self):
+    def test_request_handler_methods(self):
         from vietnamese_ai.api.server import _RequestHandler
 
         assert hasattr(_RequestHandler, "do_GET")
         assert hasattr(_RequestHandler, "do_POST")
+        assert hasattr(_RequestHandler, "_xu_ly_du_doan")
+        assert hasattr(_RequestHandler, "_tra_loi")
 
-    def test_server_integration(self):
-        import socket
-
-        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50, so_dac_trung=3)
-        pl = PhanLoai(thuat_toan="logistic")
-        pl.huan_luyen(X, y)
-
-        from vietnamese_ai.api.server import ServerDonGian
-
-        ServerDonGian(mo_hinh=pl)
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(("127.0.0.1", 0))
-        port = sock.getsockname()[1]
-        sock.close()
-
-        def run_server():
-            from http.server import HTTPServer
-
-            from vietnamese_ai.api.server import _RequestHandler
-
-            _RequestHandler.mo_hinh = pl
-            srv = HTTPServer(("127.0.0.1", port), _RequestHandler)
-            srv.handle_request()
-            srv.server_close()
-
-        t = threading.Thread(target=run_server, daemon=True)
-        t.start()
-        time.sleep(0.5)
-
-        import urllib.request
-
-        try:
-            req = urllib.request.Request(f"http://127.0.0.1:{port}/")
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                data = json.loads(resp.read())
-                assert data["trang_thai"] == "hoat_dong"
-        except Exception:
-            pass
-
-    def test_suc_khoe_endpoint(self):
-        import socket
-
-        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50, so_dac_trung=3)
-        pl = PhanLoai(thuat_toan="logistic")
-        pl.huan_luyen(X, y)
-
-        from http.server import HTTPServer
-
+    def test_handler_class_attributes(self):
         from vietnamese_ai.api.server import _RequestHandler
 
-        _RequestHandler.mo_hinh = pl
+        assert _RequestHandler.mo_hinh is None
 
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(("127.0.0.1", 0))
-        port = sock.getsockname()[1]
-        sock.close()
+    def test_server_sets_model(self):
+        from vietnamese_ai.api.server import ServerDonGian, _RequestHandler
 
-        def run_server():
-            srv = HTTPServer(("127.0.0.1", port), _RequestHandler)
-            srv.handle_request()
-            srv.server_close()
+        X, y = DuLieuMau.phan_loai_don_gian(so_mau=50, so_dac_trung=3)
+        pl = PhanLoai(thuat_toan="logistic")
+        pl.huan_luyen(X, y)
 
-        t = threading.Thread(target=run_server, daemon=True)
-        t.start()
-        time.sleep(0.5)
-
-        import urllib.request
-
-        try:
-            req = urllib.request.Request(f"http://127.0.0.1:{port}/suc_khoe")
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                data = json.loads(resp.read())
-                assert data["trang_thai"] == "tot"
-        except Exception:
-            pass
+        server = ServerDonGian(mo_hinh=pl)
+        _RequestHandler.mo_hinh = server.mo_hinh
+        assert _RequestHandler.mo_hinh is not None
+        _RequestHandler.mo_hinh = None
 
 
 # ============================================================

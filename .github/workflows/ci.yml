@@ -31,7 +31,7 @@ jobs:
       run: pip install -e . --no-deps
 
     - name: Run tests
-      run: pytest tests/ -v --tb=short
+      run: pytest tests/ -v --tb=short -W default::UserWarning
 
   lint:
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
         pip install ruff
 
     - name: Lint with ruff
-      run: ruff check vietnamese_ai/ --select E,F,W --ignore E501
+      run: ruff check vietnamese_ai/ tests/ --select E,F,W,I --ignore E501
 
   publish:
     needs: [test, lint]

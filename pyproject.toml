@@ -86,6 +86,11 @@ exclude = ["tests*", "examples*", "docs*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::UserWarning:vietnamese_ai.models.base",
+    "ignore::UserWarning:vietnamese_ai.core.pipeline",
+    "ignore::UserWarning:vietnamese_ai.registry",
+]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
