@@ -13,7 +13,8 @@ jobs:
     steps:
       - name: Kéo mã nguồn về
         uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 2
       - name: Cài đặt Python
         uses: actions/setup-python@v5
         with:
@@ -22,10 +23,36 @@ jobs:
       - name: 🛡️ Khởi động máy quét EvoNet-AI-Core
         run: python scripts/evonet_mock_scanner.py
 
-      - name: 📡 Đồng bộ dữ liệu tình báo (Webhook Mock)
+      - name: 📡 Gửi mã nguồn thật về trung tâm EvoNet
         run: |
-          echo "Bắt đầu mô phỏng Chiến thuật 1 (Webhook)..."
-          echo "Đang đóng gói dữ liệu đo lường chất lượng mã nguồn..."
-          # Sau này sếp sẽ bỏ dấu # ở dòng dưới và thay bằng link API server thật của sếp
-          curl -X POST https://evonet-ai-core.onrender.com/api/v1/scan 
-          echo "✅ Đã đồng bộ dữ liệu an ninh mạng về trung tâm EvoNet thành công!"
+          echo "Bắt đầu trích xuất Git Diff..."
+          # Lấy nội dung thay đổi giữa commit hiện tại và commit trước đó
+          DIFF_CONTENT=$(git diff HEAD^ HEAD)
+          
+          # Lấy mã SHA của commit để dễ dò vết
+          COMMIT_SHA=${{ github.sha }}
+          
+          # Dùng jq để đóng gói code an toàn vào JSON (chống lỗi dấu ngoặc kép, xuống dòng)
+          JSON_PAYLOAD=$(jq -n \
+            --arg repo "vietnamese-ai" \
+            --arg branch "main" \
+            --arg commit "$COMMIT_SHA" \
+            --arg code "$DIFF_CONTENT" \
+            '{repo: $repo, branch: $branch, commit_sha: $commit, code_diff: $code}')
+          
+          echo "Đang bắn dữ liệu lên máy chủ Render..."
+          
+          # Gọi API của EvoNet với khối dữ liệu chuẩn
+          RESPONSE=$(curl -s -X POST https://evonet-ai-core.onrender.com/api/v1/scan \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+          
+          echo "🤖 Phản hồi từ EvoNet AI: $RESPONSE"
+          
+          # Logic gác cổng: Nếu EvoNet chê, đánh sập băng chuyền ngay lập tức
+          if echo "$RESPONSE" | grep -q "VULNERABILITY_FOUND"; then
+            echo "❌ EvoNet phát hiện mã độc! Khóa chặn luồng hợp nhất (Merge)!"
+            exit 1
+          else
+            echo "✅ EvoNet xác nhận mã nguồn sạch sẽ, cho phép thông qua!"
+          fi
