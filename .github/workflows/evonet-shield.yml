@@ -31,14 +31,19 @@ jobs:
           
           # Lấy mã SHA của commit để dễ dò vết
           COMMIT_SHA=${{ github.sha }}
+
+          # MỚI: Tự động lấy tên cái file vừa bị sếp sửa/thêm mã độc (lấy file đầu tiên)
+          CHANGED_FILE=$(git diff HEAD^ HEAD --name-only | head -n 1)
+          echo "Tập tin bị theo dõi: $CHANGED_FILE"
           
-          # Dùng jq để đóng gói code an toàn vào JSON (chống lỗi dấu ngoặc kép, xuống dòng)
+          # Dùng jq để đóng gói an toàn, THÊM BIẾN file_path VÀO CỤM NÀY
           JSON_PAYLOAD=$(jq -n \
             --arg repo "vietnamese-ai" \
             --arg branch "main" \
             --arg commit "$COMMIT_SHA" \
             --arg code "$DIFF_CONTENT" \
-            '{repo: $repo, branch: $branch, commit_sha: $commit, code_diff: $code}')
+            --arg file_path "$CHANGED_FILE" \
+            '{repo: $repo, branch: $branch, commit_sha: $commit, code_diff: $code, file_path: $file_path}')
           
           echo "Đang bắn dữ liệu lên máy chủ Render..."
           
