@@ -371,7 +371,7 @@ class HuanLuyenPyTorch:
 
     def tai_checkpoint(self, duong_dan: str, model: nn.Module) -> None:
         """Tải checkpoint."""
-        checkpoint = torch.load(duong_dan, map_location=self.thiet_bi, weights_only=False)
+        checkpoint = torch.load(duong_dan, map_location=self.thiet_bi, weights_only=True)
         model.load_state_dict(checkpoint["model_state_dict"])
         self._model = model.to(self.thiet_bi)
         self._history = checkpoint.get("history", self._history)
