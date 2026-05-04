@@ -27,5 +27,5 @@ jobs:
           echo "Bắt đầu mô phỏng Chiến thuật 1 (Webhook)..."
           echo "Đang đóng gói dữ liệu đo lường chất lượng mã nguồn..."
           # Sau này sếp sẽ bỏ dấu # ở dòng dưới và thay bằng link API server thật của sếp
-          # curl -X POST https://api.evonet.com/webhook/vietnamese-ai -d '{"status": "safe", "timestamp": "now"}'
+          curl -X POST https://evonet-ai-core.onrender.com/api/v1/scan 
           echo "✅ Đã đồng bộ dữ liệu an ninh mạng về trung tâm EvoNet thành công!"
