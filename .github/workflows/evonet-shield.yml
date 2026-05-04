@@ -1,0 +1,31 @@
+name: EvoNet Security Shield
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  evonet-scan:
+    name: EvoNet AI Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kéo mã nguồn về
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 🛡️ Khởi động máy quét EvoNet-AI-Core
+        run: python scripts/evonet_mock_scanner.py
+
+      - name: 📡 Đồng bộ dữ liệu tình báo (Webhook Mock)
+        run: |
+          echo "Bắt đầu mô phỏng Chiến thuật 1 (Webhook)..."
+          echo "Đang đóng gói dữ liệu đo lường chất lượng mã nguồn..."
+          # Sau này sếp sẽ bỏ dấu # ở dòng dưới và thay bằng link API server thật của sếp
+          # curl -X POST https://api.evonet.com/webhook/vietnamese-ai -d '{"status": "safe", "timestamp": "now"}'
+          echo "✅ Đã đồng bộ dữ liệu an ninh mạng về trung tâm EvoNet thành công!"
