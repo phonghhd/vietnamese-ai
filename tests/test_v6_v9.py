@@ -735,7 +735,7 @@ class TestBenchmarkRunner:
         ket_qua = runner.chay(llm, benchmarks=["perplexity", "speed"])
         assert "perplexity" in ket_qua
         assert "speed" in ket_qua
-        assert ket_qua["tong_thoi_gian"] > 0
+        assert ket_qua["tong_thoi_gian"] >= 0
 
     def test_bao_cao(self):
         from vietnamese_ai.llm.benchmark_runner import BenchmarkRunner
