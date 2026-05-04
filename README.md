@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-9.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-10.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
   <img src="https://img.shields.io/badge/tests-376%2F376-brightgreen.svg" alt="tests">
@@ -202,6 +202,60 @@ pip install -e ".[all]"
 | `XuLyVanBan` | Tách từ (underthesea), TF-IDF, stopwords, sentiment, POS tagging |
 | `XuLySo` | Min-Max, Z-Score, missing values, one-hot, chia dữ liệu |
 | `TaoDacTrung` | Polynomial, interaction, PCA, variance selection |
+
+### RAG Pipeline (v10.0)
+
+| Module | Chức năng |
+|---|---|
+| `CSDLVector` | Vector database: cosine/L2/inner_product, save/load, metadata |
+| `CatVanBan` | Text chunking: theo câu/đoạn/từ/ký tự, sliding window |
+| `TrichXuat` | Retriever: semantic, keyword (BM25), hybrid search |
+| `SapXepLai` | Reranker: MMR, cross-encoder, keyword, position-aware |
+| `RAGPipeline` | Full RAG: chunk → embed → retrieve → rerank → generate |
+
+### Serving & Streaming (v10.0)
+
+| Module | Chức năng |
+|---|---|
+| `MayChuBatch` | Dynamic batching server: multi-worker, latency tracking |
+| `MayChuStream` | SSE streaming: token-by-token, multi-client |
+| `BoGioiHanTocDo` | Rate limiter: token bucket, sliding window, per-client |
+
+### Prompt Engineering (v10.0)
+
+| Module | Chức năng |
+|---|---|
+| `MauPrompt` | Prompt templates: {{biến}}, conditional, 6 built-in templates |
+| `ChuoiPrompt` | Chain-of-thought, few-shot, sequential chains |
+| `LuongAnToan` | Guardrails: content filter, PII detection, format validation |
+| `PhanTichDauRa` | Output parser: JSON, markdown tables, code blocks, lists |
+
+### NLP Extensions (v10.0)
+
+| Module | Chức năng |
+|---|---|
+| `NhanDienThucThe` | NER: regex + dictionary + underthesea, 8 entity types |
+| `HoiDapTiengViet` | QA: extractive, TF-IDF ranking, knowledge base |
+| `TomTatVanBan` | Summarization: extractive (TF-IDF + position) + abstractive |
+| `DichThuat` | Translation: dictionary + LLM + hybrid, en/vi |
+| `KiemTraChinhTa` | Spell check: edit distance, tone marks, auto-learn |
+
+### Model Compression (v10.0)
+
+| Module | Chức năng |
+|---|---|
+| `HocRutGon` | Knowledge Distillation: soft labels, temperature, ensemble |
+| `CatTiaMoHinh` | Pruning: magnitude, structured, iterative, random |
+
+### Production Hardening (v10.0)
+
+| Module | Chức năng |
+|---|---|
+| `KiemTraSucKhoe` | Health check: readiness/liveness probes, system monitoring |
+| `MachCat` | Circuit breaker: 3 states, auto-recovery, fallback |
+| `LoggerCauTruc` | Structured logging: JSON, timing, context, request tracking |
+| `QuanLyMetrics` | Metrics: counter, gauge, histogram, Prometheus export |
+| `LamNongModel` | Model warm-up: pre-load, auto-refresh, pool management |
 
 ### CLI
 
@@ -543,7 +597,7 @@ ruff check vietnamese_ai/ tests/
 ```
 
 ```
-============================= 376 passed ==============================
+============================= 472 passed ==============================
 ```
 
 ---
@@ -565,6 +619,7 @@ ruff check vietnamese_ai/ tests/
 | v7.0 | SFT, DPO, Reward Model, RLHF Pipeline |
 | v8.0 | GPT Decoder-Only Pre-training, TextDataset, PreTrainer |
 | v9.0 | Vietnamese LLM Configs (125M-7B), LM Eval Harness, Benchmark Runner |
+| v10.0 | RAG Pipeline, Serving & Streaming, Prompt Engineering, NLP Extensions (NER/QA/Summarization/Translation/Spelling), Knowledge Distillation, Model Pruning, Production Hardening (Health Check, Circuit Breaker, Structured Logging, Metrics, Warm-up) |
 
 ### Tech Stack tương lai
 

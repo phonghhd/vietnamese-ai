@@ -12,7 +12,7 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
-__version__ = "9.0.0"
+__version__ = "10.0.0"
 __author__ = "EvoNet AI Team"
 
 
@@ -39,6 +39,11 @@ def __getattr__(name: str):
         # NLP
         "PhanTichCamXuc": ("vietnamese_ai.nlp.sentiment", "PhanTichCamXuc"),
         "PhoBERTWrapper": ("vietnamese_ai.nlp.pretrained.phobert", "PhoBERTWrapper"),
+        "NhanDienThucThe": ("vietnamese_ai.nlp.ner", "NhanDienThucThe"),
+        "HoiDapTiengViet": ("vietnamese_ai.nlp.qa", "HoiDapTiengViet"),
+        "TomTatVanBan": ("vietnamese_ai.nlp.summarization", "TomTatVanBan"),
+        "DichThuat": ("vietnamese_ai.nlp.translation", "DichThuat"),
+        "KiemTraChinhTa": ("vietnamese_ai.nlp.spelling", "KiemTraChinhTa"),
         # Embeddings
         "Word2VecTiengViet": ("vietnamese_ai.embeddings.word2vec", "Word2VecTiengViet"),
         "FastTextTiengViet": ("vietnamese_ai.embeddings.fasttext", "FastTextTiengViet"),
@@ -120,6 +125,30 @@ def __getattr__(name: str):
         "DPOTrainer": ("vietnamese_ai.fine_tuning.dpo_trainer", "DPOTrainer"),
         "RewardModel": ("vietnamese_ai.fine_tuning.reward_model", "RewardModel"),
         "RLHFPipeline": ("vietnamese_ai.fine_tuning.rlhf_pipeline", "RLHFPipeline"),
+        # === v10.0: RAG ===
+        "CSDLVector": ("vietnamese_ai.rag.vector_store", "CSDLVector"),
+        "TrichXuat": ("vietnamese_ai.rag.retriever", "TrichXuat"),
+        "CatVanBan": ("vietnamese_ai.rag.chunker", "CatVanBan"),
+        "RAGPipeline": ("vietnamese_ai.rag.rag_pipeline", "RAGPipeline"),
+        "SapXepLai": ("vietnamese_ai.rag.reranker", "SapXepLai"),
+        # === v10.0: Serving ===
+        "MayChuBatch": ("vietnamese_ai.serving.batch_server", "MayChuBatch"),
+        "MayChuStream": ("vietnamese_ai.serving.streaming", "MayChuStream"),
+        "BoGioiHanTocDo": ("vietnamese_ai.serving.rate_limiter", "BoGioiHanTocDo"),
+        # === v10.0: Prompts ===
+        "MauPrompt": ("vietnamese_ai.prompts.templates", "MauPrompt"),
+        "ChuoiPrompt": ("vietnamese_ai.prompts.chains", "ChuoiPrompt"),
+        "LuongAnToan": ("vietnamese_ai.prompts.guardrails", "LuongAnToan"),
+        "PhanTichDauRa": ("vietnamese_ai.prompts.parser", "PhanTichDauRa"),
+        # === v10.0: Compression ===
+        "HocRutGon": ("vietnamese_ai.compression.distillation", "HocRutGon"),
+        "CatTiaMoHinh": ("vietnamese_ai.compression.pruning", "CatTiaMoHinh"),
+        # === v10.0: Production ===
+        "KiemTraSucKhoe": ("vietnamese_ai.production.health", "KiemTraSucKhoe"),
+        "MachCat": ("vietnamese_ai.production.circuit_breaker", "MachCat"),
+        "LoggerCauTruc": ("vietnamese_ai.production.logging", "LoggerCauTruc"),
+        "QuanLyMetrics": ("vietnamese_ai.production.metrics", "QuanLyMetrics"),
+        "LamNongModel": ("vietnamese_ai.production.warmup", "LamNongModel"),
     }
 
     if name in _lazy_imports:
@@ -133,6 +162,7 @@ def __getattr__(name: str):
 
 
 __all__ = [
+    # v1.0 - v9.0
     "AutoML", "BaseModel", "BenchmarkRunner", "CloudDeployment",
     "DPOTrainer", "DuDoanChuoiThoiGian", "Engine", "FastTextTiengViet",
     "GPTModel", "GiaiThichMoHinh", "HeThongXacThuc", "HocLienKet",
@@ -151,4 +181,16 @@ __all__ = [
     "UnslothWrapper", "Validator", "VietnameseLLM", "VietnameseTokenizer",
     "Word2VecTiengViet", "XuLySo", "XuLyStream", "XuLyVanBan",
     "XuatGGUF", "XuatONNX",
+    # v10.0: RAG
+    "CSDLVector", "TrichXuat", "CatVanBan", "RAGPipeline", "SapXepLai",
+    # v10.0: Serving
+    "MayChuBatch", "MayChuStream", "BoGioiHanTocDo",
+    # v10.0: Prompts
+    "MauPrompt", "ChuoiPrompt", "LuongAnToan", "PhanTichDauRa",
+    # v10.0: NLP Extensions
+    "NhanDienThucThe", "HoiDapTiengViet", "TomTatVanBan", "DichThuat", "KiemTraChinhTa",
+    # v10.0: Compression
+    "HocRutGon", "CatTiaMoHinh",
+    # v10.0: Production
+    "KiemTraSucKhoe", "MachCat", "LoggerCauTruc", "QuanLyMetrics", "LamNongModel",
 ]

@@ -64,16 +64,21 @@ class BaseModel(ABC):
         """Tải mô hình từ file pickle.
 
         Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải mô hình từ nguồn tin cậy.
-        Sử dụng :func:`vietnamese_ai.utils.io_utils.LuuTai.tai_an_toan` để kiểm tra hash trước khi tải.
+        Sử dụng LuuTai.tai_mo_hinh_an_toan() cho dữ liệu cơ bản.
         """
         warnings.warn(
             "Đang tải mô hình từ pickle. Chỉ tải file từ nguồn tin cậy "
-            "để tránh mã độc (remote code execution). Sử dụng LuuTai.tai_an_toan() "
-            "để kiểm tra hash trước khi tải.",
+            "để tránh mã độc (remote code execution). Sử dụng "
+            "LuuTai.tai_mo_hinh_an_toan() cho dữ liệu cơ bản.",
             stacklevel=2,
         )
-        with open(duong_dan, "rb") as f:
-            return pickle.load(f)
+        try:
+            with open(duong_dan, "rb") as f:
+                return pickle.load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Không tìm thấy file: {duong_dan}")
+        except pickle.UnpicklingError as e:
+            raise pickle.UnpicklingError(f"Lỗi đọc file pickle: {e}")
 
     def __repr__(self) -> str:
         trang_thai = "đã huấn luyện" if self.da_huan_luyen else "chưa huấn luyện"

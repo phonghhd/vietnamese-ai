@@ -545,7 +545,7 @@ class TestPhase78Integration:
     def test_imports(self):
         import vietnamese_ai
 
-        assert vietnamese_ai.__version__ == "9.0.0"
+        assert vietnamese_ai.__version__ == "10.0.0"
         assert hasattr(vietnamese_ai, "HuanLuyenPyTorch")
         assert hasattr(vietnamese_ai, "UnslothWrapper")
         assert hasattr(vietnamese_ai, "HuggingFaceWrapper")

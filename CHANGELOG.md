@@ -2,6 +2,52 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v10.0.0 (2026-05-04)
+
+### RAG Pipeline
+- **CSDLVector**: In-memory vector database with cosine/L2/inner_product similarity, save/load, metadata filtering
+- **CatVanBan**: Text chunking with 4 strategies (sentence, paragraph, word, character), sliding window with overlap
+- **TrichXuat**: Hybrid retriever combining semantic search, keyword search (BM25-like), and hybrid mode
+- **SapXepLai**: Reranker with MMR (Maximal Marginal Relevance), cross-encoder, keyword, and position-aware modes
+- **RAGPipeline**: End-to-end RAG pipeline: chunk → embed → retrieve → rerank → generate
+
+### Serving & Streaming
+- **MayChuBatch**: Dynamic batching server with multi-worker support, latency tracking, concurrent request handling
+- **MayChuStream**: SSE (Server-Sent Events) streaming server for LLM responses, token-by-token generation
+- **BoGioiHanTocDo**: Rate limiter with token bucket and sliding window algorithms, per-client limiting
+
+### Prompt Engineering
+- **MauPrompt**: Prompt templates with {{variable}} interpolation, 6 built-in Vietnamese templates
+- **ChuoiPrompt**: Chain-of-thought, few-shot prompting, sequential prompt chains with conditional branching
+- **LuongAnToan**: Output guardrails: content filtering, PII detection (phone/email/CMND), format validation
+- **PhanTichDauRa**: Structured output parser: JSON, markdown tables, code blocks, key-value pairs
+
+### Vietnamese NLP Extensions
+- **NhanDienThucThe**: Named Entity Recognition with regex patterns, dictionary matching, underthesea integration (8 entity types)
+- **HoiDapTiengViet**: Extractive question answering with TF-IDF ranking over knowledge base
+- **TomTatVanBan**: Text summarization: extractive (TF-IDF + position scoring) and abstractive (LLM-based)
+- **DichThuat**: Translation system: dictionary-based, LLM-based, and hybrid mode (en/vi)
+- **KiemTraChinhTa**: Vietnamese spell checker with edit distance suggestions, tone mark handling, corpus learning
+
+### Model Compression
+- **HocRutGon**: Knowledge Distillation with soft label transfer, temperature scaling, ensemble distillation
+- **CatTiaMoHinh**: Model pruning: magnitude-based, structured, iterative, and random pruning strategies
+
+### Production Hardening
+- **KiemTraSucKhoe**: Health check system with readiness/liveness probes, CPU/memory/disk monitoring
+- **MachCat**: Circuit breaker pattern with 3 states (closed/open/half-open), auto-recovery, fallback functions
+- **LoggerCauTruc**: Structured JSON logging with timing context manager, request/prediction logging
+- **QuanLyMetrics**: Metrics collection: counter, gauge, histogram with Prometheus/OpenTelemetry export
+- **LamNongModel**: Model warm-up manager with pre-loading, auto-refresh, pool management
+
+### Infrastructure
+- Added `.pre-commit-config.yaml` (ruff, black, mypy, pre-commit-hooks)
+- Added `AGENTS.md` with development commands and code conventions
+- Added `py.typed` marker for PEP 561 compliance
+- Added GitHub Issue templates (bug report, feature request)
+- Version bump to 10.0.0
+- 96 new tests (472 total, all passing)
+
 ## v9.0.0 (2026-05-04)
 
 ### Vietnamese LLM Configs, LM Eval Harness & Benchmarks

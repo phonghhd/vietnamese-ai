@@ -159,8 +159,13 @@ class Pipeline:
             "để tránh mã độc (remote code execution).",
             stacklevel=2,
         )
-        with open(duong_dan, "rb") as f:
-            pipe = pickle.load(f)
+        try:
+            with open(duong_dan, "rb") as f:
+                pipe = pickle.load(f)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Không tìm thấy file: {duong_dan}")
+        except pickle.UnpicklingError as e:
+            raise pickle.UnpicklingError(f"Lỗi đọc file pickle: {e}")
         pipe.logger.info(f"Đã tải pipeline từ: {duong_dan}")
         return pipe
 

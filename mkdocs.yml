@@ -50,6 +50,12 @@ nav:
     - SFT, DPO & RLHF: guides/sft-dpo-rlhf.md
     - GPT Pre-training: guides/gpt-pretraining.md
     - Evaluation & Benchmarks: guides/evaluation.md
+    - RAG Pipeline: guides/rag.md
+    - Serving & Streaming: guides/serving.md
+    - Prompt Engineering: guides/prompts.md
+    - NLP Extensions: guides/nlp-extensions.md
+    - Model Compression: guides/compression.md
+    - Production Hardening: guides/production.md
   - API Reference:
     - Models: api/models.md
     - Preprocessing: api/preprocessing.md
@@ -66,6 +72,12 @@ nav:
     - Training (SFT/DPO/RLHF): api/training.md
     - GPT & PreTrainer: api/gpt.md
     - Evaluation: api/evaluation.md
+    - RAG: api/rag.md
+    - Serving: api/serving.md
+    - Prompts: api/prompts.md
+    - NLP Extensions: api/nlp-extensions.md
+    - Compression: api/compression.md
+    - Production: api/production.md
   - Changelog: changelog.md
 
 markdown_extensions:

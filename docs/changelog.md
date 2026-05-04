@@ -2,6 +2,17 @@
 
 Xem [CHANGELOG.md](https://github.com/phonghhd/vietnamese-ai/blob/main/CHANGELOG.md) đầy đủ trên GitHub.
 
+## v10.0.0 (2026-05-04)
+
+- RAG Pipeline (CSDLVector, CatVanBan, TrichXuat, SapXepLai, RAGPipeline)
+- Serving & Streaming (MayChuBatch, MayChuStream, BoGioiHanTocDo)
+- Prompt Engineering (MauPrompt, ChuoiPrompt, LuongAnToan, PhanTichDauRa)
+- NLP Extensions (NhanDienThucThe, HoiDapTiengViet, TomTatVanBan, DichThuat, KiemTraChinhTa)
+- Model Compression (HocRutGon, CatTiaMoHinh)
+- Production Hardening (KiemTraSucKhoe, MachCat, LoggerCauTruc, QuanLyMetrics, LamNongModel)
+- Security fixes (RestrictedUnpickler, pbkdf2_hmac, hmac.compare_digest, random API keys)
+- 472 test cases
+
 ## v9.0.0 (2026-05-04)
 
 - Vietnamese LLM Configs (125M-7B presets)

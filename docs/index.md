@@ -6,10 +6,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-9.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-10.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-352%2F352-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-472%2F472-brightgreen.svg" alt="tests">
 </p>
 
 ---

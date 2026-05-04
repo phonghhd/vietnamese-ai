@@ -1,6 +1,7 @@
 """HeThongXacThuc - Hệ thống xác thực và phân quyền (RBAC)."""
 
 import hashlib
+import hmac
 import json
 import os
 import time
@@ -62,7 +63,19 @@ class HeThongXacThuc:
 
     @staticmethod
     def _bam_mat_khau(mat_khau: str) -> str:
-        return hashlib.sha256(mat_khau.encode()).hexdigest()
+        salt = os.urandom(32)
+        dk = hashlib.pbkdf2_hmac("sha256", mat_khau.encode(), salt, 310000)
+        return salt.hex() + ":" + dk.hex()
+
+    @staticmethod
+    def _kiem_tra_mat_khau(mat_khau: str, stored: str) -> bool:
+        try:
+            salt_hex, dk_hex = stored.split(":")
+            salt = bytes.fromhex(salt_hex)
+            dk = hashlib.pbkdf2_hmac("sha256", mat_khau.encode(), salt, 310000)
+            return hmac.compare_digest(dk.hex(), dk_hex)
+        except (ValueError, AttributeError):
+            return False
 
     @staticmethod
     def _tao_token() -> str:
@@ -102,7 +115,7 @@ class HeThongXacThuc:
             raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
 
         user = self._users[ten_dang_nhap]
-        if user["mat_khau"] != self._bam_mat_khau(mat_khau):
+        if not self._kiem_tra_mat_khau(mat_khau, user["mat_khau"]):
             raise ValueError("Mật khẩu không đúng")
 
         token = self._tao_token()
@@ -138,7 +151,7 @@ class HeThongXacThuc:
         """Đổi mật khẩu."""
         if ten_dang_nhap not in self._users:
             raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
-        if self._users[ten_dang_nhap]["mat_khau"] != self._bam_mat_khau(mat_khau_cu):
+        if not self._kiem_tra_mat_khau(mat_khau_cu, self._users[ten_dang_nhap]["mat_khau"]):
             raise ValueError("Mật khẩu cũ không đúng")
 
         self._users[ten_dang_nhap]["mat_khau"] = self._bam_mat_khau(mat_khau_moi)
@@ -163,7 +176,7 @@ class HeThongXacThuc:
         if ten_dang_nhap not in self._users:
             raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
 
-        api_key = f"vai_{hashlib.sha256(ten_dang_nhap.encode()).hexdigest()[:24]}"
+        api_key = f"vai_{os.urandom(24).hex()}"
         self._users[ten_dang_nhap]["api_key"] = api_key
         self._luu_json(self._users_file, self._users)
         return api_key
