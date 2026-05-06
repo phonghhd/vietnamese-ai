@@ -57,8 +57,8 @@ class HuggingFaceWrapper:
         try:
             import transformers
 
-            self._version = transformers.__version__
-            self.logger.info(f"Transformers v{self._version}")
+            self.version = transformers.__version__
+            self.logger.info(f"Transformers v{self.version}")
         except ImportError:
             self.logger.warning(
                 "Transformers chưa cài. Cài đặt: pip install transformers"
@@ -94,7 +94,7 @@ class HuggingFaceWrapper:
         self.logger.info(f"Đang tải model: {model_id}")
 
         try:
-            self._tokenizer = AutoTokenizer.from_pretrained(model_id)
+            self.tokenizer = AutoTokenizer.from_pretrained(model_id)
 
             if nhiem_vu == "text-classification":
                 from transformers import AutoModelForSequenceClassification
@@ -102,30 +102,30 @@ class HuggingFaceWrapper:
                 kwargs = {}
                 if so_lop:
                     kwargs["num_labels"] = so_lop
-                self._model = AutoModelForSequenceClassification.from_pretrained(
+                self.model = AutoModelForSequenceClassification.from_pretrained(
                     model_id, **kwargs
                 )
             elif nhiem_vu == "text-generation":
                 from transformers import AutoModelForCausalLM
 
-                self._model = AutoModelForCausalLM.from_pretrained(model_id)
+                self.model = AutoModelForCausalLM.from_pretrained(model_id)
             elif nhiem_vu == "fill-mask":
                 from transformers import AutoModelForMaskedLM
 
-                self._model = AutoModelForMaskedLM.from_pretrained(model_id)
+                self.model = AutoModelForMaskedLM.from_pretrained(model_id)
             else:
-                self._model = AutoModel.from_pretrained(model_id)
+                self.model = AutoModel.from_pretrained(model_id)
 
-            self._nhiem_vu = nhiem_vu
-            self._ten_model = model_id
-            self._da_tai = True
+            self.nhiem_vu = nhiem_vu
+            self.ten_model = model_id
+            self.da_tai = True
 
-            so_tham_so = sum(p.numel() for p in self._model.parameters())
+            so_tham_so = sum(p.numel() for p in self.model.parameters())
 
             info = {
                 "ten_model": model_id,
                 "nhiem_vu": nhiem_vu,
-                "vocab_size": len(self._tokenizer),
+                "vocab_size": len(self.tokenizer),
                 "so_tham_so": so_tham_so,
                 "so_tham_so_str": f"{so_tham_so/1e6:.1f}M",
             }
@@ -148,40 +148,40 @@ class HuggingFaceWrapper:
         Returns:
             Danh sách kết quả
         """
-        if not self._da_tai:
+        if not self.da_tai:
             raise RuntimeError("Chưa tải model.")
 
         try:
             import torch
 
             results = []
-            inputs = self._tokenizer(
+            inputs = self.tokenizer(
                 cac_van_ban, padding=True, truncation=True,
                 max_length=512, return_tensors="pt"
             )
 
             with torch.no_grad():
-                outputs = self._model(**inputs)
+                outputs = self.model(**inputs)
 
-            if self._nhiem_vu == "text-classification":
+            if self.nhiem_vu == "text-classification":
                 probs = torch.softmax(outputs.logits, dim=-1)
                 for i, vb in enumerate(cac_van_ban):
                     top_probs, top_ids = probs[i].topk(top_k)
                     labels = []
                     for prob, idx in zip(top_probs, top_ids):
-                        label = self._model.config.id2label.get(idx.item(), str(idx.item()))
+                        label = self.model.config.id2label.get(idx.item(), str(idx.item()))
                         labels.append({"nhan": label, "xac_suat": round(prob.item(), 4)})
                     results.append({"van_ban": vb, "ket_qua": labels})
 
-            elif self._nhiem_vu == "text-generation":
+            elif self.nhiem_vu == "text-generation":
                 for i, vb in enumerate(cac_van_ban):
-                    gen_ids = self._model.generate(
+                    gen_ids = self.model.generate(
                         inputs["input_ids"][i:i+1],
                         max_new_tokens=50,
                         do_sample=True,
                         temperature=0.7,
                     )
-                    gen_text = self._tokenizer.decode(gen_ids[0], skip_special_tokens=True)
+                    gen_text = self.tokenizer.decode(gen_ids[0], skip_special_tokens=True)
                     results.append({"van_ban": vb, "sinh_ra": gen_text})
 
             else:
@@ -198,19 +198,19 @@ class HuggingFaceWrapper:
 
     def ma_hoa(self, cac_van_ban: List[str]) -> np.ndarray:
         """Mã hóa văn bản thành vectors."""
-        if not self._da_tai:
+        if not self.da_tai:
             raise RuntimeError("Chưa tải model.")
 
         try:
             import torch
 
-            inputs = self._tokenizer(
+            inputs = self.tokenizer(
                 cac_van_ban, padding=True, truncation=True,
                 max_length=256, return_tensors="pt"
             )
 
             with torch.no_grad():
-                outputs = self._model(**inputs)
+                outputs = self.model(**inputs)
 
             cls_vectors = outputs.last_hidden_state[:, 0, :].numpy()
             return cls_vectors
@@ -221,14 +221,14 @@ class HuggingFaceWrapper:
 
     def luu_model(self, duong_dan: str) -> str:
         """Lưu model và tokenizer."""
-        if not self._da_tai:
+        if not self.da_tai:
             raise RuntimeError("Chưa tải model.")
 
         duong_dan_path = Path(duong_dan)
         duong_dan_path.mkdir(parents=True, exist_ok=True)
 
-        self._model.save_pretrained(str(duong_dan_path))
-        self._tokenizer.save_pretrained(str(duong_dan_path))
+        self.model.save_pretrained(str(duong_dan_path))
+        self.tokenizer.save_pretrained(str(duong_dan_path))
 
         self.logger.info(f"Đã lưu model: {duong_dan}")
         return str(duong_dan_path)
@@ -242,12 +242,12 @@ class HuggingFaceWrapper:
             if not duong_dan_path.exists():
                 raise FileNotFoundError(f"Không tìm thấy: {duong_dan}")
 
-            self._tokenizer = AutoTokenizer.from_pretrained(str(duong_dan_path))
-            self._model = AutoModel.from_pretrained(str(duong_dan_path))
-            self._da_tai = True
-            self._ten_model = str(duong_dan_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(str(duong_dan_path))
+            self.model = AutoModel.from_pretrained(str(duong_dan_path))
+            self.da_tai = True
+            self.ten_model = str(duong_dan_path)
 
-            so_tham_so = sum(p.numel() for p in self._model.parameters())
+            so_tham_so = sum(p.numel() for p in self.model.parameters())
 
             self.logger.info(f"Đã tải model local: {duong_dan}")
             return {
@@ -261,10 +261,10 @@ class HuggingFaceWrapper:
     def thong_ke(self) -> Dict[str, Any]:
         """Thống kê wrapper."""
         return {
-            "da_tai": self._da_tai,
-            "ten_model": self._ten_model,
-            "nhiem_vu": self._nhiem_vu,
-            "co_tokenizer": self._tokenizer is not None,
+            "da_tai": self.da_tai,
+            "ten_model": self.ten_model,
+            "nhiem_vu": self.nhiem_vu,
+            "co_tokenizer": self.tokenizer is not None,
             "available_vi_models": list(self.VIETNAMESE_MODELS.keys()),
             "supported_tasks": self.NHIEM_VU_HO_TRO,
         }
