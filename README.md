@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-10.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-11.0.1-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
   <img src="https://img.shields.io/badge/tests-376%2F376-brightgreen.svg" alt="tests">
@@ -597,7 +597,7 @@ ruff check vietnamese_ai/ tests/
 ```
 
 ```
-============================= 472 passed ==============================
+============================= 594 passed ==============================
 ```
 
 ---
@@ -620,6 +620,7 @@ ruff check vietnamese_ai/ tests/
 | v8.0 | GPT Decoder-Only Pre-training, TextDataset, PreTrainer |
 | v9.0 | Vietnamese LLM Configs (125M-7B), LM Eval Harness, Benchmark Runner |
 | v10.0 | RAG Pipeline, Serving & Streaming, Prompt Engineering, NLP Extensions (NER/QA/Summarization/Translation/Spelling), Knowledge Distillation, Model Pruning, Production Hardening (Health Check, Circuit Breaker, Structured Logging, Metrics, Warm-up) |
+| v11.0 | Self-Adapting Language Models (SALM): Self-Refinement, Self-Consistency, Adaptive LoRA, Self-Generated Data, Test-Time Training |
 
 ### Tech Stack tương lai
 

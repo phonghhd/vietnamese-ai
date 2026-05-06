@@ -2,6 +2,12 @@
 
 Xem [CHANGELOG.md](https://github.com/phonghhd/vietnamese-ai/blob/main/CHANGELOG.md) đầy đủ trên GitHub.
 
+## v11.0.0 (2026-05-06)
+
+- Self-Adapting Language Models (SALM): SelfRefine, SelfConsistency, AdaptiveLoRA, SinhDuLieuTuDong, TestTimeTraining
+- 33 new tests (505 total)
+- Version bump to 11.0.0
+
 ## v10.0.0 (2026-05-04)
 
 - RAG Pipeline (CSDLVector, CatVanBan, TrichXuat, SapXepLai, RAGPipeline)

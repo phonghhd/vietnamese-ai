@@ -84,7 +84,8 @@ class FastTextTiengViet(Word2VecTiengViet):
         Đặc biệt: luôn trả về vector ngay cả với từ mới (OOV).
         """
         if self._W_ngram is None:
-            return super().lay_vector(tu) or np.zeros(self.kich_thuoc)
+            result = super().lay_vector(tu)
+            return result if result is not None else np.zeros(self.kich_thuoc)
 
         ngrams = self._tao_ngram(tu, self.ngram_min, self.ngram_max)
         vectors = []

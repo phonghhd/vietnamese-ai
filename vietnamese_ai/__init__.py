@@ -12,7 +12,7 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
-__version__ = "10.0.0"
+__version__ = "11.0.1"
 __author__ = "EvoNet AI Team"
 
 
@@ -149,6 +149,12 @@ def __getattr__(name: str):
         "LoggerCauTruc": ("vietnamese_ai.production.logging", "LoggerCauTruc"),
         "QuanLyMetrics": ("vietnamese_ai.production.metrics", "QuanLyMetrics"),
         "LamNongModel": ("vietnamese_ai.production.warmup", "LamNongModel"),
+        # === v11.0: SALM ===
+        "SelfRefine": ("vietnamese_ai.salm.self_refine", "SelfRefine"),
+        "SelfConsistency": ("vietnamese_ai.salm.self_consistency", "SelfConsistency"),
+        "AdaptiveLoRA": ("vietnamese_ai.salm.adaptive_lora", "AdaptiveLoRA"),
+        "SinhDuLieuTuDong": ("vietnamese_ai.salm.self_data", "SinhDuLieuTuDong"),
+        "TestTimeTraining": ("vietnamese_ai.salm.test_time_training", "TestTimeTraining"),
     }
 
     if name in _lazy_imports:
@@ -193,4 +199,6 @@ __all__ = [
     "HocRutGon", "CatTiaMoHinh",
     # v10.0: Production
     "KiemTraSucKhoe", "MachCat", "LoggerCauTruc", "QuanLyMetrics", "LamNongModel",
+    # v11.0: SALM
+    "SelfRefine", "SelfConsistency", "AdaptiveLoRA", "SinhDuLieuTuDong", "TestTimeTraining",
 ]

@@ -2,6 +2,45 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v11.0.0 (2026-05-06)
+
+### Self-Adapting Language Models (SALM)
+
+**Self-Refinement (`SelfRefine`):**
+- Iterative refinement loop: Generate → Evaluate → Feedback → Refine
+- Configurable max iterations and quality threshold
+- Auto-stopping when quality threshold reached or no improvement
+- Built-in heuristic evaluator with length, structure, diversity, relevance metrics
+
+**Self-Consistency (`SelfConsistency`):**
+- Multiple reasoning paths with majority voting
+- Direct and Chain-of-Thought (CoT) modes
+- Answer extraction from diverse output formats
+- Consistency scoring and distribution analysis
+
+**Adaptive LoRA (`AdaptiveLoRA`):**
+- Task-aware adapter selection via keyword, embedding, or hybrid routing
+- Adapter registration with keywords and embeddings
+- Weighted combination of multiple adapters
+- Usage statistics tracking
+
+**Self-Generated Data (`SinhDuLieuTuDong`):**
+- Auto-generate training data from seed examples
+- Support for instruction, QA, classification, and completion data types
+- Quality filtering with configurable threshold
+- Self-Instruct and Evol-InInspired approaches
+
+**Test-Time Training (`TestTimeTraining`):**
+- Adapt model weights at inference time without labeled data
+- 3 strategies: entropy minimization, contrastive, masked prediction
+- Save/restore original weights for reversible adaptation
+- Loss tracking and convergence monitoring
+
+**Other:**
+- 33 new tests (505 total, all passing)
+- Version bump to 11.0.0
+- Updated docs, README, CHANGELOG
+
 ## v10.0.0 (2026-05-04)
 
 ### RAG Pipeline

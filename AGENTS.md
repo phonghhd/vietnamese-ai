@@ -2,7 +2,7 @@
 
 ## Project Info
 - **Name**: Vietnamese AI Framework (`vietnamese-ai`)
-- **Version**: 10.0.0
+- **Version**: 11.0.0
 - **Language**: Python 3.8+
 - **Package dir**: `vietnamese_ai/`
 

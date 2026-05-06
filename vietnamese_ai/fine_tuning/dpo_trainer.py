@@ -178,6 +178,8 @@ class DPOTrainer:
             avg_loss = epoch_loss / max(1, steps) if steps > 0 else 0
             self._history["train_loss"].append(avg_loss)
 
+            avg_chosen = 0.0
+            avg_rejected = 0.0
             if chosen_rewards_epoch:
                 avg_chosen = np.mean(chosen_rewards_epoch)
                 avg_rejected = np.mean(rejected_rewards_epoch)

@@ -56,6 +56,8 @@ nav:
     - NLP Extensions: guides/nlp-extensions.md
     - Model Compression: guides/compression.md
     - Production Hardening: guides/production.md
+    - Self-Adapting LMs (SALM): guides/salm.md
+    - Google Colab / Kaggle: guides/google-colab-kaggle.md
   - API Reference:
     - Models: api/models.md
     - Preprocessing: api/preprocessing.md
@@ -78,6 +80,7 @@ nav:
     - NLP Extensions: api/nlp-extensions.md
     - Compression: api/compression.md
     - Production: api/production.md
+    - SALM: api/salm.md
   - Changelog: changelog.md
 
 markdown_extensions:
