@@ -47,12 +47,12 @@ class HuggingFaceWrapper:
 
     def __init__(self):
         self.logger = Logger("HuggingFaceWrapper")
-        self._model = None
-        self._tokenizer = None
-        self._pipeline = None
-        self._nhiem_vu: Optional[str] = None
-        self._ten_model: Optional[str] = None
-        self._da_tai = False
+        self.model = None
+        self.tokenizer = None
+        self.pipeline = None
+        self.nhiem_vu: Optional[str] = None
+        self.ten_model: Optional[str] = None
+        self.da_tai = False
 
         try:
             import transformers
