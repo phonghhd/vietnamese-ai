@@ -2,9 +2,25 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
-## v11.0.0 (2026-05-06)
+## v12.0.0 (2026-05-22)
 
-### Self-Adapting Language Models (SALM)
+### Hệ thống Đa Tác Tử (Multi-Agent System)
+
+**Kiến trúc Tác tử (`TacTu`, `BoNhoTacTu`):**
+- Vòng lặp suy luận ReAct (Reason + Act) cho phép LLM tự lập kế hoạch và sử dụng công cụ.
+- Quản lý bộ nhớ tác tử ngắn hạn với các vai trò `system`, `user`, `assistant`, `tool`.
+- Tự động bóc tách thông tin từ phản hồi của LLM để gọi hàm Python.
+
+**Công cụ (`CongCu`, `@cong_cu`):**
+- Lớp `CongCu` định nghĩa giao diện chung cho mọi tool.
+- Decorator `@cong_cu` giúp biến mọi hàm Python thành công cụ cho AI một cách tự động (trích xuất tham số, kiểu dữ liệu, docstring).
+- Các công cụ tích hợp sẵn: `may_tinh` (tính toán an toàn), `doc_file`, `tim_kiem_web`.
+
+**Hệ thống Đa Tác Tử (`HeThongDaTacTu`):**
+- Kiến trúc điều phối nhóm tác tử (`sequential`).
+- Lưu trữ lịch sử giao tiếp chung và phân quyền xử lý từng lượt (turn).
+
+## v11.0.0 (2026-05-06)
 
 **Self-Refinement (`SelfRefine`):**
 - Iterative refinement loop: Generate → Evaluate → Feedback → Refine

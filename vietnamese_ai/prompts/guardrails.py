@@ -193,3 +193,47 @@ class LuongAnToan:
             f"LuongAnToan(so_tu_cam={len(self.tu_cam)}, "
             f"chan_pii={self.chan_pii})"
         )
+
+class JSONOutputParser:
+    """Ép và trích xuất JSON từ chuỗi văn bản của LLM."""
+    
+    @staticmethod
+    def parse(text: str) -> Dict[str, Any]:
+        """Trích xuất khối JSON từ văn bản trả về."""
+        # LLM thường hay bọc JSON trong block markdown ```json ... ```
+        pattern = r"```(?:json)?(.*?)```"
+        matches = re.findall(pattern, text, re.DOTALL)
+        
+        json_str = matches[0].strip() if matches else text.strip()
+        
+        import json
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Không thể parse JSON từ đầu ra: {str(e)}\nĐầu ra thô: {text}")
+
+class ToxicityFilter:
+    """Màng lọc từ ngữ độc hại cơ bản (cho tiếng Việt)."""
+    
+    # Danh sách ví dụ, thực tế nên dài và che giấu đi
+    BAD_WORDS = ["vkl", "đcm", "vl", "chửi", "đánh nhau", "giết"]
+    
+    @classmethod
+    def check(cls, text: str) -> bool:
+        """Kiểm tra có từ khóa xấu không. Trả về True nếu bị chặn."""
+        text_lower = text.lower()
+        for word in cls.BAD_WORDS:
+            # Kiểm tra từ đó có xuất hiện độc lập không
+            if re.search(r'\b' + re.escape(word) + r'\b', text_lower):
+                return True
+        return False
+        
+    @classmethod
+    def filter(cls, text: str) -> str:
+        """Che giấu từ độc hại bằng dấu sao."""
+        text_lower = text.lower()
+        filtered = text
+        for word in cls.BAD_WORDS:
+            # Thay thế không phân biệt hoa thường
+            filtered = re.sub(r'(?i)\b' + re.escape(word) + r'\b', '*' * len(word), filtered)
+        return filtered

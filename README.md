@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-11.0.1-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-12.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-376%2F376-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-380%2F380-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
@@ -143,6 +143,15 @@ pip install -e ".[all]"
 | Module | Chức năng |
 |---|---|
 | `VietnameseLLM` | N-gram language model: text generation, completion, perplexity, templates |
+
+### Multi-Agent System (v12.0)
+
+| Module | Chức năng |
+|---|---|
+| `TacTu` | Tác tử AI (Agent) dùng vòng lặp ReAct, lập kế hoạch và thực thi |
+| `CongCu` & `@cong_cu` | Tool Calling: tích hợp Python function, tìm kiếm web, đọc file |
+| `BoNhoTacTu` | Quản lý buffer memory theo role (system, user, assistant, tool) |
+| `HeThongDaTacTu` | Điều phối tương tác giữa nhiều tác tử để giải quyết task phức tạp |
 
 ### PyTorch Training & Fine-tuning (Phase 7-8)
 
@@ -347,15 +356,20 @@ ket_qua = studio.chay()
 print(ket_qua['trang_thai'])  # 'thanh_cong'
 ```
 
-### Vietnamese LLM
+### Vietnamese LLM & Agents
 
 ```python
 from vietnamese_ai import VietnameseLLM
+from vietnamese_ai.agents import TacTu, cong_cu
 
 llm = VietnameseLLM(bac=3)
-llm.huan_luyen(cac_van_ban, so_vong=5)
-van_ban = llm.sinh_van_ban("học máy là", do_dai=50)
-goi_y = llm.lay_tu_ke_tiep("trí tuệ nhân", top_n=5)
+
+@cong_cu(ten="may_tinh", mo_ta="Tính toán biểu thức")
+def tinh_toan(bieu_thuc: str):
+    return eval(bieu_thuc)
+
+tac_tu = TacTu(llm=llm, danh_sach_cong_cu=[tinh_toan])
+ket_qua = tac_tu.chay("Tính giúp tôi 15 nhân 8")
 ```
 
 ### Federated Learning
@@ -532,6 +546,7 @@ curl http://localhost:8080/suc_khoe
 ```
 vietnamese-ai/
 ├── vietnamese_ai/
+│   ├── agents/            # HeThongDaTacTu, TacTu, CongCu (Tool Calling, ReAct)
 │   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo
 │   ├── models/            # PhanLoai, HoiQuy, PhanCum, MangNron, MoHinhTapHop
 │   ├── preprocessing/     # XuLyVanBan, XuLySo, TaoDacTrung
@@ -621,6 +636,7 @@ ruff check vietnamese_ai/ tests/
 | v9.0 | Vietnamese LLM Configs (125M-7B), LM Eval Harness, Benchmark Runner |
 | v10.0 | RAG Pipeline, Serving & Streaming, Prompt Engineering, NLP Extensions (NER/QA/Summarization/Translation/Spelling), Knowledge Distillation, Model Pruning, Production Hardening (Health Check, Circuit Breaker, Structured Logging, Metrics, Warm-up) |
 | v11.0 | Self-Adapting Language Models (SALM): Self-Refinement, Self-Consistency, Adaptive LoRA, Self-Generated Data, Test-Time Training |
+| v12.0 | Hệ thống Đa Tác Tử (Multi-Agent System): Tool Calling, ReAct loop, Agent Memory, Multi-Agent Orchestration |
 
 ### Tech Stack tương lai
 

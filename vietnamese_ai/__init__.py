@@ -131,6 +131,11 @@ def __getattr__(name: str):
         "CatVanBan": ("vietnamese_ai.rag.chunker", "CatVanBan"),
         "RAGPipeline": ("vietnamese_ai.rag.rag_pipeline", "RAGPipeline"),
         "SapXepLai": ("vietnamese_ai.rag.reranker", "SapXepLai"),
+        "GraphExtractor": ("vietnamese_ai.rag.graph", "GraphExtractor"),
+        "NetworkXStore": ("vietnamese_ai.rag.graph", "NetworkXStore"),
+        "GraphRetriever": ("vietnamese_ai.rag.graph", "GraphRetriever"),
+        "ImageEmbedder": ("vietnamese_ai.rag.multimodal", "ImageEmbedder"),
+        "MultimodalStore": ("vietnamese_ai.rag.multimodal", "MultimodalStore"),
         # === v10.0: Serving ===
         "MayChuBatch": ("vietnamese_ai.serving.batch_server", "MayChuBatch"),
         "MayChuStream": ("vietnamese_ai.serving.streaming", "MayChuStream"),
@@ -155,6 +160,22 @@ def __getattr__(name: str):
         "AdaptiveLoRA": ("vietnamese_ai.salm.adaptive_lora", "AdaptiveLoRA"),
         "SinhDuLieuTuDong": ("vietnamese_ai.salm.self_data", "SinhDuLieuTuDong"),
         "TestTimeTraining": ("vietnamese_ai.salm.test_time_training", "TestTimeTraining"),
+        # === v12.0: Agents ===
+        "CongCu": ("vietnamese_ai.agents.tools", "CongCu"),
+        "cong_cu": ("vietnamese_ai.agents.tools", "cong_cu"),
+        "BoNhoTacTu": ("vietnamese_ai.agents.memory", "BoNhoTacTu"),
+        "TacTu": ("vietnamese_ai.agents.agent", "TacTu"),
+        "HeThongDaTacTu": ("vietnamese_ai.agents.multi_agent", "HeThongDaTacTu"),
+        "TacTuSwarm": ("vietnamese_ai.agents.swarm", "TacTuSwarm"),
+        "HeThongSwarm": ("vietnamese_ai.agents.swarm", "HeThongSwarm"),
+        "MoA": ("vietnamese_ai.agents.moa", "MoA"),
+        "LapKeHoachMCTS": ("vietnamese_ai.agents.mcts_planning", "LapKeHoachMCTS"),
+        # === v13.0: Edge & DePIN ===
+        "NodeLlamaEngine": ("vietnamese_ai.edge.node_llama", "NodeLlamaEngine"),
+        "EdgeRouter": ("vietnamese_ai.edge.intelligent_router", "EdgeRouter"),
+        # === v15.0: Extreme Efficiency ===
+        "BitLinear": ("vietnamese_ai.compression.extreme", "BitLinear"),
+        "SpeculativeEngine": ("vietnamese_ai.serving.speculative", "SpeculativeEngine"),
     }
 
     if name in _lazy_imports:
@@ -187,8 +208,9 @@ __all__ = [
     "UnslothWrapper", "Validator", "VietnameseLLM", "VietnameseTokenizer",
     "Word2VecTiengViet", "XuLySo", "XuLyStream", "XuLyVanBan",
     "XuatGGUF", "XuatONNX",
-    # v10.0: RAG
+    # v10.0: RAG & v14.0: Advanced RAG
     "CSDLVector", "TrichXuat", "CatVanBan", "RAGPipeline", "SapXepLai",
+    "GraphExtractor", "NetworkXStore", "GraphRetriever", "ImageEmbedder", "MultimodalStore",
     # v10.0: Serving
     "MayChuBatch", "MayChuStream", "BoGioiHanTocDo",
     # v10.0: Prompts
@@ -201,4 +223,11 @@ __all__ = [
     "KiemTraSucKhoe", "MachCat", "LoggerCauTruc", "QuanLyMetrics", "LamNongModel",
     # v11.0: SALM
     "SelfRefine", "SelfConsistency", "AdaptiveLoRA", "SinhDuLieuTuDong", "TestTimeTraining",
+    # v12.0: Agents
+    "CongCu", "cong_cu", "BoNhoTacTu", "TacTu", "HeThongDaTacTu",
+    "TacTuSwarm", "HeThongSwarm", "MoA", "LapKeHoachMCTS",
+    # v13.0: Edge & DePIN
+    "NodeLlamaEngine", "EdgeRouter",
+    # v15.0: Extreme Efficiency
+    "BitLinear", "SpeculativeEngine",
 ]
