@@ -19,12 +19,24 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-12.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-16.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
   <img src="https://img.shields.io/badge/tests-380%2F380-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
+
+---
+
+## 🚀 Các Tính Năng Nổi Bật
+
+- **Lõi C++ & Rust Tối Ưu**: Framework sử dụng kết hợp C++ (`onnxruntime`, `llama.cpp`) và Rust (`PyO3`) để tăng tốc xử lý văn bản, lập lịch và inference lên tối đa.
+- **Agentic Swarm & MemGPT**: Hỗ trợ Multi-Agent (Swarm, MoA, MCTS) và trí nhớ dài hạn không giới hạn (Long-Term Memory).
+- **Edge-Cloud Continuum (DePIN)**: Kiến trúc tự động định tuyến (Routing) giữa thiết bị Edge và Cloud API. 
+- **GraphRAG & Multi-modal RAG**: Mạng tri thức đồ thị và tìm kiếm văn bản-hình ảnh.
+- **Extreme Efficiency**: Trang bị mô phỏng PagedAttention, Speculative Decoding và mạng 1.58-bit (BitNet).
+- **AutoML & NAS**: Tự động tìm kiếm kiến trúc và siêu tham số tốt nhất.
+- **Bảo mật & An Toàn**: Tích hợp Guardrails AI để kiểm soát nội dung và chống Prompt Injection.
 
 ---
 
@@ -544,9 +556,10 @@ curl http://localhost:8080/suc_khoe
 ## Cấu trúc thư mục
 
 ```
-vietnamese-ai/
+├── rust_core/             # (v16.0) Lõi C++/Rust siêu tốc bằng PyO3
 ├── vietnamese_ai/
-│   ├── agents/            # HeThongDaTacTu, TacTu, CongCu (Tool Calling, ReAct)
+│   ├── agents/            # (v12.0) Agentic Swarm, MoA, MCTS, (v16.0) MemGPT
+│   ├── edge/              # (v13.0) DePIN Routing, NodeLlamaEngine
 │   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo
 │   ├── models/            # PhanLoai, HoiQuy, PhanCum, MangNron, MoHinhTapHop
 │   ├── preprocessing/     # XuLyVanBan, XuLySo, TaoDacTrung
@@ -636,7 +649,11 @@ ruff check vietnamese_ai/ tests/
 | v9.0 | Vietnamese LLM Configs (125M-7B), LM Eval Harness, Benchmark Runner |
 | v10.0 | RAG Pipeline, Serving & Streaming, Prompt Engineering, NLP Extensions (NER/QA/Summarization/Translation/Spelling), Knowledge Distillation, Model Pruning, Production Hardening (Health Check, Circuit Breaker, Structured Logging, Metrics, Warm-up) |
 | v11.0 | Self-Adapting Language Models (SALM): Self-Refinement, Self-Consistency, Adaptive LoRA, Self-Generated Data, Test-Time Training |
-| v12.0 | Hệ thống Đa Tác Tử (Multi-Agent System): Tool Calling, ReAct loop, Agent Memory, Multi-Agent Orchestration |
+| v12.0 | Hệ thống Đa Tác Tử (Multi-Agent System): Agentic Swarm, Mixture of Agents (MoA), MCTS Planning |
+| v13.0 | Edge AI & DePIN: NodeLlamaEngine, Intelligent EdgeRouter |
+| v14.0 | Advanced RAG: GraphRAG (Knowledge Graph), Multi-modal RAG (Image-Text Embeddings) |
+| v15.0 | Extreme Efficiency: 1.58-bit LLMs (BitLinear), Speculative Decoding Engine |
+| v16.0 | Ultimate Performance: PagedAttention BlockManager, MemGPT Architecture (Long-term Memory), Rust Core Migration |
 
 ### Tech Stack tương lai
 

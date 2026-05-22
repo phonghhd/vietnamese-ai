@@ -160,22 +160,24 @@ def __getattr__(name: str):
         "AdaptiveLoRA": ("vietnamese_ai.salm.adaptive_lora", "AdaptiveLoRA"),
         "SinhDuLieuTuDong": ("vietnamese_ai.salm.self_data", "SinhDuLieuTuDong"),
         "TestTimeTraining": ("vietnamese_ai.salm.test_time_training", "TestTimeTraining"),
-        # === v12.0: Agents ===
+        # === v12.0: Multi-Agent System ===
+        "TacTu": ("vietnamese_ai.agents.agent", "TacTu"),
         "CongCu": ("vietnamese_ai.agents.tools", "CongCu"),
         "cong_cu": ("vietnamese_ai.agents.tools", "cong_cu"),
         "BoNhoTacTu": ("vietnamese_ai.agents.memory", "BoNhoTacTu"),
-        "TacTu": ("vietnamese_ai.agents.agent", "TacTu"),
-        "HeThongDaTacTu": ("vietnamese_ai.agents.multi_agent", "HeThongDaTacTu"),
         "TacTuSwarm": ("vietnamese_ai.agents.swarm", "TacTuSwarm"),
         "HeThongSwarm": ("vietnamese_ai.agents.swarm", "HeThongSwarm"),
         "MoA": ("vietnamese_ai.agents.moa", "MoA"),
         "LapKeHoachMCTS": ("vietnamese_ai.agents.mcts_planning", "LapKeHoachMCTS"),
+        "HethongNhoMemGPT": ("vietnamese_ai.agents.long_term_memory", "HethongNhoMemGPT"),
         # === v13.0: Edge & DePIN ===
         "NodeLlamaEngine": ("vietnamese_ai.edge.node_llama", "NodeLlamaEngine"),
         "EdgeRouter": ("vietnamese_ai.edge.intelligent_router", "EdgeRouter"),
-        # === v15.0: Extreme Efficiency ===
+        # === v15.0: Extreme Efficiency & v16.0: Ultimate Performance ===
         "BitLinear": ("vietnamese_ai.compression.extreme", "BitLinear"),
         "SpeculativeEngine": ("vietnamese_ai.serving.speculative", "SpeculativeEngine"),
+        "BlockManager": ("vietnamese_ai.serving.paged_attention", "BlockManager"),
+        "PagedAttentionSimulation": ("vietnamese_ai.serving.paged_attention", "PagedAttentionSimulation"),
     }
 
     if name in _lazy_imports:
@@ -223,11 +225,11 @@ __all__ = [
     "KiemTraSucKhoe", "MachCat", "LoggerCauTruc", "QuanLyMetrics", "LamNongModel",
     # v11.0: SALM
     "SelfRefine", "SelfConsistency", "AdaptiveLoRA", "SinhDuLieuTuDong", "TestTimeTraining",
-    # v12.0: Agents
-    "CongCu", "cong_cu", "BoNhoTacTu", "TacTu", "HeThongDaTacTu",
-    "TacTuSwarm", "HeThongSwarm", "MoA", "LapKeHoachMCTS",
+    # v12.0: Multi-Agent System
+    "TacTu", "CongCu", "cong_cu", "BoNhoTacTu",
+    "TacTuSwarm", "HeThongSwarm", "MoA", "LapKeHoachMCTS", "HethongNhoMemGPT",
     # v13.0: Edge & DePIN
     "NodeLlamaEngine", "EdgeRouter",
-    # v15.0: Extreme Efficiency
-    "BitLinear", "SpeculativeEngine",
+    # v15.0 & v16.0: Extreme Efficiency
+    "BitLinear", "SpeculativeEngine", "BlockManager", "PagedAttentionSimulation",
 ]
