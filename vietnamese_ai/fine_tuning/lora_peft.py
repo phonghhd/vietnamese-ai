@@ -101,6 +101,10 @@ class LoRAPeft:
         target_modules = self.config.target_modules
         replaced = 0
 
+        # [VÁ BUG] - Khóa chặt toàn bộ trọng số của base model
+        for param in model.parameters():
+            param.requires_grad = False
+        
         for name, module in model.named_modules():
             if any(tm in name for tm in target_modules):
                 if isinstance(module, nn.Linear):
