@@ -1,6 +1,5 @@
 <p align="center">
   <h1 align="center">Vietnamese AI Framework</h1>
-  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
   <p align="center">
     <strong>Framework AI thuần tiếng Việt cho Python</strong>
   </p>
@@ -28,7 +27,7 @@
 </p>
 
 ---
-
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
 ## 🚀 Các Tính Năng Nổi Bật
 
 - **Lõi C++ & Rust Tối Ưu**: Framework sử dụng kết hợp C++ (`onnxruntime`, `llama.cpp`) và Rust (`PyO3`) để tăng tốc xử lý văn bản, lập lịch và inference lên tối đa.
