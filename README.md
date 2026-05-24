@@ -1,5 +1,6 @@
 <p align="center">
   <h1 align="center">Vietnamese AI Framework</h1>
+  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
   <p align="center">
     <strong>Framework AI thuần tiếng Việt cho Python</strong>
   </p>
