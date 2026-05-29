@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai"
-version = "20.0.0"
+version = "20.0.1"
 description = "Framework AI thuần tiếng Việt cho Python - Vietnamese AI Framework"
 readme = "README.md"
 license = {text = "MIT"}
