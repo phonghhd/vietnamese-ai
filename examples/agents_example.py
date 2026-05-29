@@ -1,6 +1,5 @@
-from vietnamese_ai.agents import TacTu, HeThongDaTacTu, cong_cu, cong_cu_may_tinh, cong_cu_doc_file
-from vietnamese_ai.llm import VietnameseLLM
-import sys
+
+from vietnamese_ai.agents import HeThongDaTacTu, TacTu, cong_cu, cong_cu_may_tinh
 
 # Khởi tạo mô hình LLM (Ở đây có thể dùng VietnameseLLM hoặc HuggingFace)
 # Vì đây là ví dụ, chúng ta sẽ giả lập một LLM trả về chuỗi ReAct tĩnh hoặc dùng LLM thật nếu có RAM.
@@ -40,11 +39,11 @@ tac_tu_thoi_tiet = TacTu(
 )
 
 ket_qua_1 = tac_tu_thoi_tiet.chay("Thời tiết ở Hà Nội hôm nay thế nào?")
-print(f"Người dùng: Thời tiết ở Hà Nội hôm nay thế nào?")
+print("Người dùng: Thời tiết ở Hà Nội hôm nay thế nào?")
 print(f"Trợ lý: {ket_qua_1}")
 
 ket_qua_2 = tac_tu_thoi_tiet.chay("Tính giúp tôi 15 * 8 bằng bao nhiêu?")
-print(f"Người dùng: Tính giúp tôi 15 * 8 bằng bao nhiêu?")
+print("Người dùng: Tính giúp tôi 15 * 8 bằng bao nhiêu?")
 print(f"Trợ lý: {ket_qua_2}")
 
 # 2. Hệ thống Đa Tác tử (Multi-Agent System)

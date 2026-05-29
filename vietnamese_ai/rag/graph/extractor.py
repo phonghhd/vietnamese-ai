@@ -1,5 +1,6 @@
 import re
-from typing import List, Tuple, Any
+from typing import Any, List, Tuple
+
 
 class GraphExtractor:
     """
@@ -9,7 +10,7 @@ class GraphExtractor:
     def __init__(self, llm: Any = None):
         """
         Args:
-            llm: Đối tượng LLM để trích xuất ngữ nghĩa nâng cao. 
+            llm: Đối tượng LLM để trích xuất ngữ nghĩa nâng cao.
                  Nếu None, sẽ dùng Regex cơ bản (không khuyến khích cho GraphRAG thật).
         """
         self.llm = llm
@@ -38,7 +39,7 @@ Văn bản:
             phan_hoi = self.llm.sinh_van_ban(prompt, do_dai=512)
         elif callable(self.llm):
             phan_hoi = self.llm(prompt)
-        
+
         ket_qua = []
         for dong in phan_hoi.strip().split('\n'):
             dong = dong.strip()

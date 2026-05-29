@@ -551,7 +551,7 @@ class TestHuggingFaceWrapper:
         from vietnamese_ai.fine_tuning.hf_wrapper import HuggingFaceWrapper
 
         hf = HuggingFaceWrapper()
-        assert hf._da_tai is False
+        assert hf.da_tai is False
 
     def test_danh_sach_models_viet(self):
         from vietnamese_ai.fine_tuning.hf_wrapper import HuggingFaceWrapper

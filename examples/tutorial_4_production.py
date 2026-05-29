@@ -8,7 +8,6 @@ Hướng dẫn: health check, circuit breaker, logging, metrics, warm-up.
 import numpy as np
 
 # === 1. Health Check ===
-
 from vietnamese_ai import KiemTraSucKhoe
 
 health = KiemTraSucKhoe()
@@ -107,8 +106,7 @@ print(f"\nJSON: {len(data['counters'])} counters, {len(data['gauges'])} gauges")
 
 # === 5. Model Warm-up ===
 
-from vietnamese_ai import LamNongModel
-from vietnamese_ai import PhanLoai
+from vietnamese_ai import LamNongModel, PhanLoai
 
 # Tạo và train model
 X = np.random.randn(50, 3)

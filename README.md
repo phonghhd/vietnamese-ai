@@ -559,7 +559,7 @@ curl http://localhost:8080/suc_khoe
 ├── rust_core/             # (v16.0) Lõi C++/Rust siêu tốc bằng PyO3
 ├── vietnamese_ai/
 │   ├── agents/            # (v12.0) Agentic Swarm, MoA, MCTS, (v16.0) MemGPT
-│   ├── edge/              # (v13.0) DePIN Routing, NodeLlamaEngine
+│   ├── edge/              # (v13.0) DePIN Routing, (v17.1) SecureEdgeNode (TEE/ZKP)
 │   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo
 │   ├── models/            # PhanLoai, HoiQuy, PhanCum, MangNron, MoHinhTapHop
 │   ├── preprocessing/     # XuLyVanBan, XuLySo, TaoDacTrung
@@ -576,8 +576,9 @@ curl http://localhost:8080/suc_khoe
 │   ├── realtime/          # PipelineThoiGianThuc (Message Queue, Feature Store)
 │   ├── saas/              # NenTangDichVu (Cloud Platform SaaS)
 │   ├── studio/            # StudioKeoTha (No-code Studio)
-│   ├── llm/               # VietnameseLLM, ModelConfig, LMEvalHarness, BenchmarkRunner
+│   ├── llm/               # VietnameseLLM (Tích hợp Tường lửa v17.1), ModelConfig, LMEvalHarness, BenchmarkRunner
 │   ├── streaming/         # XuLyStream (real-time processing)
+│   ├── security/          # (v17.0) AI Firewall, Agent Sandbox, Identity-Aware RAG, DLP, (v17.1) Red Teaming, Watermarking
 │   ├── export/            # XuatONNX, XuatGGUF
 │   ├── registry/          # QuanLyMoHinh (Model Registry)
 │   ├── cloud/             # CloudDeployment, Marketplace
@@ -654,6 +655,11 @@ ruff check vietnamese_ai/ tests/
 | v14.0 | Advanced RAG: GraphRAG (Knowledge Graph), Multi-modal RAG (Image-Text Embeddings) |
 | v15.0 | Extreme Efficiency: 1.58-bit LLMs (BitLinear), Speculative Decoding Engine |
 | v16.0 | Ultimate Performance: PagedAttention BlockManager, MemGPT Architecture (Long-term Memory), Rust Core Migration |
+| v17.0 | Enterprise Security: AI Firewall, Agent Sandbox, Identity-Aware RAG, Data Sanitization (DLP), API Security Middleware |
+| v17.1 | State-of-the-Art Security: Automated Red Teaming, Zero-Width Text Watermarking, TEE/ZKP (Cryptographic Proof) cho mạng lưới DePIN Edge AI, Tích hợp Tường lửa sâu vào LLM Core |
+| v18.0 | Agentic Evolution: Human-in-the-Loop (HITL), Agent Memory 2.0 (Experience Memory) lưu trữ kinh nghiệm bằng VectorDB |
+| v19.0 | Web3 DePIN & Hybrid Execution: Mạng lưới P2P (P2PTracker), Tokenomics (TokenLedger), Speculative Race Execution (Edge vs Cloud) |
+| v20.0 | Real-time Agentic RAG: Cập nhật tài liệu thời gian thực (Event Bus), Tác tử RAG đa công cụ (Multi-step Reasoning RAG) |
 
 ### Tech Stack tương lai
 

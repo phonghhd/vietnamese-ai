@@ -51,7 +51,7 @@ ner = NhanDienThucThe(su_dung_underthesea=False)
 
 van_ban = "Nguyễn Văn A sống tại Hà Nội từ 01/01/2024. Liên hệ: test@gmail.com hoặc 0912345678"
 entities = ner.nhan_dien(van_ban)
-print(f"\nThực thể tìm thấy:")
+print("\nThực thể tìm thấy:")
 for e in entities:
     print(f"  {e['loai']}: {e['van_ban']}")
 

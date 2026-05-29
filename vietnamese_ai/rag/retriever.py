@@ -322,3 +322,47 @@ class TrichXuat:
             f"so_chunks={self._tong_tai_lieu}, "
             f"che_do='{self.che_do}')"
         )
+
+class IdentityAwareRetriever(TrichXuat):
+    """
+    Retriever hỗ trợ phân quyền (RBAC) cho dữ liệu RAG.
+    Đảm bảo LLM chỉ tìm kiếm trên các dữ liệu mà người dùng được phép truy cập.
+    """
+
+    def tim_kiem(
+        self,
+        cau_hoi: str,
+        top_k: int = 5,
+        nguong: Optional[float] = None,
+        required_roles: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Tìm kiếm với bộ lọc quyền truy cập.
+
+        Args:
+            cau_hoi: Câu hỏi truy vấn.
+            top_k: Số kết quả.
+            nguong: Ngưỡng điểm.
+            required_roles: Danh sách vai trò của người dùng hiện tại (vd: ['admin']).
+                            Nếu tài liệu có metadata 'allowed_roles', người dùng phải có
+                            ít nhất 1 role khớp để được đọc.
+        """
+        ket_qua_tho = super().tim_kiem(cau_hoi, top_k * 3, nguong)
+
+        # Nếu không yêu cầu kiểm tra quyền, trả về top_k kết quả
+        if required_roles is None:
+            return ket_qua_tho[:top_k]
+
+        ket_qua_da_loc = []
+        for kq in ket_qua_tho:
+            meta = kq.get("metadata", {})
+            allowed = meta.get("allowed_roles")
+
+            # Nếu tài liệu không giới hạn quyền, hoặc người dùng có quyền phù hợp
+            if allowed is None or any(role in allowed for role in required_roles):
+                ket_qua_da_loc.append(kq)
+
+            if len(ket_qua_da_loc) >= top_k:
+                break
+
+        return ket_qua_da_loc

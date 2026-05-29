@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai"
-version = "11.0.1"
+version = "20.0.0"
 description = "Framework AI thuần tiếng Việt cho Python - Vietnamese AI Framework"
 readme = "README.md"
 license = {text = "MIT"}
@@ -100,7 +100,7 @@ target-version = "py38"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
-ignore = ["E501"]
+ignore = ["E501", "E402"]
 
 [tool.mypy]
 python_version = "3.8"

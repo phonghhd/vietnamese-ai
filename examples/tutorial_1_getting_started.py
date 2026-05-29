@@ -8,8 +8,7 @@ Hướng dẫn cơ bản: phân loại, hồi quy, AutoML, pipeline.
 import numpy as np
 
 # === 1. Phân loại (Classification) ===
-
-from vietnamese_ai import PhanLoai, KiemDinhCheo, XuLySo
+from vietnamese_ai import KiemDinhCheo, PhanLoai, XuLySo
 
 # Tạo dữ liệu mẫu
 np.random.seed(42)
@@ -67,7 +66,8 @@ print(f"\nPipeline predictions: {pred}")
 
 # === 5. Lưu/tải mô hình ===
 
-import tempfile, os
+import os
+import tempfile
 
 with tempfile.TemporaryDirectory() as tmpdir:
     duong_dan = os.path.join(tmpdir, "model.pkl")

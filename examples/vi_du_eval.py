@@ -33,7 +33,7 @@ def vi_du_eval():
         print(f"  {ten}: {mo_ta}")
 
     ket_qua = harness.danh_gia(llm, ["vie_perplexity", "vie_sentiment"])
-    print(f"\nKết quả đánh giá:")
+    print("\nKết quả đánh giá:")
     for task, result in ket_qua["ket_qua"].items():
         print(f"  {task}: {result}")
 
@@ -52,7 +52,7 @@ def vi_du_benchmark():
     llm.huan_luyen(corpus)
 
     runner = BenchmarkRunner()
-    ket_qua = runner.chay(llm, benchmarks=["perplexity", "speed"])
+    runner.chay(llm, benchmarks=["perplexity", "speed"])
 
     print(f"\n{runner.bao_cao()}")
 

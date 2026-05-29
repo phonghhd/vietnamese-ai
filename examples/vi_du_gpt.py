@@ -45,7 +45,7 @@ def vi_du_pretraining():
     trainer = PreTrainer(so_vong=3, kich_thuoc_batch=8, logging_steps=10)
     ket_qua = trainer.huan_luyen(model, dataset)
 
-    print(f"\nKết quả:")
+    print("\nKết quả:")
     print(f"  Thời gian: {ket_qua['tong_thoi_gian']:.1f}s")
     print(f"  Train loss: {ket_qua['train_loss_min']:.4f}")
     print(f"  Perplexity: {ket_qua['final_perplexity']:.2f}")

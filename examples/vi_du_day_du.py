@@ -1,22 +1,21 @@
 """Ví dụ đầy đủ sử dụng Vietnamese AI Framework."""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from vietnamese_ai.models.classifier import PhanLoai
-from vietnamese_ai.models.regression import HoiQuy
-from vietnamese_ai.models.clustering import PhanCum
-from vietnamese_ai.models.neural_net import MangNron
-from vietnamese_ai.preprocessing.text import XuLyVanBan
-from vietnamese_ai.preprocessing.numerical import XuLySo
-from vietnamese_ai.preprocessing.feature_engineering import TaoDacTrung
-from vietnamese_ai.utils.metrics import Metrics
-from vietnamese_ai.utils.logger import Logger
-from vietnamese_ai.datasets.sample_data import DuLieuMau
 from vietnamese_ai.core.engine import Engine
 from vietnamese_ai.core.pipeline import Pipeline
+from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.models.classifier import PhanLoai
+from vietnamese_ai.models.clustering import PhanCum
+from vietnamese_ai.models.neural_net import MangNron
+from vietnamese_ai.models.regression import HoiQuy
+from vietnamese_ai.preprocessing.numerical import XuLySo
+from vietnamese_ai.preprocessing.text import XuLyVanBan
+from vietnamese_ai.utils.logger import Logger
+from vietnamese_ai.utils.metrics import Metrics
 
 
 def main():
@@ -63,7 +62,7 @@ def main():
 
     pc = PhanCum(so_cum=3)
     pc.huan_luyen(X_pc)
-    nhan = pc.du_doan(X_pc)
+    pc.du_doan(X_pc)
     diem = pc.danh_gia(X_pc)
     logger.info(f"  KMeans: silhouette = {diem:.4f}")
 

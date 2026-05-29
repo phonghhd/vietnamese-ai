@@ -1,5 +1,7 @@
 from typing import List, Union
+
 import numpy as np
+
 
 class ImageEmbedder:
     """
@@ -22,15 +24,15 @@ class ImageEmbedder:
         if not self._da_tai_model:
             self._tai_model()
             self._da_tai_model = True
-            
+
         if isinstance(image_paths, str):
             image_paths = [image_paths]
-            
+
         # Mock vector (512 chiều)
         vectors = []
         for _ in image_paths:
             # Sinh vector ngẫu nhiên để mô phỏng
             vector = np.random.rand(512).tolist()
             vectors.append(vector)
-            
+
         return vectors

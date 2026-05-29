@@ -2,17 +2,18 @@
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Any, List
+
+from pydantic import BaseModel
 
 try:
-    from fastapi import FastAPI, HTTPException, Request
-    from fastapi.responses import JSONResponse
+    from fastapi import FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
 except ImportError:
     raise ImportError("Vui lòng cài đặt fastapi: pip install fastapi uvicorn pydantic")
 
 from vietnamese_ai.utils.logger import Logger
+
 
 # --- Pydantic Models ---
 class ChatMessage(BaseModel):
@@ -51,20 +52,21 @@ class FastAPIServer:
     Hỗ trợ xử lý request qua Hệ thống Đa Tác Tử hoặc LLM Model.
     """
 
-    def __init__(self, bo_xu_ly: Any, ten: str = "VietnameseAI-API"):
+    def __init__(self, bo_xu_ly: Any, ten: str = "VietnameseAI-API", enable_watermark: bool = True):
         """
         Khởi tạo Server.
-        
+
         Args:
             bo_xu_ly: Có thể là một đối tượng `HeThongDaTacTu` hoặc LLM Wrapper
                       (có hàm `chay(truy_van)` hoặc `sinh_van_ban(prompt)`).
         """
         self.bo_xu_ly = bo_xu_ly
         self.ten = ten
+        self.enable_watermark = enable_watermark
         self.logger = Logger(ten)
-        
+
         self.app = FastAPI(title=ten, description="Vietnamese AI Framework API")
-        
+
         # CORS
         self.app.add_middleware(
             CORSMiddleware,
@@ -73,7 +75,14 @@ class FastAPIServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        
+
+        # Security Firewall
+        try:
+            from vietnamese_ai.api.security_middleware import AISecurityMiddleware
+            self.app.add_middleware(AISecurityMiddleware, ghi_log=True)
+        except ImportError:
+            self.logger.warning("Không thể tải Security Middleware.")
+
         self._setup_routes()
 
     def _chuyen_doi_messages(self, messages: List[ChatMessage]) -> str:
@@ -96,16 +105,16 @@ class FastAPIServer:
             truy_van = request.messages[-1].content
             # Reset lịch sử nếu cần thiết (tùy logic framework)
             return self.bo_xu_ly.chay(truy_van)
-            
+
         # Nếu bộ xử lý là LLM Wrapper
         elif hasattr(self.bo_xu_ly, "sinh_van_ban"):
             prompt = self._chuyen_doi_messages(request.messages)
             return self.bo_xu_ly.sinh_van_ban(
-                prompt, 
-                nhiet_do=request.temperature, 
+                prompt,
+                nhiet_do=request.temperature,
                 do_dai=request.max_tokens
             )
-            
+
         else:
             raise ValueError("Bộ xử lý không hợp lệ. Cần hỗ trợ hàm `chay` hoặc `sinh_van_ban`.")
 
@@ -113,7 +122,7 @@ class FastAPIServer:
         @self.app.get("/")
         async def root():
             return {"status": "hoat_dong", "ten": self.ten}
-            
+
         @self.app.get("/suc_khoe")
         async def health():
             return {"status": "tot"}
@@ -121,20 +130,28 @@ class FastAPIServer:
         @self.app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
         async def chat_completions(request: ChatCompletionRequest):
             self.logger.info(f"Nhận request chat completion (model: {request.model})")
-            
+
             try:
                 bat_dau = time.time()
-                
+
                 # Gọi core AI xử lý
                 ket_qua = self._xu_ly_logic(request)
-                
+
+                # Nhúng Watermark nếu được cấu hình
+                if self.enable_watermark:
+                    try:
+                        from vietnamese_ai.security.watermark import TextWatermarker
+                        ket_qua = TextWatermarker.nhung_thuy_an(ket_qua, "EVONETAI_API")
+                    except ImportError:
+                        pass
+
                 # Tạo response
                 response_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-                
+
                 # Ước lượng token (đơn giản 1 từ = 1 token cho testing)
                 input_tokens = sum(len(m.content.split()) for m in request.messages)
                 output_tokens = len(ket_qua.split())
-                
+
                 resp = ChatCompletionResponse(
                     id=response_id,
                     created=int(time.time()),
@@ -151,10 +168,10 @@ class FastAPIServer:
                         total_tokens=input_tokens + output_tokens
                     )
                 )
-                
+
                 self.logger.info(f"Hoàn thành trong {time.time() - bat_dau:.2f}s")
                 return resp
-                
+
             except Exception as e:
                 self.logger.error(f"Lỗi xử lý request: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))

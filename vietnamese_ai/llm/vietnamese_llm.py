@@ -214,6 +214,19 @@ class VietnameseLLM:
         if nhiet_do <= 0:
             raise ValueError("nhiet_do phải > 0")
 
+        # Kiểm tra bảo mật
+        if khoi_dau:
+            try:
+                from vietnamese_ai.security.llm_firewall import TuongLuaAI
+                if not hasattr(self, 'tuong_lua'):
+                    self.tuong_lua = TuongLuaAI(ngat_ket_noi_khi_phat_hien=False)
+
+                an_toan, ly_do = self.tuong_lua.kiem_tra_prompt(khoi_dau)
+                if not an_toan:
+                    return f"[Bị chặn bởi Tường lửa AI] Lý do: {ly_do}"
+            except ImportError:
+                pass # Bỏ qua nếu module security chưa được load
+
         if khoi_dau:
             tokens = self._tach_tu(khoi_dau)
         else:

@@ -1,5 +1,5 @@
 import json
-from typing import List, Tuple, Dict, Any, Optional
+from typing import List, Optional, Tuple
 
 try:
     import networkx as nx
@@ -14,10 +14,10 @@ class NetworkXStore:
     def __init__(self, file_path: Optional[str] = None):
         if nx is None:
             raise ImportError("Cần cài đặt networkx: pip install networkx")
-            
+
         self.file_path = file_path
         self.graph = nx.DiGraph()
-        
+
         if self.file_path:
             self._tai_do_thi()
 
@@ -27,13 +27,13 @@ class NetworkXStore:
         chu_the = chu_the.lower().strip()
         doi_tuong = doi_tuong.lower().strip()
         quan_he = quan_he.lower().strip()
-        
+
         # Thêm Node nếu chưa có
         if not self.graph.has_node(chu_the):
             self.graph.add_node(chu_the)
         if not self.graph.has_node(doi_tuong):
             self.graph.add_node(doi_tuong)
-            
+
         # Thêm Edge
         self.graph.add_edge(chu_the, doi_tuong, relation=quan_he, **metadata)
 
@@ -54,7 +54,7 @@ class NetworkXStore:
         # Dùng BFS để tìm các node trong do_sau
         nodes_lan_can = set([thuc_the])
         frontier = [thuc_the]
-        
+
         for _ in range(do_sau):
             next_frontier = []
             for n in frontier:
@@ -75,7 +75,7 @@ class NetworkXStore:
         subgraph = self.graph.subgraph(nodes_lan_can)
         for u, v, data in subgraph.edges(data=True):
             ket_qua.append((u, data.get("relation", ""), v))
-            
+
         return ket_qua
 
     def _tai_do_thi(self):

@@ -8,7 +8,6 @@ Hướng dẫn: xây dựng hệ thống hỏi đáp dựa trên tài liệu.
 import numpy as np
 
 # === 1. Vector Store ===
-
 from vietnamese_ai import CSDLVector
 
 csdl = CSDLVector(kich_thuoc=128, khoang_cach="cosine")
@@ -72,7 +71,8 @@ for cau_hoi in ["AI là gì?", "Học máy hoạt động như thế nào?", "De
 
 # === 4. Save/Load ===
 
-import tempfile, os
+import os
+import tempfile
 
 with tempfile.TemporaryDirectory() as tmpdir:
     duong_dan = os.path.join(tmpdir, "rag.pkl")

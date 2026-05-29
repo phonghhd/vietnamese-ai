@@ -9,10 +9,11 @@ class CongCu:
     Lớp cơ sở cho mọi công cụ trong hệ thống tác tử.
     """
 
-    def __init__(self, ten: str, mo_ta: str, ham_thuc_thi: Callable):
+    def __init__(self, ten: str, mo_ta: str, ham_thuc_thi: Callable, yeu_cau_xac_nhan: bool = False):
         self.ten = ten
         self.mo_ta = mo_ta
         self._ham_thuc_thi = ham_thuc_thi
+        self.yeu_cau_xac_nhan = yeu_cau_xac_nhan
         self.tham_so = self._lay_tham_so()
 
     def _lay_tham_so(self) -> Dict[str, Any]:
@@ -42,17 +43,17 @@ class CongCu:
         }
 
 
-def cong_cu(ten: str, mo_ta: str):
+def cong_cu(ten: str, mo_ta: str, yeu_cau_xac_nhan: bool = False):
     """
     Decorator để biến một hàm Python thành một CongCu.
 
     Ví dụ:
-    @cong_cu(ten="tinh_tong", mo_ta="Tính tổng hai số nguyên")
+    @cong_cu(ten="tinh_tong", mo_ta="Tính tổng hai số nguyên", yeu_cau_xac_nhan=False)
     def tinh_tong(a: int, b: int) -> int:
         return a + b
     """
     def decorator(func: Callable) -> CongCu:
-        return CongCu(ten=ten, mo_ta=mo_ta, ham_thuc_thi=func)
+        return CongCu(ten=ten, mo_ta=mo_ta, ham_thuc_thi=func, yeu_cau_xac_nhan=yeu_cau_xac_nhan)
     return decorator
 
 
@@ -86,62 +87,39 @@ def cong_cu_tim_kiem_web(tu_khoa: str) -> str:
         from bs4 import BeautifulSoup
     except ImportError:
         return "Lỗi: Cần cài đặt requests và beautifulsoup4 (pip install requests beautifulsoup4)"
-        
+
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(tu_khoa)}"
-    
+
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        
+
         results = []
         for result in soup.find_all('div', class_='result'):
             title_elem = result.find('a', class_='result__a')
             snippet_elem = result.find('a', class_='result__snippet')
-            
+
             if title_elem and snippet_elem:
                 title = title_elem.get_text(strip=True)
                 snippet = snippet_elem.get_text(strip=True)
                 results.append(f"Tiêu đề: {title}\nNội dung: {snippet}\n---")
-                
+
             if len(results) >= 3:
                 break
-                
+
         if not results:
             return "Không tìm thấy kết quả phù hợp."
-            
+
         return "\n".join(results)
     except Exception as e:
         return f"Lỗi khi tìm kiếm web: {str(e)}"
 
 @cong_cu(ten="python_repl", mo_ta="Thực thi mã Python. Trả về kết quả từ stdout (lệnh print). Tham số 'ma_nguon' là chuỗi code Python.")
 def cong_cu_python_repl(ma_nguon: str) -> str:
-    import sys
-    import io
-    
-    # LƯU Ý: Lệnh exec có rủi ro bảo mật nếu chạy mã không tin cậy.
-    # Cấm một số module nguy hiểm cơ bản
-    forbidden_imports = ["import os", "import subprocess", "import sys", "from os", "from subprocess", "from sys"]
-    for f in forbidden_imports:
-        if f in ma_nguon:
-            return f"Lỗi bảo mật: Không được phép sử dụng '{f}' trong môi trường REPL."
-            
-    # Bẫy stdout để lấy kết quả print
-    old_stdout = sys.stdout
-    redirected_output = sys.stdout = io.StringIO()
-    
-    try:
-        # Chạy code trong namespace hạn chế
-        exec(ma_nguon, {"__builtins__": __builtins__, "math": math})
-        output = redirected_output.getvalue()
-        if not output.strip():
-            return "Mã đã chạy thành công nhưng không có kết quả in ra (không dùng print)."
-        return output
-    except Exception as e:
-        return f"Lỗi khi thực thi mã: {type(e).__name__}: {str(e)}"
-    finally:
-        sys.stdout = old_stdout
+    from vietnamese_ai.security.agent_sandbox import MoiTruongCachLy
+    return MoiTruongCachLy.thuc_thi(ma_nguon)
 

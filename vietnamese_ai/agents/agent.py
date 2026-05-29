@@ -1,7 +1,8 @@
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
+from .experience_memory import SoTayKinhNghiem
 from .memory import BoNhoTacTu
 from .tools import CongCu
 
@@ -31,7 +32,14 @@ class TacTu:
     Tác tử (Agent) có khả năng lập kế hoạch và sử dụng công cụ.
     """
 
-    def __init__(self, llm: Any, danh_sach_cong_cu: List[CongCu], max_iterations: int = 5):
+    def __init__(
+        self,
+        llm: Any,
+        danh_sach_cong_cu: List[CongCu],
+        max_iterations: int = 5,
+        ham_xac_nhan: Optional[Callable[[str, Dict[str, Any]], bool]] = None,
+        so_tay_kinh_nghiem: Optional[SoTayKinhNghiem] = None
+    ):
         """
         Khởi tạo Tác tử.
 
@@ -39,10 +47,14 @@ class TacTu:
             llm: Đối tượng LLM (ví dụ: VietnameseLLM) có phương thức sinh_van_ban(prompt) hoặc tương đương.
             danh_sach_cong_cu: Danh sách các đối tượng CongCu.
             max_iterations: Số vòng lặp suy luận tối đa để tránh bị kẹt.
+            ham_xac_nhan: Hàm callback cho Human-in-the-Loop, trả về True/False.
+            so_tay_kinh_nghiem: Sổ tay ghi nhận bài học trong quá khứ.
         """
         self.llm = llm
         self.cong_cu = {cc.ten: cc for cc in danh_sach_cong_cu}
         self.max_iterations = max_iterations
+        self.ham_xac_nhan = ham_xac_nhan
+        self.so_tay_kinh_nghiem = so_tay_kinh_nghiem
 
         tools_desc = ""
         for name, cc in self.cong_cu.items():
@@ -110,6 +122,12 @@ class TacTu:
         """
         self.bo_nho.them_tin_nhan("user", truy_van)
 
+        # Tiêm kinh nghiệm từ quá khứ vào trước khi suy luận
+        if self.so_tay_kinh_nghiem:
+            kinh_nghiem = self.so_tay_kinh_nghiem.truy_xuat_kinh_nghiem(truy_van)
+            if kinh_nghiem:
+                self.bo_nho.them_tin_nhan("system", f"BÀI HỌC KINH NGHIỆM TỪ QUÁ KHỨ (Cần lưu ý):\n{kinh_nghiem}")
+
         for i in range(self.max_iterations):
             prompt_hien_tai = self.bo_nho.lay_noi_dung_chuoi()
             phan_hoi = self._goi_llm(prompt_hien_tai)
@@ -133,7 +151,15 @@ class TacTu:
                     if isinstance(tham_so, dict) and "error" in tham_so:
                         quan_sat = f"Lỗi: Không thể phân tích JSON tham số. {tham_so['raw']}"
                     else:
-                        quan_sat = str(cc.chay(**(tham_so or {})))
+                        # Kiểm tra Human-in-the-Loop (HITL)
+                        duoc_phep = True
+                        if cc.yeu_cau_xac_nhan and self.ham_xac_nhan:
+                            duoc_phep = self.ham_xac_nhan(ten_cong_cu, tham_so or {})
+
+                        if duoc_phep:
+                            quan_sat = str(cc.chay(**(tham_so or {})))
+                        else:
+                            quan_sat = "Lỗi: Con người đã TỪ CHỐI hành động này. Hãy suy nghĩ cách khác an toàn hơn hoặc hỏi lại người dùng."
                 else:
                     quan_sat = f"Lỗi: Công cụ '{ten_cong_cu}' không tồn tại."
 

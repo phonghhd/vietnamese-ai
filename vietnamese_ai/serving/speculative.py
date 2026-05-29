@@ -1,9 +1,10 @@
-from typing import Any, List
+from typing import Any
+
 
 class SpeculativeEngine:
     """
     Công cụ tăng tốc suy luận (Inference) sử dụng kỹ thuật Speculative Decoding.
-    Cần hai mô hình: 
+    Cần hai mô hình:
     1. Draft Model (Mô hình nháp - nhỏ, siêu nhanh)
     2. Target Model (Mô hình chính - lớn, chính xác)
     """
@@ -39,24 +40,24 @@ class SpeculativeEngine:
         while tokens_sinh_ra < max_tokens:
             # BƯỚC 1: Draft Model đoán trước `gamma` tokens
             draft_guess = self._goi_mo_hinh(self.draft_model, prompt_hien_tai, num_tokens=self.gamma)
-            
+
             # Trong thực tế, Target Model sẽ chấm điểm (forward pass 1 lần) các token đoán này
             # Ở bản mô phỏng này, ta giả định Target Model "chấp nhận" 80% độ dài của draft_guess
             # và tự sinh thêm 1 token mới (như thuật toán thực tế).
-            
+
             # Giả lập token được chấp nhận
             accepted_text = draft_guess.strip() + " "
-            
+
             # Target model sinh ra 1 token cuối cùng
             target_correction = self._goi_mo_hinh(self.target_model, prompt_hien_tai + accepted_text, num_tokens=1)
-            
+
             buoc_nay = accepted_text + target_correction.strip()
             ket_qua.append(buoc_nay)
             prompt_hien_tai += buoc_nay + " "
-            
+
             # Cập nhật số token (mô phỏng 1 word = 1 token)
             tokens_sinh_ra += len(buoc_nay.split())
-            
+
             # Thêm logic ngắt nếu gặp token kết thúc (dấu chấm)
             if '.' in buoc_nay:
                 break

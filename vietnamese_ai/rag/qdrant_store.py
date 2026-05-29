@@ -2,13 +2,15 @@
 
 import uuid
 from typing import Any, Dict, List, Optional
+
 import numpy as np
+
 
 class QdrantVectorStore:
     """
     Cơ sở dữ liệu vector sử dụng Qdrant.
     Thích hợp cho Production, tốc độ cao.
-    
+
     Yêu cầu: pip install qdrant-client
     """
 
@@ -35,14 +37,14 @@ class QdrantVectorStore:
         self.distance = dist_map.get(khoang_cach, Distance.COSINE)
         self.kich_thuoc = kich_thuoc
         self.ten_collection = ten_collection
-        
+
         if url:
             self.client = QdrantClient(url=url)
         elif path:
             self.client = QdrantClient(path=path)
         else:
             self.client = QdrantClient(":memory:")
-            
+
         # Create collection if not exists
         collections = self.client.get_collections().collections
         if not any(c.name == self.ten_collection for c in collections):
@@ -59,11 +61,11 @@ class QdrantVectorStore:
     ) -> None:
         """Chen một vector vào CSDL."""
         from qdrant_client.http.models import PointStruct
-        
+
         vec = np.asarray(vector, dtype=float).flatten().tolist()
         if len(vec) != self.kich_thuoc:
             raise ValueError(f"Vector kích thước {len(vec)}, mong đợi {self.kich_thuoc}")
-            
+
         if ma.isdigit():
             point_id = int(ma)
         else:
@@ -71,16 +73,16 @@ class QdrantVectorStore:
                 point_id = str(uuid.UUID(ma))
             except ValueError:
                 point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, ma))
-                
+
         meta = metadata.copy() if metadata else {}
         meta["_original_id"] = ma
-        
+
         point = PointStruct(
-            id=point_id, 
+            id=point_id,
             vector=vec,
             payload=meta
         )
-        
+
         self.client.upsert(
             collection_name=self.ten_collection,
             points=[point]
@@ -94,17 +96,17 @@ class QdrantVectorStore:
         bo_loc: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """Tìm kiếm vector gần nhất."""
-        from qdrant_client.http.models import Filter, FieldCondition, MatchValue
-        
+        from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
         vec = np.asarray(query_vector, dtype=float).flatten().tolist()
-        
+
         qdrant_filter = None
         if bo_loc:
             conditions = []
             for k, v in bo_loc.items():
                 conditions.append(FieldCondition(key=k, match=MatchValue(value=v)))
             qdrant_filter = Filter(must=conditions)
-            
+
         results = self.client.query_points(
             collection_name=self.ten_collection,
             query=vec,
@@ -112,7 +114,7 @@ class QdrantVectorStore:
             query_filter=qdrant_filter,
             score_threshold=nguong
         )
-        
+
         ket_qua = []
         for r in results.points:
             payload = r.payload or {}
@@ -122,7 +124,7 @@ class QdrantVectorStore:
                 "diem": r.score,
                 "metadata": payload
             })
-            
+
         return ket_qua
 
     def so_luong(self) -> int:

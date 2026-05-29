@@ -8,8 +8,8 @@ Hướng dẫn: Self-Refine, Self-Consistency, Adaptive LoRA, Self-Generated Dat
 import numpy as np
 
 # === 1. Self-Refinement ===
-
 from vietnamese_ai import SelfRefine
+
 
 def mock_generate(prompt):
     return f"Đây là output cho: {prompt[:30]}... AI đang phát triển mạnh mẽ tại Việt Nam."
@@ -21,7 +21,7 @@ refine = SelfRefine(
 )
 
 ket_qua = refine.chay("Viết đoạn văn về AI tại Việt Nam")
-print(f"Self-Refine:")
+print("Self-Refine:")
 print(f"  Output: {ket_qua['output_cuoi'][:80]}...")
 print(f"  Số vòng: {ket_qua['so_vong']}")
 print(f"  Điểm: {ket_qua['diem_cuoi']:.3f}")
@@ -30,6 +30,7 @@ print(f"  Đạt ngưỡng: {ket_qua['dat_nguong']}")
 # === 2. Self-Consistency ===
 
 from vietnamese_ai import SelfConsistency
+
 
 def mock_generate_with_variation(prompt):
     import random
@@ -42,7 +43,7 @@ sc = SelfConsistency(
 )
 
 ket_qua = sc.chay("2 + 2 = ?")
-print(f"\nSelf-Consistency:")
+print("\nSelf-Consistency:")
 print(f"  Đáp án: {ket_qua['dap_an']}")
 print(f"  Đồng nhất: {ket_qua['ty_le_dong_nhat']:.0%}")
 print(f"  Phân phối: {ket_qua['phan_phoi']}")
@@ -98,7 +99,7 @@ sinh.them_giong_mau("Phân tích ưu nhược điểm", "Ưu điểm: hiệu qu�
 
 # Sinh dữ liệu
 du_lieu = sinh.sinh(5, loai="instruction")
-print(f"\nSelf-Generated Data:")
+print("\nSelf-Generated Data:")
 print(f"  Đã sinh: {len(du_lieu)} mẫu")
 for mau in du_lieu[:2]:
     print(f"  - {mau['instruction'][:50]}...")
@@ -107,8 +108,7 @@ print(f"\n  Stats: {sinh.thong_ke()}")
 
 # === 5. Test-Time Training ===
 
-from vietnamese_ai import TestTimeTraining
-from vietnamese_ai import PhanLoai
+from vietnamese_ai import PhanLoai, TestTimeTraining
 
 # Train model
 X_train = np.random.randn(100, 4)
@@ -125,7 +125,7 @@ ttt.luu_trong_so_goc()
 # Adapt trên test data
 X_test = np.random.randn(20, 4)
 ket_qua = ttt.thich_ung(X_test)
-print(f"\nTest-Time Training:")
+print("\nTest-Time Training:")
 print(f"  Loss: {ket_qua['loss_dau']:.4f} → {ket_qua['loss_cuoi']:.4f}")
 print(f"  Giảm loss: {ket_qua['giam_loss']:.4f}")
 print(f"  Số bước: {ket_qua['so_buoc']}")

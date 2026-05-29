@@ -1,10 +1,10 @@
-import json
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
+
 
 class BaseLLMWrapper(ABC):
     """Lớp trừu tượng cho các LLM API Wrapper."""
-    
+
     @abstractmethod
     def sinh_van_ban(self, prompt: str, **kwargs) -> str:
         """Sinh văn bản từ prompt."""
@@ -20,12 +20,12 @@ class OpenAIWrapper(BaseLLMWrapper):
             from openai import OpenAI
         except ImportError:
             raise ImportError("Vui lòng cài đặt openai: pip install openai")
-            
+
         self.client = OpenAI(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
-        
+
     def _parse_prompt(self, prompt: str) -> List[Dict[str, str]]:
         """Phân tích prompt thành format messages của OpenAI."""
         # Cách phân tích đơn giản: Chia theo tag [system], [user], [assistant]
@@ -34,7 +34,7 @@ class OpenAIWrapper(BaseLLMWrapper):
         lines = prompt.split('\n')
         current_role = "user"
         current_content = []
-        
+
         for line in lines:
             if line.startswith("Hệ thống: ") or line.startswith("[system]"):
                 if current_content:
@@ -53,23 +53,23 @@ class OpenAIWrapper(BaseLLMWrapper):
                 current_content = [line.replace("Trợ lý: ", "").replace("[assistant]", "").strip()]
             else:
                 current_content.append(line)
-                
+
         if current_content:
             messages.append({"role": current_role, "content": "\n".join(current_content).strip()})
-            
+
         # Fallback nếu parse bị rỗng
         if not messages:
             messages = [{"role": "user", "content": prompt}]
-            
+
         return messages
 
     def sinh_van_ban(self, prompt: str, **kwargs) -> str:
         messages = self._parse_prompt(prompt)
-        
+
         # Override tham số nếu có truyền vào
         temp = kwargs.get("nhiet_do", self.temperature)
         tokens = kwargs.get("do_dai", self.max_tokens)
-        
+
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -89,7 +89,7 @@ class GeminiWrapper(BaseLLMWrapper):
             import google.generativeai as genai
         except ImportError:
             raise ImportError("Vui lòng cài đặt google-generativeai: pip install google-generativeai")
-            
+
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(model)
         self.max_tokens = max_tokens
@@ -98,20 +98,20 @@ class GeminiWrapper(BaseLLMWrapper):
     def sinh_van_ban(self, prompt: str, **kwargs) -> str:
         # Gemini có model.generate_content
         # Với Gemini, ta có thể quăng trực tiếp đoạn hội thoại vì model xử lý context khá tốt.
-        
+
         temp = kwargs.get("nhiet_do", self.temperature)
         tokens = kwargs.get("do_dai", self.max_tokens)
-        
+
         generation_config = {
             "temperature": temp,
             "max_output_tokens": tokens,
         }
-        
+
         response = self.model.generate_content(
             prompt,
             generation_config=generation_config
         )
-        
+
         try:
             return response.text
         except ValueError:

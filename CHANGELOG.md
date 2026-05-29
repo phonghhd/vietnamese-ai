@@ -2,9 +2,35 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
-## v12.0.0 (2026-05-22)
+## v20.0.0 (2026-05-29)
 
-### Hệ thống Đa Tác Tử (Multi-Agent System)
+### Real-time Agentic RAG
+- **AgenticRAGPipeline**: Bọc lõi tìm kiếm bằng hệ thống Tác tử (Agent). Hỗ trợ Multi-step Reasoning để tự vạch ra kế hoạch tìm kiếm thông tin trên VectorDB, GraphDB hoặc Web.
+- **RAGEventBus**: Hệ thống Event Bus nội bộ (Observer Pattern) cho phép đồng bộ tài liệu (chunking & embedding) theo thời gian thực tại Background Thread.
+- **DocumentWatcher**: Phát hiện và bắn sự kiện tự động khi có file PDF/Text mới được thêm vào.
+
+## v19.0.0 (2026-05-29)
+
+### Web3 DePIN & Hybrid Execution
+- **P2PTracker**: Hệ thống sổ đăng ký tập trung cho phép các máy tính Edge Node tự do gia nhập vào mạng lưới phi tập trung.
+- **TokenLedger**: Sổ cái Tokenomics (tiền mã hóa). Thưởng EVON Token tự động cho Edge Node hoàn thành tốt tác vụ.
+- **Hybrid Speculative Execution**: Cơ chế "chạy đua song song" trong `EdgeRouter`. Vừa tận dụng Node P2P phi tập trung để giảm độ trễ, vừa giữ Data Center làm lưới an toàn (Safety Net) nhằm đảm bảo 100% Uptime.
+
+## v18.0.0 (2026-05-29)
+
+### Agentic Evolution
+- **Human-in-the-Loop (HITL)**: Tích hợp `yeu_cau_xac_nhan` cho các `CongCu` nhạy cảm. Agent sẽ tạm dừng và gọi hàm `ham_xac_nhan` trước khi hành động.
+- **Experience Memory 2.0**: Module `SoTayKinhNghiem` giúp Agent tự học hỏi từ những lỗi lầm trong quá khứ thông qua VectorDB. Tiêm bài học vào System Prompt ở các lượt chat sau.
+
+## v17.1.0 (2026-05-28)
+
+### State-of-the-Art Security
+- **Automated Red Teaming**: Auto Red Teaming (Fuzzing) Agent Framework, dò tìm lỗ hổng bảo mật của Agent.
+- **Zero-Width Text Watermarking**: Mã hóa bản quyền ẩn trong văn bản trả về bằng Zero-Width Characters.
+- **Cryptographic Proof (ZKP)**: Hệ thống chứng minh mật mã (TEE/ZKP) cho các Node DePIN Edge AI (SecureEdgeNode).
+- **Deep Firewall Integration**: Tích hợp luồng Firewall (HeThongTuongLua) sâu vào Core `VietnameseLLM` & `API Security Middleware`.
+
+## v12.0.0 (2026-05-22)
 
 **Kiến trúc Tác tử (`TacTu`, `BoNhoTacTu`):**
 - Vòng lặp suy luận ReAct (Reason + Act) cho phép LLM tự lập kế hoạch và sử dụng công cụ.

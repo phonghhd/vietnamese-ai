@@ -1,7 +1,9 @@
 """Text Splitters - Chia nhỏ văn bản cho RAG."""
 
 from typing import List
+
 from vietnamese_ai.rag.document_loaders import Document
+
 
 class RecursiveCharacterTextSplitter:
     """
@@ -18,12 +20,12 @@ class RecursiveCharacterTextSplitter:
         self.chunk_overlap = chunk_overlap
         # Ưu tiên cắt theo đoạn văn kép, đoạn văn đơn, dấu chấm, dấu phẩy, khoảng trắng
         self.separators = separators or ["\n\n", "\n", ". ", ", ", " "]
-        
+
     def _split_text(self, text: str, separators: List[str]) -> List[str]:
         """Đệ quy chia nhỏ văn bản."""
         if len(text) <= self.chunk_size:
             return [text]
-            
+
         # Tìm separator phù hợp nhất
         separator = separators[-1]
         new_separators = []
@@ -32,19 +34,19 @@ class RecursiveCharacterTextSplitter:
                 separator = _s
                 new_separators = separators[i + 1:]
                 break
-                
+
         # Split text bằng separator đó
         splits = text.split(separator)
-        
+
         # Merge các đoạn nhỏ lại với nhau (có tính toán overlap)
         good_splits = []
         _separator = separator if separator is not None else ""
-        
+
         current_chunk = ""
         for s in splits:
             if not s:
                 continue
-            
+
             # Nếu s tự thân đã lớn hơn chunk_size, cần chia nhỏ nó ra tiếp
             if len(s) > self.chunk_size:
                 if current_chunk:
@@ -58,7 +60,7 @@ class RecursiveCharacterTextSplitter:
                     for i in range(0, len(s), self.chunk_size):
                         good_splits.append(s[i:i+self.chunk_size])
                 continue
-                
+
             # Gộp vào current_chunk nếu độ dài cho phép
             if len(current_chunk) + len(s) + len(_separator) <= self.chunk_size:
                 if current_chunk:
@@ -68,7 +70,7 @@ class RecursiveCharacterTextSplitter:
             else:
                 if current_chunk:
                     good_splits.append(current_chunk)
-                    
+
                 # Tính overlap để bắt đầu chunk mới
                 # Chỉ lấy một phần của current_chunk cũ
                 if self.chunk_overlap > 0 and len(current_chunk) > self.chunk_overlap:
@@ -80,10 +82,10 @@ class RecursiveCharacterTextSplitter:
                     current_chunk = overlap_text + _separator + s if overlap_text else s
                 else:
                     current_chunk = s
-                    
+
         if current_chunk:
             good_splits.append(current_chunk)
-            
+
         return good_splits
 
     def split_text(self, text: str) -> List[str]:

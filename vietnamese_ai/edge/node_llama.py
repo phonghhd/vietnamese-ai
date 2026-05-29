@@ -1,8 +1,8 @@
 import os
 import subprocess
 import time
-import json
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 
 class NodeLlamaEngine:
     """
@@ -11,10 +11,10 @@ class NodeLlamaEngine:
     Giao tiếp qua HTTP REST API (OpenAI-compatible) do node-llama-cpp cung cấp.
     """
     def __init__(
-        self, 
-        model_path: str, 
-        port: int = 8080, 
-        gpu_layers: int = 35, 
+        self,
+        model_path: str,
+        port: int = 8080,
+        gpu_layers: int = 35,
         context_size: int = 4096,
         auto_start: bool = True
     ):
@@ -23,9 +23,9 @@ class NodeLlamaEngine:
         self.gpu_layers = gpu_layers
         self.context_size = context_size
         self.server_process: Optional[subprocess.Popen] = None
-        
+
         self.api_base = f"http://127.0.0.1:{self.port}/v1"
-        
+
         if auto_start:
             self.start_server()
 
@@ -55,17 +55,17 @@ class NodeLlamaEngine:
         ]
 
         print(f"[Edge AI] Đang khởi chạy: {' '.join(cmd)}")
-        
+
         # Start server process in background
         self.server_process = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL, # Mute stdout in production
             stderr=subprocess.DEVNULL
         )
-        
+
         # Đợi server sẵn sàng (ping đến health check API)
         self._wait_for_server()
-        
+
     def _wait_for_server(self, timeout: int = 30):
         try:
             import requests
@@ -83,7 +83,7 @@ class NodeLlamaEngine:
             except requests.ConnectionError:
                 pass
             time.sleep(1)
-            
+
         self.stop_server()
         raise TimeoutError(f"Server không thể khởi động sau {timeout} giây.")
 
@@ -105,7 +105,7 @@ class NodeLlamaEngine:
         """
         if not self.server_process:
             raise RuntimeError("Server chưa được khởi động. Hãy gọi start_server() trước.")
-            
+
         try:
             import requests
         except ImportError:
@@ -117,12 +117,12 @@ class NodeLlamaEngine:
             "max_tokens": do_dai,
             "temperature": 0.7
         }
-        
+
         if kwargs:
             payload.update(kwargs)
-            
+
         headers = {"Content-Type": "application/json"}
-        
+
         try:
             response = requests.post(
                 f"{self.api_base}/chat/completions",
@@ -135,7 +135,7 @@ class NodeLlamaEngine:
             return data["choices"][0]["message"]["content"]
         except Exception as e:
             return f"Lỗi sinh văn bản (Edge): {str(e)}"
-            
+
     def __del__(self):
         """Dọn dẹp process khi object bị hủy."""
         self.stop_server()

@@ -1,7 +1,8 @@
 import math
-from typing import List, Optional, Tuple, Any
+from typing import List, Optional
 
 from .agent import TacTu
+
 
 class MCTSNode:
     """Nút trong cây tìm kiếm Monte Carlo Tree Search cho suy luận."""
@@ -9,22 +10,22 @@ class MCTSNode:
         self.trang_thai = trang_thai
         self.cha = cha
         self.hanh_dong = hanh_dong # Hành động dẫn đến trạng thái này
-        
+
         self.con: List['MCTSNode'] = []
         self.so_lan_tham = 0
         self.tong_diem = 0.0
-        
+
     def la_la(self) -> bool:
         return len(self.con) == 0
 
     def tinh_ucb1(self, c_param: float = 1.41) -> float:
         if self.so_lan_tham == 0:
             return float('inf')
-        
+
         diem_khai_thac = self.tong_diem / self.so_lan_tham
         if self.cha is None:
             return diem_khai_thac
-            
+
         diem_khai_pha = c_param * math.sqrt(math.log(self.cha.so_lan_tham) / self.so_lan_tham)
         return diem_khai_thac + diem_khai_pha
 
@@ -41,16 +42,16 @@ class LapKeHoachMCTS:
     def _sinh_hanh_dong_kha_thi(self, trang_thai: str) -> List[str]:
         """Sử dụng LLM để sinh ra các bước đi tiềm năng."""
         prompt = f"Dựa trên trạng thái hiện tại: '{trang_thai}'. Hãy đề xuất 3 hành động logic tiếp theo. Trả về dưới dạng danh sách gạch đầu dòng."
-        
+
         # Gọi thẳng hàm _goi_llm thay vì chay() để tránh tool execution ở bước này
         phan_hoi = self.agent._goi_llm(prompt)
-        
+
         hanh_dong = []
         for dong in phan_hoi.split('\n'):
             dong = dong.strip()
             if dong.startswith('-') or dong.startswith('*'):
                 hanh_dong.append(dong[1:].strip())
-                
+
         return hanh_dong if hanh_dong else ["Nghiên cứu thêm thông tin"]
 
     def _chuyen_trang_thai(self, trang_thai: str, hanh_dong: str) -> str:
@@ -64,7 +65,7 @@ class LapKeHoachMCTS:
         try:
             phan_hoi = self.agent._goi_llm(prompt)
             return min(max(float(phan_hoi.strip()), 0.0), 1.0)
-        except:
+        except Exception:
             return 0.5 # Giá trị mặc định nếu LLM không trả về số
 
     def _chon_nut(self, nut_goc: MCTSNode) -> MCTSNode:
@@ -97,33 +98,33 @@ class LapKeHoachMCTS:
     def chay(self, truy_van: str) -> str:
         """Thực thi MCTS Planning và trả về kế hoạch/kết quả tốt nhất."""
         nut_goc = MCTSNode(trang_thai=f"Bắt đầu với yêu cầu: {truy_van}")
-        
+
         for _ in range(self.so_vong_lap):
             # Selection
             nut_chon = self._chon_nut(nut_goc)
-            
+
             # Expansion
             if nut_chon.so_lan_tham > 0 or nut_chon == nut_goc:
                 self._mo_rong(nut_chon)
                 if nut_chon.con:
                     nut_chon = nut_chon.con[0]
-                    
+
             # Simulation
             diem = self._mo_phong(nut_chon)
-            
+
             # Backpropagation
             self._cap_nhat_nguoc(nut_chon, diem)
-            
+
         # Trích xuất đường đi tốt nhất
         duong_di = []
         nut_hien_tai = nut_goc
         while nut_hien_tai.con:
             nut_hien_tai = max(nut_hien_tai.con, key=lambda n: n.so_lan_tham) # Chọn theo số lần thăm nhiều nhất (robustness)
             duong_di.append(f"Hành động: {nut_hien_tai.hanh_dong} -> Trạng thái: {nut_hien_tai.trang_thai}")
-            
+
         ke_hoach_str = "\n".join(duong_di)
-        
+
         # Yêu cầu Agent thực thi kế hoạch này
         prompt_cuoi = f"Tôi đã lập kế hoạch các bước sau để giải quyết yêu cầu '{truy_van}':\n\n{ke_hoach_str}\n\nHãy thực thi kế hoạch này và cung cấp kết quả cuối cùng."
-        
+
         return self.agent.chay(prompt_cuoi)
