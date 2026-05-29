@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-16.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-20.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-380%2F380-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-897%2F897-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
@@ -558,8 +558,8 @@ curl http://localhost:8080/suc_khoe
 ```
 ├── rust_core/             # (v16.0) Lõi C++/Rust siêu tốc bằng PyO3
 ├── vietnamese_ai/
-│   ├── agents/            # (v12.0) Agentic Swarm, MoA, MCTS, (v16.0) MemGPT
-│   ├── edge/              # (v13.0) DePIN Routing, (v17.1) SecureEdgeNode (TEE/ZKP)
+│   ├── agents/            # (v12.0) Agentic Swarm, (v16.0) MemGPT, (v18.0) Experience Memory (HITL)
+│   ├── edge/              # (v13.0) DePIN Routing, (v17.1) ZKP, (v19.0) P2PTracker & TokenLedger
 │   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo
 │   ├── models/            # PhanLoai, HoiQuy, PhanCum, MangNron, MoHinhTapHop
 │   ├── preprocessing/     # XuLyVanBan, XuLySo, TaoDacTrung
@@ -575,6 +575,8 @@ curl http://localhost:8080/suc_khoe
 │   ├── federated/         # HocLienKet (FedAvg, Differential Privacy)
 │   ├── realtime/          # PipelineThoiGianThuc (Message Queue, Feature Store)
 │   ├── saas/              # NenTangDichVu (Cloud Platform SaaS)
+│   ├── rag/               # (v10.0) VectorDB, Chunking, Retriever, (v20.0) Agentic Realtime RAG
+│   ├── ui/                # (v20.0) V-UI Zero-Dependency Web Native (PWA, WebGPU, WebXR, WebBluetooth)
 │   ├── studio/            # StudioKeoTha (No-code Studio)
 │   ├── llm/               # VietnameseLLM (Tích hợp Tường lửa v17.1), ModelConfig, LMEvalHarness, BenchmarkRunner
 │   ├── streaming/         # XuLyStream (real-time processing)
@@ -626,7 +628,7 @@ ruff check vietnamese_ai/ tests/
 ```
 
 ```
-============================= 594 passed ==============================
+============================= 897 passed ==============================
 ```
 
 ---
