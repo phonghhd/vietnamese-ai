@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from vietnamese_ai.core.engine import Engine
 from vietnamese_ai.core.pipeline import Pipeline
-from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.datalake.sample_data import DuLieuMau
 from vietnamese_ai.models.classifier import PhanLoai
 from vietnamese_ai.models.clustering import PhanCum
 from vietnamese_ai.models.neural_net import MangNron

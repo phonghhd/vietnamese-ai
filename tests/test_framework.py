@@ -5,7 +5,7 @@ import pytest
 
 from vietnamese_ai.core.engine import Engine
 from vietnamese_ai.core.pipeline import Pipeline
-from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.datalake.sample_data import DuLieuMau
 from vietnamese_ai.models.classifier import PhanLoai
 from vietnamese_ai.models.clustering import PhanCum
 from vietnamese_ai.models.neural_net import MangNron
@@ -412,7 +412,7 @@ class TestAutoML:
 
 class TestTangCuongVanBan:
     def test_tang_cuong(self):
-        from vietnamese_ai.augmentation.text_augmenter import TangCuongVanBan
+        from vietnamese_ai.preprocessing.text_augmenter import TangCuongVanBan
 
         tc = TangCuongVanBan(seed=42)
         ket_qua = tc.tang_cuong("Sản phẩm rất tốt", so_mau=5)
@@ -420,7 +420,7 @@ class TestTangCuongVanBan:
         assert ket_qua[0] == "Sản phẩm rất tốt"
 
     def test_tang_cuong_tap_du_lieu(self):
-        from vietnamese_ai.augmentation.text_augmenter import TangCuongVanBan
+        from vietnamese_ai.preprocessing.text_augmenter import TangCuongVanBan
 
         tc = TangCuongVanBan(seed=42)
         vb, nhan = tc.tang_cuong_tap_du_lieu(
@@ -456,7 +456,7 @@ class TestTheoDoiThiNghiem:
 
 class TestMangSau:
     def test_numpy_backend(self):
-        from vietnamese_ai.deep_learning.mang_sau import MangSau
+        from vietnamese_ai.models.mang_sau import MangSau
 
         X, y = DuLieuMau.phan_loai_don_gian(so_mau=100, so_dac_trung=5)
         X_train, X_test, y_train, y_test = XuLySo.chia_du_lieu(X, y)
@@ -468,7 +468,7 @@ class TestMangSau:
         assert len(du_doan) == len(X_test)
 
     def test_danh_gia(self):
-        from vietnamese_ai.deep_learning.mang_sau import MangSau
+        from vietnamese_ai.models.mang_sau import MangSau
 
         X, y = DuLieuMau.phan_loai_don_gian(so_mau=100, so_dac_trung=3)
         mang = MangSau(lop_an=[8], so_vong=5)
@@ -530,7 +530,7 @@ class TestPhanLoaiHinhAnh:
 
 class TestLopDense:
     def test_tien(self):
-        from vietnamese_ai.deep_learning.layers import LopDense
+        from vietnamese_ai.models.layers import LopDense
 
         lop = LopDense(5, 3, ham_kich_hoat="relu")
         X = np.random.rand(10, 5)
@@ -538,7 +538,7 @@ class TestLopDense:
         assert ket_qua.shape == (10, 3)
 
     def test_softmax(self):
-        from vietnamese_ai.deep_learning.layers import LopDense
+        from vietnamese_ai.models.layers import LopDense
 
         lop = LopDense(5, 3, ham_kich_hoat="softmax")
         X = np.random.rand(10, 5)
@@ -596,7 +596,7 @@ class TestQuanLyMoHinh:
 
 class TestXuLyStream:
     def test_them_du_lieu(self):
-        from vietnamese_ai.streaming.processor import XuLyStream
+        from vietnamese_ai.realtime.processor import XuLyStream
 
         stream = XuLyStream(kich_thuoc_cua_so=50)
         for gv in np.random.randn(20):
@@ -604,7 +604,7 @@ class TestXuLyStream:
         assert len(stream) == 20
 
     def test_thong_ke(self):
-        from vietnamese_ai.streaming.processor import XuLyStream
+        from vietnamese_ai.realtime.processor import XuLyStream
 
         stream = XuLyStream()
         stream.them_nhieu([1.0, 2.0, 3.0, 4.0, 5.0])
@@ -613,7 +613,7 @@ class TestXuLyStream:
         assert tk["trung_binh"] == 3.0
 
     def test_bat_thuong(self):
-        from vietnamese_ai.streaming.processor import XuLyStream
+        from vietnamese_ai.realtime.processor import XuLyStream
 
         stream = XuLyStream(nguong_bat_thuong=2.0)
         du_lieu = list(np.random.randn(20)) + [100.0]
@@ -660,7 +660,7 @@ class TestPhanTanHuanLuyen:
 
 class TestModelHub:
     def test_dang_ky_va_tim_kiem(self, tmp_path):
-        from vietnamese_ai.hub.model_hub import ModelHub
+        from vietnamese_ai.registry.model_hub import ModelHub
 
         hub = ModelHub(str(tmp_path / "hub"))
         pl = PhanLoai(thuat_toan="logistic")
@@ -672,7 +672,7 @@ class TestModelHub:
         assert len(ds) >= 1
 
     def test_danh_gia_sao(self, tmp_path):
-        from vietnamese_ai.hub.model_hub import ModelHub
+        from vietnamese_ai.registry.model_hub import ModelHub
 
         hub = ModelHub(str(tmp_path / "hub"))
         pl = PhanLoai(thuat_toan="logistic")
@@ -687,7 +687,7 @@ class TestModelHub:
 
 class TestPluginManager:
     def test_dang_ky_plugin(self):
-        from vietnamese_ai.plugins.plugin_manager import PluginManager
+        from vietnamese_ai.plugin.legacy_manager import PluginManager
 
         pm = PluginManager()
 
@@ -699,7 +699,7 @@ class TestPluginManager:
         assert plugin() == 42
 
     def test_hook(self):
-        from vietnamese_ai.plugins.plugin_manager import PluginManager
+        from vietnamese_ai.plugin.legacy_manager import PluginManager
 
         pm = PluginManager()
         called = []
@@ -712,7 +712,7 @@ class TestPluginManager:
         assert len(called) == 1
 
     def test_danh_sach(self):
-        from vietnamese_ai.plugins.plugin_manager import PluginManager
+        from vietnamese_ai.plugin.legacy_manager import PluginManager
 
         pm = PluginManager()
 
@@ -782,7 +782,7 @@ class TestCloudDeployment:
     def test_tao_docker_config(self, tmp_path):
         from pathlib import Path
 
-        from vietnamese_ai.cloud.deployment import CloudDeployment
+        from vietnamese_ai.enterprise.deployment import CloudDeployment
 
         deploy = CloudDeployment()
         duong_dan = deploy.tao_docker_config("test_model", str(tmp_path / "deploy"))
@@ -792,7 +792,7 @@ class TestCloudDeployment:
 
 class TestMarketplace:
     def test_dang_ky_va_tim_kiem(self, tmp_path):
-        from vietnamese_ai.cloud.marketplace import Marketplace
+        from vietnamese_ai.enterprise.marketplace import Marketplace
 
         mp = Marketplace(str(tmp_path / "market"))
         mp.dang_ky(ten="sentiment", loai="model", tac_gia="test", tags=["nlp"])
@@ -803,7 +803,7 @@ class TestMarketplace:
         assert ds[0]["ten"] == "sentiment"
 
     def test_danh_gia(self, tmp_path):
-        from vietnamese_ai.cloud.marketplace import Marketplace
+        from vietnamese_ai.enterprise.marketplace import Marketplace
 
         mp = Marketplace(str(tmp_path / "market"))
         mp.dang_ky(ten="test", loai="model")
@@ -813,7 +813,7 @@ class TestMarketplace:
         assert ds[0]["danh_gia_sao"] == 4.0
 
     def test_thong_ke(self, tmp_path):
-        from vietnamese_ai.cloud.marketplace import Marketplace
+        from vietnamese_ai.enterprise.marketplace import Marketplace
 
         mp = Marketplace(str(tmp_path / "market"))
         mp.dang_ky(ten="a", loai="model")

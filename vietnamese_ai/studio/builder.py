@@ -336,7 +336,7 @@ class StudioKeoTha:
 
     def _chay_node_du_lieu(self, node: Node) -> np.ndarray:
         """Chạy node dữ liệu."""
-        from vietnamese_ai.datasets.sample_data import DuLieuMau
+        from vietnamese_ai.datalake.sample_data import DuLieuMau
 
         nhiem_vu = node.tham_so.get("nhiem_vu", "phan_loai")
         so_mau = node.tham_so.get("so_mau", 200)
@@ -637,3 +637,25 @@ class StudioKeoTha:
 
         Logger("StudioKeoTha").info(f"Đã tải pipeline từ: {duong_dan}")
         return studio
+
+    def chay_giao_dien_web(self, port: int = 5000):
+        """Khởi động Visual UI trên nền trình duyệt."""
+        try:
+            from vietnamese_ai.ui.core import UIApp, KieuDang
+            from vietnamese_ai.ui.components import KhungKeoThaDAG
+        except ImportError:
+            raise ImportError("Không tìm thấy V-UI. Hãy đảm bảo thư mục vietnamese_ai/ui tồn tại.")
+        
+        self.logger.info(f"Đang chuẩn bị giao diện Web Visual Builder...")
+        app = UIApp(tieu_de=self.ten, theme=KieuDang.DARK)
+        
+        # Đưa lõi DAG vào Component UI
+        ui_dag = KhungKeoThaDAG(
+            ham_lay_dag=self.lay_canvas,
+            ham_chay_dag=self.chay
+        )
+        app.them_cot(ui_dag)
+        
+        # Khởi động Web Server (Zero-Dependency)
+        app.chay(port=port)
+

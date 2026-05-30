@@ -231,7 +231,7 @@ def cmd_evaluate(args):
 
 def cmd_web(args):
     """Khởi động giao diện web no-code."""
-    from vietnamese_ai.web.app import UngDungWeb
+    from vietnamese_ai.ui.web_app import UngDungWeb
 
     app = UngDungWeb(port=args.port, host=args.host)
     app.chay()

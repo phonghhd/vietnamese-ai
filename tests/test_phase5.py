@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.datalake.sample_data import DuLieuMau
 from vietnamese_ai.models.classifier import PhanLoai
 
 # ============================================================

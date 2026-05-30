@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.datalake.sample_data import DuLieuMau
 from vietnamese_ai.models.classifier import PhanLoai
 
 # ============================================================
@@ -15,7 +15,7 @@ from vietnamese_ai.models.classifier import PhanLoai
 
 class TestNenTangDichVu:
     def setup_method(self):
-        from vietnamese_ai.saas.platform import NenTangDichVu
+        from vietnamese_ai.enterprise.platform import NenTangDichVu
 
         self.ntdv = NenTangDichVu
 
@@ -640,7 +640,7 @@ class TestPhase6Integration:
         assert len(vietnamese_ai.__all__) >= 45
 
     def test_end_to_end_saas(self, tmp_path):
-        from vietnamese_ai.saas.platform import NenTangDichVu
+        from vietnamese_ai.enterprise.platform import NenTangDichVu
 
         ntdv = NenTangDichVu(str(tmp_path / "saas"))
 

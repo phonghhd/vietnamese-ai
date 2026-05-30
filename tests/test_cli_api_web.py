@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.datalake.sample_data import DuLieuMau
 from vietnamese_ai.models.classifier import PhanLoai
 
 # ============================================================
@@ -164,14 +164,14 @@ class TestAPIServer:
 
 class TestWebUI:
     def test_khoi_tao(self):
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb(port=5000)
         assert app.port == 5000
         assert app._model is None
 
     def test_html_template(self):
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         assert "Vietnamese AI" in UngDungWeb.HTML_TEMPLATE
         assert "uploadForm" in UngDungWeb.HTML_TEMPLATE
@@ -179,7 +179,7 @@ class TestWebUI:
     def test_xu_ly_upload(self, tmp_path):
         import pandas as pd
 
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
         df = pd.DataFrame({"f1": [1, 2, 3], "f2": [4, 5, 6], "label": [0, 1, 0]})
@@ -193,7 +193,7 @@ class TestWebUI:
     def test_xu_ly_upload_voi_target(self):
         import pandas as pd
 
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
         df = pd.DataFrame({"f1": [1, 2], "f2": [3, 4], "y": [0, 1]})
@@ -204,7 +204,7 @@ class TestWebUI:
         assert ket_qua["cot_nhan"] == "y"
 
     def test_xu_ly_train_chua_upload(self):
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
         ket_qua = app._xu_ly_train({})
@@ -214,7 +214,7 @@ class TestWebUI:
     def test_xu_ly_train(self):
         import pandas as pd
 
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
         df = pd.DataFrame({
@@ -230,7 +230,7 @@ class TestWebUI:
         assert "diem" in ket_qua
 
     def test_xu_ly_predict_chua_train(self):
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
         ket_qua = app._xu_ly_predict({"data": [[1, 2, 3]]})
@@ -239,7 +239,7 @@ class TestWebUI:
     def test_xu_ly_predict(self):
         import pandas as pd
 
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
         df = pd.DataFrame({
@@ -259,7 +259,7 @@ class TestWebUI:
     def test_end_to_end_web(self):
         import pandas as pd
 
-        from vietnamese_ai.web.app import UngDungWeb
+        from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
         df = pd.DataFrame({

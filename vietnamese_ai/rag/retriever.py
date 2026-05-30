@@ -362,7 +362,31 @@ class IdentityAwareRetriever(TrichXuat):
             if allowed is None or any(role in allowed for role in required_roles):
                 ket_qua_da_loc.append(kq)
 
-            if len(ket_qua_da_loc) >= top_k:
-                break
-
         return ket_qua_da_loc
+
+class MultiModalRetriever(TrichXuat):
+    """
+    Retriever mở rộng để hỗ trợ tìm kiếm Đa phương thức (Văn bản và Hình ảnh).
+    """
+    def __init__(self, multimodal_store: Any, **kwargs):
+        # Khởi tạo TrichXuat với text_store từ multimodal_store
+        super().__init__(csdl_vector=multimodal_store.text_store, **kwargs)
+        self.multimodal_store = multimodal_store
+
+    def tim_kiem_da_phuong_thuc(self, cau_hoi: str, la_hinh_anh: bool = False, top_k: int = 3) -> List[Dict[str, Any]]:
+        """
+        Tìm kiếm thông minh.
+        Nếu la_hinh_anh = True: cau_hoi là đường dẫn ảnh.
+        Nếu la_hinh_anh = False: cau_hoi là văn bản.
+        Trả về kết quả hỗn hợp (văn bản và metadata ảnh liên quan).
+        """
+        if la_hinh_anh:
+            # Query bằng Ảnh
+            kq_anh = self.multimodal_store.tim_kiem_anh_tu_anh(cau_hoi, top_k=top_k)
+            kq_van_ban = self.multimodal_store.tim_kiem_van_ban_tu_anh(cau_hoi, top_k=top_k)
+            return {"anh": kq_anh, "van_ban": kq_van_ban}
+        else:
+            # Query bằng Văn bản
+            kq_anh = self.multimodal_store.tim_kiem_anh_tu_van_ban(cau_hoi, top_k=top_k)
+            kq_van_ban = self.tim_kiem(cau_hoi, top_k=top_k)
+            return {"anh": kq_anh, "van_ban": kq_van_ban}

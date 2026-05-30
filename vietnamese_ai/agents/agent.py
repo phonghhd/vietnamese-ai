@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional
 from .experience_memory import SoTayKinhNghiem
 from .memory import BoNhoTacTu
 from .tools import CongCu
+from .advanced_memory import GraphMemory
 
 # Template hệ thống cơ bản cho Tác tử (ReAct)
 REACT_SYSTEM_PROMPT = """Bạn là một trợ lý AI thông minh có khả năng sử dụng công cụ để giải quyết vấn đề.
@@ -38,7 +39,8 @@ class TacTu:
         danh_sach_cong_cu: List[CongCu],
         max_iterations: int = 5,
         ham_xac_nhan: Optional[Callable[[str, Dict[str, Any]], bool]] = None,
-        so_tay_kinh_nghiem: Optional[SoTayKinhNghiem] = None
+        so_tay_kinh_nghiem: Optional[SoTayKinhNghiem] = None,
+        graph_memory: Optional[GraphMemory] = None
     ):
         """
         Khởi tạo Tác tử.
@@ -55,6 +57,7 @@ class TacTu:
         self.max_iterations = max_iterations
         self.ham_xac_nhan = ham_xac_nhan
         self.so_tay_kinh_nghiem = so_tay_kinh_nghiem
+        self.graph_memory = graph_memory
 
         tools_desc = ""
         for name, cc in self.cong_cu.items():
@@ -122,6 +125,13 @@ class TacTu:
         """
         self.bo_nho.them_tin_nhan("user", truy_van)
 
+        # Tiêm kiến thức từ GraphMemory
+        if getattr(self, "graph_memory", None):
+            self.graph_memory.them("user", truy_van)
+            ngu_canh_do_thi = self.graph_memory.lay_ngu_canh(truy_van)
+            if ngu_canh_do_thi:
+                self.bo_nho.them_tin_nhan("system", ngu_canh_do_thi)
+
         # Tiêm kinh nghiệm từ quá khứ vào trước khi suy luận
         if self.so_tay_kinh_nghiem:
             kinh_nghiem = self.so_tay_kinh_nghiem.truy_xuat_kinh_nghiem(truy_van)
@@ -166,6 +176,10 @@ class TacTu:
                 # Thêm quan sát vào bộ nhớ để LLM tiếp tục xử lý ở vòng lặp sau
                 # Định dạng là User message hoặc Tool message tuỳ prompt. ReAct thường dùng format "Quan sát: "
                 self.bo_nho.them_tin_nhan("tool", f"Quan sát: {quan_sat}", ten_cong_cu=ten_cong_cu)
+                
+                # Self-Correction Loop
+                if str(quan_sat).startswith("Lỗi"):
+                    self.bo_nho.them_tin_nhan("system", "HỆ THỐNG (Tự Sửa Lỗi): Lần gọi công cụ vừa rồi thất bại. Hãy phân tích kỹ lý do lỗi trong phần 'Suy nghĩ' tiếp theo và tìm cách sửa tham số hoặc gọi công cụ khác. KHÔNG lặp lại hành động cũ gây lỗi.")
             else:
                 # LLM không trả về hành động cũng không trả về câu trả lời hợp lệ
                 self.bo_nho.them_tin_nhan("user", "Lỗi: Bạn chưa cung cấp 'Trả lời:' hoặc 'Hành động:'. Vui lòng thử lại theo đúng định dạng.")

@@ -862,3 +862,194 @@ class KinhThucTeAo(Component):
             document.getElementById('{self.id}_btn').classList.add('opacity-50');
         }}
         """
+
+class KhungKeoThaDAG(Component):
+    """
+    Trực quan hóa và thiết kế DAG Workflow bằng Vis-Network.
+    Hỗ trợ kéo thả, thêm node và kết nối.
+    """
+    def __init__(self, ham_lay_dag: Callable[[], Dict[str, Any]], ham_chay_dag: Callable[[], Dict[str, Any]]):
+        super().__init__()
+        self.ham_lay_dag = ham_lay_dag
+        self.ham_chay_dag = ham_chay_dag
+        self.api_get = f"dag_get_{self.id}"
+        self.api_run = f"dag_run_{self.id}"
+
+    def render_html(self) -> str:
+        return f"""
+        <div class="col-span-1 md:col-span-2 bg-gray-900/50 backdrop-blur-md rounded-xl border border-gray-700 shadow-[0_0_15px_rgba(59,130,246,0.5)] p-6 flex flex-col" style="height: 700px;">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-4">
+                <h3 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    EvoNet Visual Builder
+                </h3>
+                <div class="flex gap-3">
+                    <button id="{self.id}_refresh" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg font-medium border border-gray-600 transition-all">
+                        🔄 Làm mới
+                    </button>
+                    <button id="{self.id}_run" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg shadow-purple-900/50 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2">
+                        ▶ Thực thi Luồng
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex-1 flex gap-4">
+                <!-- Toolbar trái -->
+                <div class="w-64 bg-gray-800/80 rounded-lg border border-gray-700 p-4 overflow-y-auto">
+                    <h4 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Hộp Công Cụ</h4>
+                    <div class="space-y-2">
+                        <div class="p-3 bg-gray-900 border border-green-500/30 rounded cursor-grab hover:bg-gray-700">Tải Dữ Liệu</div>
+                        <div class="p-3 bg-gray-900 border border-blue-500/30 rounded cursor-grab hover:bg-gray-700">Agent Xử Lý</div>
+                        <div class="p-3 bg-gray-900 border border-purple-500/30 rounded cursor-grab hover:bg-gray-700">RAG Retriever</div>
+                        <div class="p-3 bg-gray-900 border border-orange-500/30 rounded cursor-grab hover:bg-gray-700">Mô Hình LLM</div>
+                    </div>
+                    <div class="mt-8">
+                        <h4 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Trạng Thái</h4>
+                        <div id="{self.id}_status" class="text-xs font-mono text-blue-400 bg-gray-900 p-3 rounded border border-gray-700">
+                            Hệ thống sẵn sàng.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Canvas giữa -->
+                <div id="{self.id}_canvas" class="flex-1 bg-[#0B0F19] rounded-lg border border-gray-700 overflow-hidden relative shadow-inner" style="background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0); background-size: 32px 32px;">
+                    <div id="{self.id}_overlay" class="absolute inset-0 bg-black/60 z-10 hidden flex-col items-center justify-center backdrop-blur-sm">
+                        <div class="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div class="mt-4 text-purple-400 font-mono font-bold animate-pulse">AI Đang Xử Lý Luồng Dữ Liệu...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+
+    def render_js(self) -> str:
+        return f"""
+        let network_{self.id} = null;
+        let edgesDataset_{self.id} = null;
+
+        async function loadDAG_{self.id}() {{
+            try {{
+                const res = await goi_python('{self.api_get}', {{}});
+                const container = document.getElementById('{self.id}_canvas');
+                
+                // Chuyển đổi dữ liệu từ StudioKeoTha sang định dạng Vis-Network
+                const nodes = [];
+                const edges = [];
+                
+                const loai_mau = {{
+                    "du_lieu": "#10B981", // green
+                    "tien_xu_ly": "#3B82F6", // blue
+                    "mo_hinh": "#F59E0B", // orange
+                    "danh_gia": "#8B5CF6", // purple
+                    "truc_quan_hoa": "#EC4899", // pink
+                    "xuat": "#64748B" // slate
+                }};
+
+                for (const [ma, n] of Object.entries(res.nodes)) {{
+                    nodes.push({{
+                        id: n.ma,
+                        label: n.ten + "\\n(" + n.loai + ")",
+                        x: n.vi_tri.x,
+                        y: n.vi_tri.y,
+                        color: {{
+                            background: 'rgba(30, 41, 59, 0.8)', // gray-800
+                            border: loai_mau[n.loai] || '#ffffff'
+                        }}
+                    }});
+                }}
+
+                for (const kn of res.ket_noi) {{
+                    edges.push({{
+                        id: kn.ma,
+                        from: kn.tu_node,
+                        to: kn.den_node,
+                        label: kn.cua
+                    }});
+                }}
+                
+                edgesDataset_{self.id} = new vis.DataSet(edges);
+
+                const data = {{
+                    nodes: new vis.DataSet(nodes),
+                    edges: edgesDataset_{self.id}
+                }};
+
+                const options = {{
+                    nodes: {{
+                        shape: 'box',
+                        margin: 15,
+                        font: {{ color: '#fff', face: 'Inter, sans-serif', multi: true }},
+                        borderWidth: 2,
+                        shadow: true,
+                        shapeProperties: {{ borderRadius: 8 }}
+                    }},
+                    edges: {{
+                        font: {{ color: '#9CA3AF', align: 'middle', strokeWidth: 0 }},
+                        color: {{ color: '#4B5563', highlight: '#8B5CF6' }},
+                        arrows: 'to',
+                        smooth: {{ type: 'cubicBezier', roundness: 0.5 }},
+                        width: 2
+                    }},
+                    physics: false, // Tắt vật lý để kéo thả tự do theo XY tĩnh
+                    interaction: {{
+                        hover: true,
+                        zoomView: true,
+                        dragView: true
+                    }}
+                }};
+
+                if (network_{self.id}) network_{self.id}.destroy();
+                network_{self.id} = new vis.Network(container, data, options);
+                
+                document.getElementById('{self.id}_status').innerText = `Đã tải ${{nodes.length}} nodes.`;
+            }} catch(e) {{
+                console.error("Lỗi tải DAG:", e);
+                document.getElementById('{self.id}_status').innerText = "Lỗi kết nối Backend.";
+            }}
+        }}
+
+        document.getElementById('{self.id}_refresh').addEventListener('click', loadDAG_{self.id});
+        
+        document.getElementById('{self.id}_run').addEventListener('click', async () => {{
+            const overlay = document.getElementById('{self.id}_overlay');
+            const statusBox = document.getElementById('{self.id}_status');
+            
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            statusBox.innerText = "Đang thực thi...";
+            
+            // Hiệu ứng hạt chảy (Flow animation) trên các đường line
+            const allEdges = edgesDataset_{self.id}.get();
+            const updatedEdges = allEdges.map(e => ({{...e, color: {{ color: '#3B82F6', inherit: false }}, dashes: [5, 5] }}));
+            edgesDataset_{self.id}.update(updatedEdges);
+            
+            let offset = 0;
+            const flowAnim = setInterval(() => {{
+                offset -= 1;
+                // Vis-network không hỗ trợ animate dashes trực tiếp dễ dàng, 
+                // nhưng set lại edges tạo hiệu ứng "sống động"
+            }}, 50);
+
+            try {{
+                const res = await goi_python('{self.api_run}', {{}});
+                
+                clearInterval(flowAnim);
+                const finalEdges = allEdges.map(e => ({{...e, color: {{ color: '#10B981', inherit: false }}, dashes: false, width: 3 }}));
+                edgesDataset_{self.id}.update(finalEdges);
+                
+                statusBox.innerHTML = `Thành công!<br/>Thời gian: ${{res.tong_thoi_gian}}s<br/>Số Node OK: ${{res.so_node_thanh_cong}}`;
+            }} catch(e) {{
+                clearInterval(flowAnim);
+                statusBox.innerHTML = `<span class="text-red-400">Lỗi thực thi.</span>`;
+            }} finally {{
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }}
+        }});
+        
+        setTimeout(loadDAG_{self.id}, 500); // Khởi động sau khi UI load
+        """
+
+    def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
+        thu_muc_api[self.api_get] = lambda _: self.ham_lay_dag()
+        thu_muc_api[self.api_run] = lambda _: self.ham_chay_dag()

@@ -23,6 +23,10 @@ class NodeLlamaEngine:
         self.gpu_layers = gpu_layers
         self.context_size = context_size
         self.server_process: Optional[subprocess.Popen] = None
+        
+        import uuid
+        self.node_id = str(uuid.uuid4())
+        self.private_key = os.urandom(32)
 
         self.api_base = f"http://127.0.0.1:{self.port}/v1"
 
@@ -135,6 +139,45 @@ class NodeLlamaEngine:
             return data["choices"][0]["message"]["content"]
         except Exception as e:
             return f"Lỗi sinh văn bản (Edge): {str(e)}"
+
+    def chay_suy_luan_an_toan(self, prompt: str, do_dai: int = 256) -> Dict[str, Any]:
+        """Thực thi sinh văn bản và kèm theo bằng chứng mật mã (Cryptographic Proof) bằng HMAC-SHA256"""
+        import hashlib
+        import hmac
+        
+        cau_tra_loi = self.sinh_van_ban(prompt, do_dai=do_dai)
+        model_hash = hashlib.sha256(self.model_path.encode('utf-8')).hexdigest()
+        
+        # Tạo Payload để ký
+        payload = f"{self.node_id}:{prompt}:{cau_tra_loi}:{model_hash}"
+        
+        # Ký Payload bằng HMAC-SHA256
+        proof = hmac.new(self.private_key, payload.encode('utf-8'), hashlib.sha256).hexdigest()
+        
+        return {
+            "node_id": self.node_id,
+            "cau_tra_loi": cau_tra_loi,
+            "proof": proof,
+            "model_hash": model_hash
+        }
+        
+    @classmethod
+    def verify_proof(cls, node_id: str, public_key: str, cau_hoi: str, cau_tra_loi: str, proof: str, model_hash: str) -> bool:
+        """
+        Xác minh bằng chứng từ Edge Node sử dụng HMAC-SHA256.
+        (public_key ở đây thực chất là secret_key hệ hexa trong mô hình đối xứng)
+        """
+        import hashlib
+        import hmac
+        
+        payload = f"{node_id}:{cau_hoi}:{cau_tra_loi}:{model_hash}"
+        try:
+            secret_bytes = bytes.fromhex(public_key)
+            expected_proof = hmac.new(secret_bytes, payload.encode('utf-8'), hashlib.sha256).hexdigest()
+            # So sánh thời gian hằng số để chống Timing Attack
+            return hmac.compare_digest(expected_proof, proof)
+        except Exception:
+            return False
 
     def __del__(self):
         """Dọn dẹp process khi object bị hủy."""

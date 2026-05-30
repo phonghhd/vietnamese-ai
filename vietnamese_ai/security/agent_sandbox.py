@@ -13,11 +13,23 @@ class MoiTruongCachLy:
     2. Chạy trên tiến trình riêng biệt với timeout.
     """
 
-    MODULE_CAM = {"os", "sys", "subprocess", "shutil", "socket", "requests", "urllib"}
+    CONFIG_FILE = os.path.join(os.path.dirname(__file__), "sandbox_rules.json")
+
+    @classmethod
+    def _tai_cau_hinh(cls) -> dict:
+        import json
+        if os.path.exists(cls.CONFIG_FILE):
+            with open(cls.CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {
+            "module_cam": ["os", "sys", "subprocess", "shutil", "socket", "requests", "urllib"],
+            "ham_cam": ["eval", "exec", "open", "__import__"]
+        }
 
     @classmethod
     def _kiem_tra_ast(cls, ma_nguon: str) -> Tuple[bool, str]:
         """Phân tích AST để tìm các module hoặc hàm cấm."""
+        cau_hinh = cls._tai_cau_hinh()
         try:
             cay = ast.parse(ma_nguon)
         except SyntaxError as e:
@@ -27,16 +39,16 @@ class MoiTruongCachLy:
             # Chặn import statement
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name.split('.')[0] in cls.MODULE_CAM:
+                    if alias.name.split('.')[0] in cau_hinh.get("module_cam", []):
                         return False, f"Bảo mật: Không được phép import module '{alias.name}'"
             elif isinstance(node, ast.ImportFrom):
-                if node.module and node.module.split('.')[0] in cls.MODULE_CAM:
+                if node.module and node.module.split('.')[0] in cau_hinh.get("module_cam", []):
                     return False, f"Bảo mật: Không được phép import từ module '{node.module}'"
 
             # Chặn các built-in nguy hiểm (vd: eval, exec, open)
             elif isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name):
-                    if node.func.id in {"eval", "exec", "open", "__import__"}:
+                    if node.func.id in cau_hinh.get("ham_cam", []):
                         return False, f"Bảo mật: Không được phép sử dụng hàm '{node.func.id}'"
 
         return True, "An toàn"

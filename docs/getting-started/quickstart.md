@@ -4,7 +4,7 @@
 
 ```python
 from vietnamese_ai import PhanLoai, XuLySo
-from vietnamese_ai.datasets.sample_data import DuLieuMau
+from vietnamese_ai.datalake.sample_data import DuLieuMau
 
 X, y = DuLieuMau.phan_loai_don_gian(so_mau=400)
 X_train, X_test, y_train, y_test = XuLySo.chia_du_lieu(X, y)

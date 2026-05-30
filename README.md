@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-20.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-21.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
   <img src="https://img.shields.io/badge/tests-897%2F897-brightgreen.svg" alt="tests">
@@ -37,6 +37,7 @@
 - **Extreme Efficiency**: Trang bị mô phỏng PagedAttention, Speculative Decoding và mạng 1.58-bit (BitNet).
 - **AutoML & NAS**: Tự động tìm kiếm kiến trúc và siêu tham số tốt nhất.
 - **Bảo mật & An Toàn**: Tích hợp Guardrails AI để kiểm soát nội dung và chống Prompt Injection.
+- **EvoNet-Studio Super Core (v21.0)**: Kiến trúc Zero-Dependency độc quyền hỗ trợ điều phối cụm (Orchestrator), giám sát GPU/Cost (Monitor), DataLake đánh version, DAG Workflow, Hộp cát (Sandbox) và hệ thống Plugin Hot-Swap, kết nối chặt chẽ với toàn bộ các tính năng Agent và RAG có sẵn.
 
 ---
 
@@ -566,7 +567,6 @@ curl http://localhost:8080/suc_khoe
 │   ├── automl/            # AutoML, TimKiemKienTruc (NAS)
 │   ├── nlp/               # PhanTichCamXuc, PhoBERTWrapper
 │   ├── embeddings/        # Word2VecTiengViet, FastTextTiengViet
-│   ├── deep_learning/     # MangSau, LopDense, LopDropout
 │   ├── fine_tuning/       # HuanLuyenPyTorch, UnslothWrapper, HuggingFaceWrapper, PEFT, SFT, DPO, RLHF
 │   ├── transformer/       # MultiHeadAttention, TransformerModel, GPTModel, PreTrainer, TextDataset, VietnameseTokenizer
 │   ├── vision/            # PhanLoaiHinhAnh
@@ -574,27 +574,25 @@ curl http://localhost:8080/suc_khoe
 │   ├── mobile/            # TriKhaiDiDong (TFLite, CoreML, ONNX Mobile)
 │   ├── federated/         # HocLienKet (FedAvg, Differential Privacy)
 │   ├── realtime/          # PipelineThoiGianThuc (Message Queue, Feature Store)
-│   ├── saas/              # NenTangDichVu (Cloud Platform SaaS)
 │   ├── rag/               # (v10.0) VectorDB, Chunking, Retriever, (v20.0) Agentic Realtime RAG
 │   ├── ui/                # (v20.0) V-UI Zero-Dependency Web Native (PWA, WebGPU, WebXR, WebBluetooth)
 │   ├── studio/            # StudioKeoTha (No-code Studio)
 │   ├── llm/               # VietnameseLLM (Tích hợp Tường lửa v17.1), ModelConfig, LMEvalHarness, BenchmarkRunner
-│   ├── streaming/         # XuLyStream (real-time processing)
 │   ├── security/          # (v17.0) AI Firewall, Agent Sandbox, Identity-Aware RAG, DLP, (v17.1) Red Teaming, Watermarking
 │   ├── export/            # XuatONNX, XuatGGUF
 │   ├── registry/          # QuanLyMoHinh (Model Registry)
-│   ├── cloud/             # CloudDeployment, Marketplace
 │   ├── distributed/       # PhanTanHuanLuyen, MultiGPUTrainer
 │   ├── enterprise/        # HeThongXacThuc, NhatKyHoatDong
-│   ├── hub/               # ModelHub
-│   ├── plugins/           # PluginManager
-│   ├── augmentation/      # TangCuongVanBan
+│   ├── orchestrator/      # (v21.0) V-Orchestrator: Điều phối Cụm (Zero-Dependency)
+│   ├── monitor/           # (v21.0) V-Monitor: Theo dõi GPU và Tính Cost
+│   ├── datalake/          # (v21.0) V-DataLake: Quản lý version dữ liệu & Streaming
+│   ├── sandbox/           # (v21.0) V-Sandbox: Hộp cát bảo mật phân tích AST
+│   ├── workflow/          # (v21.0) V-Workflow: Động cơ DAG & Thực thi song song
+│   ├── plugin/            # (v21.0) V-Plugin: Hệ thống nạp gỡ nóng Plugin (Hot-Swap)
 │   ├── interpretability/  # GiaiThichMoHinh
 │   ├── experiment_tracking/ # TheoDoiThiNghiem
-│   ├── web/               # UngDungWeb (No-code Web UI)
 │   ├── utils/             # Logger, Metrics, Validator, LuuTai
 │   ├── visualization/     # BieuDo
-│   ├── datasets/          # DuLieuMau
 │   ├── api/               # ServerDonGian
 │   └── cli/               # CLI (vai command)
 ├── tests/                 # 270 tests
@@ -662,6 +660,16 @@ ruff check vietnamese_ai/ tests/
 | v18.0 | Agentic Evolution: Human-in-the-Loop (HITL), Agent Memory 2.0 (Experience Memory) lưu trữ kinh nghiệm bằng VectorDB |
 | v19.0 | Web3 DePIN & Hybrid Execution: Mạng lưới P2P (P2PTracker), Tokenomics (TokenLedger), Speculative Race Execution (Edge vs Cloud) |
 | v20.0 | Real-time Agentic RAG: Cập nhật tài liệu thời gian thực (Event Bus), Tác tử RAG đa công cụ (Multi-step Reasoning RAG) |
+| v21.0 | EvoNet-Studio Super Core: Zero-Dependency Orchestrator (Điều phối cụm), Monitor (Đo lường GPU), DataLake (DVC), Sandbox (Phân tích AST), DAG Workflow (Định tuyến song song), V-Plugin (Hot-Swap). Các lõi này được thiết kế tích hợp hoàn hảo với hệ sinh thái v12 (Agents) và v7 (Fine-Tuning) giúp framework vận hành mạnh mẽ như một nền tảng SaaS thực thụ. |
+| v22.0 | Advanced Agentic Evolution & Self-Healing: Triển khai Knowledge Graph ngầm (GraphMemory) cho Agent, Hỗ trợ Cross-Modal RAG (Text-Image), Đối kháng bảo mật RedTeam/BlueTeam và đặc biệt là hệ thống Self-Healing (Tự vá lỗi Sandbox) và DevOps Agent (An toàn tự viết code qua AST & Dry-Run Pipeline). |
+| v23.0 | Cuộc Cách Mạng Phần Cứng (Hardware Democratization): Heterogeneous Computing với CPU Offloading, Nhân tính toán tối ưu EvoKernelCPU (1.58-bit Add-only MatMul), Quản lý Năng lượng thông minh (Dynamic Precision Scaling qua PowerManager) và Khả năng huấn luyện trên CPU bằng BitLoRA. |
+
+### Tính liên kết của v21.0 - v23.0 với các phiên bản cũ
+Rất nhiều nhà phát triển lo ngại các lõi mới của v21.0 sẽ bị phân mảnh. Sự thật là chúng được thiết kế để bao bọc và cường hóa hệ thống hiện có:
+- **V-Workflow** chịu trách nhiệm kết nối và định tuyến luồng thực thi của các **Tác tử (v12)** và **RAG Pipeline (v10)**.
+- **V-Sandbox** được tích hợp thẳng vào **Agent Sandbox (v17)** để kiểm duyệt mã Python do Agent sinh ra.
+- **V-DataLake** cung cấp luồng dữ liệu khổng lồ (OOM-free) cho các module **PyTorch Trainer (v15)** và **SFT/RLHF (v7)**.
+- **V-Plugin** cho phép nạp động các **Tools (v12)** và **Models (v1)** vào runtime mà không cần khởi động lại.
 
 ### Tech Stack tương lai
 

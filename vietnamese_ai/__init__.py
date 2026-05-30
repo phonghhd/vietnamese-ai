@@ -12,7 +12,7 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
-__version__ = "11.0.1"
+__version__ = "21.0.0"
 __author__ = "EvoNet AI Team"
 
 
@@ -48,7 +48,7 @@ def __getattr__(name: str):
         "Word2VecTiengViet": ("vietnamese_ai.embeddings.word2vec", "Word2VecTiengViet"),
         "FastTextTiengViet": ("vietnamese_ai.embeddings.fasttext", "FastTextTiengViet"),
         # Deep Learning
-        "MangSau": ("vietnamese_ai.deep_learning.mang_sau", "MangSau"),
+        "MangSau": ("vietnamese_ai.models.mang_sau", "MangSau"),
         # AutoML
         "TimKiemKienTruc": ("vietnamese_ai.automl.nas", "TimKiemKienTruc"),
         # Experiment Tracking
@@ -56,7 +56,7 @@ def __getattr__(name: str):
         # Interpretability
         "GiaiThichMoHinh": ("vietnamese_ai.interpretability.explainer", "GiaiThichMoHinh"),
         # Augmentation
-        "TangCuongVanBan": ("vietnamese_ai.augmentation.text_augmenter", "TangCuongVanBan"),
+        "TangCuongVanBan": ("vietnamese_ai.preprocessing.text_augmenter", "TangCuongVanBan"),
         # Export
         "XuatONNX": ("vietnamese_ai.export.onnx_export", "XuatONNX"),
         "XuatGGUF": ("vietnamese_ai.export.gguf", "XuatGGUF"),
@@ -64,12 +64,12 @@ def __getattr__(name: str):
         "PhanTanHuanLuyen": ("vietnamese_ai.distributed.distributed", "PhanTanHuanLuyen"),
         "MultiGPUTrainer": ("vietnamese_ai.distributed.multi_gpu", "MultiGPUTrainer"),
         # Hub
-        "ModelHub": ("vietnamese_ai.hub.model_hub", "ModelHub"),
+        "ModelHub": ("vietnamese_ai.registry.model_hub", "ModelHub"),
         # Plugins
-        "PluginManager": ("vietnamese_ai.plugins.plugin_manager", "PluginManager"),
+        "PluginManager": ("vietnamese_ai.plugin.legacy_manager", "PluginManager"),
         # Cloud
-        "CloudDeployment": ("vietnamese_ai.cloud.deployment", "CloudDeployment"),
-        "Marketplace": ("vietnamese_ai.cloud.marketplace", "Marketplace"),
+        "CloudDeployment": ("vietnamese_ai.enterprise.deployment", "CloudDeployment"),
+        "Marketplace": ("vietnamese_ai.enterprise.marketplace", "Marketplace"),
         # Enterprise
         "HeThongXacThuc": ("vietnamese_ai.enterprise.auth", "HeThongXacThuc"),
         "NhatKyHoatDong": ("vietnamese_ai.enterprise.audit", "NhatKyHoatDong"),
@@ -80,7 +80,7 @@ def __getattr__(name: str):
         # Realtime
         "PipelineThoiGianThuc": ("vietnamese_ai.realtime.pipeline", "PipelineThoiGianThuc"),
         # SaaS
-        "NenTangDichVu": ("vietnamese_ai.saas.platform", "NenTangDichVu"),
+        "NenTangDichVu": ("vietnamese_ai.enterprise.platform", "NenTangDichVu"),
         # Studio
         "StudioKeoTha": ("vietnamese_ai.studio.builder", "StudioKeoTha"),
         # Timeseries
@@ -88,11 +88,11 @@ def __getattr__(name: str):
         # Vision
         "PhanLoaiHinhAnh": ("vietnamese_ai.vision.image_classifier", "PhanLoaiHinhAnh"),
         # Streaming
-        "XuLyStream": ("vietnamese_ai.streaming.processor", "XuLyStream"),
+        "XuLyStream": ("vietnamese_ai.realtime.processor", "XuLyStream"),
         # Registry
         "QuanLyMoHinh": ("vietnamese_ai.registry.model_registry", "QuanLyMoHinh"),
         # Web
-        "UngDungWeb": ("vietnamese_ai.web.app", "UngDungWeb"),
+        "UngDungWeb": ("vietnamese_ai.ui.web_app", "UngDungWeb"),
         # Visualization
         "BieuDo": ("vietnamese_ai.visualization.plots", "BieuDo"),
         # Utils
@@ -178,6 +178,13 @@ def __getattr__(name: str):
         "SpeculativeEngine": ("vietnamese_ai.serving.speculative", "SpeculativeEngine"),
         "BlockManager": ("vietnamese_ai.serving.paged_attention", "BlockManager"),
         "PagedAttentionSimulation": ("vietnamese_ai.serving.paged_attention", "PagedAttentionSimulation"),
+        # === v21.0: EvoNet-Studio Super Core ===
+        "DieuPhoiCum": ("vietnamese_ai.orchestrator.cluster_manager", "DieuPhoiCum"),
+        "MayTinhTien": ("vietnamese_ai.monitor.cost_engine", "MayTinhTien"),
+        "HoDuLieu": ("vietnamese_ai.datalake.dataset_manager", "HoDuLieu"),
+        "ThucThiDocLap": ("vietnamese_ai.sandbox.executor", "ThucThiDocLap"),
+        "DongChayDAG": ("vietnamese_ai.workflow.dag_engine", "DongChayDAG"),
+        "QuanLyPlugin": ("vietnamese_ai.plugin.plugin_manager", "QuanLyPlugin"),
     }
 
     if name in _lazy_imports:
@@ -232,4 +239,6 @@ __all__ = [
     "NodeLlamaEngine", "EdgeRouter",
     # v15.0 & v16.0: Extreme Efficiency
     "BitLinear", "SpeculativeEngine", "BlockManager", "PagedAttentionSimulation",
+    # v21.0: EvoNet-Studio Super Core
+    "DieuPhoiCum", "MayTinhTien", "HoDuLieu", "ThucThiDocLap", "DongChayDAG", "QuanLyPlugin",
 ]

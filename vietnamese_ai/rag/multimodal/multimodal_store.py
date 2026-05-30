@@ -37,6 +37,25 @@ class MultimodalStore:
         query_vec = self.image_embedder.nhung_hinh_anh([image_path])[0]
         return self._tim_kiem_cosine(query_vec, top_k)
 
+    def tim_kiem_anh_tu_van_ban(self, text: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """Truy xuất ảnh dựa trên mô tả văn bản (Text-to-Image)."""
+        if not hasattr(self.image_embedder, "nhung_van_ban"):
+            raise NotImplementedError("ImageEmbedder không hỗ trợ nhung_van_ban.")
+        query_vec = self.image_embedder.nhung_van_ban([text])[0]
+        return self._tim_kiem_cosine(query_vec, top_k)
+
+    def tim_kiem_van_ban_tu_anh(self, image_path: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """Truy xuất văn bản liên quan dựa trên ảnh (Image-to-Text)."""
+        if not hasattr(self.text_store, "tim_kiem"):
+            raise NotImplementedError("TextStore không hỗ trợ tim_kiem.")
+        
+        # Lấy vector của ảnh
+        query_vec = self.image_embedder.nhung_hinh_anh([image_path])[0]
+        
+        # Tìm kiếm trên Text Store bằng vector (giả định text_store.tim_kiem hỗ trợ nhận vector)
+        # Nếu text_store là CSDLVector:
+        return self.text_store.tim_kiem(query_vec, top_k=top_k)
+
     def _tim_kiem_cosine(self, query_vec: List[float], top_k: int) -> List[Dict[str, Any]]:
         """Tìm kiếm cosine similarity đơn giản trên dictionary."""
         import numpy as np

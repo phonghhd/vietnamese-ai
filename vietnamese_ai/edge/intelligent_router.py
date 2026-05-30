@@ -75,7 +75,7 @@ class EdgeRouter:
                 # Trong thực tế public_key sẽ được fetch từ Registry
                 is_valid = self.edge_engine.__class__.verify_proof(
                     node_id=kq["node_id"],
-                    public_key=self.edge_engine.private_key.decode('utf-8'), # Dùng tạm private key làm public key cho mô phỏng HMAC
+                    public_key=self.edge_engine.private_key.hex(), # Chuyển private key dạng bytes sang chuỗi hex để giả lập public_key
                     cau_hoi=prompt,
                     cau_tra_loi=kq["cau_tra_loi"],
                     proof=kq["proof"],
@@ -145,7 +145,7 @@ class EdgeRouter:
                 kq = edge_node.chay_suy_luan_an_toan(prompt)
 
                 # ZKP Verification
-                public_key = edge_node.private_key.decode('utf-8')
+                public_key = edge_node.private_key.hex()
                 is_valid = edge_node.__class__.verify_proof(
                     node_id=kq["node_id"], public_key=public_key,
                     cau_hoi=prompt, cau_tra_loi=kq["cau_tra_loi"],
