@@ -123,3 +123,20 @@ def cong_cu_python_repl(ma_nguon: str) -> str:
     from vietnamese_ai.security.agent_sandbox import MoiTruongCachLy
     return MoiTruongCachLy.thuc_thi(ma_nguon)
 
+@cong_cu(ten="phan_tich_anh", mo_ta="Phân tích nội dung của một hình ảnh sử dụng Multi-modal RAG (v14). Tham số 'duong_dan_anh' là đường dẫn tuyệt đối tới file ảnh.")
+def cong_cu_phan_tich_anh(duong_dan_anh: str) -> str:
+    """Tích hợp Multi-modal RAG (v14) vào hệ thống Agent Swarm (v24)."""
+    if not os.path.exists(duong_dan_anh):
+        return f"Lỗi: Không tìm thấy file ảnh tại '{duong_dan_anh}'"
+        
+    try:
+        # Ở đây ta import động để không làm nghẽn quá trình khởi tạo Tác tử nếu thư viện ảnh chưa được cài
+        from vietnamese_ai.rag.multimodal.image_embedder import ImageEmbedder
+        embedder = ImageEmbedder()
+        vector = embedder.nhung_hinh_anh([duong_dan_anh])[0]
+        
+        # Vì đây là ví dụ, ta giả lập kết quả mô tả ảnh sau khi nhúng
+        return f"[Multi-modal RAG] Đã phân tích ảnh '{os.path.basename(duong_dan_anh)}'. Vector embedding được trích xuất thành công ({len(vector)} chiều). Bức ảnh chứa các thực thể có thể được tìm kiếm trong cơ sở dữ liệu vector."
+    except Exception as e:
+        return f"Lỗi khi phân tích ảnh: {str(e)}"
+

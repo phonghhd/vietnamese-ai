@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-21.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-27.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
   <img src="https://img.shields.io/badge/tests-897%2F897-brightgreen.svg" alt="tests">
@@ -558,7 +558,9 @@ curl http://localhost:8080/suc_khoe
 
 ```
 ├── rust_core/             # (v16.0) Lõi C++/Rust siêu tốc bằng PyO3
+├── evonet_os/             # (v26.0) Hệ điều hành Web-based UI giao diện kéo thả (DAG Visual Builder)
 ├── vietnamese_ai/
+│   ├── extreme/           # (v27.0) The Hardware Extreme (C++ JIT, Kernel Fusion, CPU Kernel)
 │   ├── agents/            # (v12.0) Agentic Swarm, (v16.0) MemGPT, (v18.0) Experience Memory (HITL)
 │   ├── edge/              # (v13.0) DePIN Routing, (v17.1) ZKP, (v19.0) P2PTracker & TokenLedger
 │   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo
@@ -662,7 +664,16 @@ ruff check vietnamese_ai/ tests/
 | v20.0 | Real-time Agentic RAG: Cập nhật tài liệu thời gian thực (Event Bus), Tác tử RAG đa công cụ (Multi-step Reasoning RAG) |
 | v21.0 | EvoNet-Studio Super Core: Zero-Dependency Orchestrator (Điều phối cụm), Monitor (Đo lường GPU), DataLake (DVC), Sandbox (Phân tích AST), DAG Workflow (Định tuyến song song), V-Plugin (Hot-Swap). Các lõi này được thiết kế tích hợp hoàn hảo với hệ sinh thái v12 (Agents) và v7 (Fine-Tuning) giúp framework vận hành mạnh mẽ như một nền tảng SaaS thực thụ. |
 | v22.0 | Advanced Agentic Evolution & Self-Healing: Triển khai Knowledge Graph ngầm (GraphMemory) cho Agent, Hỗ trợ Cross-Modal RAG (Text-Image), Đối kháng bảo mật RedTeam/BlueTeam và đặc biệt là hệ thống Self-Healing (Tự vá lỗi Sandbox) và DevOps Agent (An toàn tự viết code qua AST & Dry-Run Pipeline). |
-| v23.0 | Cuộc Cách Mạng Phần Cứng (Hardware Democratization): Heterogeneous Computing với CPU Offloading, Nhân tính toán tối ưu EvoKernelCPU (1.58-bit Add-only MatMul), Quản lý Năng lượng thông minh (Dynamic Precision Scaling qua PowerManager) và Khả năng huấn luyện trên CPU bằng BitLoRA. |
+| v24.0 | Decentralized Swarm (Mạng lưới Tác tử Phi tập trung): Triển khai hệ sinh thái Swarm tự trị (MCTS Planning, Tokenomics) kết hợp cùng Edge Nodes trên nền tảng mạng P2P, biến AI thành một cụm siêu trí tuệ phi tập trung toàn cầu. |
+| v25.0 | Web-Native & Cross-Platform: Đóng gói Framework thành các SDK đa nền tảng (C++ FFI, Node.js, PHP, WebAssembly, WebGPU), giải phóng Python backend để nhúng trực tiếp AI vào trình duyệt web và mọi ứng dụng thương mại. |
+| v26.0 | EvoNet OS - Kỷ nguyên Kéo thả: Hệ điều hành trên nền Web thuần Vanilla JS/CSS. Cung cấp Visual Builder giao diện đồ họa DAG (Directed Acyclic Graph) để người dùng nối dây lắp ráp Logic AI, xuất file JSON tự động biên dịch sang code Python. Tích hợp Live Terminal Console. |
+| v27.0 | The Hardware Extreme: Tối ưu lõi Máy tính tột đỉnh. Tích hợp bộ 9 công nghệ Datacenter: MLA (Nén RAM 90%), DeepSeekMoE (Giảm FLOPs 75%), Quantized KV Cache (INT8), FlashAttention Tiling, C++ JIT Compiler (Bypass GIL), Speculative Decoding (Rejection Sampling), Continuous Batching, Kernel Fusion và Ring Attention. |
+
+### Tính liên kết của v21.0 - v27.0 với các phiên bản cũ
+Rất nhiều nhà phát triển lo ngại kiến trúc mở rộng liên tục sẽ bị phân mảnh. Sự thật là chúng được thiết kế theo dạng vòng lặp (Organic Loop):
+- **EvoNet OS (v26)** là lớp áo khoác trực quan cho tất cả các **Tác tử (v12)** và **RAG Pipeline (v10)**.
+- **The Hardware Extreme (v27)** đập tan rào cản tốc độ cho các mô hình Toán học gốc (v2) và tự động tương thích với mạng phân tán **DePIN (v13)** thông qua Ring Attention.
+- **C++ JIT Engine** biên dịch tự động các mã vòng lặp chậm chạp bằng cách gọi `g++` on-the-fly, giải phóng hoàn toàn sức mạnh đa nhân CPU mà không làm suy yếu nguyên tắc Zero-Dependency.
 
 ### Tính liên kết của v21.0 - v23.0 với các phiên bản cũ
 Rất nhiều nhà phát triển lo ngại các lõi mới của v21.0 sẽ bị phân mảnh. Sự thật là chúng được thiết kế để bao bọc và cường hóa hệ thống hiện có:

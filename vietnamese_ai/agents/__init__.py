@@ -15,7 +15,10 @@ from .tools import (
     cong_cu_may_tinh,
     cong_cu_python_repl,
     cong_cu_tim_kiem_web,
+    cong_cu_phan_tich_anh,
 )
+
+from .decentralized_swarm import P2PSwarmOrchestrator
 
 __all__ = [
     "CongCu",
@@ -24,6 +27,7 @@ __all__ = [
     "cong_cu_doc_file",
     "cong_cu_tim_kiem_web",
     "cong_cu_python_repl",
+    "cong_cu_phan_tich_anh",
     "BoNhoTacTu",
     "WindowMemory",
     "SummaryMemory",
@@ -40,4 +44,5 @@ __all__ = [
     "ManagerAgent",
     "WorkerAgent",
     "DevOpsAgent",
+    "P2PSwarmOrchestrator",
 ]

@@ -19,47 +19,91 @@ class EvoKernelCPU:
     """
     
     @staticmethod
-    def add_only_matmul(x: 'torch.Tensor', w_quantized: 'torch.Tensor') -> 'torch.Tensor':
+    def add_only_matmul(x: Any, w_quantized: Any) -> Any:
         """
-        Nhân ma trận Add-only cho kiến trúc 1.58-bit.
-        
-        Thay vì dùng phép nhân dấu phẩy động tốn kém, thuật toán sử dụng toán tử:
-        Out = sum(X_pos) - sum(X_neg)
+        Nhân ma trận Add-only cho kiến trúc 1.58-bit chạy trên trình biên dịch C++ JIT.
+        Thay vì dùng vòng lặp Python siêu chậm (bị kẹt bởi GIL), hàm này gọi mã máy C++ thuần.
         
         Args:
-            x: Tensor đầu vào (fp32 hoặc fp16), kích thước (B, In_Features).
-            w_quantized: Trọng số đã lượng tử hoá (-1, 0, 1) dạng int8, kích thước (In_Features, Out_Features).
-            
+            x: Tensor đầu vào (numpy.ndarray), kích thước (B, In).
+            w_quantized: Trọng số đã lượng tử hoá (-1, 0, 1) (numpy.ndarray), kích thước (In, Out).
         Returns:
-            Kết quả của phép nhân ma trận.
+            numpy.ndarray kết quả.
         """
-        if not _CO_TORCH:
-            raise ImportError("Yêu cầu PyTorch để chạy EvoKernelCPU.")
-            
-        if x.device.type != 'cpu' or w_quantized.device.type != 'cpu':
-            logger.warning("EvoKernelCPU được thiết kế đặc biệt cho CPU, nhưng tensor đang ở GPU.")
-            
-        # Mô phỏng Add-Only thực sự:
-        # Out_j = sum_{i: W_ij=1} X_i - sum_{i: W_ij=-1} X_i
+        import numpy as np
+        import ctypes
+        from vietnamese_ai.extreme.jit_engine import EvoJITCompiler
         
-        out = torch.zeros(x.size(0), w_quantized.size(1), device=x.device, dtype=x.dtype)
+        # Đảm bảo dữ liệu là numpy array
+        if hasattr(x, 'cpu'): x = x.detach().cpu().numpy()
+        if hasattr(w_quantized, 'cpu'): w_quantized = w_quantized.detach().cpu().numpy()
         
-        # Thuật toán thuần Cộng/Trừ (Add-only)
-        # Trong thực tế sản xuất, đoạn này sẽ được compile sang C++/Rust 
-        # để tận dụng tối đa thanh ghi (Registers) của CPU.
-        for j in range(w_quantized.size(1)):
-            col = w_quantized[:, j]
-            
-            # Tìm vị trí các số 1 và -1 (Không bao giờ có phép nhân)
-            pos_idx = (col == 1)
-            neg_idx = (col == -1)
-            
-            if pos_idx.any():
-                # Phép cộng (Add)
-                out[:, j] += x[:, pos_idx].sum(dim=1)
-                
-            if neg_idx.any():
-                # Phép trừ (Subtract)
-                out[:, j] -= x[:, neg_idx].sum(dim=1)
-                
+        x = np.ascontiguousarray(x, dtype=np.float32)
+        w_quantized = np.ascontiguousarray(w_quantized, dtype=np.int8)
+        
+        batch_size, in_features = x.shape
+        _, out_features = w_quantized.shape
+        
+        out = np.zeros((batch_size, out_features), dtype=np.float32)
+        
+        # 1. Mã nguồn C++ đa luồng
+        cpp_code = """
+        #include <stdint.h>
+        
+        extern "C" {
+            // Hàm tính toán ma trận Add-Only C++
+            void bitnet_matmul_cpu(
+                const float* x, 
+                const int8_t* w, 
+                float* out, 
+                int batch_size, 
+                int in_features, 
+                int out_features
+            ) {
+                // Tận dụng OpenMP nếu có cờ biên dịch (bỏ qua nếu không hỗ trợ)
+                #pragma omp parallel for
+                for (int b = 0; b < batch_size; b++) {
+                    for (int j = 0; j < out_features; j++) {
+                        float sum = 0.0f;
+                        for (int i = 0; i < in_features; i++) {
+                            int8_t weight = w[i * out_features + j];
+                            // Chỉ dùng cộng trừ, không dùng nhân
+                            if (weight == 1) {
+                                sum += x[b * in_features + i];
+                            } else if (weight == -1) {
+                                sum -= x[b * in_features + i];
+                            }
+                        }
+                        out[b * out_features + j] = sum;
+                    }
+                }
+            }
+        }
+        """
+        
+        # 2. Sinh mã JIT & Biên dịch on-the-fly
+        compiler = EvoJITCompiler(use_openmp=False) # Bật True nếu muốn dùng OMP
+        c_func = compiler.compile_and_load(
+            name="bitnet_core",
+            code=cpp_code,
+            func_name="bitnet_matmul_cpu",
+            arg_types=[
+                ctypes.POINTER(ctypes.c_float),
+                ctypes.POINTER(ctypes.c_int8),
+                ctypes.POINTER(ctypes.c_float),
+                ctypes.c_int,
+                ctypes.c_int,
+                ctypes.c_int
+            ],
+            restype=None
+        )
+        
+        # 3. Ép kiểu con trỏ Ctypes (Không tốn RAM copy)
+        x_ptr = x.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        w_ptr = w_quantized.ctypes.data_as(ctypes.POINTER(ctypes.c_int8))
+        out_ptr = out.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+        
+        # 4. GỌI HÀM C++ VÀ PHÁ KHÓA GIL !!!
+        c_func(x_ptr, w_ptr, out_ptr, batch_size, in_features, out_features)
+        
         return out

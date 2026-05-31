@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package evonet;
+
+// Request để chat với AI
+message ChatRequest {
+  string model = 1;
+  string prompt = 2;
+  float temperature = 3;
+  int32 max_tokens = 4;
+}
+
+// Response trả về từ AI
+message ChatResponse {
+  string id = 1;
+  string model = 2;
+  string text = 3;
+  int32 total_tokens = 4;
+}
+
+// Service định nghĩa API gRPC cho EvoNet
+service EvoNetService {
+  // Gửi một câu hỏi và nhận câu trả lời ngay lập tức (Unary RPC)
+  rpc ChatCompletion (ChatRequest) returns (ChatResponse);
+  
+  // Gửi một câu hỏi và nhận câu trả lời theo luồng (Server Streaming RPC)
+  rpc ChatStream (ChatRequest) returns (stream ChatResponse);
+}

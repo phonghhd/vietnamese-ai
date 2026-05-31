@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvoNet OS - Kỷ Nguyên Kéo Thả</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Background Wallpaper -->
+    <div class="wallpaper"></div>
+    
+    <!-- Top Menu Bar -->
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <span class="logo"><i class="fas fa-brain"></i> EvoNet OS</span>
+            <span class="menu-item">File</span>
+            <span class="menu-item">Edit</span>
+            <span class="menu-item">View</span>
+            <span class="menu-item">Swarm</span>
+        </div>
+        <div class="top-bar-right">
+            <span class="status-indicator online"></span> Node: Local
+            <span class="time" id="clock">10:00 AM</span>
+        </div>
+    </div>
+
+    <!-- Main Desktop Area -->
+    <div class="desktop" id="desktop">
+        <!-- Workspace Canvas for Drag & Drop Nodes -->
+        <div class="canvas-container" id="canvas-container" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <svg id="connection-lines" class="connection-lines"></svg>
+            <div class="canvas-grid"></div>
+            
+            <!-- Draggable Agent Window -->
+            <div class="os-window draggable" id="agent-orchestrator" style="top: 150px; left: 300px;">
+                <div class="window-header">
+                    <span class="window-title"><i class="fas fa-robot"></i> Tác Tử Điều Phối (v21)</span>
+                    <div class="window-controls">
+                        <div class="control-btn minimize"></div>
+                        <div class="control-btn maximize"></div>
+                        <div class="control-btn close"></div>
+                    </div>
+                </div>
+                <div class="window-content">
+                    <div class="node-port input-port"></div>
+                    <div class="node-info">
+                        <p>Trạng thái: <strong>Đang chờ việc</strong></p>
+                        <p>Engine: <strong>Jamba O(N)</strong></p>
+                        <button class="os-btn">Khởi động Swarm</button>
+                    </div>
+                    <div class="node-port output-port"></div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Bottom Dock / Taskbar -->
+    <div class="dock-container">
+        <div class="dock">
+            <div class="dock-item" title="Thêm Agent" draggable="true" ondragstart="drag(event, 'agent')">
+                <i class="fas fa-user-astronaut"></i>
+            </div>
+            <div class="dock-item" title="Thêm RAG Kho Dữ Liệu" draggable="true" ondragstart="drag(event, 'rag')">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="dock-item" title="Thêm Blue Team Security" draggable="true" ondragstart="drag(event, 'security')">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="dock-separator"></div>
+            <div class="dock-item" title="Cài Đặt Hệ Thống" onclick="toggleWindow('settings-window')">
+                <i class="fas fa-cog"></i>
+            </div>
+            <div class="dock-item" title="Terminal Live Stream" onclick="toggleWindow('terminal-window')">
+                <i class="fas fa-terminal"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Settings Window -->
+    <div class="os-window draggable hidden" id="settings-window" style="top: 20%; left: 30%;">
+        <div class="window-header">
+            <span class="window-title"><i class="fas fa-cogs"></i> Hệ Thống Cốt Lõi</span>
+            <div class="window-controls">
+                <div class="control-btn close" onclick="toggleWindow('settings-window')"></div>
+            </div>
+        </div>
+        <div class="window-content">
+            <div class="form-group">
+                <label>API Endpoint (gRPC):</label>
+                <input type="text" value="grpc://localhost:50051" class="os-input">
+            </div>
+            <div class="form-group">
+                <label>Bật WebGPU (v25):</label>
+                <input type="checkbox" checked class="os-checkbox">
+            </div>
+            <button class="os-btn primary">Áp Dụng</button>
+        </div>
+    </div>
+
+    <!-- Terminal / Console Window -->
+    <div class="os-window draggable hidden" id="terminal-window" style="top: 10%; right: 2%; width: 400px;">
+        <div class="window-header" style="background: rgba(0,0,0,0.8);">
+            <span class="window-title" style="color: #10b981;"><i class="fas fa-terminal"></i> EvoNet Live Console</span>
+            <div class="window-controls">
+                <div class="control-btn close" onclick="toggleWindow('terminal-window')"></div>
+            </div>
+        </div>
+        <div class="window-content terminal-content" id="terminal-output">
+            <div class="log-line system">EvoNet OS v26.0 - Tác Tử Swarm Sẵn Sàng.</div>
+            <div class="log-line system">Đang chờ lệnh Khởi động Swarm...</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

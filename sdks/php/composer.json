@@ -1,0 +1,22 @@
+{
+    "name": "evonetai/php-sdk",
+    "description": "Official EvoNetAI SDK for PHP",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "EvoNet Team",
+            "email": "dev@evonet.ai"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "ext-curl": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "EvoNetAI\\": "src/"
+        }
+    }
+}
