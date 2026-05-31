@@ -19,6 +19,14 @@ class TokenLedger:
             f"[TokenLedger] Đã thưởng {so_luong} EVON cho Node '{node_id}'. Số dư hiện tại: {self.so_du[node_id]}"
         )
 
+    def thuong_token_danh_gia(self, user_id: str, chat_luong_danh_gia: float = 1.0):
+        """Thưởng Token khi người dùng tham gia gán nhãn RLHF (Local DPO)."""
+        phan_thuong = 5.0 * chat_luong_danh_gia
+        if user_id not in self.so_du:
+            self.so_du[user_id] = 0.0
+        self.so_du[user_id] += phan_thuong
+        print(f"[TokenLedger] Thưởng {phan_thuong} EVON cho '{user_id}' vì dữ liệu RLHF tốt.")
+
     def lay_so_du(self, node_id: str) -> float:
         return self.so_du.get(node_id, 0.0)
 

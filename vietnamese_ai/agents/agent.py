@@ -133,6 +133,10 @@ class TacTu:
 
         return ket_qua
 
+    def _thuc_thi_cong_cu(self, ten_cong_cu: str, cc: CongCu, tham_so: dict) -> str:
+        """Thực thi công cụ. Có thể ghi đè bởi lớp con."""
+        return str(cc.chay(**(tham_so or {})))
+
     def chay(self, truy_van: str) -> str:
         """
         Thực thi vòng lặp tác tử để trả lời truy vấn.
@@ -183,7 +187,7 @@ class TacTu:
                             duoc_phep = self.ham_xac_nhan(ten_cong_cu, tham_so or {})
 
                         if duoc_phep:
-                            quan_sat = str(cc.chay(**(tham_so or {})))
+                            quan_sat = self._thuc_thi_cong_cu(ten_cong_cu, cc, tham_so)
                         else:
                             quan_sat = "Lỗi: Con người đã TỪ CHỐI hành động này. Hãy suy nghĩ cách khác an toàn hơn hoặc hỏi lại người dùng."
                 else:

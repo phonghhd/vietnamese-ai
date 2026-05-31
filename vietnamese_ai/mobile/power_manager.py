@@ -18,14 +18,29 @@ class PowerManager:
     Theo dõi pin và cấu hình thiết bị để tự động điều tiết độ chính xác của AI.
     """
 
-    @staticmethod
-    def get_battery_status() -> Tuple[float, bool]:
+    _trang_thai_tu_app: Dict[str, Any] = {}
+
+    @classmethod
+    def dong_bo_phan_cung(cls, pin: float, cam_sac: bool, nhiet_do: str) -> None:
+        """Nhận dữ liệu phần cứng trực tiếp từ Mobile App qua SDK Bridge."""
+        cls._trang_thai_tu_app = {
+            "percent": pin,
+            "plugged": cam_sac,
+            "thermal": nhiet_do,
+        }
+        logger.info(f"Đồng bộ Hardware từ SDK: Pin {pin}%, Sạc: {cam_sac}, Nhiệt: {nhiet_do}")
+
+    @classmethod
+    def get_battery_status(cls) -> Tuple[float, bool]:
         """
-        Lấy % pin và trạng thái sạc.
+        Lấy % pin và trạng thái sạc. Ưu tiên dữ liệu từ SDK App nếu có.
 
         Returns:
             Tuple: (Phần trăm pin, Có đang cắm sạc không)
         """
+        if cls._trang_thai_tu_app:
+            return cls._trang_thai_tu_app.get("percent", 100.0), cls._trang_thai_tu_app.get("plugged", True)
+
         if not _CO_PSUTIL:
             logger.warning(
                 "Cần cài đặt psutil (pip install psutil) để đọc pin. Mặc định trả về 100% sạc."

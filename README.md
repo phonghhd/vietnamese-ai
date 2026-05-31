@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-27.0.1-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-30.0.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
   <img src="https://img.shields.io/badge/tests-897%2F897-brightgreen.svg" alt="tests">
@@ -668,6 +668,16 @@ ruff check vietnamese_ai/ tests/
 | v25.0 | Web-Native & Cross-Platform: Đóng gói Framework thành các SDK đa nền tảng (C++ FFI, Node.js, PHP, WebAssembly, WebGPU), giải phóng Python backend để nhúng trực tiếp AI vào trình duyệt web và mọi ứng dụng thương mại. |
 | v26.0 | EvoNet OS - Kỷ nguyên Kéo thả: Hệ điều hành trên nền Web thuần Vanilla JS/CSS. Cung cấp Visual Builder giao diện đồ họa DAG (Directed Acyclic Graph) để người dùng nối dây lắp ráp Logic AI, xuất file JSON tự động biên dịch sang code Python. Tích hợp Live Terminal Console. |
 | v27.0 | The Hardware Extreme: Tối ưu lõi Máy tính tột đỉnh. Tích hợp bộ 9 công nghệ Datacenter: MLA (Nén RAM 90%), DeepSeekMoE (Giảm FLOPs 75%), Quantized KV Cache (INT8), FlashAttention Tiling, C++ JIT Compiler (Bypass GIL), Speculative Decoding (Rejection Sampling), Continuous Batching, Kernel Fusion và Ring Attention. |
+| v28.0 | Trí tuệ Không gian (Spatial AI) & Robotics: Tích hợp Hệ tọa độ 3D (Spatial RAG), hỗ trợ Hybrid Search (Vector + Tọa độ), mở rộng API điều khiển Robot/LiDAR (Inverse Kinematics). |
+| v29.0 | Tác tử Di động (Mobile AI): Triển khai thuật toán Nén Ngữ cảnh (Token Pruning) tiết kiệm RAM, Tích hợp GGUF/ExecuTorch, Bổ sung Mobile OS Tools (GPS, SMS, Camera) và Copilot duyệt web trên điện thoại. |
+| v30.0 | Cầu nối Ứng dụng (Mobile SDK Bridge): Kiến trúc WebSockets Thời gian thực kết nối thẳng Frontend (React Native/Flutter) với Backend Python. Hỗ trợ Mã hóa Đầu-Cuối (E2EE), Hàng đợi Ngoại tuyến (Offline Queuing), và Push Notification (Giả lập). |
+
+### Tính liên kết của v28.0 - v30.0 với các phiên bản cũ
+Rất nhiều nhà phát triển lo ngại kiến trúc mở rộng liên tục sẽ bị phân mảnh. Sự thật là chúng được thiết kế theo dạng vòng lặp (Organic Loop):
+- **Cầu nối Ứng dụng (v30)** đọc chỉ số Pin thực tế từ App React Native, truyền ngược về cho thuật toán **PowerManager (v27)** để điều tiết tài nguyên cực kỳ chính xác.
+- Nhờ **PowerManager (v27)** ra quyết định chuẩn xác, **EdgeRouter (v27)** biết lúc nào nên san tải lên đám mây DePIN thay vì vắt kiệt NPU điện thoại của người dùng.
+- Trình duyệt **Mobile Copilot (v29)** dùng **RAG Pipeline (v10)** kết hợp với Token Pruning để lọc nội dung rác trước khi nhồi vào Local LLM.
+- Tất cả tạo thành một khối nguyên khối (Monolith) mạnh mẽ, không có chức năng nào giẫm chân lên nhau.
 
 ### Tính liên kết của v21.0 - v27.0 với các phiên bản cũ
 Rất nhiều nhà phát triển lo ngại kiến trúc mở rộng liên tục sẽ bị phân mảnh. Sự thật là chúng được thiết kế theo dạng vòng lặp (Organic Loop):

@@ -8,18 +8,25 @@ from vietnamese_ai.rag.graph import GraphExtractor, GraphRetriever, NetworkXStor
 from vietnamese_ai.rag.multimodal import ImageEmbedder, MultimodalStore
 from vietnamese_ai.rag.qdrant_store import QdrantVectorStore
 from vietnamese_ai.rag.rag_pipeline import RAGPipeline
-from vietnamese_ai.rag.realtime_sync import DocumentWatcher, RAGEventBus
-from vietnamese_ai.rag.reranker import SapXepLai
-from vietnamese_ai.rag.retriever import TrichXuat
+from vietnamese_ai.rag.realtime_sync import BoDongBoGraft, DocumentWatcher, RAGEventBus
+from vietnamese_ai.rag.reranker import CrossEncoderReranker, SapXepLai
+from vietnamese_ai.rag.retriever import Retriever, SearchResult, TrichXuat
+from vietnamese_ai.rag.spatial_store import SpatialVectorStore
 from vietnamese_ai.rag.text_splitters import RecursiveCharacterTextSplitter
 from vietnamese_ai.rag.vector_store import CSDLVector
 
 __all__ = [
+    "Retriever",
+    "SearchResult",
     "CSDLVector",
+    "SpatialVectorStore",
+    "CatVanBan",
+    "CatTheoNguNghia",
+    "BoDongBoGraft",
+    "CrossEncoderReranker",
     "ChromaVectorStore",
     "QdrantVectorStore",
     "TrichXuat",
-    "CatVanBan",
     "RAGPipeline",
     "SapXepLai",
     "TextLoader",
