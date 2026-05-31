@@ -20,7 +20,7 @@ class QdrantVectorStore:
         path: Optional[str] = "./qdrant_db",
         ten_collection: str = "vietnamese_ai",
         kich_thuoc: int = 128,
-        khoang_cach: str = "cosine"
+        khoang_cach: str = "cosine",
     ):
         try:
             from qdrant_client import QdrantClient
@@ -29,11 +29,7 @@ class QdrantVectorStore:
             raise ImportError("Vui lòng cài đặt qdrant-client: pip install qdrant-client")
 
         # Map distance metric string to Qdrant Distance
-        dist_map = {
-            "cosine": Distance.COSINE,
-            "l2": Distance.EUCLID,
-            "inner_product": Distance.DOT
-        }
+        dist_map = {"cosine": Distance.COSINE, "l2": Distance.EUCLID, "inner_product": Distance.DOT}
         self.distance = dist_map.get(khoang_cach, Distance.COSINE)
         self.kich_thuoc = kich_thuoc
         self.ten_collection = ten_collection
@@ -50,7 +46,7 @@ class QdrantVectorStore:
         if not any(c.name == self.ten_collection for c in collections):
             self.client.create_collection(
                 collection_name=self.ten_collection,
-                vectors_config=VectorParams(size=self.kich_thuoc, distance=self.distance)
+                vectors_config=VectorParams(size=self.kich_thuoc, distance=self.distance),
             )
 
     def chen(
@@ -77,16 +73,9 @@ class QdrantVectorStore:
         meta = metadata.copy() if metadata else {}
         meta["_original_id"] = ma
 
-        point = PointStruct(
-            id=point_id,
-            vector=vec,
-            payload=meta
-        )
+        point = PointStruct(id=point_id, vector=vec, payload=meta)
 
-        self.client.upsert(
-            collection_name=self.ten_collection,
-            points=[point]
-        )
+        self.client.upsert(collection_name=self.ten_collection, points=[point])
 
     def tim_kiem(
         self,
@@ -112,18 +101,14 @@ class QdrantVectorStore:
             query=vec,
             limit=top_k,
             query_filter=qdrant_filter,
-            score_threshold=nguong
+            score_threshold=nguong,
         )
 
         ket_qua = []
         for r in results.points:
             payload = r.payload or {}
             ma = payload.pop("_original_id", str(r.id))
-            ket_qua.append({
-                "ma": ma,
-                "diem": r.score,
-                "metadata": payload
-            })
+            ket_qua.append({"ma": ma, "diem": r.score, "metadata": payload})
 
         return ket_qua
 

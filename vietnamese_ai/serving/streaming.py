@@ -69,9 +69,7 @@ class MayChuStream:
 
         with self._lock:
             if len(self._clients) >= self.toi_da_client:
-                raise RuntimeError(
-                    f"Đã đạt giới hạn {self.toi_da_client} client đồng thời"
-                )
+                raise RuntimeError(f"Đã đạt giới hạn {self.toi_da_client} client đồng thời")
             self._clients[client_id] = {
                 "bat_dau": time.time(),
                 "trang_thai": "dang_sinh",
@@ -122,9 +120,7 @@ class MayChuStream:
             with self._lock:
                 n = self._thong_ke["tong_stream"]
                 old_avg = self._thong_ke["thoi_gian_tb"]
-                self._thong_ke["thoi_gian_tb"] = (
-                    old_avg * (n - 1) + thoi_gian
-                ) / n
+                self._thong_ke["thoi_gian_tb"] = (old_avg * (n - 1) + thoi_gian) / n
 
     def _sinh_don_gian(
         self,
@@ -188,6 +184,5 @@ class MayChuStream:
 
     def __repr__(self) -> str:
         return (
-            f"MayChuStream(toi_da_client={self.toi_da_client}, "
-            f"client_hien_tai={self.so_client()})"
+            f"MayChuStream(toi_da_client={self.toi_da_client}, client_hien_tai={self.so_client()})"
         )

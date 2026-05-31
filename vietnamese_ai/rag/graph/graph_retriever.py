@@ -1,15 +1,17 @@
 import re
 from typing import Any, List
 
-from .graph_store import NetworkXStore
 from vietnamese_ai.agents.tools import CongCu
 from vietnamese_ai.preprocessing import XuLyVanBan
+
+from .graph_store import NetworkXStore
 
 
 class GraphRetriever:
     """
     Truy xuất thông tin từ GraphStore dựa trên câu hỏi của người dùng.
     """
+
     def __init__(self, graph_store: NetworkXStore, llm: Any = None):
         self.store = graph_store
         self.llm = llm
@@ -20,20 +22,20 @@ class GraphRetriever:
         if self.llm and hasattr(self.llm, "sinh_van_ban"):
             prompt = f"Xác định các thực thể chính (danh từ riêng, tên gọi, khái niệm) trong câu hỏi sau. Trả về danh sách phân tách bằng dấu phẩy. Không giải thích gì thêm.\nCâu hỏi: {cau_hoi}"
             phan_hoi = self.llm.sinh_van_ban(prompt, do_dai=128)
-            thuc_the = [e.strip().lower() for e in phan_hoi.split(',')]
+            thuc_the = [e.strip().lower() for e in phan_hoi.split(",")]
             return [e for e in thuc_the if e]
         else:
             try:
                 nhan_thuc_the = self.xuly.gan_nhan_tu_loai(cau_hoi)
                 # Giả định gán nhãn trả về list of (word, pos). Lấy danh từ (N, Np).
-                thuc_the = [tu.lower() for tu, pos in nhan_thuc_the if pos in ('N', 'Np')]
+                thuc_the = [tu.lower() for tu, pos in nhan_thuc_the if pos in ("N", "Np")]
                 if thuc_the:
                     return thuc_the
             except Exception:
                 pass
-            
+
             # Rất thô sơ (fallback)
-            tu_khoa = re.findall(r'[A-Z][a-z]+', cau_hoi)
+            tu_khoa = re.findall(r"[A-Z][a-z]+", cau_hoi)
             return [tk.lower() for tk in tu_khoa]
 
     def truy_xuat(self, cau_hoi: str, do_sau: int = 2) -> str:
@@ -66,5 +68,5 @@ class GraphRetriever:
         return CongCu(
             ten="truy_xuat_do_thi",
             mo_ta="Truy xuất thông tin từ mạng tri thức đồ thị (Graph Knowledge Base). Tham số 'cau_hoi' là câu hỏi của người dùng, 'do_sau' là độ sâu duyệt đồ thị (mặc định 2).",
-            ham_thuc_thi=self.truy_xuat
+            ham_thuc_thi=self.truy_xuat,
         )

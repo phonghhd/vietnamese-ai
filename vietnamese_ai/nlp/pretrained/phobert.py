@@ -38,10 +38,7 @@ class PhoBERTWrapper:
             self._da_tai = True
             self.logger.info("Tải mô hình hoàn tất")
         except ImportError:
-            raise ImportError(
-                "Cần cài đặt transformers và torch: "
-                "pip install transformers torch"
-            )
+            raise ImportError("Cần cài đặt transformers và torch: pip install transformers torch")
 
     def ma_hoa(self, cac_van_ban: List[str], batch_size: int = 32) -> np.ndarray:
         """
@@ -62,10 +59,9 @@ class PhoBERTWrapper:
         tat_ca_vectors = []
 
         for i in range(0, len(cac_van_ban), batch_size):
-            batch = cac_van_ban[i:i + batch_size]
+            batch = cac_van_ban[i : i + batch_size]
             inputs = self._tokenizer(
-                batch, padding=True, truncation=True,
-                max_length=256, return_tensors="pt"
+                batch, padding=True, truncation=True, max_length=256, return_tensors="pt"
             )
 
             with torch.no_grad():

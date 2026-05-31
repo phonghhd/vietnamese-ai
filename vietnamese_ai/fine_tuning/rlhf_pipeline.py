@@ -100,9 +100,7 @@ class RLHFPipeline:
         )
         self._reward_done = True
         self._results["reward_model"] = ket_qua
-        self.logger.info(
-            f"Reward Model hoànất: acc={ket_qua.get('final_accuracy', 0):.4f}"
-        )
+        self.logger.info(f"Reward Model hoànất: acc={ket_qua.get('final_accuracy', 0):.4f}")
         return ket_qua
 
     def rlhf(
@@ -126,9 +124,7 @@ class RLHFPipeline:
         ket_qua = self.dpo_trainer.huan_luyen(model, ref_model, preference_data)
         self._rlhf_done = True
         self._results["rlhf"] = ket_qua
-        self.logger.info(
-            f"RLHF hoànất: margin={ket_qua.get('final_reward_margin', 0):.4f}"
-        )
+        self.logger.info(f"RLHF hoànất: margin={ket_qua.get('final_reward_margin', 0):.4f}")
         return ket_qua
 
     def chay_day_du(

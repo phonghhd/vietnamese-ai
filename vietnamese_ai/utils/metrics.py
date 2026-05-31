@@ -74,11 +74,7 @@ class Metrics:
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if (precision + recall) > 0
-            else 0.0
-        )
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
         return {
             "precision": float(precision),
@@ -87,9 +83,7 @@ class Metrics:
         }
 
     @staticmethod
-    def bao_cao_phan_loai(
-        y_thuc: np.ndarray, y_du_doan: np.ndarray
-    ) -> Dict[str, float]:
+    def bao_cao_phan_loai(y_thuc: np.ndarray, y_du_doan: np.ndarray) -> Dict[str, float]:
         """Báo cáo đầy đủ cho bài toán phân loại."""
         y_thuc, y_du_doan = np.asarray(y_thuc), np.asarray(y_du_doan)
         ket_qua = {"do_chinh_xac": Metrics.do_chinh_xac(y_thuc, y_du_doan)}
@@ -107,9 +101,7 @@ class Metrics:
         return ket_qua
 
     @staticmethod
-    def bao_cao_hoi_quy(
-        y_thuc: np.ndarray, y_du_doan: np.ndarray
-    ) -> Dict[str, float]:
+    def bao_cao_hoi_quy(y_thuc: np.ndarray, y_du_doan: np.ndarray) -> Dict[str, float]:
         """Báo cáo đầy đủ cho bài toán hồi quy."""
         return {
             "mse": Metrics.mse(y_thuc, y_du_doan),

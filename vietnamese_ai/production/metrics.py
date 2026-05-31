@@ -181,7 +181,7 @@ class QuanLyMetrics:
             # Histograms
             for key, values in self._histograms.items():
                 base = key.split("{")[0]
-                label = key[len(base):]
+                label = key[len(base) :]
                 lines.append(f"# TYPE {base} histogram")
 
                 arr = np.array(values)
@@ -201,8 +201,7 @@ class QuanLyMetrics:
                 "counters": dict(self._counters),
                 "gauges": dict(self._gauges),
                 "histograms": {
-                    k: self.lay_histogram_stats(k.split("{")[0])
-                    for k in self._histograms
+                    k: self.lay_histogram_stats(k.split("{")[0]) for k in self._histograms
                 },
                 "uptime_s": time.time() - self._bat_dau,
             }

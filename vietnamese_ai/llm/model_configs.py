@@ -111,10 +111,7 @@ class ModelConfig:
     @classmethod
     def from_preset(cls, preset: str) -> "ModelConfig":
         if preset not in cls.PRESETS:
-            raise ValueError(
-                f"Preset '{preset}' không tồn tại. "
-                f"Chọn: {list(cls.PRESETS.keys())}"
-            )
+            raise ValueError(f"Preset '{preset}' không tồn tại. Chọn: {list(cls.PRESETS.keys())}")
         cfg = cls.PRESETS[preset]
         return cls(ten=preset, **cfg)
 
@@ -122,11 +119,8 @@ class ModelConfig:
     def so_tham_so(self) -> int:
         return (
             self.so_tu_vung * self.d_model
-            + self.so_block * (
-                self.d_model * self.d_model * 4
-                + self.d_model * self.d_ff * 2
-                + self.d_model * 4
-            )
+            + self.so_block
+            * (self.d_model * self.d_model * 4 + self.d_model * self.d_ff * 2 + self.d_model * 4)
             + self.d_model * 2
         )
 
@@ -134,10 +128,10 @@ class ModelConfig:
     def so_tham_so_str(self) -> str:
         params = self.so_tham_so
         if params >= 1e9:
-            return f"{params/1e9:.1f}B"
+            return f"{params / 1e9:.1f}B"
         elif params >= 1e6:
-            return f"{params/1e6:.0f}M"
-        return f"{params/1e3:.0f}K"
+            return f"{params / 1e6:.0f}M"
+        return f"{params / 1e3:.0f}K"
 
     @classmethod
     def danh_sach_presets(cls) -> Dict[str, str]:

@@ -50,6 +50,7 @@ class TheoDoiThiNghiem:
         if su_dung_mlflow:
             try:
                 import mlflow
+
                 self._mlflow = mlflow
                 mlflow.set_experiment(ten_thu_nghiem)
                 self.logger.info("Đã kết nối MLflow")
@@ -140,8 +141,7 @@ class TheoDoiThiNghiem:
 
         self._chay_hien_tai["thoi_gian_ket_thuc"] = time.time()
         self._chay_hien_tai["thoi_gian_chay"] = (
-            self._chay_hien_tai["thoi_gian_ket_thuc"]
-            - self._chay_hien_tai["thoi_gian_bat_dau"]
+            self._chay_hien_tai["thoi_gian_ket_thuc"] - self._chay_hien_tai["thoi_gian_bat_dau"]
         )
         self._chay_hien_tai["trang_thai"] = "hoan_tat"
 
@@ -214,9 +214,11 @@ class TheoDoiThiNghiem:
                 key = m["key"]
                 if key not in so_sanh:
                     so_sanh[key] = []
-                so_sanh[key].append({
-                    "chay": chay["id"],
-                    "gia_tri": m["value"],
-                })
+                so_sanh[key].append(
+                    {
+                        "chay": chay["id"],
+                        "gia_tri": m["value"],
+                    }
+                )
 
         return so_sanh

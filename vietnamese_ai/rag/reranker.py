@@ -96,14 +96,11 @@ class SapXepLai:
                         sel_words = set(sel.get("noi_dung", "").lower().split())
 
                     if cand_words and sel_words:
-                        sim = len(cand_words & sel_words) / max(
-                            len(cand_words | sel_words), 1
-                        )
+                        sim = len(cand_words & sel_words) / max(len(cand_words | sel_words), 1)
                         max_sim = max(max_sim, sim)
 
                 mmr_score = (
-                    self.trong_so_da_dang * relevance
-                    - (1 - self.trong_so_da_dang) * max_sim
+                    self.trong_so_da_dang * relevance - (1 - self.trong_so_da_dang) * max_sim
                 )
 
                 if mmr_score > best_score:

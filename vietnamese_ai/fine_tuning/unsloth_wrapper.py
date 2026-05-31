@@ -90,9 +90,7 @@ class UnslothWrapper:
             Dict chứa thông tin model
         """
         if not self._co_unsloth:
-            raise ImportError(
-                "Unsloth chưa cài. Cài đặt: pip install unsloth"
-            )
+            raise ImportError("Unsloth chưa cài. Cài đặt: pip install unsloth")
 
         model_id = self.UNSLOTH_MODELS.get(ten_model, ten_model)
 
@@ -153,8 +151,13 @@ class UnslothWrapper:
 
         if target_modules is None:
             target_modules = [
-                "q_proj", "k_proj", "v_proj", "o_proj",
-                "gate_proj", "up_proj", "down_proj",
+                "q_proj",
+                "k_proj",
+                "v_proj",
+                "o_proj",
+                "gate_proj",
+                "up_proj",
+                "down_proj",
             ]
 
         self._lora_config = {
@@ -183,7 +186,7 @@ class UnslothWrapper:
 
             self.logger.info(
                 f"LoRA: r={r}, alpha={lora_alpha}, "
-                f"trainable={trainable:,}/{total:,} ({100*trainable/total:.1f}%)"
+                f"trainable={trainable:,}/{total:,} ({100 * trainable / total:.1f}%)"
             )
 
             return {
@@ -276,9 +279,7 @@ class UnslothWrapper:
             }
 
         except ImportError:
-            raise ImportError(
-                "Cần cài đặt trl: pip install trl"
-            )
+            raise ImportError("Cần cài đặt trl: pip install trl")
 
     def luu_model(self, duong_dan: str) -> str:
         """Lưu model đã fine-tune."""

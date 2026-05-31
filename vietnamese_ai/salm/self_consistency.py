@@ -60,11 +60,7 @@ class SelfConsistency:
 
         for i in range(self.so_luong):
             if che_do == "cot":
-                full_prompt = (
-                    f"Câu hỏi: {prompt}\n\n"
-                    f"Hãy suy nghĩ từng bước rồi trả lời:\n"
-                    f"Bước 1:"
-                )
+                full_prompt = f"Câu hỏi: {prompt}\n\nHãy suy nghĩ từng bước rồi trả lời:\nBước 1:"
             else:
                 full_prompt = prompt
 
@@ -77,11 +73,13 @@ class SelfConsistency:
             # Trích xuất câu trả lời cuối
             dap_an = self._trich_xuat_dap_an(output)
 
-            cac_paths.append({
-                "stt": i,
-                "output_day_du": output,
-                "dap_an": dap_an,
-            })
+            cac_paths.append(
+                {
+                    "stt": i,
+                    "output_day_du": output,
+                    "dap_an": dap_an,
+                }
+            )
 
         if not cac_paths:
             return {
@@ -154,7 +152,7 @@ class SelfConsistency:
                 # Bỏ prefix "Trả lời:", "Answer:", etc.
                 for prefix in ["trả lời:", "answer:", "kết quả:", "đáp án:"]:
                     if line.lower().startswith(prefix):
-                        return line[len(prefix):].strip()
+                        return line[len(prefix) :].strip()
                 return line
 
         return output.strip()

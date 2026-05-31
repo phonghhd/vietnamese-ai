@@ -48,9 +48,7 @@ class CSDLVector:
         """Chen một vector vào CSDL."""
         vector = np.asarray(vector, dtype=np.float32).flatten()
         if vector.shape[0] != self.kich_thuoc:
-            raise ValueError(
-                f"Vector phải có {self.kich_thuoc} chiều, nhận được {vector.shape[0]}"
-            )
+            raise ValueError(f"Vector phải có {self.kich_thuoc} chiều, nhận được {vector.shape[0]}")
 
         if len(self._ids) >= self.suc_chua_toi_da:
             raise RuntimeError(
@@ -136,9 +134,7 @@ class CSDLVector:
 
         query = np.asarray(query_vector, dtype=np.float32).flatten()
         if query.shape[0] != self.kich_thuoc:
-            raise ValueError(
-                f"Query vector phải có {self.kich_thuoc} chiều"
-            )
+            raise ValueError(f"Query vector phải có {self.kich_thuoc} chiều")
 
         if self.khoang_cach == "cosine":
             scores = self._cosine_scores(query)
@@ -165,11 +161,13 @@ class CSDLVector:
                 if not all(meta.get(k) == v for k, v in bo_loc.items()):
                     continue
 
-            ket_qua.append({
-                "ma": self._ids[idx],
-                "diem": diem,
-                "metadata": self._metadata[idx],
-            })
+            ket_qua.append(
+                {
+                    "ma": self._ids[idx],
+                    "diem": diem,
+                    "metadata": self._metadata[idx],
+                }
+            )
 
         return ket_qua
 

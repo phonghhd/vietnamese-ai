@@ -8,6 +8,7 @@ class ImageEmbedder:
     Lớp cơ sở cho việc trích xuất đặc trưng (embedding) từ hình ảnh.
     Sử dụng cho Multi-modal RAG.
     """
+
     def __init__(self, model_name: str = "clip-ViT-B-32"):
         self.model_name = model_name
         self._da_tai_model = False

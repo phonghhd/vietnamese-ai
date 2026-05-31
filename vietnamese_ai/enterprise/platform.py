@@ -183,8 +183,7 @@ class NenTangDichVu:
         """
         if goi_dich_vu not in GOI_DICH_VU:
             raise ValueError(
-                f"Gói '{goi_dich_vu}' không hợp lệ. "
-                f"Chọn: {', '.join(GOI_DICH_VU.keys())}"
+                f"Gói '{goi_dich_vu}' không hợp lệ. Chọn: {', '.join(GOI_DICH_VU.keys())}"
             )
 
         if not ten or not isinstance(ten, str):
@@ -232,8 +231,7 @@ class NenTangDichVu:
         if not self._kiem_tra_quota(ws, "api_keys"):
             goi = GOI_DICH_VU[ws.goi_dich_vu]
             raise PermissionError(
-                f"Đã đạt giới hạn API keys ({goi['max_api_keys']}). "
-                f"Nâng cấp gói để thêm."
+                f"Đã đạt giới hạn API keys ({goi['max_api_keys']}). Nâng cấp gói để thêm."
             )
 
         api_key = self._tao_api_key()
@@ -289,8 +287,7 @@ class NenTangDichVu:
         if not self._kiem_tra_quota(ws, "models"):
             goi = GOI_DICH_VU[ws.goi_dich_vu]
             raise PermissionError(
-                f"Đã đạt giới hạn models ({goi['max_models']}). "
-                f"Nâng cấp gói để thêm."
+                f"Đã đạt giới hạn models ({goi['max_models']}). Nâng cấp gói để thêm."
             )
 
         ma_model = self._tao_ma()
@@ -336,8 +333,7 @@ class NenTangDichVu:
         if not self._kiem_tra_quota(ws, "deployments"):
             goi = GOI_DICH_VU[ws.goi_dich_vu]
             raise PermissionError(
-                f"Đã đạt giới hạn deployments ({goi['max_deployments']}). "
-                f"Nâng cấp gói để thêm."
+                f"Đã đạt giới hạn deployments ({goi['max_deployments']}). Nâng cấp gói để thêm."
             )
 
         if ma_model not in ws.models:

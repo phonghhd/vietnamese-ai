@@ -73,7 +73,8 @@ class PhanTichDauRa:
         """
         lines = van_ban.strip().split("\n")
         table_lines = [
-            line.strip() for line in lines
+            line.strip()
+            for line in lines
             if line.strip().startswith("|") and line.strip().endswith("|")
         ]
 
@@ -81,9 +82,7 @@ class PhanTichDauRa:
             return []
 
         # Header
-        header = [
-            c.strip() for c in table_lines[0].split("|")[1:-1]
-        ]
+        header = [c.strip() for c in table_lines[0].split("|")[1:-1]]
 
         # Bỏ separator line
         rows = []
@@ -123,10 +122,12 @@ class PhanTichDauRa:
         mau = re.compile(r"```(\w*)\n?(.*?)\n?```", re.DOTALL)
 
         for match in mau.finditer(van_ban):
-            blocks.append({
-                "ngon_ngu": match.group(1) or "text",
-                "code": match.group(2).strip(),
-            })
+            blocks.append(
+                {
+                    "ngon_ngu": match.group(1) or "text",
+                    "code": match.group(2).strip(),
+                }
+            )
 
         return blocks
 

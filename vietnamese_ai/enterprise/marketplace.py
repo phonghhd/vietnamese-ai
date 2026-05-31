@@ -125,17 +125,21 @@ class Marketplace:
 
         return ket_qua
 
-    def danh_gia(self, item_id: str, sao: int, binh_luan: str = "", nguoi_danh_gia: str = "anonymous") -> None:
+    def danh_gia(
+        self, item_id: str, sao: int, binh_luan: str = "", nguoi_danh_gia: str = "anonymous"
+    ) -> None:
         """Đánh giá resource."""
         if item_id not in self._catalog["items"]:
             raise KeyError(f"Không tìm thấy: {item_id}")
 
         item = self._catalog["items"][item_id]
-        item["reviews"].append({
-            "sao": sao,
-            "binh_luan": binh_luan,
-            "nguoi_danh_gia": nguoi_danh_gia,
-        })
+        item["reviews"].append(
+            {
+                "sao": sao,
+                "binh_luan": binh_luan,
+                "nguoi_danh_gia": nguoi_danh_gia,
+            }
+        )
 
         tong_sao = sum(r["sao"] for r in item["reviews"])
         item["so_danh_gia"] = len(item["reviews"])

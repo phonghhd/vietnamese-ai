@@ -294,7 +294,9 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset()
-        result = ds.format_alpaca({"instruction": "Tóm tắt", "input": "Văn bản dài", "output": "Tóm tắt"})
+        result = ds.format_alpaca(
+            {"instruction": "Tóm tắt", "input": "Văn bản dài", "output": "Tóm tắt"}
+        )
         assert "Tóm tắt" in result
         assert "Văn bản dài" in result
 
@@ -302,10 +304,12 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset(che_do="sharegpt")
-        mau = {"conversations": [
-            {"from": "human", "value": "Xin chào"},
-            {"from": "gpt", "value": "Chào bạn"},
-        ]}
+        mau = {
+            "conversations": [
+                {"from": "human", "value": "Xin chào"},
+                {"from": "gpt", "value": "Chào bạn"},
+            ]
+        }
         result = ds.format_sharegpt(mau)
         assert len(result) == 3
         assert result[0]["role"] == "system"
@@ -316,9 +320,11 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset(che_do="alpaca")
-        ds.tai_tu_list([
-            {"instruction": "Test", "input": "", "output": "Out"},
-        ])
+        ds.tai_tu_list(
+            [
+                {"instruction": "Test", "input": "", "output": "Out"},
+            ]
+        )
         results = ds.format_tat_ca()
         assert len(results) == 1
 
@@ -326,9 +332,16 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset(che_do="sharegpt")
-        ds.tai_tu_list([
-            {"conversations": [{"from": "human", "value": "Hi"}, {"from": "gpt", "value": "Hello"}]},
-        ])
+        ds.tai_tu_list(
+            [
+                {
+                    "conversations": [
+                        {"from": "human", "value": "Hi"},
+                        {"from": "gpt", "value": "Hello"},
+                    ]
+                },
+            ]
+        )
         results = ds.format_tat_ca()
         assert len(results) == 1
 
@@ -336,12 +349,16 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset(che_do="sharegpt")
-        ds.tai_tu_list([
-            {"conversations": [
-                {"from": "human", "value": "Câu hỏi"},
-                {"from": "gpt", "value": "Trả lời"},
-            ]},
-        ])
+        ds.tai_tu_list(
+            [
+                {
+                    "conversations": [
+                        {"from": "human", "value": "Câu hỏi"},
+                        {"from": "gpt", "value": "Trả lời"},
+                    ]
+                },
+            ]
+        )
         result = ds.chuyen_doi_sharegpt_sang_alpaca()
         assert len(result) == 1
         assert result[0]["instruction"] == "Câu hỏi"
@@ -420,9 +437,11 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset()
-        ds.tai_tu_list([
-            {"instruction": "Test instruction", "input": "", "output": "Test output"},
-        ])
+        ds.tai_tu_list(
+            [
+                {"instruction": "Test instruction", "input": "", "output": "Test output"},
+            ]
+        )
         tk = ds.thong_ke()
         assert tk["so_mau"] == 1
         assert "do_dai_tb_instruction" in tk
@@ -431,9 +450,16 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset(che_do="sharegpt")
-        ds.tai_tu_list([
-            {"conversations": [{"from": "human", "value": "Hi"}, {"from": "gpt", "value": "Hello"}]},
-        ])
+        ds.tai_tu_list(
+            [
+                {
+                    "conversations": [
+                        {"from": "human", "value": "Hi"},
+                        {"from": "gpt", "value": "Hello"},
+                    ]
+                },
+            ]
+        )
         tk = ds.thong_ke()
         assert tk["so_mau"] == 1
 
@@ -673,7 +699,13 @@ class TestPEFTConfig:
     def test_from_dict(self):
         from vietnamese_ai.fine_tuning.peft_config import PEFTConfig
 
-        d = {"rank": 16, "alpha": 16.0, "dropout": 0.0, "target_modules": ["q_proj"], "loftq_config": None}
+        d = {
+            "rank": 16,
+            "alpha": 16.0,
+            "dropout": 0.0,
+            "target_modules": ["q_proj"],
+            "loftq_config": None,
+        }
         config = PEFTConfig.from_dict(d)
         assert config.rank == 16
 
@@ -785,8 +817,7 @@ class TestHuanLuyenPyTorch:
         y_val = np.random.randint(0, 3, 5)
 
         trainer = HuanLuyenPyTorch(
-            thiet_bi="cpu", so_vong=2, kich_thuoc_batch=8,
-            early_stopping=5, scheduler="linear"
+            thiet_bi="cpu", so_vong=2, kich_thuoc_batch=8, early_stopping=5, scheduler="linear"
         )
         result = trainer.huan_luyen(model, X_train, y_train, X_val, y_val)
         assert result["val_loss_min"] is not None
@@ -801,9 +832,7 @@ class TestHuanLuyenPyTorch:
         X = np.random.randn(20, 5).astype(np.float32)
         y = np.random.randint(0, 3, 20)
 
-        trainer = HuanLuyenPyTorch(
-            thiet_bi="cpu", so_vong=2, kich_thuoc_batch=8, scheduler="step"
-        )
+        trainer = HuanLuyenPyTorch(thiet_bi="cpu", so_vong=2, kich_thuoc_batch=8, scheduler="step")
         result = trainer.huan_luyen(model, X, y)
         assert result["so_epoch"] == 2
 

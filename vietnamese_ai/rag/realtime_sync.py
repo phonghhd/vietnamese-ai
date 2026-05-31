@@ -34,11 +34,13 @@ class RAGEventBus:
                     thread.daemon = True
                     thread.start()
 
+
 class DocumentWatcher:
     """
     Giả lập một watcher thư mục (ví dụ thư mục chứa PDF).
     Mỗi khi có tài liệu mới, nó bắn sự kiện 'NEW_DOCUMENT'.
     """
+
     def __init__(self, thu_muc: str):
         self.thu_muc = thu_muc
         self.event_bus = RAGEventBus()
@@ -49,7 +51,4 @@ class DocumentWatcher:
         if ma_tai_lieu not in self.da_xu_ly:
             self.da_xu_ly.add(ma_tai_lieu)
             print(f"[DocumentWatcher] Phát hiện tài liệu mới: {ma_tai_lieu}")
-            self.event_bus.phat_su_kien("NEW_DOCUMENT", {
-                "ma": ma_tai_lieu,
-                "noi_dung": noi_dung
-            })
+            self.event_bus.phat_su_kien("NEW_DOCUMENT", {"ma": ma_tai_lieu, "noi_dung": noi_dung})

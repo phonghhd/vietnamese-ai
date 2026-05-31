@@ -13,6 +13,7 @@ def test_red_team_simulator():
     # Nhưng ta kỳ vọng tỷ lệ bảo vệ > 0%
     assert ket_qua["ty_le_bao_ve"] > 0
 
+
 def test_text_watermarker():
     van_ban_goc = "Đây là câu trả lời của AI."
     payload = "EVONET-123"

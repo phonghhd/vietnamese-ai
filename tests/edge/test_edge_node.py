@@ -25,7 +25,10 @@ def test_node_llama_engine_start(mock_wait, mock_exists, mock_which, mock_popen)
     engine.stop_server()
     mock_process.terminate.assert_called_once()
 
-@patch("vietnamese_ai.edge.intelligent_router.EdgeRouter._call_cloud", return_value="Trả lời từ Cloud")
+
+@patch(
+    "vietnamese_ai.edge.intelligent_router.EdgeRouter._call_cloud", return_value="Trả lời từ Cloud"
+)
 def test_edge_router(mock_call_cloud):
     """Test logic định tuyến của EdgeRouter."""
     mock_edge = MagicMock()

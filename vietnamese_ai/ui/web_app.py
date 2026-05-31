@@ -324,7 +324,7 @@ class UngDungWeb:
                                 if b"Content-Disposition" in part:
                                     header_end = part.find(b"\r\n\r\n")
                                     header = part[:header_end].decode()
-                                    content = part[header_end + 4:]
+                                    content = part[header_end + 4 :]
                                     if content.endswith(b"\r\n"):
                                         content = content[:-2]
                                     if 'name="file"' in header:

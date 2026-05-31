@@ -3,7 +3,9 @@ from vietnamese_ai.edge.tee_zkp_node import SecureEdgeNode
 
 def test_secure_edge_node_proof():
     private_key = "super_secret_key_123"
-    node = SecureEdgeNode(node_id="node_01", private_key=private_key, model_path="test_model", auto_start=False)
+    node = SecureEdgeNode(
+        node_id="node_01", private_key=private_key, model_path="test_model", auto_start=False
+    )
 
     # Giả lập lại hàm suy luận (vì test không có model thật)
     node.engine.sinh_van_ban = lambda cau_hoi, do_dai: f"Trả lời cho {cau_hoi}"
@@ -24,7 +26,7 @@ def test_secure_edge_node_proof():
         cau_hoi=cau_hoi,
         cau_tra_loi=ket_qua["cau_tra_loi"],
         proof=ket_qua["proof"],
-        model_hash=ket_qua["model_hash"]
+        model_hash=ket_qua["model_hash"],
     )
     assert is_valid is True
 
@@ -35,6 +37,6 @@ def test_secure_edge_node_proof():
         cau_hoi=cau_hoi,
         cau_tra_loi="Câu trả lời đã bị sửa đổi",
         proof=ket_qua["proof"],  # Dùng lại proof cũ
-        model_hash=ket_qua["model_hash"]
+        model_hash=ket_qua["model_hash"],
     )
     assert is_valid_fake is False

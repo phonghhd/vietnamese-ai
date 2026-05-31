@@ -147,7 +147,7 @@ class GiaiThichMoHinh:
 
         # Tính khoảng cách (kernel)
         khoang_cach = np.sqrt(np.sum((mau_lang_gieng - mau) ** 2, axis=1))
-        trong_so = np.exp(-(khoang_cach ** 2) / (2 * (0.75 ** 2)))
+        trong_so = np.exp(-(khoang_cach**2) / (2 * (0.75**2)))
 
         # Huấn luyện mô hình tuyến tính cục bộ (weighted OLS)
         try:
@@ -156,6 +156,7 @@ class GiaiThichMoHinh:
 
             # Giải bằng least squares
             from numpy.linalg import lstsq
+
             beta, _, _, _ = lstsq(X_w, y_w, rcond=None)
 
             ket_qua = {}
@@ -181,7 +182,7 @@ class GiaiThichMoHinh:
             lines.append("1. Feature Importance (từ mô hình):")
             for i, (ten, diem) in enumerate(fi.items()):
                 bar = "█" * int(diem * 50 / max(fi.values())) if max(fi.values()) > 0 else ""
-                lines.append(f"   {i+1}. {ten}: {diem:.4f} {bar}")
+                lines.append(f"   {i + 1}. {ten}: {diem:.4f} {bar}")
             lines.append("")
 
         # Permutation Importance
@@ -190,6 +191,6 @@ class GiaiThichMoHinh:
             lines.append("2. Permutation Importance:")
             for i, (ten, diem) in enumerate(pi.items()):
                 bar = "█" * max(0, int(diem * 50 / max(abs(v) for v in pi.values()))) if pi else ""
-                lines.append(f"   {i+1}. {ten}: {diem:.4f} {bar}")
+                lines.append(f"   {i + 1}. {ten}: {diem:.4f} {bar}")
 
         return "\n".join(lines)

@@ -109,9 +109,7 @@ class TrichXuat:
         """
         tong = 0
         for tl in tai_lieu:
-            tong += self.them_tai_lieu(
-                tl["ma"], tl["van_ban"], tl.get("metadata")
-            )
+            tong += self.them_tai_lieu(tl["ma"], tl["van_ban"], tl.get("metadata"))
         return tong
 
     def tim_kiem(
@@ -200,12 +198,14 @@ class TrichXuat:
             if nguong is not None and diem < nguong:
                 break
             meta = self.csdl_vector.lay_metadata(chunk_id) or {}
-            ket_qua.append({
-                "ma": chunk_id,
-                "diem": diem,
-                "metadata": meta,
-                "loai": "keyword",
-            })
+            ket_qua.append(
+                {
+                    "ma": chunk_id,
+                    "diem": diem,
+                    "metadata": meta,
+                    "loai": "keyword",
+                }
+            )
 
         return ket_qua
 
@@ -249,12 +249,14 @@ class TrichXuat:
             )
             if nguong is not None and diem < nguong:
                 continue
-            ket_qua.append({
-                "ma": ma,
-                "diem": diem,
-                "metadata": info["metadata"],
-                "loai": "hybrid",
-            })
+            ket_qua.append(
+                {
+                    "ma": ma,
+                    "diem": diem,
+                    "metadata": info["metadata"],
+                    "loai": "hybrid",
+                }
+            )
 
         ket_qua.sort(key=lambda x: x["diem"], reverse=True)
         return ket_qua[:top_k]
@@ -290,10 +292,7 @@ class TrichXuat:
         del self._van_ban_goc[ma]
         da_xoa = 0
 
-        keys_to_remove = [
-            k for k in self._tu_dien.keys()
-            if k.startswith(f"{ma}_chunk_")
-        ]
+        keys_to_remove = [k for k in self._tu_dien.keys() if k.startswith(f"{ma}_chunk_")]
         for key in keys_to_remove:
             del self._tu_dien[key]
             self.csdl_vector.xoa(key)
@@ -323,6 +322,7 @@ class TrichXuat:
             f"che_do='{self.che_do}')"
         )
 
+
 class IdentityAwareRetriever(TrichXuat):
     """
     Retriever hỗ trợ phân quyền (RBAC) cho dữ liệu RAG.
@@ -334,7 +334,7 @@ class IdentityAwareRetriever(TrichXuat):
         cau_hoi: str,
         top_k: int = 5,
         nguong: Optional[float] = None,
-        required_roles: Optional[List[str]] = None
+        required_roles: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Tìm kiếm với bộ lọc quyền truy cập.
@@ -364,16 +364,20 @@ class IdentityAwareRetriever(TrichXuat):
 
         return ket_qua_da_loc
 
+
 class MultiModalRetriever(TrichXuat):
     """
     Retriever mở rộng để hỗ trợ tìm kiếm Đa phương thức (Văn bản và Hình ảnh).
     """
+
     def __init__(self, multimodal_store: Any, **kwargs):
         # Khởi tạo TrichXuat với text_store từ multimodal_store
         super().__init__(csdl_vector=multimodal_store.text_store, **kwargs)
         self.multimodal_store = multimodal_store
 
-    def tim_kiem_da_phuong_thuc(self, cau_hoi: str, la_hinh_anh: bool = False, top_k: int = 3) -> List[Dict[str, Any]]:
+    def tim_kiem_da_phuong_thuc(
+        self, cau_hoi: str, la_hinh_anh: bool = False, top_k: int = 3
+    ) -> List[Dict[str, Any]]:
         """
         Tìm kiếm thông minh.
         Nếu la_hinh_anh = True: cau_hoi là đường dẫn ảnh.

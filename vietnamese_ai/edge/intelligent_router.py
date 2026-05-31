@@ -11,13 +11,14 @@ class EdgeRouter:
     Gateway định tuyến thông minh (Intelligent Routing Gateway).
     Phân loại yêu cầu từ Agent/User để quyết định chạy inference ở Local (Edge) hay Cloud (Data Center).
     """
+
     def __init__(
         self,
         edge_engine: Optional[NodeLlamaEngine] = None,
         cloud_api_key: Optional[str] = None,
         cloud_endpoint: Optional[str] = None,
         p2p_tracker: Optional[P2PTracker] = None,
-        token_ledger: Optional[TokenLedger] = None
+        token_ledger: Optional[TokenLedger] = None,
     ):
         self.edge_engine = edge_engine
         self.cloud_api_key = cloud_api_key or os.environ.get("EVONET_CLOUD_KEY")
@@ -35,13 +36,21 @@ class EdgeRouter:
             return False
 
         # Các keyword thường cần suy luận sâu hoặc code
-        complex_keywords = ["giải thích chi tiết", "viết code", "thuật toán", "kiến trúc", "tổng hợp"]
+        complex_keywords = [
+            "giải thích chi tiết",
+            "viết code",
+            "thuật toán",
+            "kiến trúc",
+            "tổng hợp",
+        ]
         if any(kw in prompt.lower() for kw in complex_keywords):
             return False
 
         return True
 
-    def sinh_van_ban(self, prompt: str, do_dai: int = 256, force_edge: bool = False, force_cloud: bool = False) -> str:
+    def sinh_van_ban(
+        self, prompt: str, do_dai: int = 256, force_edge: bool = False, force_cloud: bool = False
+    ) -> str:
         """
         Thực thi sinh văn bản dựa trên Routing Logic.
         """
@@ -75,15 +84,17 @@ class EdgeRouter:
                 # Trong thực tế public_key sẽ được fetch từ Registry
                 is_valid = self.edge_engine.__class__.verify_proof(
                     node_id=kq["node_id"],
-                    public_key=self.edge_engine.private_key.hex(), # Chuyển private key dạng bytes sang chuỗi hex để giả lập public_key
+                    public_key=self.edge_engine.private_key.hex(),  # Chuyển private key dạng bytes sang chuỗi hex để giả lập public_key
                     cau_hoi=prompt,
                     cau_tra_loi=kq["cau_tra_loi"],
                     proof=kq["proof"],
-                    model_hash=kq["model_hash"]
+                    model_hash=kq["model_hash"],
                 )
 
                 if not is_valid:
-                    print(f"[EdgeRouter] CẢNH BÁO: Node {kq['node_id']} gửi kết quả giả mạo! Chuyển sang Cloud.")
+                    print(
+                        f"[EdgeRouter] CẢNH BÁO: Node {kq['node_id']} gửi kết quả giả mạo! Chuyển sang Cloud."
+                    )
                     return self._call_cloud(prompt, do_dai)
 
                 return kq["cau_tra_loi"]
@@ -106,11 +117,11 @@ class EdgeRouter:
         payload = {
             "model": "evonet-large",
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": do_dai
+            "max_tokens": do_dai,
         }
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.cloud_api_key}"
+            "Authorization": f"Bearer {self.cloud_api_key}",
         }
 
         try:
@@ -147,9 +158,12 @@ class EdgeRouter:
                 # ZKP Verification
                 public_key = edge_node.private_key.hex()
                 is_valid = edge_node.__class__.verify_proof(
-                    node_id=kq["node_id"], public_key=public_key,
-                    cau_hoi=prompt, cau_tra_loi=kq["cau_tra_loi"],
-                    proof=kq["proof"], model_hash=kq["model_hash"]
+                    node_id=kq["node_id"],
+                    public_key=public_key,
+                    cau_hoi=prompt,
+                    cau_tra_loi=kq["cau_tra_loi"],
+                    proof=kq["proof"],
+                    model_hash=kq["model_hash"],
                 )
 
                 if not is_valid:
@@ -173,7 +187,7 @@ class EdgeRouter:
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             future_to_source = {
                 executor.submit(_task_edge): "EDGE",
-                executor.submit(_task_cloud): "CLOUD"
+                executor.submit(_task_cloud): "CLOUD",
             }
 
             for future in concurrent.futures.as_completed(future_to_source):

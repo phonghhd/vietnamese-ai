@@ -80,7 +80,9 @@ class TestDPOTrainerFull:
             {"prompt": "test", "chosen": "good", "rejected": "bad"},
         ]
         result = dpo.huan_luyen(
-            model, ref_model, preference_data,
+            model,
+            ref_model,
+            preference_data,
             callback=lambda step, loss: calls.append(step),
         )
         assert "tong_thoi_gian" in result
@@ -163,7 +165,9 @@ class TestRewardModelFull:
         ]
         calls = []
         rm.huan_luyen(
-            model, preference_data, so_vong=1,
+            model,
+            preference_data,
+            so_vong=1,
             callback=lambda step, loss: calls.append(step),
         )
         assert len(calls) >= 0
@@ -187,10 +191,12 @@ class TestInstructionTuningTrainerFull:
 
         trainer = InstructionTuningTrainer(so_vong=1, logging_steps=1)
         ds = InstructionDataset()
-        ds.tai_tu_list([
-            {"instruction": "test", "input": "", "output": "out"},
-            {"instruction": "test2", "input": "", "output": "out2"},
-        ])
+        ds.tai_tu_list(
+            [
+                {"instruction": "test", "input": "", "output": "out"},
+                {"instruction": "test2", "input": "", "output": "out2"},
+            ]
+        )
 
         class NumpyModel:
             pass
@@ -204,16 +210,20 @@ class TestInstructionTuningTrainerFull:
 
         trainer = InstructionTuningTrainer(so_vong=1, logging_steps=1)
         ds = InstructionDataset()
-        ds.tai_tu_list([
-            {"instruction": "test", "input": "", "output": "out"},
-        ])
+        ds.tai_tu_list(
+            [
+                {"instruction": "test", "input": "", "output": "out"},
+            ]
+        )
         calls = []
 
         class NumpyModel:
             pass
 
         trainer.huan_luyen(
-            NumpyModel(), None, ds,
+            NumpyModel(),
+            None,
+            ds,
             callback=lambda step, loss: calls.append(step),
         )
         assert len(calls) >= 0

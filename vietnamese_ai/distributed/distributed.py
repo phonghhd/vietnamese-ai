@@ -105,7 +105,9 @@ class PhanTanHuanLuyen:
             "so_worker": self.so_worker,
             "tong_thoi_gian": round(tong_thoi_gian, 2),
             "tong_mau": len(X),
-            "chi_tiet_workers": [{k: v for k, v in w.items() if k != "mo_hinh"} for w in ket_qua_workers],
+            "chi_tiet_workers": [
+                {k: v for k, v in w.items() if k != "mo_hinh"} for w in ket_qua_workers
+            ],
             "mo_hinh_cuoi": mo_hinh_cuoi,
         }
 

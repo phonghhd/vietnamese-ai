@@ -1,6 +1,5 @@
 """Test suite cho CLI, API Server, Web UI."""
 
-
 import numpy as np
 
 from vietnamese_ai.datalake.sample_data import DuLieuMau
@@ -217,11 +216,13 @@ class TestWebUI:
         from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
-        df = pd.DataFrame({
-            "f1": np.random.randn(50),
-            "f2": np.random.randn(50),
-            "label": np.random.randint(0, 2, 50),
-        })
+        df = pd.DataFrame(
+            {
+                "f1": np.random.randn(50),
+                "f2": np.random.randn(50),
+                "label": np.random.randint(0, 2, 50),
+            }
+        )
         csv_bytes = df.to_csv(index=False).encode()
         app._xu_ly_upload({}, csv_bytes)
 
@@ -242,12 +243,14 @@ class TestWebUI:
         from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
-        df = pd.DataFrame({
-            "f1": np.random.randn(50),
-            "f2": np.random.randn(50),
-            "f3": np.random.randn(50),
-            "label": np.random.randint(0, 2, 50),
-        })
+        df = pd.DataFrame(
+            {
+                "f1": np.random.randn(50),
+                "f2": np.random.randn(50),
+                "f3": np.random.randn(50),
+                "label": np.random.randint(0, 2, 50),
+            }
+        )
         csv_bytes = df.to_csv(index=False).encode()
         app._xu_ly_upload({}, csv_bytes)
         app._xu_ly_train({"algorithm": "logistic"})
@@ -262,11 +265,13 @@ class TestWebUI:
         from vietnamese_ai.ui.web_app import UngDungWeb
 
         app = UngDungWeb()
-        df = pd.DataFrame({
-            "x1": np.random.randn(40),
-            "x2": np.random.randn(40),
-            "y": np.random.randint(0, 2, 40),
-        })
+        df = pd.DataFrame(
+            {
+                "x1": np.random.randn(40),
+                "x2": np.random.randn(40),
+                "y": np.random.randint(0, 2, 40),
+            }
+        )
 
         upload = app._xu_ly_upload({"target": "y"}, df.to_csv(index=False).encode())
         assert upload["status"] == "success"

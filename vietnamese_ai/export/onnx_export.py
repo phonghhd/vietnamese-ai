@@ -52,9 +52,7 @@ class XuatONNX:
             from skl2onnx import convert_sklearn
             from skl2onnx.common.data_types import FloatTensorType
         except ImportError:
-            raise ImportError(
-                "Cần cài đặt skl2onnx: pip install skl2onnx onnxruntime"
-            )
+            raise ImportError("Cần cài đặt skl2onnx: pip install skl2onnx onnxruntime")
 
         model = mo_hinh
         if hasattr(mo_hinh, "_mo_hinh"):
@@ -62,9 +60,7 @@ class XuatONNX:
 
         initial_type = [(ten_input, FloatTensorType(kich_thuoc_dau_vao))]
 
-        onnx_model = convert_sklearn(
-            model, initial_types=initial_type, target_opset=12
-        )
+        onnx_model = convert_sklearn(model, initial_types=initial_type, target_opset=12)
 
         duong_dan = Path(duong_dan)
         duong_dan.parent.mkdir(parents=True, exist_ok=True)

@@ -140,13 +140,13 @@ class DichThuat:
                 # Preserve case
                 vi_tri = ket_qua.find(phrase)
                 while vi_tri != -1:
-                    original = van_ban[vi_tri:vi_tri + len(phrase)]
+                    original = van_ban[vi_tri : vi_tri + len(phrase)]
                     translated = tu_dien[phrase]
 
                     if original[0].isupper():
                         translated = translated[0].upper() + translated[1:]
 
-                    van_ban = van_ban[:vi_tri] + translated + van_ban[vi_tri + len(phrase):]
+                    van_ban = van_ban[:vi_tri] + translated + van_ban[vi_tri + len(phrase) :]
                     ket_qua = van_ban.lower()
 
                     da_dich.add(phrase)

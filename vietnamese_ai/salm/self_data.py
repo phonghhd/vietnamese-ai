@@ -47,11 +47,13 @@ class SinhDuLieuTuDong:
         input_text: str = "",
     ) -> None:
         """Thêm seed example."""
-        self._giong_mau.append({
-            "instruction": instruction,
-            "input": input_text,
-            "output": output,
-        })
+        self._giong_mau.append(
+            {
+                "instruction": instruction,
+                "input": input_text,
+                "output": output,
+            }
+        )
 
     def them_nhieu_giong_mau(self, mau_list: List[Dict[str, str]]) -> None:
         """Thêm nhiều seed examples."""
@@ -114,10 +116,7 @@ class SinhDuLieuTuDong:
         }
         self._lich_su.append(ket_qua)
 
-        self.logger.info(
-            f"Sinh {len(du_lieu)}/{so_luong} mẫu ({loai}), "
-            f"thời gian={thoi_gian:.1f}s"
-        )
+        self.logger.info(f"Sinh {len(du_lieu)}/{so_luong} mẫu ({loai}), thời gian={thoi_gian:.1f}s")
 
         return du_lieu
 
@@ -261,19 +260,34 @@ class SinhDuLieuTuDong:
         """Tạo seed examples mặc định."""
         if loai == "instruction":
             self._giong_mau = [
-                {"instruction": "Tóm tắt văn bản về trí tuệ nhân tạo",
-                 "input": "", "output": "Trí tuệ nhân tạo (AI) là ngành khoa học máy tính..."},
-                {"instruction": "Dịch câu sau sang tiếng Anh: Xin chào thế giới",
-                 "input": "", "output": "Hello world"},
-                {"instruction": "Phân tích ưu nhược điểm của học sâu",
-                 "input": "", "output": "Ưu điểm: khả năng học features tự động..."},
+                {
+                    "instruction": "Tóm tắt văn bản về trí tuệ nhân tạo",
+                    "input": "",
+                    "output": "Trí tuệ nhân tạo (AI) là ngành khoa học máy tính...",
+                },
+                {
+                    "instruction": "Dịch câu sau sang tiếng Anh: Xin chào thế giới",
+                    "input": "",
+                    "output": "Hello world",
+                },
+                {
+                    "instruction": "Phân tích ưu nhược điểm của học sâu",
+                    "input": "",
+                    "output": "Ưu điểm: khả năng học features tự động...",
+                },
             ]
         elif loai == "qa":
             self._giong_mau = [
-                {"instruction": "AI là gì?",
-                 "input": "", "output": "AI là trí tuệ nhân tạo, ngành khoa học..."},
-                {"instruction": "Machine learning hoạt động như thế nào?",
-                 "input": "", "output": "Machine learning hoạt động bằng cách học patterns..."},
+                {
+                    "instruction": "AI là gì?",
+                    "input": "",
+                    "output": "AI là trí tuệ nhân tạo, ngành khoa học...",
+                },
+                {
+                    "instruction": "Machine learning hoạt động như thế nào?",
+                    "input": "",
+                    "output": "Machine learning hoạt động bằng cách học patterns...",
+                },
             ]
         else:
             self._giong_mau = [

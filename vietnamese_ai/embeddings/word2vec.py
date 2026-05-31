@@ -56,10 +56,7 @@ class Word2VecTiengViet:
             for tu in self._xl.tach_tu(vb):
                 self._dem_tu[tu] = self._dem_tu.get(tu, 0) + 1
 
-        tu_hop_le = {
-            tu: dem for tu, dem in self._dem_tu.items()
-            if dem >= self.toi_thieu_dem
-        }
+        tu_hop_le = {tu: dem for tu, dem in self._dem_tu.items() if dem >= self.toi_thieu_dem}
         self._tu_dien = {tu: idx for idx, tu in enumerate(sorted(tu_hop_le))}
         self._tu_dien_nguoc = {idx: tu for tu, idx in self._tu_dien.items()}
 
@@ -74,9 +71,7 @@ class Word2VecTiengViet:
         x = np.clip(x, -6, 6)
         return 1.0 / (1.0 + np.exp(-x))
 
-    def _lay_cap_skipgram(
-        self, cac_van_ban: List[str]
-    ) -> List[Tuple[int, int]]:
+    def _lay_cap_skipgram(self, cac_van_ban: List[str]) -> List[Tuple[int, int]]:
         """Tạo các cặp (từ_trung_tâm, từ_ngữ_cảnh) cho Skip-gram."""
         cap = []
         for vb in cac_van_ban:
@@ -139,9 +134,7 @@ class Word2VecTiengViet:
 
                 tong_loss += -np.log(sig + 1e-10)
 
-            self.logger.info(
-                f"Vòng {vong+1}/{so_vong}: loss={tong_loss/len(cap):.4f}"
-            )
+            self.logger.info(f"Vòng {vong + 1}/{so_vong}: loss={tong_loss / len(cap):.4f}")
 
         self._da_huan_luyen = True
         self.logger.info("Huấn luyện Word2Vec hoàn tất")
@@ -181,7 +174,7 @@ class Word2VecTiengViet:
         W_norm = self._W_in / (np.linalg.norm(self._W_in, axis=1, keepdims=True) + 1e-10)
         tuong_dong = W_norm @ v_norm
 
-        chi_so_tot_nhat = np.argsort(tuong_dong)[::-1][1:top_n + 1]
+        chi_so_tot_nhat = np.argsort(tuong_dong)[::-1][1 : top_n + 1]
         return [
             (self._tu_dien_nguoc[idx], float(tuong_dong[idx]))
             for idx in chi_so_tot_nhat

@@ -9,6 +9,7 @@ import numpy as np
 
 try:
     from underthesea import pos_tag, sentiment, word_tokenize
+
     _CO_UNDERTHESEA = True
 except ImportError:
     _CO_UNDERTHESEA = False
@@ -36,17 +37,100 @@ class XuLyVanBan:
     """
 
     TU_DUNG_TIENG_VIET = {
-        "và", "hoặc", "với", "trong", "ngoài", "như", "đã", "còn", "lại",
-        "thì", "mà", "của", "cho", "tới", "từ", "theo", "đến", "bởi", "tại",
-        "vào", "ra", "lên", "xuống", "về", "đi", "đứng", "nằm", "ngồi",
-        "là", "được", "có", "không", "này", "kia", "đó", "ấy", "nọ",
-        "rất", "lắm", "quá", "thương", "hay", "đều", "cũng", "đã",
-        "sẽ", "đang", "vừa", "mới", "rồi", "xong", "chưa", "chỉ",
-        "mỗi", "các", "những", "một", "hai", "ba", "nhiều", "ít",
-        "toàn", "hết", "cả", "sự", "việc", "người", "con", "cái",
-        "nếu", "thì", "hay", "hoặc", "nhưng", "mà", "vì", "do",
-        "nên", "để", "cho", "với", "cùng", "theo", "sau", "trước",
-        "ủa", "ơi", "ạ", "à", "vậy", "nữa", "thôi", "nhé", "nè",
+        "và",
+        "hoặc",
+        "với",
+        "trong",
+        "ngoài",
+        "như",
+        "đã",
+        "còn",
+        "lại",
+        "thì",
+        "mà",
+        "của",
+        "cho",
+        "tới",
+        "từ",
+        "theo",
+        "đến",
+        "bởi",
+        "tại",
+        "vào",
+        "ra",
+        "lên",
+        "xuống",
+        "về",
+        "đi",
+        "đứng",
+        "nằm",
+        "ngồi",
+        "là",
+        "được",
+        "có",
+        "không",
+        "này",
+        "kia",
+        "đó",
+        "ấy",
+        "nọ",
+        "rất",
+        "lắm",
+        "quá",
+        "thương",
+        "hay",
+        "đều",
+        "cũng",
+        "đã",
+        "sẽ",
+        "đang",
+        "vừa",
+        "mới",
+        "rồi",
+        "xong",
+        "chưa",
+        "chỉ",
+        "mỗi",
+        "các",
+        "những",
+        "một",
+        "hai",
+        "ba",
+        "nhiều",
+        "ít",
+        "toàn",
+        "hết",
+        "cả",
+        "sự",
+        "việc",
+        "người",
+        "con",
+        "cái",
+        "nếu",
+        "thì",
+        "hay",
+        "hoặc",
+        "nhưng",
+        "mà",
+        "vì",
+        "do",
+        "nên",
+        "để",
+        "cho",
+        "với",
+        "cùng",
+        "theo",
+        "sau",
+        "trước",
+        "ủa",
+        "ơi",
+        "ạ",
+        "à",
+        "vậy",
+        "nữa",
+        "thôi",
+        "nhé",
+        "nè",
     }
 
     @staticmethod
@@ -79,8 +163,7 @@ class XuLyVanBan:
         text = text.lower().strip()
         text = unicodedata.normalize("NFC", text)
         text = re.sub(
-            r"[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệđìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ]",
-            " ", text
+            r"[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệđìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ]", " ", text
         )
         text = re.sub(r"\s+", " ", text).strip()
         return text
@@ -128,9 +211,7 @@ class XuLyVanBan:
             ImportError: Nếu underthesea chưa cài đặt
         """
         if not _CO_UNDERTHESEA:
-            raise ImportError(
-                "Cần cài đặt underthesea: pip install underthesea"
-            )
+            raise ImportError("Cần cài đặt underthesea: pip install underthesea")
         text = self.chuan_hoa(text)
         return pos_tag(text)
 
@@ -142,9 +223,7 @@ class XuLyVanBan:
             'positive', 'negative', hoặc 'neutral'
         """
         if not _CO_UNDERTHESEA:
-            raise ImportError(
-                "Cần cài đặt underthesea: pip install underthesea"
-            )
+            raise ImportError("Cần cài đặt underthesea: pip install underthesea")
         return sentiment(text)
 
     def loai_bo_tu_dung(self, text: str) -> str:

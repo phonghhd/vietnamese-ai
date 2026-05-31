@@ -60,8 +60,8 @@ class VietnameseTokenizer:
     def _tach_tu_co_ban(self, text: str) -> List[str]:
         """Tách văn bản thành các từ/tokens cơ bản."""
         text = text.lower().strip()
-        text = re.sub(r'([.,!?;:(){}[\]])', r' \1 ', text)
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r"([.,!?;:(){}[\]])", r" \1 ", text)
+        text = re.sub(r"\s+", " ", text)
         return text.split()
 
     def _tach_ky_tu(self, tu: str) -> List[str]:
@@ -198,7 +198,7 @@ class VietnameseTokenizer:
         if them_cls_sep:
             ids.append(self._vocab["[SEP]"])
 
-        ids = ids[:self.do_dai_toi_da]
+        ids = ids[: self.do_dai_toi_da]
         return ids
 
     def _bpe_encode_tu(self, tu: str) -> List[int]:

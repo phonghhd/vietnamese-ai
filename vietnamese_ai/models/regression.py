@@ -55,10 +55,7 @@ class HoiQuy(BaseModel):
 
         if thuat_toan not in self.THUAT_TOAN:
             hop_le = ", ".join(self.THUAT_TOAN.keys())
-            raise ValueError(
-                f"Thuật toán '{thuat_toan}' không hợp lệ. "
-                f"Chọn một trong: {hop_le}"
-            )
+            raise ValueError(f"Thuật toán '{thuat_toan}' không hợp lệ. Chọn một trong: {hop_le}")
 
         self.thuat_toan = thuat_toan
         self.tham_so = kwargs

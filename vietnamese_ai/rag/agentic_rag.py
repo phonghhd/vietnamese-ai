@@ -14,6 +14,7 @@ class AgenticRAGPipeline(RAGPipeline):
     cần dùng công cụ nào (Vector, Graph, v.v) để trả lời.
     Đồng thời tự động lắng nghe Event Bus để cập nhật Real-time.
     """
+
     def __init__(self, llm_engine: Any, *args, **kwargs):
         # Khởi tạo RAG Pipeline truyền thống (v10) ở bên dưới
         super().__init__(*args, **kwargs)
@@ -24,15 +25,13 @@ class AgenticRAGPipeline(RAGPipeline):
         cong_cu_vector = CongCu(
             ten="tim_kiem_tai_lieu_chinh",
             mo_ta="Tìm kiếm thông tin từ CSDL Vector nội bộ của công ty. Tham số: cau_hoi (str).",
-            ham_thuc_thi=self._tool_tim_kiem_vector
+            ham_thuc_thi=self._tool_tim_kiem_vector,
         )
-        self._current_user_role = "khach" # Mặc định là khách
+        self._current_user_role = "khach"  # Mặc định là khách
 
         # Nếu có GraphStore thì truyền thêm vào sau
         self.agent = TacTu(
-            llm=self.llm_engine,
-            danh_sach_cong_cu=[cong_cu_vector],
-            max_iterations=5
+            llm=self.llm_engine, danh_sach_cong_cu=[cong_cu_vector], max_iterations=5
         )
 
         # Đăng ký Real-time Sync
@@ -56,7 +55,7 @@ class AgenticRAGPipeline(RAGPipeline):
 
             # Phân quyền thô sơ (Identity-Aware)
             if muc_do_bao_mat == "lanh_dao" and self._current_user_role != "lanh_dao":
-                continue # Bỏ qua tài liệu này vì không đủ quyền
+                continue  # Bỏ qua tài liệu này vì không đủ quyền
 
             nd = meta.get("noi_dung", kq.get("noi_dung", ""))
             trich_doan.append(nd)
@@ -88,12 +87,14 @@ class AgenticRAGPipeline(RAGPipeline):
         # Xóa toàn bộ PII (CMND, Số thẻ, SĐT) trước khi trả cho người dùng
         tra_loi = DataSanitizer.lam_sach(tra_loi_goc)
         if tra_loi != tra_loi_goc:
-            print("[AgenticRAG] CẢNH BÁO: Đã phát hiện và bôi đen dữ liệu nhạy cảm (PII) trong câu trả lời!")
+            print(
+                "[AgenticRAG] CẢNH BÁO: Đã phát hiện và bôi đen dữ liệu nhạy cảm (PII) trong câu trả lời!"
+            )
 
         ket_qua_cuoi = {
             "cau_hoi": cau_hoi,
             "tra_loi": tra_loi,
-            "nguon": [], # Agentic RAG tạm thời ẩn nguồn do Agent có thể mix nhiều nguồn
+            "nguon": [],  # Agentic RAG tạm thời ẩn nguồn do Agent có thể mix nhiều nguồn
             "so_luong_nguon": 0,
         }
 

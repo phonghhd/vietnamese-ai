@@ -68,8 +68,7 @@ class HuanLuyenPyTorch:
     ):
         if not _CO_PYTORCH:
             raise ImportError(
-                "Cần cài đặt PyTorch: pip install torch "
-                "hoặc pip install vietnamese-ai[torch]"
+                "Cần cài đặt PyTorch: pip install torch hoặc pip install vietnamese-ai[torch]"
             )
 
         if thiet_bi == "auto":
@@ -146,9 +145,7 @@ class HuanLuyenPyTorch:
         if self.hon_lep and self.thiet_bi == "cuda":
             self._scaler = torch.amp.GradScaler("cuda")
 
-    def _chuan_bi_du_lieu(
-        self, X: np.ndarray, y: Optional[np.ndarray] = None
-    ) -> DataLoader:
+    def _chuan_bi_du_lieu(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> DataLoader:
         """Chuyển dữ liệu sang DataLoader."""
         X_tensor = torch.FloatTensor(np.asarray(X, dtype=np.float32))
         if y is not None:
@@ -156,9 +153,7 @@ class HuanLuyenPyTorch:
             dataset = TensorDataset(X_tensor, y_tensor)
         else:
             dataset = TensorDataset(X_tensor)
-        return DataLoader(
-            dataset, batch_size=self.kich_thuoc_batch, shuffle=(y is not None)
-        )
+        return DataLoader(dataset, batch_size=self.kich_thuoc_batch, shuffle=(y is not None))
 
     def huan_luyen(
         self,
@@ -231,9 +226,7 @@ class HuanLuyenPyTorch:
                     if self.gradient_clip > 0:
                         if self._scaler:
                             self._scaler.unscale_(self._optimizer)
-                        torch.nn.utils.clip_grad_norm_(
-                            self._model.parameters(), self.gradient_clip
-                        )
+                        torch.nn.utils.clip_grad_norm_(self._model.parameters(), self.gradient_clip)
 
                     if self._scaler:
                         self._scaler.step(self._optimizer)
@@ -276,7 +269,7 @@ class HuanLuyenPyTorch:
                     break
 
             if (epoch + 1) % max(1, self.so_vong // 10) == 0:
-                msg = f"Epoch {epoch+1}/{self.so_vong}: loss={avg_loss:.4f}, acc={acc:.4f}"
+                msg = f"Epoch {epoch + 1}/{self.so_vong}: loss={avg_loss:.4f}, acc={acc:.4f}"
                 if val_loader:
                     msg += f", val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
                 self.logger.info(msg)

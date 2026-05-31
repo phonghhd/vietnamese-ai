@@ -4,7 +4,7 @@ Hỗ trợ Auto-healing, Load Balancing (RoundRobin, Canary).
 """
 
 from .balancer import CanBangTai
-from .worker import NutPhu
 from .master import NutChinh
+from .worker import NutPhu
 
 __all__ = ["CanBangTai", "NutPhu", "NutChinh"]

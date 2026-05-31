@@ -62,10 +62,14 @@ class TestCatTiaMoHinh:
         from vietnamese_ai.compression.pruning import CatTiaMoHinh
 
         pruner = CatTiaMoHinh(che_do="magnitude", ty_le=0.3)
-        model = type("Model", (), {
-            "coef_": np.random.randn(5, 10),
-            "feature_importances_": None,
-        })()
+        model = type(
+            "Model",
+            (),
+            {
+                "coef_": np.random.randn(5, 10),
+                "feature_importances_": None,
+            },
+        )()
         result = pruner.cat_tia(model)
         assert result["mask"] is not None
 
@@ -73,9 +77,13 @@ class TestCatTiaMoHinh:
         from vietnamese_ai.compression.pruning import CatTiaMoHinh
 
         pruner = CatTiaMoHinh(che_do="magnitude", ty_le=0.3)
-        model = type("Model", (), {
-            "feature_importances_": np.random.randn(10),
-        })()
+        model = type(
+            "Model",
+            (),
+            {
+                "feature_importances_": np.random.randn(10),
+            },
+        )()
         result = pruner.cat_tia(model)
         assert result["mask"] is not None
 
@@ -91,7 +99,9 @@ class TestCatTiaMoHinh:
         from vietnamese_ai.compression.pruning import CatTiaMoHinh
 
         pruner = CatTiaMoHinh(che_do="magnitude", ty_le=0.3)
-        model = type("Model", (), {"_weights": {"a": np.random.randn(5), "b": np.random.randn(5)}})()
+        model = type(
+            "Model", (), {"_weights": {"a": np.random.randn(5), "b": np.random.randn(5)}}
+        )()
         result = pruner.cat_tia(model)
         assert result["mask"] is not None
 

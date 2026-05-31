@@ -53,8 +53,13 @@ class PEFTConfig:
         self.alpha = alpha
         self.dropout = dropout
         self.target_modules = target_modules or [
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ]
         self.bits = bits
         self.bias = bias

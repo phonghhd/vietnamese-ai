@@ -19,7 +19,7 @@ class DataSanitizer:
         "so_dien_thoai": "[SĐT ĐÃ ẨN]",
         "email": "[EMAIL ĐÃ ẨN]",
         "cmnd_cccd": "[CCCD ĐÃ ẨN]",
-        "the_ngan_hang": "[THẺ NGÂN HÀNG ĐÃ ẨN]"
+        "the_ngan_hang": "[THẺ NGÂN HÀNG ĐÃ ẨN]",
     }
 
     @classmethod

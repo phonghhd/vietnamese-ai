@@ -44,7 +44,7 @@ class LopDense:
             grad = grad * s * (1 - s)
         elif self.ham_kich_hoat == "tanh":
             t = np.tanh(self._input_cache @ self.trong_so + self.bias)
-            grad = grad * (1 - t ** 2)
+            grad = grad * (1 - t**2)
 
         self._grad_w = self._input_cache.T @ grad / len(self._input_cache)
         self._grad_b = np.sum(grad, axis=0, keepdims=True) / len(self._input_cache)

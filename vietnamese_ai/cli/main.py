@@ -29,7 +29,11 @@ Ví dụ sử dụng:
     # === TRAIN ===
     train_parser = subparsers.add_parser("train", help="Huấn luyện mô hình")
     train_parser.add_argument("--data", required=True, help="Đường dẫn file dữ liệu (CSV)")
-    train_parser.add_argument("--model", default="logistic", help="Thuật toán (logistic, knn, svm, rung_ngau_nhien, gradient_boosting)")
+    train_parser.add_argument(
+        "--model",
+        default="logistic",
+        help="Thuật toán (logistic, knn, svm, rung_ngau_nhien, gradient_boosting)",
+    )
     train_parser.add_argument("--output", default="model.pkl", help="Đường dẫn lưu mô hình")
     train_parser.add_argument("--test-size", type=float, default=0.2, help="Tỷ lệ dữ liệu test")
     train_parser.add_argument("--target", default=None, help="Tên cột nhãn (mặc định: cột cuối)")
@@ -37,7 +41,9 @@ Ví dụ sử dụng:
     # === PREDICT ===
     predict_parser = subparsers.add_parser("predict", help="Dự đoán với mô hình đã huấn luyện")
     predict_parser.add_argument("--model", required=True, help="Đường dẫn file mô hình (.pkl)")
-    predict_parser.add_argument("--input", required=True, help="Đường dẫn file dữ liệu đầu vào (CSV)")
+    predict_parser.add_argument(
+        "--input", required=True, help="Đường dẫn file dữ liệu đầu vào (CSV)"
+    )
     predict_parser.add_argument("--output", default="results.csv", help="Đường dẫn lưu kết quả")
 
     # === SERVE ===
@@ -171,6 +177,7 @@ def cmd_predict(args):
 
     try:
         import pandas as pd
+
         df = pd.read_csv(args.input)
         X = df.values
     except ImportError:

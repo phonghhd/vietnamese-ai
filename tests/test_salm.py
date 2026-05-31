@@ -6,12 +6,14 @@ import numpy as np
 class TestSelfRefine:
     def test_khoi_tao(self):
         from vietnamese_ai.salm.self_refine import SelfRefine
+
         refine = SelfRefine(ham_sinh=lambda p: "output")
         assert refine.so_vong_toi_da == 3
         assert refine.nguong_chat_luong == 0.8
 
     def test_chay_co_ban(self):
         from vietnamese_ai.salm.self_refine import SelfRefine
+
         call_count = [0]
 
         def mock_sinh(prompt):
@@ -45,6 +47,7 @@ class TestSelfRefine:
 
     def test_thong_ke(self):
         from vietnamese_ai.salm.self_refine import SelfRefine
+
         refine = SelfRefine(ham_sinh=lambda p: "out")
         refine.chay("test")
         stats = refine.thong_ke()
@@ -52,6 +55,7 @@ class TestSelfRefine:
 
     def test_lich_su(self):
         from vietnamese_ai.salm.self_refine import SelfRefine
+
         refine = SelfRefine(ham_sinh=lambda p: "out", so_vong_toi_da=1)
         refine.chay("test")
         lich_su = refine.lay_lich_su()
@@ -61,11 +65,13 @@ class TestSelfRefine:
 class TestSelfConsistency:
     def test_khoi_tao(self):
         from vietnamese_ai.salm.self_consistency import SelfConsistency
+
         sc = SelfConsistency(ham_sinh=lambda p: "answer", so_luong=3)
         assert sc.so_luong == 3
 
     def test_chay_co_ban(self):
         from vietnamese_ai.salm.self_consistency import SelfConsistency
+
         sc = SelfConsistency(
             ham_sinh=lambda p: "42",
             so_luong=5,
@@ -77,6 +83,7 @@ class TestSelfConsistency:
 
     def test_da_dang_paths(self):
         from vietnamese_ai.salm.self_consistency import SelfConsistency
+
         answers = ["42", "42", "43", "42", "44"]
 
         def mock_sinh(prompt):
@@ -89,12 +96,14 @@ class TestSelfConsistency:
 
     def test_chain_of_thought(self):
         from vietnamese_ai.salm.self_consistency import SelfConsistency
+
         sc = SelfConsistency(ham_sinh=lambda p: "Bước 1: ...\nTrả lời: 42", so_luong=3)
         ket_qua = sc.chay("2+2=?", che_do="cot")
         assert "42" in ket_qua["dap_an"]
 
     def test_thong_ke(self):
         from vietnamese_ai.salm.self_consistency import SelfConsistency
+
         sc = SelfConsistency(ham_sinh=lambda p: "answer", so_luong=3)
         sc.chay("test")
         stats = sc.thong_ke()
@@ -104,12 +113,14 @@ class TestSelfConsistency:
 class TestAdaptiveLoRA:
     def test_khoi_tao(self):
         from vietnamese_ai.salm.adaptive_lora import AdaptiveLoRA
+
         al = AdaptiveLoRA(che_do="keyword")
         assert al.che_do == "keyword"
         assert len(al.danh_sach_adapters()) == 0
 
     def test_dang_ky_va_chon(self):
         from vietnamese_ai.salm.adaptive_lora import AdaptiveLoRA
+
         al = AdaptiveLoRA(che_do="keyword")
         al.dang_ky_adapter("math", "math_adapter", keywords=["tính", "cộng", "số"])
         al.dang_ky_adapter("code", "code_adapter", keywords=["code", "function", "python"])
@@ -120,6 +131,7 @@ class TestAdaptiveLoRA:
 
     def test_chon_theo_keyword(self):
         from vietnamese_ai.salm.adaptive_lora import AdaptiveLoRA
+
         al = AdaptiveLoRA(che_do="keyword")
         al.dang_ky_adapter("a", "adapter_a", keywords=["hello", "world"])
         al.dang_ky_adapter("b", "adapter_b", keywords=["code", "python"])
@@ -129,6 +141,7 @@ class TestAdaptiveLoRA:
 
     def test_embedding_mode(self):
         from vietnamese_ai.salm.adaptive_lora import AdaptiveLoRA
+
         al = AdaptiveLoRA(che_do="embedding")
         al.dang_ky_adapter("a", "adapter_a", embedding=np.array([1.0, 0.0, 0.0]))
         al.dang_ky_adapter("b", "adapter_b", embedding=np.array([0.0, 1.0, 0.0]))
@@ -139,6 +152,7 @@ class TestAdaptiveLoRA:
 
     def test_ket_hop_adapters(self):
         from vietnamese_ai.salm.adaptive_lora import AdaptiveLoRA
+
         al = AdaptiveLoRA(che_do="keyword")
         al.dang_ky_adapter("a", "adapter_a", keywords=["hello"])
         al.dang_ky_adapter("b", "adapter_b", keywords=["world"])
@@ -150,6 +164,7 @@ class TestAdaptiveLoRA:
 
     def test_xoa_adapter(self):
         from vietnamese_ai.salm.adaptive_lora import AdaptiveLoRA
+
         al = AdaptiveLoRA()
         al.dang_ky_adapter("a", "adapter")
         assert al.xoa_adapter("a") is True
@@ -157,6 +172,7 @@ class TestAdaptiveLoRA:
 
     def test_thong_ke(self):
         from vietnamese_ai.salm.adaptive_lora import AdaptiveLoRA
+
         al = AdaptiveLoRA()
         al.dang_ky_adapter("a", "adapter", keywords=["test"])
         al.chon_adapter("test")
@@ -167,11 +183,13 @@ class TestAdaptiveLoRA:
 class TestSinhDuLieuTuDong:
     def test_khoi_tao(self):
         from vietnamese_ai.salm.self_data import SinhDuLieuTuDong
+
         sd = SinhDuLieuTuDong(ham_sinh=lambda p: "output")
         assert sd.nguong_chat_luong == 0.5
 
     def test_sinh_instruction(self):
         from vietnamese_ai.salm.self_data import SinhDuLieuTuDong
+
         call_count = [0]
 
         def mock_sinh(prompt):
@@ -187,19 +205,24 @@ class TestSinhDuLieuTuDong:
 
     def test_sinh_qa(self):
         from vietnamese_ai.salm.self_data import SinhDuLieuTuDong
-        sd = SinhDuLieuTuDong(ham_sinh=lambda p: "Q: AI là gì?\nA: Trí tuệ nhân tạo", nguong_chat_luong=0.3)
+
+        sd = SinhDuLieuTuDong(
+            ham_sinh=lambda p: "Q: AI là gì?\nA: Trí tuệ nhân tạo", nguong_chat_luong=0.3
+        )
         sd.them_giong_mau("ML là gì?", "Học máy")
         du_lieu = sd.sinh(2, loai="qa")
         assert len(du_lieu) > 0
 
     def test_giong_mac_dinh(self):
         from vietnamese_ai.salm.self_data import SinhDuLieuTuDong
+
         sd = SinhDuLieuTuDong(ham_sinh=lambda p: "output text", nguong_chat_luong=0.3)
         du_lieu = sd.sinh(2, loai="instruction")
         assert len(du_lieu) > 0
 
     def test_xoa_du_lieu(self):
         from vietnamese_ai.salm.self_data import SinhDuLieuTuDong
+
         sd = SinhDuLieuTuDong(ham_sinh=lambda p: "out", nguong_chat_luong=0.0)
         sd.them_giong_mau("test", "output")
         sd.sinh(2)
@@ -209,6 +232,7 @@ class TestSinhDuLieuTuDong:
 
     def test_thong_ke(self):
         from vietnamese_ai.salm.self_data import SinhDuLieuTuDong
+
         sd = SinhDuLieuTuDong(ham_sinh=lambda p: "out")
         sd.them_giong_mau("test", "output")
         stats = sd.thong_ke()
@@ -219,6 +243,7 @@ class TestTestTimeTraining:
     def test_khoi_tao(self):
         from vietnamese_ai.models.classifier import PhanLoai
         from vietnamese_ai.salm.test_time_training import TestTimeTraining
+
         model = PhanLoai()
         ttt = TestTimeTraining(model, che_do="entropy_minimization")
         assert ttt.che_do == "entropy_minimization"
@@ -306,6 +331,7 @@ class TestTestTimeTraining:
     def test_thong_ke(self):
         from vietnamese_ai.models.classifier import PhanLoai
         from vietnamese_ai.salm.test_time_training import TestTimeTraining
+
         model = PhanLoai()
         ttt = TestTimeTraining(model)
         stats = ttt.thong_ke()
@@ -316,6 +342,7 @@ class TestTestTimeTraining:
 class TestSALMIntegration:
     def test_version(self):
         import vietnamese_ai
+
         assert vietnamese_ai.__version__ == "11.0.1"
 
     def test_imports(self):
@@ -326,6 +353,7 @@ class TestSALMIntegration:
             SinhDuLieuTuDong,
             TestTimeTraining,
         )
+
         assert SelfRefine is not None
         assert SelfConsistency is not None
         assert AdaptiveLoRA is not None

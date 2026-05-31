@@ -1,6 +1,5 @@
 """Tạo đặc trưng - Feature Engineering."""
 
-
 import numpy as np
 
 
@@ -38,7 +37,7 @@ class TaoDacTrung:
 
         ket_qua = [X]
         for b in range(2, bac + 1):
-            ket_qua.append(X ** b)
+            ket_qua.append(X**b)
 
         return np.hstack(ket_qua)
 
@@ -91,9 +90,7 @@ class TaoDacTrung:
         return X_centered @ vector_rieng
 
     @staticmethod
-    def chon_dac_trung_phuong_sai(
-        X: np.ndarray, nguong: float = 0.0
-    ) -> tuple:
+    def chon_dac_trung_phuong_sai(X: np.ndarray, nguong: float = 0.0) -> tuple:
         """
         Lựa chọn đặc trưng theo phương sai.
 

@@ -72,7 +72,7 @@ class TextDataset:
 
         self._chunks = []
         for i in range(0, len(self._tokens) - self.do_dai_window, self.buoc_nhay):
-            chunk = self._tokens[i:i + self.do_dai_window]
+            chunk = self._tokens[i : i + self.do_dai_window]
             if len(chunk) == self.do_dai_window:
                 self._chunks.append(chunk)
 
@@ -101,7 +101,9 @@ class TextDataset:
         self._val_chunks = [self._chunks[i] for i in indices[:n_val]]
         self._train_chunks = [self._chunks[i] for i in indices[n_val:]]
 
-        self.logger.info(f"Chia dữ liệu: train={len(self._train_chunks)}, val={len(self._val_chunks)}")
+        self.logger.info(
+            f"Chia dữ liệu: train={len(self._train_chunks)}, val={len(self._val_chunks)}"
+        )
         return {"so_train": len(self._train_chunks), "so_val": len(self._val_chunks)}
 
     def iter_batches(self, batch_size: int = 32, che_do: str = "train"):
@@ -111,7 +113,7 @@ class TextDataset:
 
         indices = np.random.permutation(len(chunks))
         for i in range(0, len(indices), batch_size):
-            batch_indices = indices[i:i + batch_size]
+            batch_indices = indices[i : i + batch_size]
             batch = np.array([chunks[j] for j in batch_indices])
             input_ids = batch[:, :-1]
             targets = batch[:, 1:]
@@ -249,7 +251,7 @@ class PreTrainer:
             self._history["eval_loss"].append(eval_loss)
 
             self.logger.info(
-                f"Epoch {epoch+1}/{self.so_vong}: "
+                f"Epoch {epoch + 1}/{self.so_vong}: "
                 f"loss={avg_loss:.4f}, ppl={ppl:.2f}, eval_loss={eval_loss:.4f}"
             )
 
@@ -287,5 +289,7 @@ class PreTrainer:
             "toc_do_hoc": self.toc_do_hoc,
             "global_step": self._global_step,
             "train_loss_count": len(self._history["train_loss"]),
-            "final_perplexity": self._history["perplexity"][-1] if self._history["perplexity"] else None,
+            "final_perplexity": self._history["perplexity"][-1]
+            if self._history["perplexity"]
+            else None,
         }

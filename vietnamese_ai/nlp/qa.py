@@ -48,12 +48,14 @@ class HoiDapTiengViet:
         for i, cau in enumerate(cac_cau):
             tu_set = set(self._xl.tach_tu(cau.lower()))
 
-            self._cau.append({
-                "ma": ma,
-                "cau": cau,
-                "vi_tri": i,
-                "tu_set": tu_set,
-            })
+            self._cau.append(
+                {
+                    "ma": ma,
+                    "cau": cau,
+                    "vi_tri": i,
+                    "tu_set": tu_set,
+                }
+            )
 
             for tu in tu_set:
                 self._df[tu] = self._df.get(tu, 0) + 1
@@ -132,16 +134,13 @@ class HoiDapTiengViet:
             diem += idf
 
         # Normalize
-        max_possible = sum(
-            np.log(self._tong_cau / self._df.get(t, 1) + 1)
-            for t in tu_cau_hoi
-        )
+        max_possible = sum(np.log(self._tong_cau / self._df.get(t, 1) + 1) for t in tu_cau_hoi)
 
         return diem / max(max_possible, 1e-10)
 
     def _tach_cau(self, van_ban: str) -> List[str]:
         """Tách văn bản thành câu."""
-        cau = re.split(r'[.!?\n]+', van_ban)
+        cau = re.split(r"[.!?\n]+", van_ban)
         return [c.strip() for c in cau if c.strip() and len(c.strip()) > 5]
 
     def xoa_tai_lieu(self, ma: str) -> bool:
@@ -162,7 +161,4 @@ class HoiDapTiengViet:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"HoiDapTiengViet(so_tai_lieu={len(self._tai_lieu)}, "
-            f"so_cau={self._tong_cau})"
-        )
+        return f"HoiDapTiengViet(so_tai_lieu={len(self._tai_lieu)}, so_cau={self._tong_cau})"

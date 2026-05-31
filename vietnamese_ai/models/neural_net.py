@@ -154,7 +154,7 @@ class MangNron(BaseModel):
             indices = np.random.permutation(len(X))
 
             for bat_dau in range(0, len(X), self.kich_thuoc_batch):
-                batch_idx = indices[bat_dau:bat_dau + self.kich_thuoc_batch]
+                batch_idx = indices[bat_dau : bat_dau + self.kich_thuoc_batch]
                 X_batch, y_batch = X[batch_idx], y[batch_idx]
 
                 cac_z, cac_a = self._lan_truyen_thuan(X_batch)

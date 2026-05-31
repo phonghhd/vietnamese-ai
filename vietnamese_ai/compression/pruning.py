@@ -119,8 +119,7 @@ class CatTiaMoHinh:
 
         self._lich_su.append(ket_qua)
         self.logger.info(
-            f"Pruning hoàn tất: {ty_le_prune*100:.1f}% weights pruned, "
-            f"thời gian={thoi_gian:.2f}s"
+            f"Pruning hoàn tất: {ty_le_prune * 100:.1f}% weights pruned, thời gian={thoi_gian:.2f}s"
         )
 
         return ket_qua
@@ -136,7 +135,11 @@ class CatTiaMoHinh:
             return self._prune_magnitude(trong_so)
 
         # Tính importance của mỗi neuron (L2 norm)
-        importance = np.linalg.norm(trong_so, axis=1) if trong_so.ndim == 2 else np.linalg.norm(trong_so.reshape(trong_so.shape[0], -1), axis=1)
+        importance = (
+            np.linalg.norm(trong_so, axis=1)
+            if trong_so.ndim == 2
+            else np.linalg.norm(trong_so.reshape(trong_so.shape[0], -1), axis=1)
+        )
 
         nguong = np.percentile(importance, self.ty_le * 100)
         neuron_mask = (importance >= nguong).astype(float)
@@ -202,7 +205,9 @@ class CatTiaMoHinh:
                 if isinstance(w, np.ndarray):
                     return w.flatten()
                 elif isinstance(w, dict):
-                    return np.concatenate([v.flatten() for v in w.values() if isinstance(v, np.ndarray)])
+                    return np.concatenate(
+                        [v.flatten() for v in w.values() if isinstance(v, np.ndarray)]
+                    )
 
         return None
 
@@ -211,7 +216,9 @@ class CatTiaMoHinh:
         if hasattr(model, "coef_"):
             original = np.array(model.coef_).flatten()
             pruned = original * mask
-            model.coef_ = pruned.reshape(model.coef_.shape) if hasattr(model.coef_, 'shape') else pruned
+            model.coef_ = (
+                pruned.reshape(model.coef_.shape) if hasattr(model.coef_, "shape") else pruned
+            )
 
         for attr in ["_W", "_weights", "weights", "_trong_so"]:
             if hasattr(model, attr):

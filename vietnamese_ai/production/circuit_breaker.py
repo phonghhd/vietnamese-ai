@@ -8,9 +8,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 class TrangThaiMach(Enum):
     """Trạng thái của circuit breaker."""
-    DONG = "dong"          # Closed - bình thường
-    MO = "mo"              # Open - chặn request
-    NUA_MO = "nua_mo"      # Half-open - thử nghiệm
+
+    DONG = "dong"  # Closed - bình thường
+    MO = "mo"  # Open - chặn request
+    NUA_MO = "nua_mo"  # Half-open - thử nghiệm
 
 
 class MachCat:
@@ -130,8 +131,7 @@ class MachCat:
                 self._thong_ke["fallback"] += 1
                 return self.ham_fallback(*args, **kwargs)
             raise RuntimeError(
-                f"Circuit breaker '{self.ten}' đang mở. "
-                f"Thử lại sau {self.timeout_phuc_hoi}s."
+                f"Circuit breaker '{self.ten}' đang mở. Thử lại sau {self.timeout_phuc_hoi}s."
             )
 
         try:
@@ -152,11 +152,13 @@ class MachCat:
         self._lan_trang_thai_cuoi = time.time()
         self._thong_ke["chuyen_trang_thai"] += 1
 
-        self._lich_su_trang_thai.append({
-            "tu": cu.value,
-            "sang": trang_thai_moi.value,
-            "thoi_gian": time.time(),
-        })
+        self._lich_su_trang_thai.append(
+            {
+                "tu": cu.value,
+                "sang": trang_thai_moi.value,
+                "thoi_gian": time.time(),
+            }
+        )
 
     def reset(self) -> None:
         """Reset circuit breaker về trạng thái đóng."""

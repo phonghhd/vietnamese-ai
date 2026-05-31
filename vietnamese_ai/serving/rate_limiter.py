@@ -114,9 +114,7 @@ class BoGioiHanTocDo:
 
         # Xóa timestamps cũ
         cutoff = now - self.cua_so
-        client["timestamps"] = [
-            t for t in client["timestamps"] if t > cutoff
-        ]
+        client["timestamps"] = [t for t in client["timestamps"] if t > cutoff]
 
         if len(client["timestamps"]) < self.go_i_y:
             client["timestamps"].append(now)
@@ -135,10 +133,7 @@ class BoGioiHanTocDo:
             else:
                 now = time.time()
                 cutoff = now - self.cua_so
-                used = sum(
-                    1 for t in self._clients[client_id]["timestamps"]
-                    if t > cutoff
-                )
+                used = sum(1 for t in self._clients[client_id]["timestamps"] if t > cutoff)
                 return max(0, self.go_i_y - used)
 
     def reset(self, client_id: Optional[str] = None) -> None:
@@ -162,9 +157,7 @@ class BoGioiHanTocDo:
                     if now - client["last_time"] > timeout:
                         keys_to_remove.append(cid)
                 else:
-                    if not client["timestamps"] or (
-                        now - client["timestamps"][-1] > timeout
-                    ):
+                    if not client["timestamps"] or (now - client["timestamps"][-1] > timeout):
                         keys_to_remove.append(cid)
 
             for cid in keys_to_remove:
@@ -191,8 +184,4 @@ class BoGioiHanTocDo:
             return stats
 
     def __repr__(self) -> str:
-        return (
-            f"BoGioiHanTocDo(go_i_y={self.go_i_y}, "
-            f"cua_so={self.cua_so}, "
-            f"che_do='{self.che_do}')"
-        )
+        return f"BoGioiHanTocDo(go_i_y={self.go_i_y}, cua_so={self.cua_so}, che_do='{self.che_do}')"

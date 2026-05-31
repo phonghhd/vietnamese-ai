@@ -10,21 +10,23 @@ class NodeLlamaEngine:
     Cho phép chạy các mô hình GGUF trực tiếp trên thiết bị (Local/Edge).
     Giao tiếp qua HTTP REST API (OpenAI-compatible) do node-llama-cpp cung cấp.
     """
+
     def __init__(
         self,
         model_path: str,
         port: int = 8080,
         gpu_layers: int = 35,
         context_size: int = 4096,
-        auto_start: bool = True
+        auto_start: bool = True,
     ):
         self.model_path = os.path.expanduser(model_path)
         self.port = port
         self.gpu_layers = gpu_layers
         self.context_size = context_size
         self.server_process: Optional[subprocess.Popen] = None
-        
+
         import uuid
+
         self.node_id = str(uuid.uuid4())
         self.private_key = os.urandom(32)
 
@@ -43,6 +45,7 @@ class NodeLlamaEngine:
 
         try:
             import shutil
+
             if not shutil.which("npx"):
                 raise EnvironmentError("Cần cài đặt Node.js và npx để sử dụng node-llama-cpp.")
         except Exception as e:
@@ -50,12 +53,19 @@ class NodeLlamaEngine:
                 raise e
 
         cmd = [
-            "npx", "node-llama-cpp", "server",
-            "--model", self.model_path,
-            "--port", str(self.port),
-            "--gpuLayers", str(self.gpu_layers),
-            "--contextSize", str(self.context_size),
-            "--host", "127.0.0.1" # Only allow local connections by default for security
+            "npx",
+            "node-llama-cpp",
+            "server",
+            "--model",
+            self.model_path,
+            "--port",
+            str(self.port),
+            "--gpuLayers",
+            str(self.gpu_layers),
+            "--contextSize",
+            str(self.context_size),
+            "--host",
+            "127.0.0.1",  # Only allow local connections by default for security
         ]
 
         print(f"[Edge AI] Đang khởi chạy: {' '.join(cmd)}")
@@ -63,8 +73,8 @@ class NodeLlamaEngine:
         # Start server process in background
         self.server_process = subprocess.Popen(
             cmd,
-            stdout=subprocess.DEVNULL, # Mute stdout in production
-            stderr=subprocess.DEVNULL
+            stdout=subprocess.DEVNULL,  # Mute stdout in production
+            stderr=subprocess.DEVNULL,
         )
 
         # Đợi server sẵn sàng (ping đến health check API)
@@ -102,7 +112,9 @@ class NodeLlamaEngine:
             self.server_process = None
             print("[Edge AI] Server đã được tắt.")
 
-    def sinh_van_ban(self, prompt: str, do_dai: int = 256, kwargs: Optional[Dict[str, Any]] = None) -> str:
+    def sinh_van_ban(
+        self, prompt: str, do_dai: int = 256, kwargs: Optional[Dict[str, Any]] = None
+    ) -> str:
         """
         Hàm tương thích với VietnameseLLM interface.
         Sinh văn bản từ Edge model.
@@ -116,10 +128,10 @@ class NodeLlamaEngine:
             raise ImportError("Cần cài đặt requests: pip install requests")
 
         payload = {
-            "model": "edge-model", # Tên model có thể là tuỳ ý vì đang trỏ thẳng local
+            "model": "edge-model",  # Tên model có thể là tuỳ ý vì đang trỏ thẳng local
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": do_dai,
-            "temperature": 0.7
+            "temperature": 0.7,
         }
 
         if kwargs:
@@ -129,10 +141,7 @@ class NodeLlamaEngine:
 
         try:
             response = requests.post(
-                f"{self.api_base}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=60
+                f"{self.api_base}/chat/completions", headers=headers, json=payload, timeout=60
             )
             response.raise_for_status()
             data = response.json()
@@ -144,36 +153,46 @@ class NodeLlamaEngine:
         """Thực thi sinh văn bản và kèm theo bằng chứng mật mã (Cryptographic Proof) bằng HMAC-SHA256"""
         import hashlib
         import hmac
-        
+
         cau_tra_loi = self.sinh_van_ban(prompt, do_dai=do_dai)
-        model_hash = hashlib.sha256(self.model_path.encode('utf-8')).hexdigest()
-        
+        model_hash = hashlib.sha256(self.model_path.encode("utf-8")).hexdigest()
+
         # Tạo Payload để ký
         payload = f"{self.node_id}:{prompt}:{cau_tra_loi}:{model_hash}"
-        
+
         # Ký Payload bằng HMAC-SHA256
-        proof = hmac.new(self.private_key, payload.encode('utf-8'), hashlib.sha256).hexdigest()
-        
+        proof = hmac.new(self.private_key, payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
         return {
             "node_id": self.node_id,
             "cau_tra_loi": cau_tra_loi,
             "proof": proof,
-            "model_hash": model_hash
+            "model_hash": model_hash,
         }
-        
+
     @classmethod
-    def verify_proof(cls, node_id: str, public_key: str, cau_hoi: str, cau_tra_loi: str, proof: str, model_hash: str) -> bool:
+    def verify_proof(
+        cls,
+        node_id: str,
+        public_key: str,
+        cau_hoi: str,
+        cau_tra_loi: str,
+        proof: str,
+        model_hash: str,
+    ) -> bool:
         """
         Xác minh bằng chứng từ Edge Node sử dụng HMAC-SHA256.
         (public_key ở đây thực chất là secret_key hệ hexa trong mô hình đối xứng)
         """
         import hashlib
         import hmac
-        
+
         payload = f"{node_id}:{cau_hoi}:{cau_tra_loi}:{model_hash}"
         try:
             secret_bytes = bytes.fromhex(public_key)
-            expected_proof = hmac.new(secret_bytes, payload.encode('utf-8'), hashlib.sha256).hexdigest()
+            expected_proof = hmac.new(
+                secret_bytes, payload.encode("utf-8"), hashlib.sha256
+            ).hexdigest()
             # So sánh thời gian hằng số để chống Timing Attack
             return hmac.compare_digest(expected_proof, proof)
         except Exception:

@@ -23,11 +23,14 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/":
-            self._tra_loi(200, {
-                "ten": "Vietnamese AI API",
-                "trang_thai": "hoat_dong",
-                "endpoints": ["/du_doan (POST)", "/ (GET)"],
-            })
+            self._tra_loi(
+                200,
+                {
+                    "ten": "Vietnamese AI API",
+                    "trang_thai": "hoat_dong",
+                    "endpoints": ["/du_doan (POST)", "/ (GET)"],
+                },
+            )
         elif self.path == "/suc_khoe":
             self._tra_loi(200, {"trang_thai": "tot"})
         else:
@@ -48,10 +51,13 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 du_lieu = du_lieu.reshape(1, -1)
 
             ket_qua = self.mo_hinh.du_doan(du_lieu)
-            self._tra_loi(200, {
-                "ket_qua": ket_qua.tolist(),
-                "so_mau": len(ket_qua),
-            })
+            self._tra_loi(
+                200,
+                {
+                    "ket_qua": ket_qua.tolist(),
+                    "so_mau": len(ket_qua),
+                },
+            )
 
         except Exception as e:
             self._tra_loi(500, {"loi": str(e)})

@@ -60,9 +60,7 @@ class HuggingFaceWrapper:
             self.version = transformers.__version__
             self.logger.info(f"Transformers v{self.version}")
         except ImportError:
-            self.logger.warning(
-                "Transformers chưa cài. Cài đặt: pip install transformers"
-            )
+            self.logger.warning("Transformers chưa cài. Cài đặt: pip install transformers")
 
     def danh_sach_models_viet(self) -> Dict[str, str]:
         """Liệt kê models tiếng Việt có sẵn."""
@@ -102,9 +100,7 @@ class HuggingFaceWrapper:
                 kwargs = {}
                 if so_lop:
                     kwargs["num_labels"] = so_lop
-                self.model = AutoModelForSequenceClassification.from_pretrained(
-                    model_id, **kwargs
-                )
+                self.model = AutoModelForSequenceClassification.from_pretrained(model_id, **kwargs)
             elif nhiem_vu == "text-generation":
                 from transformers import AutoModelForCausalLM
 
@@ -127,7 +123,7 @@ class HuggingFaceWrapper:
                 "nhiem_vu": nhiem_vu,
                 "vocab_size": len(self.tokenizer),
                 "so_tham_so": so_tham_so,
-                "so_tham_so_str": f"{so_tham_so/1e6:.1f}M",
+                "so_tham_so_str": f"{so_tham_so / 1e6:.1f}M",
             }
 
             self.logger.info(f"Đã tải: {model_id} ({info['so_tham_so_str']} params)")
@@ -156,8 +152,7 @@ class HuggingFaceWrapper:
 
             results = []
             inputs = self.tokenizer(
-                cac_van_ban, padding=True, truncation=True,
-                max_length=512, return_tensors="pt"
+                cac_van_ban, padding=True, truncation=True, max_length=512, return_tensors="pt"
             )
 
             with torch.no_grad():
@@ -176,7 +171,7 @@ class HuggingFaceWrapper:
             elif self.nhiem_vu == "text-generation":
                 for i, vb in enumerate(cac_van_ban):
                     gen_ids = self.model.generate(
-                        inputs["input_ids"][i:i+1],
+                        inputs["input_ids"][i : i + 1],
                         max_new_tokens=50,
                         do_sample=True,
                         temperature=0.7,
@@ -205,8 +200,7 @@ class HuggingFaceWrapper:
             import torch
 
             inputs = self.tokenizer(
-                cac_van_ban, padding=True, truncation=True,
-                max_length=256, return_tensors="pt"
+                cac_van_ban, padding=True, truncation=True, max_length=256, return_tensors="pt"
             )
 
             with torch.no_grad():

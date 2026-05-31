@@ -10,11 +10,11 @@ class TuongLuaAI:
 
     # Các mẫu regex thường thấy trong các cuộc tấn công Prompt Injection
     MAU_HIEM_DOC = [
-        r"(?i)\bbỏ\s+qua\s+(tất\s+cả\s+)?(các\s+)?(hướng\s+dẫn|chỉ\s+thị|lệnh)\b", # ignore previous instructions
+        r"(?i)\bbỏ\s+qua\s+(tất\s+cả\s+)?(các\s+)?(hướng\s+dẫn|chỉ\s+thị|lệnh)\b",  # ignore previous instructions
         r"(?i)\bignore\s+(all\s+)?(previous\s+)?(instructions|commands)\b",
-        r"(?i)\bbạn\s+(bây\s+giờ\s+)?(sẽ\s+)?đóng\s+vai\b", # you will act as
+        r"(?i)\bbạn\s+(bây\s+giờ\s+)?(sẽ\s+)?đóng\s+vai\b",  # you will act as
         r"(?i)\byou\s+(will\s+)?(now\s+)?act\s+as\b",
-        r"(?i)\bdan\b", # DAN (Do Anything Now)
+        r"(?i)\bdan\b",  # DAN (Do Anything Now)
         r"(?i)\bdo\s+anything\s+now\b",
         r"(?i)\blàm\s+bất\s+cứ\s+điều\s+gì\b",
         r"(?i)\bquên\s+(tất\s+cả\s+)?(những\s+)?gì\s+tôi\s+đã\s+nói\b",
@@ -24,8 +24,15 @@ class TuongLuaAI:
 
     # Từ khóa có nguy cơ cao khi kết hợp với nhau
     TU_KHOA_RUI_RO = [
-        "hack", "bypass", "exploit", "lỗ hổng", "mật khẩu",
-        "password", "vô hiệu hóa", "hệ thống", "trái phép"
+        "hack",
+        "bypass",
+        "exploit",
+        "lỗ hổng",
+        "mật khẩu",
+        "password",
+        "vô hiệu hóa",
+        "hệ thống",
+        "trái phép",
     ]
 
     def __init__(self, ngat_ket_noi_khi_phat_hien: bool = True):
@@ -52,7 +59,7 @@ class TuongLuaAI:
         # 2. Heuristic check: Mật độ từ khóa rủi ro
         so_tu_rui_ro = sum(1 for tu in self.TU_KHOA_RUI_RO if tu in prompt_lower)
         if so_tu_rui_ro >= 3:
-             return False, "Phát hiện quá nhiều từ khóa rủi ro, có khả năng là truy vấn độc hại."
+            return False, "Phát hiện quá nhiều từ khóa rủi ro, có khả năng là truy vấn độc hại."
 
         # 3. Kiểm tra độ dài bất thường (Một số tấn công dùng prompt rất dài để tràn context)
         if len(prompt) > 8000:

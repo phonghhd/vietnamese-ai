@@ -130,7 +130,9 @@ class PhanLoaiHinhAnh(BaseModel):
                 optimizer.step()
                 tong_loss += loss.item()
             if (vong + 1) % 5 == 0:
-                self.logger.info(f"Vòng {vong+1}/{self.so_vong}: loss={tong_loss/len(loader):.4f}")
+                self.logger.info(
+                    f"Vòng {vong + 1}/{self.so_vong}: loss={tong_loss / len(loader):.4f}"
+                )
 
     def _huan_luyen_numpy(self, X: np.ndarray, y: np.ndarray) -> None:
         self.logger.warning("PyTorch chưa cài, dùng feature extraction + Random Forest")

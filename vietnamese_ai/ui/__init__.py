@@ -33,5 +33,5 @@ __all__ = [
     "TinhToanGPU",
     "DieuKhienIoT",
     "TrangThaiPin",
-    "KinhThucTeAo"
+    "KinhThucTeAo",
 ]

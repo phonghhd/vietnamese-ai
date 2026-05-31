@@ -135,9 +135,7 @@ class HocLienKet:
         self._lich_su: List[Dict[str, Any]] = []
         self._da_huan_luyen = False
 
-    def _chia_du_lieu_client(
-        self, X: np.ndarray, y: np.ndarray
-    ) -> List[tuple]:
+    def _chia_du_lieu_client(self, X: np.ndarray, y: np.ndarray) -> List[tuple]:
         """Chia dữ liệu cho các clients (IID hoặc non-IID)."""
         n = len(X)
         indices = np.random.RandomState(self.seed).permutation(n)
@@ -191,9 +189,7 @@ class HocLienKet:
         trong_so_moi = {}
         for key, value in trong_so.items():
             if isinstance(value, np.ndarray):
-                nhieu = np.random.normal(
-                    0, self.rieng_tu_differntial, size=value.shape
-                )
+                nhieu = np.random.normal(0, self.rieng_tu_differntial, size=value.shape)
                 trong_so_moi[key] = value + nhieu
             else:
                 trong_so_moi[key] = value
@@ -203,9 +199,7 @@ class HocLienKet:
     def _chon_client(self) -> List[int]:
         """Chọn ngẫu nhiên subset clients cho vòng hiện tại."""
         so_chon = max(1, int(self.so_client * self.ty_le_client))
-        return sorted(
-            np.random.choice(self.so_client, size=so_chon, replace=False).tolist()
-        )
+        return sorted(np.random.choice(self.so_client, size=so_chon, replace=False).tolist())
 
     def huan_luyen(
         self,
@@ -233,8 +227,7 @@ class HocLienKet:
 
         self.logger.info("=" * 60)
         self.logger.info(
-            f"BẮT ĐẦU FEDERATED LEARNING "
-            f"({self.so_client} clients, {self.so_vong} rounds)"
+            f"BẮT ĐẦU FEDERATED LEARNING ({self.so_client} clients, {self.so_vong} rounds)"
         )
         self.logger.info("=" * 60)
 
@@ -258,9 +251,7 @@ class HocLienKet:
             self.logger.info(f"\n--- Round {vong + 1}/{self.so_vong} ---")
 
             clients_chon = self._chon_client()
-            self.logger.info(
-                f"Chọn {len(clients_chon)} clients: {clients_chon}"
-            )
+            self.logger.info(f"Chọn {len(clients_chon)} clients: {clients_chon}")
 
             cac_trong_so = []
             ket_qua_clients = []
@@ -277,9 +268,7 @@ class HocLienKet:
 
             self._trong_so_toan_cuc = self._trung_binh_trong_so(cac_trong_so)
 
-            self._trong_so_toan_cuc = self._them_nhieu_rieng_tu(
-                self._trong_so_toan_cuc
-            )
+            self._trong_so_toan_cuc = self._them_nhieu_rieng_tu(self._trong_so_toan_cuc)
 
             for idx in clients_chon:
                 self._clients[idx].cap_nhat_trong_so(self._trong_so_toan_cuc)
@@ -298,9 +287,7 @@ class HocLienKet:
 
             diem_tb_client = np.mean([kq["diem"] for kq in ket_qua_clients])
             self.logger.info(
-                f"  Round {vong + 1}: "
-                f"global={diem_toan_cuc:.4f}, "
-                f"avg_client={diem_tb_client:.4f}"
+                f"  Round {vong + 1}: global={diem_toan_cuc:.4f}, avg_client={diem_tb_client:.4f}"
             )
 
             ban_ghi = {
@@ -315,13 +302,13 @@ class HocLienKet:
         tong_thoi_gian = time.time() - bat_dau_toan_cuc
         self._da_huan_luyen = True
 
-        self.logger.info(f"\n{'='*60}")
+        self.logger.info(f"\n{'=' * 60}")
         self.logger.info(
             f"FEDERATED LEARNING HOÀN TẤT: "
             f"diem={self._lich_su[-1]['diem_toan_cuc']:.4f}, "
             f"thoi_gian={tong_thoi_gian:.1f}s"
         )
-        self.logger.info(f"{'='*60}")
+        self.logger.info(f"{'=' * 60}")
 
         return {
             "trong_so_toan_cuc": self._trong_so_toan_cuc,
@@ -374,9 +361,7 @@ class HocLienKet:
             f"{'Bật (ε=' + str(self.rieng_tu_differntial) + ')' if self.rieng_tu_differntial > 0 else 'Tắt'}"
         )
         lines.append("")
-        lines.append(
-            f"{'Round':<8} {'Global':<12} {'Avg Client':<14} {'Clients'}"
-        )
+        lines.append(f"{'Round':<8} {'Global':<12} {'Avg Client':<14} {'Clients'}")
         lines.append("-" * 50)
 
         for ban_ghi in self._lich_su:

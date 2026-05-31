@@ -9,12 +9,14 @@ import pytest
 class TestTimKiemThamSo:
     def test_khoi_tao(self):
         from vietnamese_ai.core.hyperparameter import TimKiemThamSo
+
         tk = TimKiemThamSo(so_fold=3)
         assert tk.so_fold == 3
 
     def test_tim_kiem_luoi(self):
         from vietnamese_ai.core.hyperparameter import TimKiemThamSo
         from vietnamese_ai.models.classifier import PhanLoai
+
         tk = TimKiemThamSo(so_fold=3)
         X = np.random.randn(60, 3)
         y = (X[:, 0] > 0).astype(int)
@@ -27,6 +29,7 @@ class TestTimKiemThamSo:
     def test_tim_kiem_ngau_nhien(self):
         from vietnamese_ai.core.hyperparameter import TimKiemThamSo
         from vietnamese_ai.models.classifier import PhanLoai
+
         tk = TimKiemThamSo(so_fold=3)
         X = np.random.randn(60, 3)
         y = (X[:, 0] > 0).astype(int)
@@ -40,6 +43,7 @@ class TestTimKiemThamSo:
     def test_tim_kiem_luoi_hoi_quy(self):
         from vietnamese_ai.core.hyperparameter import TimKiemThamSo
         from vietnamese_ai.models.regression import HoiQuy
+
         tk = TimKiemThamSo(so_fold=3)
         X = np.random.randn(60, 3)
         y = X[:, 0] * 2 + np.random.randn(60) * 0.1
@@ -52,10 +56,12 @@ class TestMoHinhTapHop:
     def _tao_models(self):
         from sklearn.linear_model import LogisticRegression
         from sklearn.neighbors import KNeighborsClassifier
+
         return [("lr", LogisticRegression()), ("knn", KNeighborsClassifier())]
 
     def test_voting(self):
         from vietnamese_ai.models.ensemble import MoHinhTapHop
+
         X = np.random.randn(80, 3)
         y = (X[:, 0] > 0).astype(int)
         mht = MoHinhTapHop(loai="voting", cac_mo_hinh=self._tao_models())
@@ -68,6 +74,7 @@ class TestMoHinhTapHop:
         from sklearn.linear_model import LogisticRegression
 
         from vietnamese_ai.models.ensemble import MoHinhTapHop
+
         X = np.random.randn(80, 3)
         y = (X[:, 0] > 0).astype(int)
         mht = MoHinhTapHop(loai="bagging", cac_mo_hinh=[("lr", LogisticRegression())])
@@ -79,6 +86,7 @@ class TestMoHinhTapHop:
         from sklearn.linear_model import LogisticRegression
 
         from vietnamese_ai.models.ensemble import MoHinhTapHop
+
         X = np.random.randn(80, 3)
         y = (X[:, 0] > 0).astype(int)
         mht = MoHinhTapHop(loai="boosting", cac_mo_hinh=[("lr", LogisticRegression())])
@@ -87,6 +95,7 @@ class TestMoHinhTapHop:
 
     def test_danh_gia(self):
         from vietnamese_ai.models.ensemble import MoHinhTapHop
+
         X = np.random.randn(80, 3)
         y = (X[:, 0] > 0).astype(int)
         mht = MoHinhTapHop(loai="voting", cac_mo_hinh=self._tao_models())
@@ -96,12 +105,14 @@ class TestMoHinhTapHop:
 
     def test_lay_tham_so(self):
         from vietnamese_ai.models.ensemble import MoHinhTapHop
+
         mht = MoHinhTapHop(loai="voting", cac_mo_hinh=self._tao_models())
         ts = mht.lay_tham_so()
         assert isinstance(ts, dict)
 
     def test_repr(self):
         from vietnamese_ai.models.ensemble import MoHinhTapHop
+
         mht = MoHinhTapHop(loai="voting", cac_mo_hinh=self._tao_models())
         r = repr(mht)
         assert isinstance(r, str)
@@ -110,6 +121,7 @@ class TestMoHinhTapHop:
         from sklearn.linear_model import LinearRegression
 
         from vietnamese_ai.models.ensemble import MoHinhTapHop
+
         X = np.random.randn(80, 3)
         y = X[:, 0] * 2 + np.random.randn(80) * 0.1
         mht = MoHinhTapHop(
@@ -125,17 +137,20 @@ class TestMoHinhTapHop:
 class TestFastTextTiengViet:
     def test_khoi_tao(self):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10)
         assert ft.kich_thuoc == 10
 
     def test_huan_luyen(self):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10, cua_so=2, toi_thieu_dem=1)
         ft.huan_luyen(["xin chao the gioi", "hoc may la tot"], so_vong=2)
         assert ft._da_huan_luyen
 
     def test_lay_vector(self):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10, cua_so=2, toi_thieu_dem=1)
         ft.huan_luyen(["xin chao the gioi xin chao"], so_vong=2)
         v = ft.lay_vector("xin")
@@ -144,6 +159,7 @@ class TestFastTextTiengViet:
 
     def test_oov_returns_vector(self):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10, cua_so=2, toi_thieu_dem=1)
         ft.huan_luyen(["xin chao the gioi"], so_vong=2)
         v = ft.lay_vector("tu_khong_ton_tai_xyz")
@@ -152,6 +168,7 @@ class TestFastTextTiengViet:
 
     def test_lay_vector_van_ban(self):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10, cua_so=2, toi_thieu_dem=1)
         ft.huan_luyen(["xin chao the gioi xin chao hello world"], so_vong=3)
         v = ft.lay_vector_van_ban("xin chao")
@@ -160,6 +177,7 @@ class TestFastTextTiengViet:
 
     def test_tu_dien(self):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10, cua_so=2, toi_thieu_dem=1)
         ft.huan_luyen(["xin chao the gioi"], so_vong=2)
         td = ft.tu_dien()
@@ -168,6 +186,7 @@ class TestFastTextTiengViet:
 
     def test_tim_tu_giong(self):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10, cua_so=2, toi_thieu_dem=1)
         ft.huan_luyen(["xin chao the gioi xin hello"], so_vong=3)
         ket_qua = ft.tim_tu_giong("xin", top_n=3)
@@ -175,6 +194,7 @@ class TestFastTextTiengViet:
 
     def test_luu_tai(self, tmp_path):
         from vietnamese_ai.embeddings.fasttext import FastTextTiengViet
+
         ft = FastTextTiengViet(kich_thuoc=10, cua_so=2, toi_thieu_dem=1)
         ft.huan_luyen(["xin chao the gioi xin chao"], so_vong=2)
         duong_dan = str(tmp_path / "ft.txt")
@@ -187,6 +207,7 @@ class TestGiaiThichMoHinh:
     def test_feature_importance(self):
         from vietnamese_ai.interpretability.explainer import GiaiThichMoHinh
         from vietnamese_ai.models.classifier import PhanLoai
+
         X = np.random.randn(80, 4)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="rung_ngau_nhien")
@@ -199,6 +220,7 @@ class TestGiaiThichMoHinh:
     def test_permutation_importance(self):
         from vietnamese_ai.interpretability.explainer import GiaiThichMoHinh
         from vietnamese_ai.models.classifier import PhanLoai
+
         X = np.random.randn(80, 4)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="logistic")
@@ -211,6 +233,7 @@ class TestGiaiThichMoHinh:
     def test_giai_thich_mau(self):
         from vietnamese_ai.interpretability.explainer import GiaiThichMoHinh
         from vietnamese_ai.models.classifier import PhanLoai
+
         X = np.random.randn(80, 4)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="logistic")
@@ -222,6 +245,7 @@ class TestGiaiThichMoHinh:
     def test_bao_cao(self):
         from vietnamese_ai.interpretability.explainer import GiaiThichMoHinh
         from vietnamese_ai.models.classifier import PhanLoai
+
         X = np.random.randn(80, 4)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="rung_ngau_nhien")
@@ -234,6 +258,7 @@ class TestGiaiThichMoHinh:
 class TestTheoDoiThiNghiem:
     def test_bat_dau_ket_thuc(self):
         from vietnamese_ai.experiment_tracking.tracker import TheoDoiThiNghiem
+
         tracker = TheoDoiThiNghiem()
         run_id = tracker.bat_dau("test_run")
         assert run_id is not None
@@ -241,6 +266,7 @@ class TestTheoDoiThiNghiem:
 
     def test_log_params(self):
         from vietnamese_ai.experiment_tracking.tracker import TheoDoiThiNghiem
+
         tracker = TheoDoiThiNghiem()
         tracker.bat_dau("test")
         tracker.log_param("lr", 0.01)
@@ -249,6 +275,7 @@ class TestTheoDoiThiNghiem:
 
     def test_log_metrics(self):
         from vietnamese_ai.experiment_tracking.tracker import TheoDoiThiNghiem
+
         tracker = TheoDoiThiNghiem()
         tracker.bat_dau("test")
         tracker.log_metric("accuracy", 0.95)
@@ -257,6 +284,7 @@ class TestTheoDoiThiNghiem:
 
     def test_bao_cao(self):
         from vietnamese_ai.experiment_tracking.tracker import TheoDoiThiNghiem
+
         tracker = TheoDoiThiNghiem()
         tracker.bat_dau("test")
         tracker.log_metric("acc", 0.9)
@@ -266,6 +294,7 @@ class TestTheoDoiThiNghiem:
 
     def test_so_sanh(self):
         from vietnamese_ai.experiment_tracking.tracker import TheoDoiThiNghiem
+
         tracker = TheoDoiThiNghiem()
         tracker.bat_dau("exp1")
         tracker.log_metric("acc", 0.9)
@@ -278,6 +307,7 @@ class TestTheoDoiThiNghiem:
 
     def test_lay_lich_su(self):
         from vietnamese_ai.experiment_tracking.tracker import TheoDoiThiNghiem
+
         tracker = TheoDoiThiNghiem()
         tracker.bat_dau("test")
         tracker.log_metric("x", 1.0)
@@ -290,43 +320,55 @@ class TestTheoDoiThiNghiem:
 class TestBieuDo:
     def test_phan_bo_du_lieu(self):
         import matplotlib
+
         matplotlib.use("Agg")
         from vietnamese_ai.visualization.plots import BieuDo
+
         data = np.random.randn(100)
         BieuDo.phan_bo_du_lieu(data, tieu_de="Test")
 
     def test_matran_nham_lan(self):
         import matplotlib
+
         matplotlib.use("Agg")
         from vietnamese_ai.visualization.plots import BieuDo
+
         y_true = np.array([0, 1, 0, 1, 0, 1])
         y_pred = np.array([0, 1, 1, 1, 0, 0])
         BieuDo.matran_nham_lan(y_true, y_pred)
 
     def test_lich_su_huan_luyen(self):
         import matplotlib
+
         matplotlib.use("Agg")
         from vietnamese_ai.visualization.plots import BieuDo
+
         BieuDo.lich_su_huan_luyen([0.9, 0.7, 0.5, 0.3, 0.2])
 
     def test_scatter_2d(self):
         import matplotlib
+
         matplotlib.use("Agg")
         from vietnamese_ai.visualization.plots import BieuDo
+
         X = np.random.randn(50, 2)
         y = (X[:, 0] > 0).astype(int)
         BieuDo.scatter_2d(X, nhan=y)
 
     def test_so_sanh_mo_hinh(self):
         import matplotlib
+
         matplotlib.use("Agg")
         from vietnamese_ai.visualization.plots import BieuDo
+
         BieuDo.so_sanh_mo_hinh({"A": 0.85, "B": 0.90, "C": 0.88})
 
     def test_luu_file(self, tmp_path):
         import matplotlib
+
         matplotlib.use("Agg")
         from vietnamese_ai.visualization.plots import BieuDo
+
         duong_dan = str(tmp_path / "plot.png")
         BieuDo.phan_bo_du_lieu(np.random.randn(50), luu_tai=duong_dan)
         assert os.path.exists(duong_dan)
@@ -335,6 +377,7 @@ class TestBieuDo:
 class TestLuuTaiExpanded:
     def test_luu_va_tai_numpy(self, tmp_path):
         from vietnamese_ai.utils.io_utils import LuuTai
+
         arr = np.array([1.0, 2.0, 3.0])
         duong_dan = str(tmp_path / "test.npz")
         LuuTai.luu_numpy(duong_dan, test_array=arr)
@@ -343,6 +386,7 @@ class TestLuuTaiExpanded:
 
     def test_luu_va_tai_json(self, tmp_path):
         from vietnamese_ai.utils.io_utils import LuuTai
+
         data = {"key": "value", "number": 42}
         duong_dan = str(tmp_path / "test.json")
         LuuTai.luu_json(data, duong_dan)
@@ -351,21 +395,25 @@ class TestLuuTaiExpanded:
 
     def test_tai_mo_hinh_khong_ton_tai(self):
         from vietnamese_ai.utils.io_utils import LuuTai
+
         with pytest.raises(FileNotFoundError):
             LuuTai.tai_mo_hinh("/tmp/khong_ton_tai_abc123.pkl")
 
     def test_tai_numpy_khong_ton_tai(self):
         from vietnamese_ai.utils.io_utils import LuuTai
+
         with pytest.raises(FileNotFoundError):
             LuuTai.tai_numpy("/tmp/khong_ton_tai_abc123.npz")
 
     def test_tai_json_khong_ton_tai(self):
         from vietnamese_ai.utils.io_utils import LuuTai
+
         with pytest.raises(FileNotFoundError):
             LuuTai.tai_json("/tmp/khong_ton_tai_abc123.json")
 
     def test_tai_json_loi_format(self, tmp_path):
         from vietnamese_ai.utils.io_utils import LuuTai
+
         duong_dan = str(tmp_path / "bad.json")
         with open(duong_dan, "w") as f:
             f.write("{invalid json")
@@ -377,6 +425,7 @@ class TestLuuTaiExpanded:
         import pickle
 
         from vietnamese_ai.utils.io_utils import RestrictedUnpickler
+
         data = {"key": [1, 2, 3]}
         binary = pickle.dumps(data)
         result = RestrictedUnpickler(io.BytesIO(binary)).load()
@@ -386,6 +435,7 @@ class TestLuuTaiExpanded:
         import pickle
 
         from vietnamese_ai.utils.io_utils import tai_an_toan
+
         data = {"test": [1, 2, 3]}
         duong_dan = str(tmp_path / "safe.pkl")
         with open(duong_dan, "wb") as f:
@@ -396,6 +446,7 @@ class TestLuuTaiExpanded:
     def test_luu_va_tai_mo_hinh(self, tmp_path):
         from vietnamese_ai.models.classifier import PhanLoai
         from vietnamese_ai.utils.io_utils import LuuTai
+
         X = np.random.randn(50, 3)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="logistic")
@@ -409,18 +460,21 @@ class TestLuuTaiExpanded:
 class TestBaseModelExpanded:
     def test_lay_tham_so(self):
         from vietnamese_ai.models.classifier import PhanLoai
+
         model = PhanLoai(thuat_toan="logistic")
         ts = model.lay_tham_so()
         assert isinstance(ts, dict)
 
     def test_repr_chua_huan_luyen(self):
         from vietnamese_ai.models.classifier import PhanLoai
+
         model = PhanLoai()
         r = repr(model)
         assert "chưa huấn luyện" in r
 
     def test_repr_da_huan_luyen(self):
         from vietnamese_ai.models.classifier import PhanLoai
+
         X = np.random.randn(50, 3)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="logistic")
@@ -430,6 +484,7 @@ class TestBaseModelExpanded:
 
     def test_luu_va_tai(self, tmp_path):
         from vietnamese_ai.models.classifier import PhanLoai
+
         X = np.random.randn(50, 3)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="logistic")
@@ -443,12 +498,14 @@ class TestBaseModelExpanded:
 class TestPipelineExpanded:
     def test_khoi_tao(self):
         from vietnamese_ai.core.pipeline import Pipeline
+
         pipe = Pipeline(ten="test")
         assert pipe.ten == "test"
 
     def test_them_buoc(self):
         from vietnamese_ai.core.pipeline import Pipeline
         from vietnamese_ai.preprocessing.numerical import XuLySo
+
         pipe = Pipeline()
         pipe.them_buoc("scale", XuLySo())
         assert "scale" in pipe.danh_sach_buoc()
@@ -456,6 +513,7 @@ class TestPipelineExpanded:
     def test_fit(self):
         from vietnamese_ai.core.pipeline import Pipeline
         from vietnamese_ai.preprocessing.numerical import XuLySo
+
         pipe = Pipeline()
         pipe.them_buoc("scale", XuLySo())
         X = np.random.randn(20, 3)
@@ -466,6 +524,7 @@ class TestPipelineExpanded:
         from vietnamese_ai.core.pipeline import Pipeline
         from vietnamese_ai.models.classifier import PhanLoai
         from vietnamese_ai.preprocessing.numerical import XuLySo
+
         pipe = Pipeline()
         pipe.them_buoc("scale", XuLySo())
         pipe.them_buoc("model", PhanLoai(thuat_toan="logistic"))
@@ -478,6 +537,7 @@ class TestPipelineExpanded:
     def test_lay_buoc(self):
         from vietnamese_ai.core.pipeline import Pipeline
         from vietnamese_ai.preprocessing.numerical import XuLySo
+
         pipe = Pipeline()
         pipe.them_buoc("scale", XuLySo())
         buoc = pipe.lay_buoc("scale")
@@ -486,6 +546,7 @@ class TestPipelineExpanded:
     def test_luu_tai(self, tmp_path):
         from vietnamese_ai.core.pipeline import Pipeline
         from vietnamese_ai.preprocessing.numerical import XuLySo
+
         pipe = Pipeline()
         pipe.them_buoc("scale", XuLySo())
         X = np.random.randn(20, 3)
@@ -497,6 +558,7 @@ class TestPipelineExpanded:
 
     def test_repr(self):
         from vietnamese_ai.core.pipeline import Pipeline
+
         pipe = Pipeline()
         assert "Pipeline" in repr(pipe)
 
@@ -505,6 +567,7 @@ class TestKiemDinhCheoExpanded:
     def test_chay(self):
         from vietnamese_ai.core.cross_validation import KiemDinhCheo
         from vietnamese_ai.models.classifier import PhanLoai
+
         X = np.random.randn(50, 3)
         y = (X[:, 0] > 0).astype(int)
         model = PhanLoai(thuat_toan="logistic")
@@ -516,6 +579,7 @@ class TestKiemDinhCheoExpanded:
     def test_chay_regression(self):
         from vietnamese_ai.core.cross_validation import KiemDinhCheo
         from vietnamese_ai.models.regression import HoiQuy
+
         X = np.random.randn(50, 3)
         y = X[:, 0] * 2 + np.random.randn(50) * 0.1
         model = HoiQuy(thuat_toan="tuyen_tinh")
@@ -527,24 +591,28 @@ class TestKiemDinhCheoExpanded:
 class TestXuLyVanBanExpanded:
     def test_tach_tu(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         tu = xl.tach_tu("Xin chao the gioi")
         assert len(tu) > 0
 
     def test_chuan_hoa(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         result = xl.chuan_hoa("  Hello   World  ")
         assert isinstance(result, str)
 
     def test_loai_bo_tu_dung(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         result = xl.loai_bo_tu_dung("toi la mot sinh vien")
         assert isinstance(result, str)
 
     def test_ma_hoa_tfidf(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         van_ban = ["xin chao the gioi", "hoc may la tot"]
         tfidf = xl.ma_hoa_tfidf(van_ban)
@@ -552,6 +620,7 @@ class TestXuLyVanBanExpanded:
 
     def test_tao_tu_dien(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         td = xl.tao_tu_dien(["xin chao the gioi", "hoc may la tot"])
         assert isinstance(td, dict)
@@ -559,18 +628,21 @@ class TestXuLyVanBanExpanded:
 
     def test_trich_xuat_tu_khoa(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         tk = xl.trich_xuat_tu_khoa("Trí tuệ nhân tạo đang phát triển mạnh", top_n=3)
         assert isinstance(tk, list)
 
     def test_xu_ly_day_du(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         result = xl.xu_ly_day_du("Xin Chào Thế Giới!")
         assert isinstance(result, str)
 
     def test_co_underthesea(self):
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         assert isinstance(xl.co_underthesea, bool)
 
@@ -578,27 +650,32 @@ class TestXuLyVanBanExpanded:
 class TestValidatorExpanded:
     def test_kiem_tra_loai_du_lieu(self):
         from vietnamese_ai.utils.validators import Validator
+
         assert Validator.kiem_tra_loai_du_lieu(np.array([1, 2]), np.ndarray) is True
 
     def test_kiem_tra_du_lieu_hop_le(self):
         from vietnamese_ai.utils.validators import Validator
+
         X = np.random.randn(10, 3)
         ket_qua = Validator.kiem_tra_du_lieu_hop_le(X)
         assert isinstance(ket_qua, tuple)
 
     def test_kiem_tra_nhiem_vu(self):
         from vietnamese_ai.utils.validators import Validator
+
         y_class = np.array([0, 1, 0, 1])
         assert Validator.kiem_tra_nhiem_vu(y_class) in ("phan_loai", "classification")
 
     def test_kiem_tra_kich_thuoc(self):
         from vietnamese_ai.utils.validators import Validator
+
         X = np.random.randn(10, 3)
         result = Validator.kiem_tra_kich_thuoc(X, (10, 3))
         assert isinstance(result, bool)
 
     def test_kiem_tra_gia_tri_thieu(self):
         from vietnamese_ai.utils.validators import Validator
+
         X = np.random.randn(10, 3)
         result = Validator.kiem_tra_gia_tri_thieu(X)
         assert isinstance(result, bool)
@@ -607,6 +684,7 @@ class TestValidatorExpanded:
 class TestEngineExpanded:
     def test_khoi_tao(self):
         from vietnamese_ai.core.engine import Engine
+
         engine = Engine()
         assert engine is not None
 
@@ -614,6 +692,7 @@ class TestEngineExpanded:
 class TestMetricsExpanded:
     def test_do_chinh_xac(self):
         from vietnamese_ai.utils.metrics import Metrics
+
         y_true = np.array([0, 1, 0, 1])
         y_pred = np.array([0, 1, 1, 1])
         acc = Metrics.do_chinh_xac(y_true, y_pred)
@@ -621,6 +700,7 @@ class TestMetricsExpanded:
 
     def test_mse(self):
         from vietnamese_ai.utils.metrics import Metrics
+
         y_true = np.array([1.0, 2.0, 3.0])
         y_pred = np.array([1.1, 2.1, 2.9])
         m = Metrics.mse(y_true, y_pred)
@@ -628,6 +708,7 @@ class TestMetricsExpanded:
 
     def test_rmse(self):
         from vietnamese_ai.utils.metrics import Metrics
+
         y_true = np.array([1.0, 2.0, 3.0])
         y_pred = np.array([1.1, 2.1, 2.9])
         r = Metrics.rmse(y_true, y_pred)
@@ -635,6 +716,7 @@ class TestMetricsExpanded:
 
     def test_mae(self):
         from vietnamese_ai.utils.metrics import Metrics
+
         y_true = np.array([1.0, 2.0, 3.0])
         y_pred = np.array([1.1, 2.1, 2.9])
         m = Metrics.mae(y_true, y_pred)
@@ -642,6 +724,7 @@ class TestMetricsExpanded:
 
     def test_bao_cao_phan_loai(self):
         from vietnamese_ai.utils.metrics import Metrics
+
         y_true = np.array([0, 1, 0, 1, 0])
         y_pred = np.array([0, 1, 1, 1, 0])
         bc = Metrics.bao_cao_phan_loai(y_true, y_pred)
@@ -650,6 +733,7 @@ class TestMetricsExpanded:
 
     def test_precision_recall_f1(self):
         from vietnamese_ai.utils.metrics import Metrics
+
         y_true = np.array([0, 1, 0, 1, 0])
         y_pred = np.array([0, 1, 1, 1, 0])
         result = Metrics.precision_recall_f1(y_true, y_pred)
@@ -657,6 +741,7 @@ class TestMetricsExpanded:
 
     def test_r2_score(self):
         from vietnamese_ai.utils.metrics import Metrics
+
         y_true = np.array([1.0, 2.0, 3.0])
         y_pred = np.array([1.1, 2.1, 2.9])
         r = Metrics.r2_score(y_true, y_pred)
@@ -666,16 +751,19 @@ class TestMetricsExpanded:
 class TestLoggerExpanded:
     def test_info(self):
         from vietnamese_ai.utils.logger import Logger
+
         logger = Logger("test")
         logger.info("test message")
 
     def test_warning(self):
         from vietnamese_ai.utils.logger import Logger
+
         logger = Logger("test")
         logger.warning("test warning")
 
     def test_error(self):
         from vietnamese_ai.utils.logger import Logger
+
         logger = Logger("test")
         logger.error("test error")
 
@@ -683,6 +771,7 @@ class TestLoggerExpanded:
 class TestHoiQuyExpanded:
     def test_tuyen_tinh(self):
         from vietnamese_ai.models.regression import HoiQuy
+
         X = np.random.randn(50, 3)
         y = X[:, 0] * 2 + X[:, 1] * 3 + np.random.randn(50) * 0.1
         model = HoiQuy(thuat_toan="tuyen_tinh")
@@ -692,6 +781,7 @@ class TestHoiQuyExpanded:
 
     def test_ridge(self):
         from vietnamese_ai.models.regression import HoiQuy
+
         X = np.random.randn(50, 3)
         y = X[:, 0] * 2 + np.random.randn(50) * 0.1
         model = HoiQuy(thuat_toan="ridge")
@@ -701,6 +791,7 @@ class TestHoiQuyExpanded:
 
     def test_lasso(self):
         from vietnamese_ai.models.regression import HoiQuy
+
         X = np.random.randn(50, 3)
         y = X[:, 0] * 2 + np.random.randn(50) * 0.1
         model = HoiQuy(thuat_toan="lasso")
@@ -710,6 +801,7 @@ class TestHoiQuyExpanded:
 
     def test_elastic_net(self):
         from vietnamese_ai.models.regression import HoiQuy
+
         X = np.random.randn(50, 3)
         y = X[:, 0] * 2 + np.random.randn(50) * 0.1
         model = HoiQuy(thuat_toan="elastic_net")
@@ -718,6 +810,7 @@ class TestHoiQuyExpanded:
 
     def test_gradient_boosting(self):
         from vietnamese_ai.models.regression import HoiQuy
+
         X = np.random.randn(50, 3)
         y = X[:, 0] * 2 + np.random.randn(50) * 0.1
         model = HoiQuy(thuat_toan="gradient_boosting")
@@ -729,6 +822,7 @@ class TestHoiQuyExpanded:
 class TestPhanCumExpanded:
     def test_kmeans(self):
         from vietnamese_ai.models.clustering import PhanCum
+
         X = np.random.randn(50, 2)
         model = PhanCum(thuat_toan="kmeans")
         model.huan_luyen(X)
@@ -737,6 +831,7 @@ class TestPhanCumExpanded:
 
     def test_dbscan(self):
         from vietnamese_ai.models.clustering import PhanCum
+
         X = np.random.randn(50, 2)
         model = PhanCum(thuat_toan="dbscan")
         model.huan_luyen(X)
@@ -745,6 +840,7 @@ class TestPhanCumExpanded:
 
     def test_danh_gia(self):
         from vietnamese_ai.models.clustering import PhanCum
+
         X = np.random.randn(50, 2)
         model = PhanCum(thuat_toan="kmeans")
         model.huan_luyen(X)

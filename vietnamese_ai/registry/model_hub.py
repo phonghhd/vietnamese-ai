@@ -109,6 +109,7 @@ class ModelHub:
         self._luu_catalog()
 
         from vietnamese_ai.models.base import BaseModel
+
         return BaseModel.tai(ban_ghi["duong_dan"])
 
     def tim_kiem(
@@ -137,19 +138,25 @@ class ModelHub:
                 continue
             if tags and not any(t in latest_version["tags"] for t in tags):
                 continue
-            if query and query.lower() not in latest_version["ten"].lower() and query.lower() not in latest_version["mo_ta"].lower():
+            if (
+                query
+                and query.lower() not in latest_version["ten"].lower()
+                and query.lower() not in latest_version["mo_ta"].lower()
+            ):
                 continue
 
-            ket_qua.append({
-                "id": model_id,
-                "ten": latest_version["ten"],
-                "tac_gia": latest_version["tac_gia"],
-                "mo_ta": latest_version["mo_ta"],
-                "tags": latest_version["tags"],
-                "version": latest_version["version"],
-                "luot_tai": latest_version["luot_tai"],
-                "danh_gia_sao": latest_version["danh_gia_sao"],
-            })
+            ket_qua.append(
+                {
+                    "id": model_id,
+                    "ten": latest_version["ten"],
+                    "tac_gia": latest_version["tac_gia"],
+                    "mo_ta": latest_version["mo_ta"],
+                    "tags": latest_version["tags"],
+                    "version": latest_version["version"],
+                    "luot_tai": latest_version["luot_tai"],
+                    "danh_gia_sao": latest_version["danh_gia_sao"],
+                }
+            )
 
         return sorted(ket_qua, key=lambda x: x["luot_tai"], reverse=True)
 

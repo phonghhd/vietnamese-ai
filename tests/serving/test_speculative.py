@@ -5,9 +5,11 @@ class MockDraftModel:
     def sinh_van_ban(self, prompt: str, do_dai: int = 4) -> str:
         return " draft guess"
 
+
 class MockTargetModel:
     def sinh_van_ban(self, prompt: str, do_dai: int = 1) -> str:
         return " target_ok"
+
 
 def test_speculative_decoding():
     draft = MockDraftModel()

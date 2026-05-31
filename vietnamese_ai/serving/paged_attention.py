@@ -3,6 +3,7 @@ from typing import Any, Dict, List
 
 class LogicalTokenBlock:
     """Đại diện cho một khối token logic trong câu request của người dùng."""
+
     def __init__(self, block_id: int, block_size: int):
         self.block_id = block_id
         self.block_size = block_size
@@ -17,8 +18,10 @@ class LogicalTokenBlock:
     def is_full(self) -> bool:
         return len(self.tokens) == self.block_size
 
+
 class PhysicalMemoryBlock:
     """Đại diện cho một khối bộ nhớ KV Cache thực tế trên VRAM."""
+
     def __init__(self, block_id: int, block_size: int):
         self.block_id = block_id
         self.block_size = block_size
@@ -26,11 +29,13 @@ class PhysicalMemoryBlock:
         # Mô phỏng tensor KV Cache
         self.kv_cache = [0.0] * block_size
 
+
 class BlockManager:
     """
     Quản lý việc ánh xạ (mapping) giữa Logical Blocks và Physical Blocks.
     Mô phỏng kiến trúc PagedAttention của vLLM giúp loại bỏ phân mảnh VRAM.
     """
+
     def __init__(self, num_blocks: int, block_size: int = 16):
         self.block_size = block_size
         self.num_blocks = num_blocks
@@ -105,8 +110,10 @@ class BlockManager:
         usage_pct = (used / self.num_blocks) * 100
         return f"VRAM Blocks Used: {used}/{self.num_blocks} ({usage_pct:.1f}%). No external fragmentation."
 
+
 class PagedAttentionSimulation:
     """Mô phỏng lớp PagedAttention dùng BlockManager."""
+
     def __init__(self, block_manager: BlockManager):
         self.block_manager = block_manager
 

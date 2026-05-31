@@ -20,6 +20,7 @@ class ChatMessage(BaseModel):
     role: str
     content: str
 
+
 class ChatCompletionRequest(BaseModel):
     model: str = "vietnamese-ai-default"
     messages: List[ChatMessage]
@@ -27,15 +28,18 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int = 1024
     stream: bool = False
 
+
 class ChatCompletionResponseChoice(BaseModel):
     index: int
     message: ChatMessage
     finish_reason: str = "stop"
 
+
 class Usage(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
+
 
 class ChatCompletionResponse(BaseModel):
     id: str
@@ -44,6 +48,7 @@ class ChatCompletionResponse(BaseModel):
     model: str
     choices: List[ChatCompletionResponseChoice]
     usage: Usage
+
 
 # --- FastAPI Server ---
 class FastAPIServer:
@@ -79,6 +84,7 @@ class FastAPIServer:
         # Security Firewall
         try:
             from vietnamese_ai.api.security_middleware import AISecurityMiddleware
+
             self.app.add_middleware(AISecurityMiddleware, ghi_log=True)
         except ImportError:
             self.logger.warning("Không thể tải Security Middleware.")
@@ -110,9 +116,7 @@ class FastAPIServer:
         elif hasattr(self.bo_xu_ly, "sinh_van_ban"):
             prompt = self._chuyen_doi_messages(request.messages)
             return self.bo_xu_ly.sinh_van_ban(
-                prompt,
-                nhiet_do=request.temperature,
-                do_dai=request.max_tokens
+                prompt, nhiet_do=request.temperature, do_dai=request.max_tokens
             )
 
         else:
@@ -141,6 +145,7 @@ class FastAPIServer:
                 if self.enable_watermark:
                     try:
                         from vietnamese_ai.security.watermark import TextWatermarker
+
                         ket_qua = TextWatermarker.nhung_thuy_an(ket_qua, "EVONETAI_API")
                     except ImportError:
                         pass
@@ -158,15 +163,14 @@ class FastAPIServer:
                     model=request.model,
                     choices=[
                         ChatCompletionResponseChoice(
-                            index=0,
-                            message=ChatMessage(role="assistant", content=ket_qua)
+                            index=0, message=ChatMessage(role="assistant", content=ket_qua)
                         )
                     ],
                     usage=Usage(
                         prompt_tokens=input_tokens,
                         completion_tokens=output_tokens,
-                        total_tokens=input_tokens + output_tokens
-                    )
+                        total_tokens=input_tokens + output_tokens,
+                    ),
                 )
 
                 self.logger.info(f"Hoàn thành trong {time.time() - bat_dau:.2f}s")
@@ -179,5 +183,6 @@ class FastAPIServer:
     def chay(self, host: str = "0.0.0.0", port: int = 8000):
         """Chạy server với Uvicorn."""
         import uvicorn
+
         self.logger.info(f"Khởi động FastAPI Server tại http://{host}:{port}")
         uvicorn.run(self.app, host=host, port=port)

@@ -6,6 +6,7 @@ class TokenLedger:
     Sổ cái Token (Tokenomics) cho mạng lưới DePIN.
     Lưu trữ số dư EVON Token cho các Edge Node.
     """
+
     def __init__(self):
         self.so_du: Dict[str, float] = {}
 
@@ -14,16 +15,20 @@ class TokenLedger:
         if node_id not in self.so_du:
             self.so_du[node_id] = 0.0
         self.so_du[node_id] += so_luong
-        print(f"[TokenLedger] Đã thưởng {so_luong} EVON cho Node '{node_id}'. Số dư hiện tại: {self.so_du[node_id]}")
+        print(
+            f"[TokenLedger] Đã thưởng {so_luong} EVON cho Node '{node_id}'. Số dư hiện tại: {self.so_du[node_id]}"
+        )
 
     def lay_so_du(self, node_id: str) -> float:
         return self.so_du.get(node_id, 0.0)
+
 
 class P2PTracker:
     """
     Sổ đăng ký tập trung mô phỏng mạng ngang hàng (P2P DHT).
     Các Edge Node sẽ đăng ký với Tracker để nhận task từ Router.
     """
+
     def __init__(self):
         # Lưu thông tin Node: node_id -> dict(engine, toc_do)
         self.nodes: Dict[str, Dict[str, Any]] = {}
@@ -36,11 +41,7 @@ class P2PTracker:
             engine: Tham chiếu tới Node Engine (VD: SecureEdgeNode).
             toc_do_du_kien: Điểm tốc độ ước tính (Càng cao càng ưu tiên).
         """
-        self.nodes[node_id] = {
-            "engine": engine,
-            "toc_do": toc_do_du_kien,
-            "trang_thai": "san_sang"
-        }
+        self.nodes[node_id] = {"engine": engine, "toc_do": toc_do_du_kien, "trang_thai": "san_sang"}
         print(f"[P2PTracker] Node '{node_id}' đã gia nhập mạng lưới DePIN.")
 
     def huy_dang_ky(self, node_id: str):

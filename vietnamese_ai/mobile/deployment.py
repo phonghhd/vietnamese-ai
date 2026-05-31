@@ -189,9 +189,7 @@ class TriKhaiDiDong:
             from vietnamese_ai.export.onnx_export import XuatONNX
 
             xuat = XuatONNX()
-            ket_qua = xuat.xuat_sklearn(
-                mo_hinh, duong_dan, kich_thuoc_dau_vao=kich_thuoc_dau_vao
-            )
+            ket_qua = xuat.xuat_sklearn(mo_hinh, duong_dan, kich_thuoc_dau_vao=kich_thuoc_dau_vao)
             self.logger.info(f"Đã xuất ONNX Mobile: {ket_qua}")
             return ket_qua
         except ImportError:
@@ -212,9 +210,7 @@ class TriKhaiDiDong:
                 f.write(payload)
 
             kich_thuoc = duong_dan_path.stat().st_size
-            self.logger.info(
-                f"Đã xuất ONNX Mobile (fallback): {duong_dan} ({kich_thuoc} bytes)"
-            )
+            self.logger.info(f"Đã xuất ONNX Mobile (fallback): {duong_dan} ({kich_thuoc} bytes)")
             return str(duong_dan_path)
 
     def luong_hoa_int8(self, duong_dan_goc: str, duong_dan_moi: str) -> str:
@@ -245,9 +241,7 @@ class TriKhaiDiDong:
             vmin, vmax = coef.min(), coef.max()
             if vmax > vmin:
                 scale = (vmax - vmin) / 255.0
-                quantized = np.clip(np.round((coef - vmin) / scale), 0, 255).astype(
-                    np.uint8
-                )
+                quantized = np.clip(np.round((coef - vmin) / scale), 0, 255).astype(np.uint8)
                 trong_so["coef"] = quantized.tolist()
                 trong_so["quantize_info"] = {
                     "scale": float(scale),
@@ -272,8 +266,7 @@ class TriKhaiDiDong:
         ty_le = (1 - kich_thuoc_moi / kich_thuoc_goc) * 100 if kich_thuoc_goc > 0 else 0
 
         self.logger.info(
-            f"Quantize INT8: {kich_thuoc_goc} -> {kich_thuoc_moi} bytes "
-            f"(giảm {ty_le:.1f}%)"
+            f"Quantize INT8: {kich_thuoc_goc} -> {kich_thuoc_moi} bytes (giảm {ty_le:.1f}%)"
         )
         return str(duong_dan_moi_path)
 
@@ -363,9 +356,7 @@ class TriKhaiDiDong:
             "thoi_gian_max_ms": float(np.max(thoi_gian_arr)),
             "thoi_gian_median_ms": float(np.median(thoi_gian_arr)),
             "do_lech_chuan_ms": float(np.std(thoi_gian_arr)),
-            "throughput_mau_giay": float(
-                batch_size / (np.mean(thoi_gian_arr) / 1000)
-            ),
+            "throughput_mau_giay": float(batch_size / (np.mean(thoi_gian_arr) / 1000)),
             "kich_thuoc_mo_hinh_bytes": kich_thuoc_mo_hinh,
             "so_lan_chay": so_lan,
             "kich_thuoc_batch": batch_size,
@@ -390,8 +381,7 @@ class TriKhaiDiDong:
         """
         if dinh_dang not in self.DINH_DANG_HO_TRO:
             raise ValueError(
-                f"Định dạng '{dinh_dang}' không hỗ trợ. "
-                f"Chọn: {', '.join(self.DINH_DANG_HO_TRO)}"
+                f"Định dạng '{dinh_dang}' không hỗ trợ. Chọn: {', '.join(self.DINH_DANG_HO_TRO)}"
             )
 
         thu_muc = Path(duong_dan)
@@ -401,9 +391,7 @@ class TriKhaiDiDong:
             "ten_mo_hinh": ten_mo_hinh,
             "dinh_dang": dinh_dang,
             "version": "1.0",
-            "min_sdk": {"tflite": 21, "coreml": 13, "onnx_mobile": 21}.get(
-                dinh_dang, 21
-            ),
+            "min_sdk": {"tflite": 21, "coreml": 13, "onnx_mobile": 21}.get(dinh_dang, 21),
             "file_mo_hinh": f"{ten_mo_hinh}.{dinh_dang}",
             "kich_thuoc_batch": 1,
             "input_type": "float32",

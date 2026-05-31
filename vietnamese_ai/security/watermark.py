@@ -13,8 +13,8 @@ class TextWatermarker:
     để chống giả mạo và bảo vệ bản quyền.
     """
 
-    CHAR_BIT_0 = '\u200B'
-    CHAR_BIT_1 = '\u200C'
+    CHAR_BIT_0 = "\u200b"
+    CHAR_BIT_1 = "\u200c"
 
     @classmethod
     def nhung_thuy_an(cls, van_ban: str, payload: str) -> str:
@@ -31,7 +31,7 @@ class TextWatermarker:
         # Tạo chuỗi ký tự ẩn
         thuy_an_an = ""
         for bit in binary_payload:
-            if bit == '0':
+            if bit == "0":
                 thuy_an_an += cls.CHAR_BIT_0
             else:
                 thuy_an_an += cls.CHAR_BIT_1
@@ -60,7 +60,7 @@ class TextWatermarker:
         try:
             n = int(binary_str, 2)
             # convert int to bytes, sau do decode
-            return binascii.unhexlify('%x' % n).decode('utf-8')
+            return binascii.unhexlify("%x" % n).decode("utf-8")
         except Exception:
             # Lỗi giải mã do chuỗi nhị phân không hợp lệ
             return None

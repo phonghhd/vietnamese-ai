@@ -10,6 +10,7 @@ class MoA:
     Sử dụng nhiều Proposer Agents để đưa ra các phương án giải quyết khác nhau,
     sau đó dùng Aggregator Agent để tổng hợp thành câu trả lời tốt nhất.
     """
+
     def __init__(self, danh_sach_proposers: List[TacTu], aggregator: TacTu):
         """
         Khởi tạo hệ thống MoA.
@@ -56,7 +57,7 @@ Hãy phân tích, đánh giá điểm mạnh/yếu của từng câu trả lời
                     res = future.result()
                     ket_qua_proposers.append((idx, res))
                 except Exception as exc:
-                    ket_qua_proposers.append((idx, f"Lỗi từ Proposer {idx+1}: {exc}"))
+                    ket_qua_proposers.append((idx, f"Lỗi từ Proposer {idx + 1}: {exc}"))
 
         # Sắp xếp lại theo thứ tự ban đầu để dễ theo dõi (tùy chọn)
         ket_qua_proposers.sort(key=lambda x: x[0])
@@ -64,9 +65,11 @@ Hãy phân tích, đánh giá điểm mạnh/yếu của từng câu trả lời
         # Xây dựng prompt cho Aggregator
         aggregator_prompt = f"Câu hỏi gốc của người dùng: {truy_van}\n\nCác câu trả lời đề xuất:\n"
         for idx, (_, res) in enumerate(ket_qua_proposers):
-            aggregator_prompt += f"\n--- Proposer {idx+1} ---\n{res}\n"
+            aggregator_prompt += f"\n--- Proposer {idx + 1} ---\n{res}\n"
 
-        aggregator_prompt += "\nDựa trên các đề xuất trên, hãy đưa ra câu trả lời tổng hợp cuối cùng."
+        aggregator_prompt += (
+            "\nDựa trên các đề xuất trên, hãy đưa ra câu trả lời tổng hợp cuối cùng."
+        )
 
         # Chạy aggregator
         ket_qua_cuoi = self.aggregator.chay(aggregator_prompt)

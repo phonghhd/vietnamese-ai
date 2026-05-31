@@ -1,12 +1,13 @@
 """EvoJITCompiler - Trình biên dịch C++ Just-In-Time phá vỡ GIL."""
 
-import os
 import ctypes
-import tempfile
-import subprocess
 import logging
+import os
+import subprocess
+import tempfile
 
 logger = logging.getLogger("EvoJITCompiler")
+
 
 class EvoJITCompiler:
     """
@@ -14,6 +15,7 @@ class EvoJITCompiler:
     Nhận mã nguồn C++, biên dịch nó thành file .so qua g++, và nạp vào bằng ctypes.
     Đảm bảo hàm C++ chạy hoàn toàn tách biệt khỏi khóa GIL của Python.
     """
+
     def __init__(self, use_openmp: bool = False):
         self.use_openmp = use_openmp
         self.temp_dir = tempfile.gettempdir()
@@ -31,7 +33,7 @@ class EvoJITCompiler:
         cmd = ["g++", "-O3", "-shared", "-fPIC", cpp_path, "-o", so_path]
         if self.use_openmp:
             cmd.extend(["-fopenmp"])
-            
+
         try:
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             return True
@@ -39,7 +41,9 @@ class EvoJITCompiler:
             logger.error(f"Lỗi biên dịch JIT:\n{e.stderr.decode('utf-8')}")
             return False
 
-    def compile_and_load(self, name: str, code: str, func_name: str, arg_types: list, restype: type) -> callable:
+    def compile_and_load(
+        self, name: str, code: str, func_name: str, arg_types: list, restype: type
+    ) -> callable:
         """
         Toàn bộ luồng JIT: Sinh mã -> Compile -> Load Ctypes.
         """
@@ -49,19 +53,19 @@ class EvoJITCompiler:
             func.argtypes = arg_types
             func.restype = restype
             return func
-            
+
         cpp_path = self._write_cpp(name, code)
         so_path = os.path.join(self.temp_dir, f"{name}.so")
-        
+
         # Biên dịch
         if not self._compile(cpp_path, so_path):
             raise RuntimeError("Không thể biên dịch mã C++ JIT.")
-            
+
         # Nạp thư viện
         try:
             lib = ctypes.cdll.LoadLibrary(so_path)
             self.loaded_libs[name] = lib
-            
+
             func = getattr(lib, func_name)
             func.argtypes = arg_types
             func.restype = restype

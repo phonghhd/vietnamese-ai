@@ -55,12 +55,19 @@ LOAI_NODE = {
 
 TAT_CA_THUAT_TOAN = {
     "phan_loai": [
-        "logistic", "knn", "svm", "rung_ngau_nhien",
-        "gradient_boosting", "naive_bayes",
+        "logistic",
+        "knn",
+        "svm",
+        "rung_ngau_nhien",
+        "gradient_boosting",
+        "naive_bayes",
     ],
     "hoi_quy": [
-        "tuyen_tinh", "ridge", "lasso",
-        "rung_ngau_nhien", "gradient_boosting",
+        "tuyen_tinh",
+        "ridge",
+        "lasso",
+        "rung_ngau_nhien",
+        "gradient_boosting",
     ],
     "phan_cum": ["kmeans", "dbscan", "hierarchical"],
 }
@@ -79,8 +86,7 @@ class Node:
     ):
         if loai not in LOAI_NODE:
             raise ValueError(
-                f"Loại node '{loai}' không hợp lệ. "
-                f"Chọn: {', '.join(LOAI_NODE.keys())}"
+                f"Loại node '{loai}' không hợp lệ. Chọn: {', '.join(LOAI_NODE.keys())}"
             )
 
         self.ma = ma
@@ -128,8 +134,16 @@ TEMPLATE_PIPELINES = {
         "mo_ta": "Pipeline phân loại với tiền xử lý",
         "nodes": [
             {"loai": "du_lieu", "ten": "Dữ liệu mẫu", "tham_so": {"nguon": "mau"}},
-            {"loai": "tien_xu_ly", "ten": "Chuẩn hóa Z-Score", "tham_so": {"phuong_phap": "zscore"}},
-            {"loai": "mo_hinh", "ten": "Random Forest", "tham_so": {"thuat_toan": "rung_ngau_nhien", "nhiem_vu": "phan_loai"}},
+            {
+                "loai": "tien_xu_ly",
+                "ten": "Chuẩn hóa Z-Score",
+                "tham_so": {"phuong_phap": "zscore"},
+            },
+            {
+                "loai": "mo_hinh",
+                "ten": "Random Forest",
+                "tham_so": {"thuat_toan": "rung_ngau_nhien", "nhiem_vu": "phan_loai"},
+            },
             {"loai": "danh_gia", "ten": "Đánh giá", "tham_so": {"chi_so": "do_chinh_xac"}},
         ],
         "ket_noi": [
@@ -142,10 +156,22 @@ TEMPLATE_PIPELINES = {
         "ten": "Hồi quy nâng cao",
         "mo_ta": "Pipeline hồi quy với feature engineering",
         "nodes": [
-            {"loai": "du_lieu", "ten": "Dữ liệu mẫu", "tham_so": {"nguon": "mau", "nhiem_vu": "hoi_quy"}},
+            {
+                "loai": "du_lieu",
+                "ten": "Dữ liệu mẫu",
+                "tham_so": {"nguon": "mau", "nhiem_vu": "hoi_quy"},
+            },
             {"loai": "tien_xu_ly", "ten": "Xử lý missing", "tham_so": {"phuong_phap": "trung_vi"}},
-            {"loai": "tien_xu_ly", "ten": "Chuẩn hóa Min-Max", "tham_so": {"phuong_phap": "minmax"}},
-            {"loai": "mo_hinh", "ten": "Gradient Boosting", "tham_so": {"thuat_toan": "gradient_boosting", "nhiem_vu": "hoi_quy"}},
+            {
+                "loai": "tien_xu_ly",
+                "ten": "Chuẩn hóa Min-Max",
+                "tham_so": {"phuong_phap": "minmax"},
+            },
+            {
+                "loai": "mo_hinh",
+                "ten": "Gradient Boosting",
+                "tham_so": {"thuat_toan": "gradient_boosting", "nhiem_vu": "hoi_quy"},
+            },
             {"loai": "danh_gia", "ten": "Đánh giá MSE", "tham_so": {"chi_so": "mse"}},
         ],
         "ket_noi": [
@@ -161,8 +187,16 @@ TEMPLATE_PIPELINES = {
         "nodes": [
             {"loai": "du_lieu", "ten": "Dữ liệu", "tham_so": {"nguon": "mau"}},
             {"loai": "tien_xu_ly", "ten": "Chuẩn hóa", "tham_so": {"phuong_phap": "zscore"}},
-            {"loai": "mo_hinh", "ten": "Logistic", "tham_so": {"thuat_toan": "logistic", "nhiem_vu": "phan_loai"}},
-            {"loai": "mo_hinh", "ten": "Random Forest", "tham_so": {"thuat_toan": "rung_ngau_nhien", "nhiem_vu": "phan_loai"}},
+            {
+                "loai": "mo_hinh",
+                "ten": "Logistic",
+                "tham_so": {"thuat_toan": "logistic", "nhiem_vu": "phan_loai"},
+            },
+            {
+                "loai": "mo_hinh",
+                "ten": "Random Forest",
+                "tham_so": {"thuat_toan": "rung_ngau_nhien", "nhiem_vu": "phan_loai"},
+            },
             {"loai": "danh_gia", "ten": "So sánh", "tham_so": {"chi_so": "do_chinh_xac"}},
         ],
         "ket_noi": [
@@ -246,8 +280,7 @@ class StudioKeoTha:
 
         del self._nodes[ma_node]
         self._ket_noi = [
-            kn for kn in self._ket_noi
-            if kn.tu_node != ma_node and kn.den_node != ma_node
+            kn for kn in self._ket_noi if kn.tu_node != ma_node and kn.den_node != ma_node
         ]
         self._da_chay = False
         self.logger.info(f"Đã xóa node: {ma_node}")
@@ -300,8 +333,7 @@ class StudioKeoTha:
         """Hủy kết nối giữa 2 nodes."""
         ban_dau = len(self._ket_noi)
         self._ket_noi = [
-            kn for kn in self._ket_noi
-            if not (kn.tu_node == tu_node and kn.den_node == den_node)
+            kn for kn in self._ket_noi if not (kn.tu_node == tu_node and kn.den_node == den_node)
         ]
         if len(self._ket_noi) == ban_dau:
             raise KeyError(f"Không tìm thấy kết nối {tu_node} -> {den_node}")
@@ -498,9 +530,7 @@ class StudioKeoTha:
         for ma in thu_tu:
             node = self._nodes[ma]
             if node.loai == "danh_gia" and node.ket_qua:
-                self._ket_qua_chay["ket_qua_danh_gia"] = node.ket_qua.get(
-                    "ket_qua_danh_gia", {}
-                )
+                self._ket_qua_chay["ket_qua_danh_gia"] = node.ket_qua.get("ket_qua_danh_gia", {})
 
         self.logger.info(
             f"Pipeline hoàn tất: {self._ket_qua_chay['so_node_thanh_cong']}"
@@ -596,8 +626,7 @@ class StudioKeoTha:
                 for n in self._nodes.values()
             ],
             "ket_noi": [
-                {"tu": kn.tu_node, "den": kn.den_node, "cua": kn.cua}
-                for kn in self._ket_noi
+                {"tu": kn.tu_node, "den": kn.den_node, "cua": kn.cua} for kn in self._ket_noi
             ],
         }
 
@@ -641,21 +670,17 @@ class StudioKeoTha:
     def chay_giao_dien_web(self, port: int = 5000):
         """Khởi động Visual UI trên nền trình duyệt."""
         try:
-            from vietnamese_ai.ui.core import UIApp, KieuDang
             from vietnamese_ai.ui.components import KhungKeoThaDAG
+            from vietnamese_ai.ui.core import KieuDang, UIApp
         except ImportError:
             raise ImportError("Không tìm thấy V-UI. Hãy đảm bảo thư mục vietnamese_ai/ui tồn tại.")
-        
-        self.logger.info(f"Đang chuẩn bị giao diện Web Visual Builder...")
+
+        self.logger.info("Đang chuẩn bị giao diện Web Visual Builder...")
         app = UIApp(tieu_de=self.ten, theme=KieuDang.DARK)
-        
+
         # Đưa lõi DAG vào Component UI
-        ui_dag = KhungKeoThaDAG(
-            ham_lay_dag=self.lay_canvas,
-            ham_chay_dag=self.chay
-        )
+        ui_dag = KhungKeoThaDAG(ham_lay_dag=self.lay_canvas, ham_chay_dag=self.chay)
         app.them_cot(ui_dag)
-        
+
         # Khởi động Web Server (Zero-Dependency)
         app.chay(port=port)
-

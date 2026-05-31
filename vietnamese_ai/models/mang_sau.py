@@ -115,7 +115,7 @@ class MangSau(BaseModel):
             self._loss_history.append(avg_loss)
 
             if (vong + 1) % 10 == 0:
-                self.logger.info(f"Vòng {vong+1}/{self.so_vong}: loss={avg_loss:.4f}")
+                self.logger.info(f"Vòng {vong + 1}/{self.so_vong}: loss={avg_loss:.4f}")
 
     def _du_doan_pytorch(self, X: np.ndarray) -> np.ndarray:
         """Dự đoán với PyTorch."""
@@ -144,7 +144,9 @@ class MangSau(BaseModel):
     def huan_luyen(self, X: np.ndarray, y: np.ndarray) -> None:
         X, y = np.asarray(X, dtype=float), np.asarray(y)
         self.logger.info(f"Backend: {self._backend} | Thiết bị: {self.thiet_bi}")
-        self.logger.info(f"Cấu trúc: {X.shape[1]} -> {' -> '.join(map(str, self.lop_an))} -> {int(y.max())+1}")
+        self.logger.info(
+            f"Cấu trúc: {X.shape[1]} -> {' -> '.join(map(str, self.lop_an))} -> {int(y.max()) + 1}"
+        )
 
         if self._backend == "pytorch":
             self._huan_luyen_pytorch(X, y)

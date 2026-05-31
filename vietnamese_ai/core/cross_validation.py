@@ -30,9 +30,7 @@ class KiemDinhCheo:
         self.seed = seed
         self.logger = Logger("KiemDinhCheo")
 
-    def _chia_fold(
-        self, X: np.ndarray, y: np.ndarray, stratified: bool = True
-    ) -> List[tuple]:
+    def _chia_fold(self, X: np.ndarray, y: np.ndarray, stratified: bool = True) -> List[tuple]:
         """Chia dữ liệu thành K fold."""
         n = len(X)
         indices = np.arange(n)
@@ -55,9 +53,7 @@ class KiemDinhCheo:
 
         return folds
 
-    def _chia_fold_stratified(
-        self, indices: np.ndarray, y: np.ndarray
-    ) -> List[tuple]:
+    def _chia_fold_stratified(self, indices: np.ndarray, y: np.ndarray) -> List[tuple]:
         """Chia fold giữ tỷ lệ lớp (stratified)."""
         np.random.seed(self.seed)
         folds_test = [[] for _ in range(self.so_fold)]
@@ -98,9 +94,7 @@ class KiemDinhCheo:
             Dict chứa: diem_trung_binh, do_lech_chuan, cac_diem, chi_so
         """
         X, y = np.asarray(X), np.asarray(y)
-        self.logger.info(
-            f"Bắt đầu {self.so_fold}-Fold CV ({self.lap_lai} lần lặp)"
-        )
+        self.logger.info(f"Bắt đầu {self.so_fold}-Fold CV ({self.lap_lai} lần lặp)")
 
         tat_ca_diem = []
 
@@ -117,9 +111,7 @@ class KiemDinhCheo:
                 diem = mo_hinh_fold.danh_gia(X_test, y_test)
                 tat_ca_diem.append(diem)
 
-                self.logger.debug(
-                    f"  Lần {lan+1}, Fold {fold_idx+1}: {chi_so}={diem:.4f}"
-                )
+                self.logger.debug(f"  Lần {lan + 1}, Fold {fold_idx + 1}: {chi_so}={diem:.4f}")
 
         tat_ca_diem = np.array(tat_ca_diem)
         ket_qua = {

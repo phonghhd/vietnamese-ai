@@ -17,7 +17,7 @@ class ChromaVectorStore:
         self,
         thu_muc_luu_tru: Optional[str] = "./chroma_db",
         ten_collection: str = "vietnamese_ai",
-        khoang_cach: str = "cosine"
+        khoang_cach: str = "cosine",
     ):
         try:
             import chromadb
@@ -26,11 +26,7 @@ class ChromaVectorStore:
 
         # Map distance metric string to ChromaDB expected string
         # Chroma supports 'l2', 'ip' (inner product), 'cosine'
-        space_map = {
-            "cosine": "cosine",
-            "l2": "l2",
-            "inner_product": "ip"
-        }
+        space_map = {"cosine": "cosine", "l2": "l2", "inner_product": "ip"}
         self.space = space_map.get(khoang_cach, "cosine")
 
         if thu_muc_luu_tru:
@@ -39,8 +35,7 @@ class ChromaVectorStore:
             self.client = chromadb.EphemeralClient()
 
         self.collection = self.client.get_or_create_collection(
-            name=ten_collection,
-            metadata={"hnsw:space": self.space}
+            name=ten_collection, metadata={"hnsw:space": self.space}
         )
 
     def chen(
@@ -58,8 +53,8 @@ class ChromaVectorStore:
         self.collection.add(
             ids=[ma],
             embeddings=[vec],
-            metadatas=[meta] if meta else None, # type: ignore
-            documents=[""] # Chroma expects documents or embeddings, we just use embeddings
+            metadatas=[meta] if meta else None,  # type: ignore
+            documents=[""],  # Chroma expects documents or embeddings, we just use embeddings
         )
 
     def chen_batch(
@@ -81,8 +76,8 @@ class ChromaVectorStore:
         self.collection.add(
             ids=ma_list,
             embeddings=vecs,
-            metadatas=metas, # type: ignore
-            documents=[""] * len(ma_list)
+            metadatas=metas,  # type: ignore
+            documents=[""] * len(ma_list),
         )
 
     def xoa(self, ma: str) -> bool:
@@ -113,7 +108,7 @@ class ChromaVectorStore:
             query_embeddings=[vec],
             n_results=top_k,
             where=where_filter,
-            include=["metadatas", "distances"]
+            include=["metadatas", "distances"],
         )
 
         ket_qua = []
@@ -121,8 +116,8 @@ class ChromaVectorStore:
             return ket_qua
 
         ids = results["ids"][0]
-        distances = results["distances"][0] if results.get("distances") else [0]*len(ids)
-        metadatas = results["metadatas"][0] if results.get("metadatas") else [{}]*len(ids)
+        distances = results["distances"][0] if results.get("distances") else [0] * len(ids)
+        metadatas = results["metadatas"][0] if results.get("metadatas") else [{}] * len(ids)
 
         for i in range(len(ids)):
             diem = distances[i]
@@ -135,11 +130,7 @@ class ChromaVectorStore:
             if nguong is not None and diem < nguong:
                 continue
 
-            ket_qua.append({
-                "ma": ids[i],
-                "diem": float(diem),
-                "metadata": metadatas[i] or {}
-            })
+            ket_qua.append({"ma": ids[i], "diem": float(diem), "metadata": metadatas[i] or {}})
 
         return ket_qua
 

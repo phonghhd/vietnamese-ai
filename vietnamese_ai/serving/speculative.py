@@ -1,7 +1,9 @@
 """Speculative Decoding - Tăng tốc suy luận thông minh."""
 
-from typing import Any, List, Tuple
+from typing import Any, List
+
 import numpy as np
+
 
 class SpeculativeEngine:
     """
@@ -10,6 +12,7 @@ class SpeculativeEngine:
     2. Target Model chấm điểm (Forward pass 1 lần) các tokens đó.
     3. Rejection Sampling để chấp nhận/từ chối token.
     """
+
     def __init__(self, target_model: Any, draft_model: Any, gamma: int = 4):
         """
         Args:
@@ -45,36 +48,36 @@ class SpeculativeEngine:
             draft_tokens = []
             draft_probs = []
             draft_context = ket_qua.copy()
-            
+
             for _ in range(self.gamma):
                 logits_d = self.draft_model(draft_context)
                 next_token_d = self._sample_from_logits(logits_d)
                 prob_d = self._get_prob(logits_d, next_token_d)
-                
+
                 draft_tokens.append(next_token_d)
                 draft_probs.append(prob_d)
                 draft_context.append(next_token_d)
-                
+
             # BƯỚC 2: Kiểm duyệt bằng Target Model (Verification)
             # Truyền toàn bộ ngữ cảnh (Kể cả token nháp) vào mô hình lớn
             # Trong thực tế, hàm này nhận danh sách và trả về Logits cho từng bước
-            logits_t_seq = self.target_model(draft_context) 
-            
+            logits_t_seq = self.target_model(draft_context)
+
             # BƯỚC 3: Rejection Sampling (Duyệt qua từng token nháp)
             n_accepted = 0
             for i in range(self.gamma):
                 t_token_idx = len(ket_qua) + i
                 # Logits do Target dự đoán cho vị trí này
-                logits_t = logits_t_seq[t_token_idx - 1: t_token_idx] 
-                
+                logits_t = logits_t_seq[t_token_idx - 1 : t_token_idx]
+
                 prob_t = self._get_prob(logits_t, draft_tokens[i])
                 prob_d = draft_probs[i]
-                
+
                 # Tính tỷ lệ chấp nhận
                 # Nếu P_target >= P_draft -> R_ratio >= 1 -> Luôn chấp nhận
                 r_ratio = prob_t / (prob_d + 1e-9)
                 r_random = np.random.uniform(0, 1)
-                
+
                 if r_random <= r_ratio:
                     # Gật đầu (Accept)
                     ket_qua.append(draft_tokens[i])
@@ -85,15 +88,15 @@ class SpeculativeEngine:
                     # Ở đây đơn giản hoá bằng cách lấy Argmax của Target Model
                     correct_token = self._sample_from_logits(logits_t)
                     ket_qua.append(correct_token)
-                    break # Từ chối token này thì vứt bỏ mọi token nháp phía sau
-            
+                    break  # Từ chối token này thì vứt bỏ mọi token nháp phía sau
+
             # Nếu tất cả token nháp đều được chấp nhận, Target model được thưởng sinh thêm 1 token
             if n_accepted == self.gamma:
                 last_logits = logits_t_seq[-1:]
                 bonus_token = self._sample_from_logits(last_logits)
                 ket_qua.append(bonus_token)
                 n_accepted += 1
-                
-            tokens_sinh_ra += (n_accepted if n_accepted > 0 else 1) # Ít nhất 1 token được sinh ra
+
+            tokens_sinh_ra += n_accepted if n_accepted > 0 else 1  # Ít nhất 1 token được sinh ra
 
         return ket_qua

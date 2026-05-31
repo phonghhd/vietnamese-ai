@@ -17,13 +17,14 @@ class SoTayKinhNghiem:
                           Nếu không cung cấp, sẽ giả lập lưu trữ tạm thời trong RAM.
         """
         self.vector_store = vector_store
-        self._bo_nho_tam_thoi = [] # Fallback nếu không có VectorDB
+        self._bo_nho_tam_thoi = []  # Fallback nếu không có VectorDB
 
         # Nếu dùng CSDLVector từ v10, đảm bảo nó đã được import
         if self.vector_store is None:
             try:
                 from vietnamese_ai.rag.vector_store import CSDLVector
-                self.vector_store = CSDLVector(kich_thuoc=384) # Mặc định kích thước embeddings
+
+                self.vector_store = CSDLVector(kich_thuoc=384)  # Mặc định kích thước embeddings
             except ImportError:
                 pass
 
@@ -38,12 +39,10 @@ class SoTayKinhNghiem:
         """
         noi_dung = f"[SAI LẦM]: {sai_lam} -> [BÀI HỌC]: {cach_khac_phuc}"
 
-        if self.vector_store and hasattr(self.vector_store, 'them_tai_lieu'):
+        if self.vector_store and hasattr(self.vector_store, "them_tai_lieu"):
             doc_id = f"exp_{uuid.uuid4().hex[:8]}"
             self.vector_store.them_tai_lieu(
-                id_tai_lieu=doc_id,
-                noi_dung=ngu_canh,
-                metadata={"bai_hoc": noi_dung}
+                id_tai_lieu=doc_id, noi_dung=ngu_canh, metadata={"bai_hoc": noi_dung}
             )
         else:
             self._bo_nho_tam_thoi.append({"ngu_canh": ngu_canh, "bai_hoc": noi_dung})
@@ -54,7 +53,7 @@ class SoTayKinhNghiem:
         """
         bai_hoc_tim_thay = []
 
-        if self.vector_store and hasattr(self.vector_store, 'tim_kiem'):
+        if self.vector_store and hasattr(self.vector_store, "tim_kiem"):
             try:
                 ket_qua = self.vector_store.tim_kiem(truy_van, top_k=top_k)
                 for item in ket_qua:

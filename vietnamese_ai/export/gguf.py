@@ -68,9 +68,7 @@ class XuatGGUF:
         """Liệt kê các loại quantization hỗ trợ."""
         return QUANTIZATION_METHODS.copy()
 
-    def _quantize_weights(
-        self, weights: np.ndarray, phuong_phap: str
-    ) -> np.ndarray:
+    def _quantize_weights(self, weights: np.ndarray, phuong_phap: str) -> np.ndarray:
         """Quantize weights."""
         if phuong_phap == "f32":
             return weights.astype(np.float32)
@@ -103,7 +101,9 @@ class XuatGGUF:
             "general.alignment": 32,
             "general.author": "Vietnamese AI Framework",
             "general.version": "4.0.0",
-            "general.description": thong_tin.get("description", "Model from Vietnamese AI Framework"),
+            "general.description": thong_tin.get(
+                "description", "Model from Vietnamese AI Framework"
+            ),
         }
 
     def xuat_tu_numpy(
@@ -192,9 +192,7 @@ class XuatGGUF:
                 tong_bytes += len(ten_bytes) + 8 + n_dims * 8 + 4 + len(data) + padding
 
         kich_thuoc = duong_dan_path.stat().st_size
-        self.logger.info(
-            f"Đã xuất GGUF: {duong_dan} ({kich_thuoc} bytes, {quantization})"
-        )
+        self.logger.info(f"Đã xuất GGUF: {duong_dan} ({kich_thuoc} bytes, {quantization})")
         return str(duong_dan_path)
 
     def xuat_tu_pytorch(

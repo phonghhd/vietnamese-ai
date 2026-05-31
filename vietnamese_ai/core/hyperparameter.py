@@ -71,9 +71,7 @@ class TimKiemThamSo:
         gia_tri_tham_so = list(luoi_tham_so.values())
         toan_bo_to_hop = list(itertools.product(*gia_tri_tham_so))
 
-        self.logger.info(
-            f"GridSearch: {len(toan_bo_to_hop)} tổ hợp tham số"
-        )
+        self.logger.info(f"GridSearch: {len(toan_bo_to_hop)} tổ hợp tham số")
 
         lich_su = []
         diem_tot_nhat = -np.inf if tot_nhat_cao else np.inf
@@ -81,7 +79,7 @@ class TimKiemThamSo:
 
         for i, to_hop in enumerate(toan_bo_to_hop):
             tham_so = dict(zip(ten_tham_so, to_hop))
-            self.logger.info(f"  [{i+1}/{len(toan_bo_to_hop)}] {tham_so}")
+            self.logger.info(f"  [{i + 1}/{len(toan_bo_to_hop)}] {tham_so}")
 
             try:
                 mo_hinh = lop_mo_hinh(**tham_so)
@@ -108,8 +106,7 @@ class TimKiemThamSo:
                 lich_su.append({"tham_so": tham_so, "diem": None, "loi": str(e)})
 
         self.logger.info(
-            f"Kết quả: tham số tốt nhất = {tham_so_tot_nhat}, "
-            f"điểm = {diem_tot_nhat:.4f}"
+            f"Kết quả: tham số tốt nhất = {tham_so_tot_nhat}, điểm = {diem_tot_nhat:.4f}"
         )
 
         return {
@@ -162,7 +159,7 @@ class TimKiemThamSo:
                 else:
                     tham_so[ten] = np.random.uniform(min_val, max_val)
 
-            self.logger.info(f"  [{i+1}/{so_lan}] {tham_so}")
+            self.logger.info(f"  [{i + 1}/{so_lan}] {tham_so}")
 
             try:
                 mo_hinh = lop_mo_hinh(**tham_so)
@@ -189,8 +186,7 @@ class TimKiemThamSo:
                 lich_su.append({"tham_so": tham_so, "diem": None, "loi": str(e)})
 
         self.logger.info(
-            f"Kết quả: tham số tốt nhất = {tham_so_tot_nhat}, "
-            f"điểm = {diem_tot_nhat:.4f}"
+            f"Kết quả: tham số tốt nhất = {tham_so_tot_nhat}, điểm = {diem_tot_nhat:.4f}"
         )
 
         return {

@@ -10,11 +10,9 @@ class RecursiveCharacterTextSplitter:
     Chia văn bản dựa trên một mảng các ký tự phân cách (separators).
     Thích hợp cho tiếng Việt để giữ lại các câu hoàn chỉnh.
     """
+
     def __init__(
-        self,
-        chunk_size: int = 1000,
-        chunk_overlap: int = 200,
-        separators: List[str] = None
+        self, chunk_size: int = 1000, chunk_overlap: int = 200, separators: List[str] = None
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -32,7 +30,7 @@ class RecursiveCharacterTextSplitter:
         for i, _s in enumerate(separators):
             if _s in text:
                 separator = _s
-                new_separators = separators[i + 1:]
+                new_separators = separators[i + 1 :]
                 break
 
         # Split text bằng separator đó
@@ -58,7 +56,7 @@ class RecursiveCharacterTextSplitter:
                 else:
                     # Hết cách, đành cắt cứng
                     for i in range(0, len(s), self.chunk_size):
-                        good_splits.append(s[i:i+self.chunk_size])
+                        good_splits.append(s[i : i + self.chunk_size])
                 continue
 
             # Gộp vào current_chunk nếu độ dài cho phép
@@ -74,11 +72,11 @@ class RecursiveCharacterTextSplitter:
                 # Tính overlap để bắt đầu chunk mới
                 # Chỉ lấy một phần của current_chunk cũ
                 if self.chunk_overlap > 0 and len(current_chunk) > self.chunk_overlap:
-                    overlap_text = current_chunk[-self.chunk_overlap:]
+                    overlap_text = current_chunk[-self.chunk_overlap :]
                     # Lùi lại tìm dấu cách đầu tiên để tránh cắt ngang từ
                     space_idx = overlap_text.find(" ")
                     if space_idx != -1:
-                        overlap_text = overlap_text[space_idx+1:]
+                        overlap_text = overlap_text[space_idx + 1 :]
                     current_chunk = overlap_text + _separator + s if overlap_text else s
                 else:
                     current_chunk = s

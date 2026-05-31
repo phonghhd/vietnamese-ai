@@ -16,7 +16,7 @@ class HeThongDaTacTu:
         danh_sach_tac_tu: Dict[str, TacTu],
         loai_dieu_phoi: str = "sequential",
         llm_dieu_phoi: Any = None,
-        mo_ta_tac_tu: Optional[Dict[str, str]] = None
+        mo_ta_tac_tu: Optional[Dict[str, str]] = None,
     ):
         """
         Khởi tạo hệ thống đa tác tử.
@@ -29,7 +29,9 @@ class HeThongDaTacTu:
         """
         self.tac_tu = danh_sach_tac_tu
         self.loai_dieu_phoi = loai_dieu_phoi
-        self.lich_su_chung = BoNhoTacTu(system_prompt="Bạn là hệ thống lưu trữ lịch sử chung của nhóm tác tử.")
+        self.lich_su_chung = BoNhoTacTu(
+            system_prompt="Bạn là hệ thống lưu trữ lịch sử chung của nhóm tác tử."
+        )
 
         if self.loai_dieu_phoi == "orchestrator":
             if llm_dieu_phoi is None:
@@ -44,19 +46,22 @@ class HeThongDaTacTu:
         danh_sach_cong_cu = []
         for ten, tac_tu in self.tac_tu.items():
             # Tạo mô tả công cụ
-            mo_ta = self.mo_ta_tac_tu.get(ten, f"Giao tiếp với tác tử '{ten}' để thực hiện nhiệm vụ của nó.")
+            mo_ta = self.mo_ta_tac_tu.get(
+                ten, f"Giao tiếp với tác tử '{ten}' để thực hiện nhiệm vụ của nó."
+            )
 
             # Hàm wrapper để gọi tác tử con
             # Phải dùng tham số mặc định tt=tac_tu để closure bắt đúng đối tượng trong vòng lặp
             def tao_ham_goi_tac_tu(tt=tac_tu):
                 def goi_tac_tu_con(yeu_cau: str) -> str:
                     return tt.chay(yeu_cau)
+
                 return goi_tac_tu_con
 
             cc = CongCu(
                 ten=f"goi_tac_tu_{ten.replace(' ', '_')}",
                 mo_ta=f"{mo_ta}. Tham số đầu vào là 'yeu_cau' (chuỗi mô tả công việc).",
-                ham_thuc_thi=tao_ham_goi_tac_tu()
+                ham_thuc_thi=tao_ham_goi_tac_tu(),
             )
             danh_sach_cong_cu.append(cc)
 
@@ -104,4 +109,6 @@ class HeThongDaTacTu:
         elif self.loai_dieu_phoi == "orchestrator":
             return self._chay_dieu_phoi_dong(truy_van)
         else:
-            raise NotImplementedError(f"Chế độ điều phối '{self.loai_dieu_phoi}' không được hỗ trợ.")
+            raise NotImplementedError(
+                f"Chế độ điều phối '{self.loai_dieu_phoi}' không được hỗ trợ."
+            )

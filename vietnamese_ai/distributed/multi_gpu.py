@@ -35,13 +35,16 @@ class MultiGPUTrainer:
 
         try:
             import torch
+
             if torch.cuda.is_available():
                 for i in range(torch.cuda.device_count()):
-                    gpu_list.append({
-                        "id": i,
-                        "ten": torch.cuda.get_device_name(i),
-                        "bo_nho": torch.cuda.get_device_properties(i).total_mem,
-                    })
+                    gpu_list.append(
+                        {
+                            "id": i,
+                            "ten": torch.cuda.get_device_name(i),
+                            "bo_nho": torch.cuda.get_device_properties(i).total_mem,
+                        }
+                    )
                 self.logger.info(f"Phát hiện {len(gpu_list)} GPU")
             else:
                 self.logger.info("Không tìm thấy GPU, sử dụng CPU")
@@ -92,7 +95,9 @@ class MultiGPUTrainer:
         so_gpu = min(so_gpu, self.so_gpu)
 
         try:
-            return self._huan_luyen_pytorch(mo_hinh, X, y, so_gpu, gradient_accumulation, mixed_precision)
+            return self._huan_luyen_pytorch(
+                mo_hinh, X, y, so_gpu, gradient_accumulation, mixed_precision
+            )
         except Exception as e:
             self.logger.warning(f"Multi-GPU thất bại, fallback CPU: {e}")
             mo_hinh.huan_luyen(X, y)
@@ -151,7 +156,7 @@ class MultiGPUTrainer:
                 tong_loss += loss.item()
 
             if (vong + 1) % 5 == 0:
-                self.logger.info(f"Vòng {vong+1}: loss={tong_loss/len(loader):.4f}")
+                self.logger.info(f"Vòng {vong + 1}: loss={tong_loss / len(loader):.4f}")
 
         if hasattr(mo_hinh, "_model"):
             if isinstance(model, nn.DataParallel):

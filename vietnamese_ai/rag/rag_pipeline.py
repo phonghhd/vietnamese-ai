@@ -118,9 +118,7 @@ class RAGPipeline:
         top_k = top_k or self.top_k
 
         # Bước 1: Retrieval
-        ket_qua = self.trich_xuat.tim_kiem(
-            cau_hoi, top_k=top_k * 2, nguong=self.nguong_diem
-        )
+        ket_qua = self.trich_xuat.tim_kiem(cau_hoi, top_k=top_k * 2, nguong=self.nguong_diem)
 
         # Bước 2: Reranking
         if rerank and len(ket_qua) > 1:
@@ -153,9 +151,7 @@ class RAGPipeline:
         """Chỉ tìm kiếm, không sinh câu trả lời."""
         top_k = top_k or self.top_k
 
-        ket_qua = self.trich_xuat.tim_kiem(
-            cau_hoi, top_k=top_k * 2, nguong=self.nguong_diem
-        )
+        ket_qua = self.trich_xuat.tim_kiem(cau_hoi, top_k=top_k * 2, nguong=self.nguong_diem)
 
         if rerank and len(ket_qua) > 1:
             ket_qua = self.reranker.sap_xep_lai(cau_hoi, ket_qua, top_k)

@@ -7,7 +7,9 @@ def test_memgpt_memory_compression():
     mock_vector_store = MagicMock()
 
     # Set max_tokens rất nhỏ để ép nó phải nén ngay
-    mem = HethongNhoMemGPT(system_prompt="Bạn là trợ lý AI.", max_core_tokens=10, vector_store=mock_vector_store)
+    mem = HethongNhoMemGPT(
+        system_prompt="Bạn là trợ lý AI.", max_core_tokens=10, vector_store=mock_vector_store
+    )
 
     # 5 words (token)
     mem.them_tin_nhan("user", "Đây là câu hỏi một")

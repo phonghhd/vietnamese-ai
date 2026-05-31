@@ -6,12 +6,15 @@ from .agent import TacTu
 
 class MCTSNode:
     """Nút trong cây tìm kiếm Monte Carlo Tree Search cho suy luận."""
-    def __init__(self, trang_thai: str, cha: Optional['MCTSNode'] = None, hanh_dong: Optional[str] = None):
+
+    def __init__(
+        self, trang_thai: str, cha: Optional["MCTSNode"] = None, hanh_dong: Optional[str] = None
+    ):
         self.trang_thai = trang_thai
         self.cha = cha
-        self.hanh_dong = hanh_dong # Hành động dẫn đến trạng thái này
+        self.hanh_dong = hanh_dong  # Hành động dẫn đến trạng thái này
 
-        self.con: List['MCTSNode'] = []
+        self.con: List["MCTSNode"] = []
         self.so_lan_tham = 0
         self.tong_diem = 0.0
 
@@ -20,7 +23,7 @@ class MCTSNode:
 
     def tinh_ucb1(self, c_param: float = 1.41) -> float:
         if self.so_lan_tham == 0:
-            return float('inf')
+            return float("inf")
 
         diem_khai_thac = self.tong_diem / self.so_lan_tham
         if self.cha is None:
@@ -29,11 +32,13 @@ class MCTSNode:
         diem_khai_pha = c_param * math.sqrt(math.log(self.cha.so_lan_tham) / self.so_lan_tham)
         return diem_khai_thac + diem_khai_pha
 
+
 class LapKeHoachMCTS:
     """
     Tác tử Lập kế hoạch theo Monte Carlo Tree Search.
     Được sử dụng cho các bài toán phức tạp cần suy nghĩ nhiều bước (o1-like).
     """
+
     def __init__(self, agent_chinh: TacTu, so_vong_lap: int = 10, c_param: float = 1.41):
         self.agent = agent_chinh
         self.so_vong_lap = so_vong_lap
@@ -47,9 +52,9 @@ class LapKeHoachMCTS:
         phan_hoi = self.agent._goi_llm(prompt)
 
         hanh_dong = []
-        for dong in phan_hoi.split('\n'):
+        for dong in phan_hoi.split("\n"):
             dong = dong.strip()
-            if dong.startswith('-') or dong.startswith('*'):
+            if dong.startswith("-") or dong.startswith("*"):
                 hanh_dong.append(dong[1:].strip())
 
         return hanh_dong if hanh_dong else ["Nghiên cứu thêm thông tin"]
@@ -66,7 +71,7 @@ class LapKeHoachMCTS:
             phan_hoi = self.agent._goi_llm(prompt)
             return min(max(float(phan_hoi.strip()), 0.0), 1.0)
         except Exception:
-            return 0.5 # Giá trị mặc định nếu LLM không trả về số
+            return 0.5  # Giá trị mặc định nếu LLM không trả về số
 
     def _chon_nut(self, nut_goc: MCTSNode) -> MCTSNode:
         """Chọn nút tốt nhất để mở rộng dựa trên UCB1."""
@@ -119,8 +124,12 @@ class LapKeHoachMCTS:
         duong_di = []
         nut_hien_tai = nut_goc
         while nut_hien_tai.con:
-            nut_hien_tai = max(nut_hien_tai.con, key=lambda n: n.so_lan_tham) # Chọn theo số lần thăm nhiều nhất (robustness)
-            duong_di.append(f"Hành động: {nut_hien_tai.hanh_dong} -> Trạng thái: {nut_hien_tai.trang_thai}")
+            nut_hien_tai = max(
+                nut_hien_tai.con, key=lambda n: n.so_lan_tham
+            )  # Chọn theo số lần thăm nhiều nhất (robustness)
+            duong_di.append(
+                f"Hành động: {nut_hien_tai.hanh_dong} -> Trạng thái: {nut_hien_tai.trang_thai}"
+            )
 
         ke_hoach_str = "\n".join(duong_di)
 

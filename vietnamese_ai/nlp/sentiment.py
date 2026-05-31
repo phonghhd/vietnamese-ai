@@ -29,18 +29,60 @@ class PhanTichCamXuc:
     """
 
     TU_CAM_XUC_TICH_CUC = {
-        "tốt", "tuyệt vời", "hay", "đẹp", "giỏi", "xuất sắc", "hoàn hảo",
-        "tuyệt", "thích", "vui", "hài lòng", "ưng ý", "tuyệt hảo",
-        "đỉnh", "chất lượng", "tệ", "kém", "dở", "tồi", "tệ hại",
-        "rất tốt", "rất hay", "rất đẹp", "rất hài lòng", "quá tuyệt",
-        "tuyệt_vời", "hài_lòng", "chất_lượng",
+        "tốt",
+        "tuyệt vời",
+        "hay",
+        "đẹp",
+        "giỏi",
+        "xuất sắc",
+        "hoàn hảo",
+        "tuyệt",
+        "thích",
+        "vui",
+        "hài lòng",
+        "ưng ý",
+        "tuyệt hảo",
+        "đỉnh",
+        "chất lượng",
+        "tệ",
+        "kém",
+        "dở",
+        "tồi",
+        "tệ hại",
+        "rất tốt",
+        "rất hay",
+        "rất đẹp",
+        "rất hài lòng",
+        "quá tuyệt",
+        "tuyệt_vời",
+        "hài_lòng",
+        "chất_lượng",
     }
 
     TU_CAM_XUC_TIEU_CUC = {
-        "tệ", "kém", "dở", "tồi", "tệ_hại", "tệ_nặng", "chán", "buồn",
-        "ghét", "tức", "giận", "thất_vọng", "bực", "khó_chịu",
-        "rất_tệ", "rất_kém", "quá_dở", "thật_tệ", "thảm_họa",
-        "lừa_đảo", "không_tốt", "không_hài_lòng", "kém_chất_lượng",
+        "tệ",
+        "kém",
+        "dở",
+        "tồi",
+        "tệ_hại",
+        "tệ_nặng",
+        "chán",
+        "buồn",
+        "ghét",
+        "tức",
+        "giận",
+        "thất_vọng",
+        "bực",
+        "khó_chịu",
+        "rất_tệ",
+        "rất_kém",
+        "quá_dở",
+        "thật_tệ",
+        "thảm_họa",
+        "lừa_đảo",
+        "không_tốt",
+        "không_hài_lòng",
+        "kém_chất_lượng",
     }
 
     def __init__(self, che_do: str = "underthesea"):
@@ -53,6 +95,7 @@ class PhanTichCamXuc:
         if che_do == "underthesea":
             try:
                 from underthesea import sentiment
+
                 self._underthesea_sentiment = sentiment
                 self.logger.info("Sử dụng underthesea cho phân tích cảm xúc")
             except ImportError:

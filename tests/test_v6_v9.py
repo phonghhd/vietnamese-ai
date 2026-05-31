@@ -102,9 +102,7 @@ class TestLoRAPeft:
         from vietnamese_ai.fine_tuning.peft_config import PEFTConfig
 
         model = nn.Sequential(nn.Linear(10, 20), nn.ReLU(), nn.Linear(20, 5))
-        config = PEFTConfig(
-            phuong_phap="lora", rank=4, target_modules=["0", "2"]
-        )
+        config = PEFTConfig(phuong_phap="lora", rank=4, target_modules=["0", "2"])
         peft = LoRAPeft(config)
         model = peft.ap_dung(model)
         assert len(peft._lora_layers) > 0
@@ -159,9 +157,7 @@ class TestInstructionTuningTrainer:
         from vietnamese_ai.fine_tuning.instruction_trainer import InstructionTuningTrainer
 
         dataset = InstructionDataset(che_do="alpaca")
-        dataset.tai_tu_list([
-            {"instruction": "test", "input": "", "output": "result"}
-        ] * 5)
+        dataset.tai_tu_list([{"instruction": "test", "input": "", "output": "result"}] * 5)
 
         calls = []
         trainer = InstructionTuningTrainer(so_vong=1, logging_steps=2)
@@ -187,10 +183,12 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset(che_do="alpaca")
-        ds.tai_tu_list([
-            {"instruction": "Tóm tắt văn bản", "input": "Văn bản dài...", "output": "Tóm tắt"},
-            {"instruction": "Dịch sang tiếng Anh", "input": "", "output": "Hello"},
-        ])
+        ds.tai_tu_list(
+            [
+                {"instruction": "Tóm tắt văn bản", "input": "Văn bản dài...", "output": "Tóm tắt"},
+                {"instruction": "Dịch sang tiếng Anh", "input": "", "output": "Hello"},
+            ]
+        )
 
         formatted = ds.format_tat_ca()
         assert len(formatted) == 2
@@ -200,12 +198,16 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset(che_do="sharegpt")
-        ds.tai_tu_list([
-            {"conversations": [
-                {"from": "human", "value": "Xin chào"},
-                {"from": "gpt", "value": "Chào bạn"},
-            ]}
-        ])
+        ds.tai_tu_list(
+            [
+                {
+                    "conversations": [
+                        {"from": "human", "value": "Xin chào"},
+                        {"from": "gpt", "value": "Chào bạn"},
+                    ]
+                }
+            ]
+        )
 
         formatted = ds.format_tat_ca()
         assert len(formatted) == 1
@@ -214,7 +216,9 @@ class TestInstructionDataset:
         from vietnamese_ai.fine_tuning.dataset import InstructionDataset
 
         ds = InstructionDataset()
-        ds.tai_tu_list([{"instruction": f"q{i}", "input": "", "output": f"a{i}"} for i in range(20)])
+        ds.tai_tu_list(
+            [{"instruction": f"q{i}", "input": "", "output": f"a{i}"} for i in range(20)]
+        )
         ket_qua = ds.chia_du_lieu(ty_le_val=0.2)
         assert ket_qua["so_train"] == 16
         assert ket_qua["so_val"] == 4

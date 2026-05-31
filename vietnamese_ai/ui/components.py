@@ -8,6 +8,7 @@ class GiaoDienChat(Component):
     Khung Chat tương tác với LLM hoặc Agent.
     Tự động cuộn, hiển thị trạng thái đang nghĩ (Typing...).
     """
+
     def __init__(self, xu_ly_tin_nhan: Callable[[str], str], chieu_cao: str = "500px"):
         super().__init__()
         self.xu_ly_tin_nhan = xu_ly_tin_nhan
@@ -104,13 +105,18 @@ class GiaoDienChat(Component):
             # Gọi hàm python của người dùng truyền vào
             ket_qua = self.xu_ly_tin_nhan(data.get("text", ""))
             return {"reply": ket_qua}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class BangThongKe(Component):
     """
     Hiển thị thông số (metrics) thời gian thực. (VD: Giá trị Token, Tốc độ Node).
     """
-    def __init__(self, tieu_de: str, ham_lay_du_lieu: Callable[[], Dict[str, Any]], cap_nhat_sau: int = 2):
+
+    def __init__(
+        self, tieu_de: str, ham_lay_du_lieu: Callable[[], Dict[str, Any]], cap_nhat_sau: int = 2
+    ):
         super().__init__()
         self.tieu_de = tieu_de
         self.ham_lay_du_lieu = ham_lay_du_lieu
@@ -163,10 +169,13 @@ class BangThongKe(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return {"data": self.ham_lay_du_lieu()}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class KhuVucTaiTaiLieu(Component):
     """Khu vực kéo thả file (Upload). Hỗ trợ PDF, CSV."""
+
     def __init__(self, ham_xu_ly_file: Callable[[str, str], str]):
         super().__init__()
         self.ham_xu_ly_file = ham_xu_ly_file
@@ -238,10 +247,13 @@ class KhuVucTaiTaiLieu(Component):
         def handler(data: dict):
             msg = self.ham_xu_ly_file(data.get("name", ""), data.get("content", ""))
             return {"msg": msg}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class CameraVaMicro(Component):
     """Truy cập Webcam và Micro trực tiếp từ trình duyệt (Multi-modal)."""
+
     def __init__(self, ham_xu_ly_anh: Callable[[str], str]):
         super().__init__()
         self.ham_xu_ly_anh = ham_xu_ly_anh
@@ -321,10 +333,13 @@ class CameraVaMicro(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return {"reply": self.ham_xu_ly_anh(data.get("image", ""))}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class BieuDoTriThuc(Component):
     """Trực quan hóa GraphRAG bằng Vis-Network."""
+
     def __init__(self, ham_lay_graph: Callable[[], Dict[str, Any]]):
         super().__init__()
         self.ham_lay_graph = ham_lay_graph
@@ -390,10 +405,13 @@ class BieuDoTriThuc(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return self.ham_lay_graph()
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class TroLyGiongNoi(Component):
     """Trợ lý Voice AI bằng Web Speech API (TTS & STT)."""
+
     def __init__(self, ham_xu_ly_giong_noi: Callable[[str], str]):
         super().__init__()
         self.ham_xu_ly_giong_noi = ham_xu_ly_giong_noi
@@ -470,10 +488,13 @@ class TroLyGiongNoi(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return {"reply": self.ham_xu_ly_giong_noi(data.get("text", ""))}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class ChiaSeManHinh(Component):
     """Chia sẻ màn hình cho Agent (Screen Copilot)."""
+
     def __init__(self, ham_xu_ly_man_hinh: Callable[[str], str]):
         super().__init__()
         self.ham_xu_ly_man_hinh = ham_xu_ly_man_hinh
@@ -558,10 +579,13 @@ class ChiaSeManHinh(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return {"reply": self.ham_xu_ly_man_hinh(data.get("image", ""))}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class DinhViGPS(Component):
     """Lấy vị trí GPS của thiết bị."""
+
     def __init__(self, ham_xu_ly_vi_tri: Callable[[float, float], str]):
         super().__init__()
         self.ham_xu_ly_vi_tri = ham_xu_ly_vi_tri
@@ -604,10 +628,13 @@ class DinhViGPS(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return {"reply": self.ham_xu_ly_vi_tri(data.get("lat", 0.0), data.get("lng", 0.0))}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class BoNhoTrinhDuyet(Component):
     """Component ẩn dùng IndexedDB làm Vector/Cache Storage."""
+
     def __init__(self):
         super().__init__()
 
@@ -630,8 +657,10 @@ class BoNhoTrinhDuyet(Component):
         }};
         """
 
+
 class TrinhChieu3D(Component):
     """Trình chiếu 3D sử dụng Three.js."""
+
     def __init__(self):
         super().__init__()
 
@@ -698,8 +727,10 @@ class TrinhChieu3D(Component):
         }});
         """
 
+
 class TinhToanGPU(Component):
     """Sử dụng sức mạnh CPU/GPU Trình duyệt để tính toán Tensor."""
+
     def __init__(self, ham_xu_ly_ket_qua: Callable[[float], str]):
         super().__init__()
         self.ham_xu_ly_ket_qua = ham_xu_ly_ket_qua
@@ -738,10 +769,13 @@ class TinhToanGPU(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return {"reply": self.ham_xu_ly_ket_qua(data.get("result", 0.0))}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class DieuKhienIoT(Component):
     """Giao tiếp với phần cứng Bluetooth BLE."""
+
     def __init__(self):
         super().__init__()
 
@@ -775,8 +809,10 @@ class DieuKhienIoT(Component):
         }});
         """
 
+
 class TrangThaiPin(Component):
     """Lấy trạng thái năng lượng để tối ưu AI."""
+
     def __init__(self, ham_canh_bao_pin: Callable[[float], str]):
         super().__init__()
         self.ham_canh_bao_pin = ham_canh_bao_pin
@@ -826,10 +862,13 @@ class TrangThaiPin(Component):
     def dang_ky_api(self, thu_muc_api: Dict[str, Callable]) -> None:
         def handler(data: dict):
             return {"reply": self.ham_canh_bao_pin(data.get("level", 100))}
+
         thu_muc_api[self.api_endpoint] = handler
+
 
 class KinhThucTeAo(Component):
     """Trải nghiệm WebXR (Kính VR)."""
+
     def __init__(self):
         super().__init__()
 
@@ -863,12 +902,16 @@ class KinhThucTeAo(Component):
         }}
         """
 
+
 class KhungKeoThaDAG(Component):
     """
     Trực quan hóa và thiết kế DAG Workflow bằng Vis-Network.
     Hỗ trợ kéo thả, thêm node và kết nối.
     """
-    def __init__(self, ham_lay_dag: Callable[[], Dict[str, Any]], ham_chay_dag: Callable[[], Dict[str, Any]]):
+
+    def __init__(
+        self, ham_lay_dag: Callable[[], Dict[str, Any]], ham_chay_dag: Callable[[], Dict[str, Any]]
+    ):
         super().__init__()
         self.ham_lay_dag = ham_lay_dag
         self.ham_chay_dag = ham_chay_dag
@@ -892,7 +935,7 @@ class KhungKeoThaDAG(Component):
                     </button>
                 </div>
             </div>
-            
+
             <div class="flex-1 flex gap-4">
                 <!-- Toolbar trái -->
                 <div class="w-64 bg-gray-800/80 rounded-lg border border-gray-700 p-4 overflow-y-auto">
@@ -910,7 +953,7 @@ class KhungKeoThaDAG(Component):
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Canvas giữa -->
                 <div id="{self.id}_canvas" class="flex-1 bg-[#0B0F19] rounded-lg border border-gray-700 overflow-hidden relative shadow-inner" style="background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0); background-size: 32px 32px;">
                     <div id="{self.id}_overlay" class="absolute inset-0 bg-black/60 z-10 hidden flex-col items-center justify-center backdrop-blur-sm">
@@ -931,11 +974,11 @@ class KhungKeoThaDAG(Component):
             try {{
                 const res = await goi_python('{self.api_get}', {{}});
                 const container = document.getElementById('{self.id}_canvas');
-                
+
                 // Chuyển đổi dữ liệu từ StudioKeoTha sang định dạng Vis-Network
                 const nodes = [];
                 const edges = [];
-                
+
                 const loai_mau = {{
                     "du_lieu": "#10B981", // green
                     "tien_xu_ly": "#3B82F6", // blue
@@ -966,7 +1009,7 @@ class KhungKeoThaDAG(Component):
                         label: kn.cua
                     }});
                 }}
-                
+
                 edgesDataset_{self.id} = new vis.DataSet(edges);
 
                 const data = {{
@@ -1000,7 +1043,7 @@ class KhungKeoThaDAG(Component):
 
                 if (network_{self.id}) network_{self.id}.destroy();
                 network_{self.id} = new vis.Network(container, data, options);
-                
+
                 document.getElementById('{self.id}_status').innerText = `Đã tải ${{nodes.length}} nodes.`;
             }} catch(e) {{
                 console.error("Lỗi tải DAG:", e);
@@ -1009,34 +1052,34 @@ class KhungKeoThaDAG(Component):
         }}
 
         document.getElementById('{self.id}_refresh').addEventListener('click', loadDAG_{self.id});
-        
+
         document.getElementById('{self.id}_run').addEventListener('click', async () => {{
             const overlay = document.getElementById('{self.id}_overlay');
             const statusBox = document.getElementById('{self.id}_status');
-            
+
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
             statusBox.innerText = "Đang thực thi...";
-            
+
             // Hiệu ứng hạt chảy (Flow animation) trên các đường line
             const allEdges = edgesDataset_{self.id}.get();
             const updatedEdges = allEdges.map(e => ({{...e, color: {{ color: '#3B82F6', inherit: false }}, dashes: [5, 5] }}));
             edgesDataset_{self.id}.update(updatedEdges);
-            
+
             let offset = 0;
             const flowAnim = setInterval(() => {{
                 offset -= 1;
-                // Vis-network không hỗ trợ animate dashes trực tiếp dễ dàng, 
+                // Vis-network không hỗ trợ animate dashes trực tiếp dễ dàng,
                 // nhưng set lại edges tạo hiệu ứng "sống động"
             }}, 50);
 
             try {{
                 const res = await goi_python('{self.api_run}', {{}});
-                
+
                 clearInterval(flowAnim);
                 const finalEdges = allEdges.map(e => ({{...e, color: {{ color: '#10B981', inherit: false }}, dashes: false, width: 3 }}));
                 edgesDataset_{self.id}.update(finalEdges);
-                
+
                 statusBox.innerHTML = `Thành công!<br/>Thời gian: ${{res.tong_thoi_gian}}s<br/>Số Node OK: ${{res.so_node_thanh_cong}}`;
             }} catch(e) {{
                 clearInterval(flowAnim);
@@ -1046,7 +1089,7 @@ class KhungKeoThaDAG(Component):
                 overlay.classList.remove('flex');
             }}
         }});
-        
+
         setTimeout(loadDAG_{self.id}, 500); // Khởi động sau khi UI load
         """
 

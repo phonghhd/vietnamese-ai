@@ -32,11 +32,19 @@ class XuLySo:
 
     def fit_transform(self, data: np.ndarray) -> np.ndarray:
         """Fit và transform dữ liệu (tương thích Pipeline)."""
-        return self.chuan_hoa_minmax(data) if self._phuong_phap == "minmax" else self.chuan_hoa_zscore(data)
+        return (
+            self.chuan_hoa_minmax(data)
+            if self._phuong_phap == "minmax"
+            else self.chuan_hoa_zscore(data)
+        )
 
     def transform(self, data: np.ndarray) -> np.ndarray:
         """Transform dữ liệu đã fit (tương thích Pipeline)."""
-        return self.chuan_hoa_minmax(data, fit=False) if self._phuong_phap == "minmax" else self.chuan_hoa_zscore(data, fit=False)
+        return (
+            self.chuan_hoa_minmax(data, fit=False)
+            if self._phuong_phap == "minmax"
+            else self.chuan_hoa_zscore(data, fit=False)
+        )
 
     def fit(self, data: np.ndarray) -> "XuLySo":
         """Tính toán tham số từ dữ liệu."""
@@ -84,9 +92,7 @@ class XuLySo:
         return (data - self._mean) / std_safe
 
     @staticmethod
-    def xu_ly_gia_tri_thieu(
-        data: np.ndarray, phuong_phap: str = "trung_vi"
-    ) -> np.ndarray:
+    def xu_ly_gia_tri_thieu(data: np.ndarray, phuong_phap: str = "trung_vi") -> np.ndarray:
         """
         Xử lý giá trị thiếu (NaN).
 

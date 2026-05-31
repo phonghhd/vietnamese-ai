@@ -32,5 +32,5 @@ __all__ = [
     "MultimodalStore",
     "RAGEventBus",
     "DocumentWatcher",
-    "AgenticRAGPipeline"
+    "AgenticRAGPipeline",
 ]

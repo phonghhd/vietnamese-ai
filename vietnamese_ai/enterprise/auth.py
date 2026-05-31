@@ -167,8 +167,7 @@ class HeThongXacThuc:
     def danh_sach_nguoi_dung(self) -> List[Dict]:
         """Liệt kê người dùng (không hiển thị mật khẩu)."""
         return [
-            {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]}
-            for ten, info in self._users.items()
+            {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]} for ten, info in self._users.items()
         ]
 
     def tao_api_key(self, ten_dang_nhap: str) -> str:

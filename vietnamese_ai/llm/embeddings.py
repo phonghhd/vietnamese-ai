@@ -19,11 +19,13 @@ class BaseEmbeddings(ABC):
         """Tạo embedding cho một câu truy vấn."""
         pass
 
+
 class OpenAIEmbeddings(BaseEmbeddings):
     """
     Sử dụng OpenAI API để tạo embeddings.
     Yêu cầu: pip install openai
     """
+
     def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
         try:
             from openai import OpenAI
@@ -37,10 +39,7 @@ class OpenAIEmbeddings(BaseEmbeddings):
         if not texts:
             return []
         # OpenAI cho phép gửi batch
-        response = self.client.embeddings.create(
-            input=texts,
-            model=self.model
-        )
+        response = self.client.embeddings.create(input=texts, model=self.model)
         # Sắp xếp lại theo thứ tự (OpenAI trả về theo thứ tự, nhưng đề phòng)
         sorted_data = sorted(response.data, key=lambda x: x.index)
         return [np.array(item.embedding) for item in sorted_data]
@@ -48,12 +47,14 @@ class OpenAIEmbeddings(BaseEmbeddings):
     def embed_query(self, text: str) -> np.ndarray:
         return self.embed_documents([text])[0]
 
+
 class HuggingFaceEmbeddings(BaseEmbeddings):
     """
     Sử dụng các mô hình mã nguồn mở qua thư viện sentence-transformers.
     Rất tốt cho các mô hình tiếng Việt như keepitreal/vietnamese-sbert.
     Yêu cầu: pip install sentence-transformers
     """
+
     def __init__(self, model_name: str = "keepitreal/vietnamese-sbert", device: str = "cpu"):
         try:
             from sentence_transformers import SentenceTransformer

@@ -36,12 +36,11 @@ class BoNhoTacTu:
             ten_cong_cu (Optional[str]): Tên công cụ (chỉ dùng khi vai_tro='tool')
         """
         if vai_tro not in ["system", "user", "assistant", "tool"]:
-            raise ValueError(f"Vai trò '{vai_tro}' không hợp lệ. Phải là system, user, assistant hoặc tool.")
+            raise ValueError(
+                f"Vai trò '{vai_tro}' không hợp lệ. Phải là system, user, assistant hoặc tool."
+            )
 
-        tin_nhan = {
-            "role": vai_tro,
-            "content": noi_dung
-        }
+        tin_nhan = {"role": vai_tro, "content": noi_dung}
         if vai_tro == "tool" and ten_cong_cu:
             tin_nhan["name"] = ten_cong_cu
 

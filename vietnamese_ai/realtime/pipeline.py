@@ -81,9 +81,7 @@ class MessageQueue:
             Danh sách tin nhắn
         """
         with self._lock:
-            tin_nhan = [
-                tn for tn in self._queue if tn["topic"] == topic
-            ][-so_luong:]
+            tin_nhan = [tn for tn in self._queue if tn["topic"] == topic][-so_luong:]
             self._so_tin_nhan_da_xu_ly += len(tin_nhan)
         return tin_nhan
 

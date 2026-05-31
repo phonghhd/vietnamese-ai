@@ -35,9 +35,7 @@ class TestTimeTraining:
         ham_loss: Optional[Callable] = None,
     ):
         if che_do not in ("entropy_minimization", "contrastive", "masked_prediction"):
-            raise ValueError(
-                "che_do phải là: entropy_minimization, contrastive, masked_prediction"
-            )
+            raise ValueError("che_do phải là: entropy_minimization, contrastive, masked_prediction")
 
         self.model = model
         self.che_do = che_do
@@ -101,10 +99,7 @@ class TestTimeTraining:
         ket_qua = {
             "loss_cuoi": loss_history[-1] if loss_history else 0.0,
             "loss_dau": loss_history[0] if loss_history else 0.0,
-            "giam_loss": (
-                loss_history[0] - loss_history[-1]
-                if len(loss_history) >= 2 else 0.0
-            ),
+            "giam_loss": (loss_history[0] - loss_history[-1] if len(loss_history) >= 2 else 0.0),
             "so_buoc": len(loss_history),
             "lich_su_loss": loss_history,
             "thoi_gian": round(thoi_gian, 3),
@@ -254,7 +249,4 @@ class TestTimeTraining:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"TestTimeTraining(che_do='{self.che_do}', "
-            f"da_thich_ung={self._da_thich_ung})"
-        )
+        return f"TestTimeTraining(che_do='{self.che_do}', da_thich_ung={self._da_thich_ung})"

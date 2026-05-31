@@ -173,11 +173,7 @@ class TomTatVanBan:
 
         for i, cau in enumerate(cac_cau):
             tu_cau = self._xl.tach_tu(cau.lower())
-            tfidf = sum(
-                np.log(tu_van_ban.get(t, 1) + 1)
-                for t in tu_cau
-                if t in tu_van_ban
-            )
+            tfidf = sum(np.log(tu_van_ban.get(t, 1) + 1) for t in tu_cau if t in tu_van_ban)
             diem[i] += self.trong_so_tfidf * tfidf / max(len(tu_cau), 1)
 
         # Position scoring (câu đầu và câu giữa thường quan trọng)
@@ -204,7 +200,7 @@ class TomTatVanBan:
 
     def _tach_cau(self, van_ban: str) -> List[str]:
         """Tách văn bản thành câu."""
-        cau = re.split(r'[.!?\n]+', van_ban)
+        cau = re.split(r"[.!?\n]+", van_ban)
         return [c.strip() for c in cau if c.strip() and len(c.strip()) > 10]
 
     def tom_tat_nhieu(

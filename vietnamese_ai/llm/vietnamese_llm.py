@@ -53,7 +53,9 @@ class VietnameseLLM:
         self._xl = XuLyVanBan()
         self._tu_dien: Dict[str, int] = {}
         self._tu_dien_nguoc: Dict[int, str] = {}
-        self._ngram_counts: Dict[Tuple[str, ...], Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        self._ngram_counts: Dict[Tuple[str, ...], Dict[str, int]] = defaultdict(
+            lambda: defaultdict(int)
+        )
         self._context_counts: Dict[Tuple[str, ...], int] = defaultdict(int)
         self._vocab_size: int = 0
         self._da_huan_luyen = False
@@ -81,7 +83,7 @@ class VietnameseLLM:
         tokens = padding + cac_tu + ["<END>"]
 
         for i in range(len(tokens) - self.bac + 1):
-            context = tuple(tokens[i:i + self.bac - 1])
+            context = tuple(tokens[i : i + self.bac - 1])
             target = tokens[i + self.bac - 1]
             ngrams.append((context, target))
 
@@ -152,9 +154,7 @@ class VietnameseLLM:
             "so_van_ban": len(cac_van_ban),
         }
 
-    def _xac_suat_tu_ke_tiep(
-        self, context: Tuple[str, ...], tu: str
-    ) -> float:
+    def _xac_suat_tu_ke_tiep(self, context: Tuple[str, ...], tu: str) -> float:
         """Tính xác suất từ tiếp theo với Laplace smoothing."""
         dem_context = self._context_counts.get(context, 0) + self.lam_mo * self._vocab_size
         dem_ngram = self._ngram_counts.get(context, {}).get(tu, 0) + self.lam_mo
@@ -218,14 +218,15 @@ class VietnameseLLM:
         if khoi_dau:
             try:
                 from vietnamese_ai.security.llm_firewall import TuongLuaAI
-                if not hasattr(self, 'tuong_lua'):
+
+                if not hasattr(self, "tuong_lua"):
                     self.tuong_lua = TuongLuaAI(ngat_ket_noi_khi_phat_hien=False)
 
                 an_toan, ly_do = self.tuong_lua.kiem_tra_prompt(khoi_dau)
                 if not an_toan:
                     return f"[Bị chặn bởi Tường lửa AI] Lý do: {ly_do}"
             except ImportError:
-                pass # Bỏ qua nếu module security chưa được load
+                pass  # Bỏ qua nếu module security chưa được load
 
         if khoi_dau:
             tokens = self._tach_tu(khoi_dau)
@@ -233,7 +234,7 @@ class VietnameseLLM:
             tokens = []
 
         padding = ["<START>"] * (self.bac - 1)
-        context = tuple(padding + tokens[-(self.bac - 1):])
+        context = tuple(padding + tokens[-(self.bac - 1) :])
 
         ket_qua = list(tokens)
 
@@ -272,10 +273,12 @@ class VietnameseLLM:
         for _ in range(so_lua_chon):
             van_ban = self.sinh_van_ban(dau_vao, do_dai_toi_da, nhiet_do)
             perplexity = self.tinh_perplexity(van_ban)
-            lua_chon.append({
-                "van_ban": van_ban,
-                "perplexity": perplexity,
-            })
+            lua_chon.append(
+                {
+                    "van_ban": van_ban,
+                    "perplexity": perplexity,
+                }
+            )
 
         lua_chon.sort(key=lambda x: x["perplexity"])
         return lua_chon
@@ -299,7 +302,7 @@ class VietnameseLLM:
         so_tu = 0
 
         for i in range(self.bac - 1, len(tokens)):
-            context = tuple(tokens[i - self.bac + 1:i])
+            context = tuple(tokens[i - self.bac + 1 : i])
             target = tokens[i]
             p = self._xac_suat_tu_ke_tiep(context, target)
             log_sum += math.log(max(p, 1e-10))
@@ -330,7 +333,7 @@ class VietnameseLLM:
 
         cac_tu = self._tach_tu(text)
         padding = ["<START>"] * (self.bac - 1)
-        context_tu = padding + cac_tu[-(self.bac - 1):]
+        context_tu = padding + cac_tu[-(self.bac - 1) :]
         context = tuple(context_tu)
 
         if context in self._ngram_counts:
@@ -415,14 +418,8 @@ class VietnameseLLM:
             "tu_dien": self._tu_dien,
             "tong_tu": self._tong_tu,
             "templates": self._templates,
-            "ngram_counts": {
-                json.dumps(list(k)): dict(v)
-                for k, v in self._ngram_counts.items()
-            },
-            "context_counts": {
-                json.dumps(list(k)): v
-                for k, v in self._context_counts.items()
-            },
+            "ngram_counts": {json.dumps(list(k)): dict(v) for k, v in self._ngram_counts.items()},
+            "context_counts": {json.dumps(list(k)): v for k, v in self._context_counts.items()},
         }
 
         duong_dan_path = Path(duong_dan)

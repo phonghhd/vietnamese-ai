@@ -120,7 +120,7 @@ class RewardModel:
             acc = correct / max(1, total)
             self._history["train_loss"].append(avg_loss)
             self._history["accuracy"].append(acc)
-            self.logger.info(f"Epoch {epoch+1}/{so_vong}: loss={avg_loss:.4f}, acc={acc:.4f}")
+            self.logger.info(f"Epoch {epoch + 1}/{so_vong}: loss={avg_loss:.4f}, acc={acc:.4f}")
 
         tong_thoi_gian = time.time() - bat_dau
 
@@ -147,10 +147,14 @@ class RewardModel:
 
     def _tinh_score(self, model: "nn.Module", text: str, device: Any) -> "torch.Tensor":
         """Tính reward score cho text."""
-        ids = torch.tensor(
-            [ord(c) % 1000 for c in text[:512]],
-            dtype=torch.long,
-        ).unsqueeze(0).to(device)
+        ids = (
+            torch.tensor(
+                [ord(c) % 1000 for c in text[:512]],
+                dtype=torch.long,
+            )
+            .unsqueeze(0)
+            .to(device)
+        )
 
         try:
             output = model(ids)
@@ -158,13 +162,20 @@ class RewardModel:
                 return output[0]
             if hasattr(output, "logits"):
                 return output.logits.mean()
-            return output.mean() if isinstance(output, torch.Tensor) else torch.tensor(0.0, device=device)
+            return (
+                output.mean()
+                if isinstance(output, torch.Tensor)
+                else torch.tensor(0.0, device=device)
+            )
         except Exception:
             return torch.tensor(0.0, device=device, requires_grad=True)
 
     def _huan_luyen_numpy(
-        self, model: Any, preference_data: List[Dict],
-        so_vong: int, callback: Optional[Any],
+        self,
+        model: Any,
+        preference_data: List[Dict],
+        so_vong: int,
+        callback: Optional[Any],
     ) -> Dict[str, Any]:
         """NumPy fallback - yêu cầu PyTorch cho Reward Model training thực sự."""
         raise ImportError(
@@ -192,19 +203,23 @@ class RewardModel:
                 for vb in cac_van_ban:
                     score = self._tinh_score(model, vb, device).item()
                     normalized = (score - self._score_mean) / self._score_std
-                    ket_qua.append({
-                        "van_ban": vb,
-                        "score": round(score, 4),
-                        "score_normalized": round(normalized, 4),
-                    })
+                    ket_qua.append(
+                        {
+                            "van_ban": vb,
+                            "score": round(score, 4),
+                            "score_normalized": round(normalized, 4),
+                        }
+                    )
         else:
             for vb in cac_van_ban:
                 score = np.random.normal(0, 1)
-                ket_qua.append({
-                    "van_ban": vb,
-                    "score": round(float(score), 4),
-                    "score_normalized": round(float(score), 4),
-                })
+                ket_qua.append(
+                    {
+                        "van_ban": vb,
+                        "score": round(float(score), 4),
+                        "score_normalized": round(float(score), 4),
+                    }
+                )
 
         return ket_qua
 

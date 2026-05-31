@@ -100,6 +100,7 @@ class TangCuongVanBan:
     def _thieu_dau(self, text: str) -> str:
         """Mô phỏng thiếu dấu tiếng Việt."""
         from vietnamese_ai.preprocessing.text import XuLyVanBan
+
         xl = XuLyVanBan()
         return xl._loai_dau(text)
 

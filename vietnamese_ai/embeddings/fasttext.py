@@ -56,7 +56,7 @@ class FastTextTiengViet(Word2VecTiengViet):
         ngrams = []
         for n in range(ngram_min, ngram_max + 1):
             for i in range(len(tu_bao) - n + 1):
-                ngrams.append(tu_bao[i:i + n])
+                ngrams.append(tu_bao[i : i + n])
         return ngrams if ngrams else [tu_bao]
 
     def _tao_ngram_dien(self, cac_tu: List[str]) -> None:
@@ -73,9 +73,10 @@ class FastTextTiengViet(Word2VecTiengViet):
         """Khởi tạo ma trọng số cho cả từ và n-gram."""
         super()._khoi_tao_trong_so()
         if self._ngram_dien:
-            self._W_ngram = np.random.uniform(
-                -0.5, 0.5, (len(self._ngram_dien), self.kich_thuoc)
-            ) / self.kich_thuoc
+            self._W_ngram = (
+                np.random.uniform(-0.5, 0.5, (len(self._ngram_dien), self.kich_thuoc))
+                / self.kich_thuoc
+            )
 
     def lay_vector(self, tu: str) -> np.ndarray:
         """

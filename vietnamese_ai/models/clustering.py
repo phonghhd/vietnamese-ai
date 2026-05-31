@@ -43,10 +43,7 @@ class PhanCum(BaseModel):
 
         if thuat_toan not in self.THUAT_TOAN:
             hop_le = ", ".join(self.THUAT_TOAN.keys())
-            raise ValueError(
-                f"Thuật toán '{thuat_toan}' không hợp lệ. "
-                f"Chọn một trong: {hop_le}"
-            )
+            raise ValueError(f"Thuật toán '{thuat_toan}' không hợp lệ. Chọn một trong: {hop_le}")
 
         self.so_cum = so_cum
         self.thuat_toan = thuat_toan

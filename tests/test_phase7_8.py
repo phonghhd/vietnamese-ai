@@ -44,9 +44,7 @@ class TestHuanLuyenPyTorch:
         X_train, X_test = X[:80], X[80:]
         y_train, y_test = y[:80], y[80:]
 
-        model = nn.Sequential(
-            nn.Linear(5, 16), nn.ReLU(), nn.Linear(16, 2)
-        )
+        model = nn.Sequential(nn.Linear(5, 16), nn.ReLU(), nn.Linear(16, 2))
 
         trainer = HuanLuyenPyTorch(so_vong=10, kich_thuoc_batch=32, thiet_bi="cpu")
         ket_qua = trainer.huan_luyen(model, X_train, y_train, X_test, y_test)
@@ -162,9 +160,7 @@ class TestHuanLuyenPyTorch:
         y_train, y_val = y[:60], y[60:]
 
         model = nn.Sequential(nn.Linear(5, 16), nn.ReLU(), nn.Linear(16, 2))
-        trainer = HuanLuyenPyTorch(
-            so_vong=100, early_stopping=3, thiet_bi="cpu"
-        )
+        trainer = HuanLuyenPyTorch(so_vong=100, early_stopping=3, thiet_bi="cpu")
         ket_qua = trainer.huan_luyen(model, X_train, y_train, X_val, y_val)
         assert ket_qua["so_epoch"] <= 100
 
@@ -572,9 +568,7 @@ class TestPhase78Integration:
         tok = VietnameseTokenizer(che_do="bpe", kich_thuoc_vocab=100)
         tok.huan_luyen(corpus)
 
-        model = TransformerModel(
-            d_model=32, so_dau=4, so_tu_vung=100, so_lop=2, so_block=1
-        )
+        model = TransformerModel(d_model=32, so_dau=4, so_tu_vung=100, so_lop=2, so_block=1)
 
         ids1 = tok.pad(tok.ma_hoa("học máy"), do_dai=10)
         ids2 = tok.pad(tok.ma_hoa("trí tuệ"), do_dai=10)
@@ -599,7 +593,8 @@ class TestPhase78Integration:
         xuat = XuatGGUF()
         duong_dan = str(tmp_path / "model.gguf")
         xuat.xuat_tu_numpy(
-            trong_so, duong_dan,
+            trong_so,
+            duong_dan,
             quantization="q4_k_m",
             thong_tin={"name": "VietnameseAI-Test", "description": "Test model"},
         )

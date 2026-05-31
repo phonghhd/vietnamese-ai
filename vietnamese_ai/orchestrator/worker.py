@@ -5,7 +5,7 @@ NutPhu (Worker Node) - Chạy tiến trình xử lý và cung cấp API đơn gi
 import json
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Callable, Dict, Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger("V-Orchestrator")
 
@@ -43,7 +43,9 @@ class WorkerHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"thanh_cong": True, "ket_qua": ket_qua}).encode("utf-8"))
+                self.wfile.write(
+                    json.dumps({"thanh_cong": True, "ket_qua": ket_qua}).encode("utf-8")
+                )
 
             except Exception as e:
                 self.send_response(500)
@@ -89,7 +91,7 @@ class NutPhu:
         handler_class = tao_handler(self.bo_xu_ly)
         self.server = HTTPServer((self.host, self.port), handler_class)
         logger.info(f"[NutPhu] Khởi động thành công tại http://{self.host}:{self.port}")
-        
+
         try:
             self.server.serve_forever()
         except KeyboardInterrupt:

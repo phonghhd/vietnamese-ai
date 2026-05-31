@@ -54,6 +54,7 @@ class PluginManager:
             ten: Tên plugin
             Loai: Loại plugin (model, preprocessor, metric, custom)
         """
+
         def decorator(func):
             self._plugins[ten] = {
                 "ten": ten,
@@ -63,6 +64,7 @@ class PluginManager:
             }
             self.logger.info(f"Đã đăng ký plugin: {ten} ({loai})")
             return func
+
         return decorator
 
     def hook(self, ten_hook: str) -> Callable:
@@ -72,12 +74,14 @@ class PluginManager:
         Args:
             ten_hook: Tên hook (pre_train, post_train, pre_predict, post_predict)
         """
+
         def decorator(func):
             if ten_hook not in self._hooks:
                 self._hooks[ten_hook] = []
             self._hooks[ten_hook].append(func)
             self.logger.info(f"Đã đăng ký hook: {ten_hook}")
             return func
+
         return decorator
 
     def chay_hook(self, ten_hook: str, **kwargs) -> None:

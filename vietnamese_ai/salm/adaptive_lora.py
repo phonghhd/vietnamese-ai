@@ -123,12 +123,14 @@ class AdaptiveLoRA:
         # Chỉ lấy top_k từ danh sách ĐÃ HỢP LỆ
         for ten, diem in danh_sach_hop_le[:top_k]:
             self._usage_stats[ten] += 1
-            ket_qua.append({
-                "ten": ten,
-                "adapter": self._adapters[ten]["adapter"],
-                "diem": round(diem, 4),
-                "trong_so": self._adapters[ten]["trong_so"],
-            })
+            ket_qua.append(
+                {
+                    "ten": ten,
+                    "adapter": self._adapters[ten]["adapter"],
+                    "diem": round(diem, 4),
+                    "trong_so": self._adapters[ten]["trong_so"],
+                }
+            )
 
         return ket_qua
 
@@ -194,9 +196,9 @@ class AdaptiveLoRA:
             if len(text_vec) != len(emb):
                 diem[ten] = 0.1
                 continue
-            sim = float(np.dot(text_vec, emb) / (
-                np.linalg.norm(text_vec) * np.linalg.norm(emb) + 1e-10
-            ))
+            sim = float(
+                np.dot(text_vec, emb) / (np.linalg.norm(text_vec) * np.linalg.norm(emb) + 1e-10)
+            )
             diem[ten] = max(sim, 0)
 
         # Adapter không có embedding
@@ -234,7 +236,4 @@ class AdaptiveLoRA:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"AdaptiveLoRA(so_adapters={len(self._adapters)}, "
-            f"che_do='{self.che_do}')"
-        )
+        return f"AdaptiveLoRA(so_adapters={len(self._adapters)}, che_do='{self.che_do}')"

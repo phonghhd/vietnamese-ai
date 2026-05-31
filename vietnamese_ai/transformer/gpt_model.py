@@ -138,16 +138,13 @@ class GPTModel:
         self.embedding = np.random.randn(so_tu_vung, d_model) * scale
         self.positional = self._tao_positional(do_dai_toi_da, d_model)
 
-        self.blocks = [
-            GPTBlock(d_model, so_dau, d_ff, dropout) for _ in range(so_block)
-        ]
+        self.blocks = [GPTBlock(d_model, so_dau, d_ff, dropout) for _ in range(so_block)]
 
         self.ln_final_gamma = np.ones((1, 1, d_model))
         self.ln_final_beta = np.zeros((1, 1, d_model))
 
         self.logger.info(
-            f"GPTModel: d_model={d_model}, so_dau={so_dau}, "
-            f"so_block={so_block}, vocab={so_tu_vung}"
+            f"GPTModel: d_model={d_model}, so_dau={so_dau}, so_block={so_block}, vocab={so_tu_vung}"
         )
 
     def _tao_positional(self, do_dai: int, d_model: int) -> np.ndarray:
@@ -242,10 +239,9 @@ class GPTModel:
                 )
 
             probs = self._softmax(next_logits)
-            next_token = np.array([
-                np.random.choice(self.so_tu_vung, p=probs[i])
-                for i in range(probs.shape[0])
-            ]).reshape(-1, 1)
+            next_token = np.array(
+                [np.random.choice(self.so_tu_vung, p=probs[i]) for i in range(probs.shape[0])]
+            ).reshape(-1, 1)
 
             generated = np.concatenate([generated, next_token], axis=1)
 
@@ -275,11 +271,8 @@ class GPTModel:
     def thong_ke(self) -> Dict:
         so_tham_so = (
             self.so_tu_vung * self.d_model
-            + self.so_block * (
-                self.d_model * self.d_model * 4
-                + self.d_model * self.d_ff * 2
-                + self.d_model * 4
-            )
+            + self.so_block
+            * (self.d_model * self.d_model * 4 + self.d_model * self.d_ff * 2 + self.d_model * 4)
             + self.d_model * 2
         )
         return {
@@ -291,5 +284,5 @@ class GPTModel:
             "so_tu_vung": self.so_tu_vung,
             "do_dai_toi_da": self.do_dai_toi_da,
             "so_tham_so": so_tham_so,
-            "so_tham_so_str": f"{so_tham_so/1e6:.2f}M",
+            "so_tham_so_str": f"{so_tham_so / 1e6:.2f}M",
         }

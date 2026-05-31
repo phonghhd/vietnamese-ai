@@ -154,9 +154,7 @@ class InstructionDataset:
                 input=input_data, instruction=instruction
             )
         else:
-            prompt = TEMPLATE_ALPACA["prompt_no_input"].format(
-                instruction=instruction
-            )
+            prompt = TEMPLATE_ALPACA["prompt_no_input"].format(instruction=instruction)
 
         return prompt + output
 
@@ -165,10 +163,12 @@ class InstructionDataset:
         conversations = mau.get("conversations", [])
         formatted = []
 
-        formatted.append({
-            "role": "system",
-            "content": TEMPLATE_SHAREGPT["system"],
-        })
+        formatted.append(
+            {
+                "role": "system",
+                "content": TEMPLATE_SHAREGPT["system"],
+            }
+        )
 
         for turn in conversations:
             role = turn.get("from", "human")
@@ -211,11 +211,13 @@ class InstructionDataset:
                     output = turn.get("value", "")
 
             if instruction and output:
-                ket_qua.append({
-                    "instruction": instruction,
-                    "input": "",
-                    "output": output,
-                })
+                ket_qua.append(
+                    {
+                        "instruction": instruction,
+                        "input": "",
+                        "output": output,
+                    }
+                )
 
         return ket_qua
 
@@ -257,7 +259,9 @@ class InstructionDataset:
             "so_mau": len(self._du_lieu),
             "so_mau_train": len(self._du_lieu_train) if self._du_lieu_train else None,
             "so_mau_val": len(self._du_lieu_val) if self._du_lieu_val else None,
-            "do_dai_tb_instruction": round(np.mean(do_dai_instruction), 1) if do_dai_instruction else 0,
+            "do_dai_tb_instruction": round(np.mean(do_dai_instruction), 1)
+            if do_dai_instruction
+            else 0,
             "do_dai_tb_output": round(np.mean(do_dai_output), 1) if do_dai_output else 0,
             "do_dai_max_instruction": max(do_dai_instruction) if do_dai_instruction else 0,
             "do_dai_max_output": max(do_dai_output) if do_dai_output else 0,

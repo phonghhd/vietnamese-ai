@@ -29,9 +29,7 @@ class TestTriKhaiDiDong:
 
     def test_xuat_tflite(self, tmp_path):
         duong_dan = str(tmp_path / "model.tflite")
-        ket_qua = self.tkdd.xuat_tflite(
-            self.mo_hinh, duong_dan, kich_thuoc_dau_vao=(5,)
-        )
+        ket_qua = self.tkdd.xuat_tflite(self.mo_hinh, duong_dan, kich_thuoc_dau_vao=(5,))
         assert Path(ket_qua).exists()
         assert Path(ket_qua).stat().st_size > 0
 
@@ -49,9 +47,7 @@ class TestTriKhaiDiDong:
 
     def test_xuat_coreml(self, tmp_path):
         duong_dan = str(tmp_path / "model.coreml")
-        ket_qua = self.tkdd.xuat_coreml(
-            self.mo_hinh, duong_dan, kich_thuoc_dau_vao=(5,)
-        )
+        ket_qua = self.tkdd.xuat_coreml(self.mo_hinh, duong_dan, kich_thuoc_dau_vao=(5,))
         assert Path(ket_qua).exists()
 
     def test_xuat_coreml_custom_name(self, tmp_path):
@@ -65,9 +61,7 @@ class TestTriKhaiDiDong:
 
     def test_xuat_onnx_mobile_fallback(self, tmp_path):
         duong_dan = str(tmp_path / "model.onnx")
-        ket_qua = self.tkdd.xuat_onnx_mobile(
-            self.mo_hinh, duong_dan, kich_thuoc_dau_vao=(5,)
-        )
+        ket_qua = self.tkdd.xuat_onnx_mobile(self.mo_hinh, duong_dan, kich_thuoc_dau_vao=(5,))
         assert Path(ket_qua).exists()
 
     def test_luong_hoa_int8(self, tmp_path):
@@ -95,9 +89,7 @@ class TestTriKhaiDiDong:
             self.tkdd.doc_mo_hinh_di_dong("/nonexistent/file")
 
     def test_benchmark_edge(self):
-        ket_qua = self.tkdd.benchmark_edge(
-            self.mo_hinh, kich_thuoc_dau_vao=(10, 5), so_lan=5
-        )
+        ket_qua = self.tkdd.benchmark_edge(self.mo_hinh, kich_thuoc_dau_vao=(10, 5), so_lan=5)
         assert "thoi_gian_trung_binh_ms" in ket_qua
         assert "throughput_mau_giay" in ket_qua
         assert ket_qua["thoi_gian_trung_binh_ms"] > 0
@@ -211,7 +203,12 @@ class TestTimKiemKienTruc:
         from vietnamese_ai.automl.nas import TimKiemKienTruc
 
         tkt = TimKiemKienTruc(so_fold=2, seed=42, diem_toi_thieu=0.3)
-        pham_vi = {"so_lop_an": [1], "so_neron_lop": [8], "ham_kich_hoat": ["relu"], "so_vong": [10]}
+        pham_vi = {
+            "so_lop_an": [1],
+            "so_neron_lop": [8],
+            "ham_kich_hoat": ["relu"],
+            "so_vong": [10],
+        }
         tkt.tim_kiem_ngau_nhien(self.X, self.y, pham_vi=pham_vi, so_lan=2)
         bc = tkt.bao_cao()
         assert "NEURAL ARCHITECTURE SEARCH" in bc
@@ -220,7 +217,12 @@ class TestTimKiemKienTruc:
         from vietnamese_ai.automl.nas import TimKiemKienTruc
 
         tkt = TimKiemKienTruc(so_fold=2, seed=42, diem_toi_thieu=0.3)
-        pham_vi = {"so_lop_an": [1], "so_neron_lop": [8], "ham_kich_hoat": ["relu"], "so_vong": [10]}
+        pham_vi = {
+            "so_lop_an": [1],
+            "so_neron_lop": [8],
+            "ham_kich_hoat": ["relu"],
+            "so_vong": [10],
+        }
         tkt.tim_kiem_ngau_nhien(self.X, self.y, pham_vi=pham_vi, so_lan=2)
         ket_qua = tkt.so_sanh_voi_ml_truyen_thong(self.X, self.y)
         assert "nas" in ket_qua
@@ -230,9 +232,7 @@ class TestTimKiemKienTruc:
     def test_toi_da_hoa_do_phuc_tap(self):
         from vietnamese_ai.automl.nas import TimKiemKienTruc
 
-        tkt = TimKiemKienTruc(
-            so_fold=2, seed=42, diem_toi_thieu=0.3, toi_da_hoa_do_phuc_tap=True
-        )
+        tkt = TimKiemKienTruc(so_fold=2, seed=42, diem_toi_thieu=0.3, toi_da_hoa_do_phuc_tap=True)
         pham_vi = {
             "so_lop_an": [1, 2],
             "so_neron_lop": [8, 16],
@@ -334,9 +334,7 @@ class TestHocLienKet:
     def test_differential_privacy(self):
         from vietnamese_ai.federated.learning import HocLienKet
 
-        hl = HocLienKet(
-            so_client=3, so_vong=2, rieng_tu_differntial=0.1, seed=42
-        )
+        hl = HocLienKet(so_client=3, so_vong=2, rieng_tu_differntial=0.1, seed=42)
         ket_qua = hl.huan_luyen(PhanLoai, self.X, self.y, thuat_toan="logistic")
         assert ket_qua["diem_toan_cuc"] > 0
 

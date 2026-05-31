@@ -156,7 +156,9 @@ class NhatKyHoatDong:
 
         lines.append(f"\n{limit} hoạt động gần nhất:")
         for bg in tat_ca[-limit:]:
-            lines.append(f"  [{bg['thoi_gian']}] {bg['nguoi_dung']} - {bg['hanh_dong']}: {bg['mo_ta']}")
+            lines.append(
+                f"  [{bg['thoi_gian']}] {bg['nguoi_dung']} - {bg['hanh_dong']}: {bg['mo_ta']}"
+            )
 
         return "\n".join(lines)
 

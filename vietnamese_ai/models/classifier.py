@@ -54,10 +54,7 @@ class PhanLoai(BaseModel):
 
         if thuat_toan not in self.THUAT_TOAN:
             hop_le = ", ".join(self.THUAT_TOAN.keys())
-            raise ValueError(
-                f"Thuật toán '{thuat_toan}' không hợp lệ. "
-                f"Chọn một trong: {hop_le}"
-            )
+            raise ValueError(f"Thuật toán '{thuat_toan}' không hợp lệ. Chọn một trong: {hop_le}")
 
         self.thuat_toan = thuat_toan
         self.tham_so = kwargs
@@ -82,9 +79,7 @@ class PhanLoai(BaseModel):
             raise RuntimeError("Mô hình chưa được huấn luyện.")
         if hasattr(self._mo_hinh, "predict_proba"):
             return self._mo_hinh.predict_proba(np.asarray(X))
-        raise AttributeError(
-            f"Thuật toán '{self.thuat_toan}' không hỗ trợ predict_proba"
-        )
+        raise AttributeError(f"Thuật toán '{self.thuat_toan}' không hỗ trợ predict_proba")
 
     def danh_gia(self, X: np.ndarray, y: np.ndarray) -> float:
         du_doan = self.du_doan(X)

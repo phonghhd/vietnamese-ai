@@ -8,6 +8,7 @@ class MultimodalStore:
     Store chuyên dụng cho Multi-modal RAG (Text + Image).
     Quản lý đồng thời Vector Text (qua Chroma/Qdrant) và Vector Image.
     """
+
     def __init__(self, text_store: Any, image_embedder: ImageEmbedder):
         self.text_store = text_store
         self.image_embedder = image_embedder
@@ -48,10 +49,10 @@ class MultimodalStore:
         """Truy xuất văn bản liên quan dựa trên ảnh (Image-to-Text)."""
         if not hasattr(self.text_store, "tim_kiem"):
             raise NotImplementedError("TextStore không hỗ trợ tim_kiem.")
-        
+
         # Lấy vector của ảnh
         query_vec = self.image_embedder.nhung_hinh_anh([image_path])[0]
-        
+
         # Tìm kiếm trên Text Store bằng vector (giả định text_store.tim_kiem hỗ trợ nhận vector)
         # Nếu text_store là CSDLVector:
         return self.text_store.tim_kiem(query_vec, top_k=top_k)

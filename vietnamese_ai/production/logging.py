@@ -159,13 +159,16 @@ class LoggerCauTruc:
         time_ms: float,
     ) -> None:
         """Log HTTP request."""
-        self.info("HTTP Request", {
-            "request_id": request_id,
-            "method": method,
-            "path": path,
-            "status": status,
-            "time_ms": round(time_ms, 2),
-        })
+        self.info(
+            "HTTP Request",
+            {
+                "request_id": request_id,
+                "method": method,
+                "path": path,
+                "status": status,
+                "time_ms": round(time_ms, 2),
+            },
+        )
 
     def log_prediction(
         self,

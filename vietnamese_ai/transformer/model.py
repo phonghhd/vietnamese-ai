@@ -86,9 +86,7 @@ class TransformerModel:
         self.embedding = np.random.randn(so_tu_vung, d_model) * 0.02
         self.positional = self._tao_positional_encoding(do_dai_toi_da, d_model)
 
-        self.blocks = [
-            TransformerBlock(d_model, so_dau, d_ff, dropout) for _ in range(so_block)
-        ]
+        self.blocks = [TransformerBlock(d_model, so_dau, d_ff, dropout) for _ in range(so_block)]
 
         limit = math.sqrt(6.0 / (d_model + so_lop))
         self.W_classify = np.random.uniform(-limit, limit, (d_model, so_lop))
@@ -171,5 +169,5 @@ class TransformerModel:
             "so_tu_vung": self.so_tu_vung,
             "so_lop": self.so_lop,
             "so_tham_so": so_tham_so,
-            "so_tham_so_str": f"{so_tham_so/1e6:.2f}M",
+            "so_tham_so_str": f"{so_tham_so / 1e6:.2f}M",
         }

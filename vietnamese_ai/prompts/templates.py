@@ -127,11 +127,7 @@ class MauPrompt:
         templates["dich_thuat"] = cls(
             ten="dich_thuat",
             mo_ta="Dịch thuật",
-            mau=(
-                "Dịch đoạn văn sau từ {{nguon}} sang {{dich}}:\n\n"
-                "{{noi_dung}}\n\n"
-                "Bản dịch:"
-            ),
+            mau=("Dịch đoạn văn sau từ {{nguon}} sang {{dich}}:\n\n{{noi_dung}}\n\nBản dịch:"),
         )
 
         templates["hoi_dap"] = cls(
@@ -160,11 +156,7 @@ class MauPrompt:
         templates["phan_biet"] = cls(
             ten="phan_biet",
             mo_ta="So sánh hai khái niệm",
-            mau=(
-                "So sánh {{a}} và {{b}}:\n\n"
-                "Tiêu chí so sánh:\n{{tieu_chi}}\n\n"
-                "Bảng so sánh:"
-            ),
+            mau=("So sánh {{a}} và {{b}}:\n\nTiêu chí so sánh:\n{{tieu_chi}}\n\nBảng so sánh:"),
             bien_mac_dinh={"tieu_chi": "Tất cả các tiêu chí"},
         )
 

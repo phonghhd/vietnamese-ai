@@ -15,9 +15,7 @@ class Validator:
     """
 
     @staticmethod
-    def kiem_tra_kich_thuoc(
-        data: np.ndarray, kich_thuoc_mong_duoi: Tuple[int, ...]
-    ) -> bool:
+    def kiem_tra_kich_thuoc(data: np.ndarray, kich_thuoc_mong_duoi: Tuple[int, ...]) -> bool:
         """Kiểm tra kích thước dữ liệu có khớp mong đợi không."""
         data = np.asarray(data)
         return data.shape == kich_thuoc_mong_duoi

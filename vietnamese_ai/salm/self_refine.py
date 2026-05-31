@@ -69,12 +69,14 @@ class SelfRefine:
             danh_gia = self._danh_gia(prompt, output_hien_tai)
             diem_moi = danh_gia.get("diem", 0.0)
 
-            lich_su_vong.append({
-                "vong": vong,
-                "output": output_hien_tai,
-                "diem": diem_moi,
-                "danh_gia": danh_gia,
-            })
+            lich_su_vong.append(
+                {
+                    "vong": vong,
+                    "output": output_hien_tai,
+                    "diem": diem_moi,
+                    "danh_gia": danh_gia,
+                }
+            )
 
             # Kiểm tra điều kiện dừng
             if diem_moi >= self.nguong_chat_luong:
@@ -111,7 +113,9 @@ class SelfRefine:
             "diem_cuoi": lich_su_vong[-1]["diem"] if lich_su_vong else 0.0,
             "so_vong": len(lich_su_vong),
             "tong_thoi_gian": round(thoi_gian, 3),
-            "dat_nguong": lich_su_vong[-1]["diem"] >= self.nguong_chat_luong if lich_su_vong else False,
+            "dat_nguong": lich_su_vong[-1]["diem"] >= self.nguong_chat_luong
+            if lich_su_vong
+            else False,
         }
 
         self._lich_su.append(ket_qua)
@@ -129,9 +133,7 @@ class SelfRefine:
         """Sinh output ban đầu."""
         return self.ham_sinh(prompt)
 
-    def _danh_gia(
-        self, prompt: str, output: str
-    ) -> Dict[str, Any]:
+    def _danh_gia(self, prompt: str, output: str) -> Dict[str, Any]:
         """Đánh giá output."""
         if self.ham_danh_gia:
             return self.ham_danh_gia(prompt, output)
@@ -230,7 +232,4 @@ class SelfRefine:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"SelfRefine(so_vong_toi_da={self.so_vong_toi_da}, "
-            f"nguong={self.nguong_chat_luong})"
-        )
+        return f"SelfRefine(so_vong_toi_da={self.so_vong_toi_da}, nguong={self.nguong_chat_luong})"

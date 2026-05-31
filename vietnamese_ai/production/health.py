@@ -121,13 +121,15 @@ class KiemTraSucKhoe:
         }
 
         # Lưu lịch sử
-        self._lich_su.append({
-            "trang_thai": trang_thai,
-            "thoi_gian": thoi_gian,
-            "timestamp": time.time(),
-        })
+        self._lich_su.append(
+            {
+                "trang_thai": trang_thai,
+                "thoi_gian": thoi_gian,
+                "timestamp": time.time(),
+            }
+        )
         if len(self._lich_su) > self.mau_lich_su:
-            self._lich_su = self._lich_su[-self.mau_lich_su:]
+            self._lich_su = self._lich_su[-self.mau_lich_su :]
 
         return ket_qua
 
@@ -172,9 +174,7 @@ class KiemTraSucKhoe:
                 if total > 0:
                     info["memory_total_mb"] = total // 1024
                     info["memory_available_mb"] = available // 1024
-                    info["memory_usage_pct"] = round(
-                        (total - available) / total * 100, 1
-                    )
+                    info["memory_usage_pct"] = round((total - available) / total * 100, 1)
         except (FileNotFoundError, PermissionError):
             info["memory"] = "N/A"
 
@@ -184,16 +184,16 @@ class KiemTraSucKhoe:
             total = st.f_blocks * st.f_frsize
             free = st.f_bavail * st.f_frsize
             if total > 0:
-                info["disk_total_gb"] = round(total / (1024 ** 3), 1)
-                info["disk_free_gb"] = round(free / (1024 ** 3), 1)
-                info["disk_usage_pct"] = round(
-                    (total - free) / total * 100, 1
-                )
+                info["disk_total_gb"] = round(total / (1024**3), 1)
+                info["disk_free_gb"] = round(free / (1024**3), 1)
+                info["disk_usage_pct"] = round((total - free) / total * 100, 1)
         except (OSError, AttributeError):
             info["disk"] = "N/A"
 
         # Python info
-        info["python_version"] = f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}"
+        info["python_version"] = (
+            f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}"
+        )
         info["pid"] = os.getpid()
 
         return info
@@ -209,6 +209,7 @@ class KiemTraSucKhoe:
             )
 
             if hasattr(model, "du_doan"):
+
                 def check_model():
                     try:
                         test_input = np.zeros((1, 1))

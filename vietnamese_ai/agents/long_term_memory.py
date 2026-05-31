@@ -13,7 +13,13 @@ class HethongNhoMemGPT(BoNhoTacTu):
 
     Tự động nén (compress) khi Core Memory vượt ngưỡng.
     """
-    def __init__(self, system_prompt: Optional[str] = None, max_core_tokens: int = 4000, vector_store: Any = None):
+
+    def __init__(
+        self,
+        system_prompt: Optional[str] = None,
+        max_core_tokens: int = 4000,
+        vector_store: Any = None,
+    ):
         self.max_core_tokens = max_core_tokens
         self.vector_store = vector_store
         super().__init__(system_prompt)
@@ -38,7 +44,7 @@ class HethongNhoMemGPT(BoNhoTacTu):
         # Giữ lại system prompt (vị trí 0)
         # Giữ lại khoảng 50% số lượng tin nhắn gần nhất
         if len(self.lich_su) <= 3:
-            return # Quá ít để nén
+            return  # Quá ít để nén
 
         system_msg = self.lich_su[0] if self.lich_su[0]["role"] == "system" else None
 
@@ -62,6 +68,7 @@ class HethongNhoMemGPT(BoNhoTacTu):
 
     def tao_cong_cu_truy_van(self) -> CongCu:
         """Tạo công cụ cho phép Agent chủ động lục tìm ký ức cũ."""
+
         def truy_van_tri_nho_cu(tu_khoa: str) -> str:
             if not self.vector_store:
                 return "Lỗi: Hệ thống chưa cấu hình Vector Store cho Archival Memory."
@@ -77,5 +84,5 @@ class HethongNhoMemGPT(BoNhoTacTu):
         return CongCu(
             ten="truy_van_tri_nho_cu",
             mo_ta="Lục tìm lại các ký ức hoặc hội thoại trong quá khứ xa. Tham số 'tu_khoa' là từ khóa cần tìm.",
-            ham_thuc_thi=truy_van_tri_nho_cu
+            ham_thuc_thi=truy_van_tri_nho_cu,
         )

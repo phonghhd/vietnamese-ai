@@ -18,12 +18,13 @@ class MoiTruongCachLy:
     @classmethod
     def _tai_cau_hinh(cls) -> dict:
         import json
+
         if os.path.exists(cls.CONFIG_FILE):
-            with open(cls.CONFIG_FILE, 'r', encoding='utf-8') as f:
+            with open(cls.CONFIG_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         return {
             "module_cam": ["os", "sys", "subprocess", "shutil", "socket", "requests", "urllib"],
-            "ham_cam": ["eval", "exec", "open", "__import__"]
+            "ham_cam": ["eval", "exec", "open", "__import__"],
         }
 
     @classmethod
@@ -39,10 +40,10 @@ class MoiTruongCachLy:
             # Chặn import statement
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name.split('.')[0] in cau_hinh.get("module_cam", []):
+                    if alias.name.split(".")[0] in cau_hinh.get("module_cam", []):
                         return False, f"Bảo mật: Không được phép import module '{alias.name}'"
             elif isinstance(node, ast.ImportFrom):
-                if node.module and node.module.split('.')[0] in cau_hinh.get("module_cam", []):
+                if node.module and node.module.split(".")[0] in cau_hinh.get("module_cam", []):
                     return False, f"Bảo mật: Không được phép import từ module '{node.module}'"
 
             # Chặn các built-in nguy hiểm (vd: eval, exec, open)
@@ -73,21 +74,23 @@ class MoiTruongCachLy:
         # Bước 2: Tạo file tạm và chạy qua subprocess
         fd, path = tempfile.mkstemp(suffix=".py", text=True)
         try:
-            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(ma_nguon)
 
             import sys
+
             # Chạy tiến trình con, tắt khả năng gọi mạng nếu có cấu hình OS (chưa áp dụng ở mức OS, chỉ giới hạn timeout)
             ket_qua = subprocess.run(
-                [sys.executable, path],
-                capture_output=True,
-                text=True,
-                timeout=timeout_giay
+                [sys.executable, path], capture_output=True, text=True, timeout=timeout_giay
             )
 
             if ket_qua.returncode == 0:
                 out = ket_qua.stdout
-                return out if out.strip() else "Mã đã chạy thành công nhưng không có kết quả in ra (không dùng print)."
+                return (
+                    out
+                    if out.strip()
+                    else "Mã đã chạy thành công nhưng không có kết quả in ra (không dùng print)."
+                )
             else:
                 return f"Lỗi khi chạy mã:\n{ket_qua.stderr}"
 

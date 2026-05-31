@@ -10,15 +10,18 @@ from .tools import CongCu
 @dataclass
 class KetQuaSwarm:
     """Kết quả trả về từ một Tác tử trong Swarm."""
+
     tin_nhan: str
-    tac_tu_tiep_theo: Optional['TacTuSwarm'] = None
+    tac_tu_tiep_theo: Optional["TacTuSwarm"] = None
     du_lieu_bo_sung: Optional[Dict[str, Any]] = None
+
 
 class TacTuSwarm(TacTu):
     """
     Tác tử chuyên dụng cho kiến trúc Bầy đàn (Swarm).
     Có khả năng chuyển giao (hand-off) công việc cho tác tử khác.
     """
+
     def __init__(
         self,
         ten: str,
@@ -26,7 +29,7 @@ class TacTuSwarm(TacTu):
         llm: Any,
         danh_sach_cong_cu: Optional[List[CongCu]] = None,
         max_iterations: int = 5,
-        huong_dan: str = ""
+        huong_dan: str = "",
     ):
         self.ten = ten
         self.vai_tro = vai_tro
@@ -35,26 +38,27 @@ class TacTuSwarm(TacTu):
         # Thêm hướng dẫn cụ thể của Tác tử Swarm vào System Prompt
         self._chuan_bi_cong_cu_chuyen_giao(danh_sach_cong_cu or [])
 
-        super().__init__(llm=llm, danh_sach_cong_cu=self.danh_sach_cong_cu_day_du, max_iterations=max_iterations)
+        super().__init__(
+            llm=llm, danh_sach_cong_cu=self.danh_sach_cong_cu_day_du, max_iterations=max_iterations
+        )
 
         # Override system prompt để nhấn mạnh vai trò
-        self.bo_nho.system_prompt += f"\n\nTên của bạn: {self.ten}\nVai trò của bạn: {self.vai_tro}\n{self.huong_dan}"
+        self.bo_nho.system_prompt += (
+            f"\n\nTên của bạn: {self.ten}\nVai trò của bạn: {self.vai_tro}\n{self.huong_dan}"
+        )
 
     def _chuan_bi_cong_cu_chuyen_giao(self, danh_sach_cong_cu: List[CongCu]):
         """Chuẩn bị danh sách công cụ hiện có"""
         self.danh_sach_cong_cu_day_du = danh_sach_cong_cu.copy()
 
-    def them_cong_cu_chuyen_giao(self, agent_dich: 'TacTuSwarm', ten_cong_cu: str, mo_ta: str):
+    def them_cong_cu_chuyen_giao(self, agent_dich: "TacTuSwarm", ten_cong_cu: str, mo_ta: str):
         """Thêm một công cụ để chuyển giao cho agent khác."""
+
         def handoff_func() -> str:
             # Trả về tín hiệu đặc biệt để orchestrator bắt được
             return f"__HANDOFF_TO__:{agent_dich.ten}"
 
-        cc_chuyen_giao = CongCu(
-            ten=ten_cong_cu,
-            mo_ta=mo_ta,
-            ham_thuc_thi=handoff_func
-        )
+        cc_chuyen_giao = CongCu(ten=ten_cong_cu, mo_ta=mo_ta, ham_thuc_thi=handoff_func)
         self.danh_sach_cong_cu_day_du.append(cc_chuyen_giao)
         # Cập nhật lại dict công cụ của class cha
         self.cong_cu[cc_chuyen_giao.ten] = cc_chuyen_giao
@@ -62,12 +66,17 @@ class TacTuSwarm(TacTu):
         # Cập nhật lại system prompt để hiện công cụ mới
         tools_desc = ""
         for name, cc in self.cong_cu.items():
-            tools_desc += f"- {name}: {cc.mo_ta}. Tham số: {json.dumps(cc.tham_so, ensure_ascii=False)}\n"
+            tools_desc += (
+                f"- {name}: {cc.mo_ta}. Tham số: {json.dumps(cc.tham_so, ensure_ascii=False)}\n"
+            )
 
         # Cần extract prompt gốc từ super()
         from .agent import REACT_SYSTEM_PROMPT
+
         self.bo_nho.system_prompt = REACT_SYSTEM_PROMPT.format(tools_desc=tools_desc)
-        self.bo_nho.system_prompt += f"\n\nTên của bạn: {self.ten}\nVai trò của bạn: {self.vai_tro}\n{self.huong_dan}"
+        self.bo_nho.system_prompt += (
+            f"\n\nTên của bạn: {self.ten}\nVai trò của bạn: {self.vai_tro}\n{self.huong_dan}"
+        )
 
 
 class HeThongSwarm:
@@ -75,6 +84,7 @@ class HeThongSwarm:
     Bộ điều phối (Orchestrator) cho hệ thống Bầy đàn.
     Quản lý luồng giao tiếp và chuyển giao (hand-off) giữa các TacTuSwarm.
     """
+
     def __init__(self, agent_khoi_tao: TacTuSwarm):
         self.agent_khoi_tao = agent_khoi_tao
         self.cac_agent: Dict[str, TacTuSwarm] = {}
@@ -92,7 +102,7 @@ class HeThongSwarm:
         agent_nguon.them_cong_cu_chuyen_giao(
             agent_dich=agent_dich,
             ten_cong_cu=ten_cong_cu,
-            mo_ta=f"Chuyển giao quyền điều khiển cho {agent_dich.ten} khi cần: {ly_do}"
+            mo_ta=f"Chuyển giao quyền điều khiển cho {agent_dich.ten} khi cần: {ly_do}",
         )
 
     def chay(self, truy_van: str, bo_nho_chung: Optional[BoNhoTacTu] = None) -> KetQuaSwarm:
@@ -146,10 +156,10 @@ class HeThongSwarm:
                 return KetQuaSwarm(
                     tin_nhan=ket_qua_str,
                     tac_tu_tiep_theo=None,
-                    du_lieu_bo_sung={"lich_su_handoff": lich_su_handoff}
+                    du_lieu_bo_sung={"lich_su_handoff": lich_su_handoff},
                 )
 
         return KetQuaSwarm(
             tin_nhan="Lỗi: Hệ thống đạt giới hạn số lần chuyển giao tối đa.",
-            tac_tu_tiep_theo=agent_hien_tai
+            tac_tu_tiep_theo=agent_hien_tai,
         )

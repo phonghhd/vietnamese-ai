@@ -10,12 +10,20 @@ class BaseLLMWrapper(ABC):
         """Sinh văn bản từ prompt."""
         pass
 
+
 class OpenAIWrapper(BaseLLMWrapper):
     """
     Wrapper cho OpenAI API (GPT-3.5, GPT-4).
     Yêu cầu: pip install openai
     """
-    def __init__(self, api_key: str, model: str = "gpt-3.5-turbo", max_tokens: int = 1024, temperature: float = 0.7):
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gpt-3.5-turbo",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+    ):
         try:
             from openai import OpenAI
         except ImportError:
@@ -31,24 +39,30 @@ class OpenAIWrapper(BaseLLMWrapper):
         # Cách phân tích đơn giản: Chia theo tag [system], [user], [assistant]
         # Nếu không có tag, coi toàn bộ là user
         messages = []
-        lines = prompt.split('\n')
+        lines = prompt.split("\n")
         current_role = "user"
         current_content = []
 
         for line in lines:
             if line.startswith("Hệ thống: ") or line.startswith("[system]"):
                 if current_content:
-                    messages.append({"role": current_role, "content": "\n".join(current_content).strip()})
+                    messages.append(
+                        {"role": current_role, "content": "\n".join(current_content).strip()}
+                    )
                 current_role = "system"
                 current_content = [line.replace("Hệ thống: ", "").replace("[system]", "").strip()]
             elif line.startswith("Người dùng: ") or line.startswith("[user]"):
                 if current_content:
-                    messages.append({"role": current_role, "content": "\n".join(current_content).strip()})
+                    messages.append(
+                        {"role": current_role, "content": "\n".join(current_content).strip()}
+                    )
                 current_role = "user"
                 current_content = [line.replace("Người dùng: ", "").replace("[user]", "").strip()]
             elif line.startswith("Trợ lý: ") or line.startswith("[assistant]"):
                 if current_content:
-                    messages.append({"role": current_role, "content": "\n".join(current_content).strip()})
+                    messages.append(
+                        {"role": current_role, "content": "\n".join(current_content).strip()}
+                    )
                 current_role = "assistant"
                 current_content = [line.replace("Trợ lý: ", "").replace("[assistant]", "").strip()]
             else:
@@ -71,10 +85,7 @@ class OpenAIWrapper(BaseLLMWrapper):
         tokens = kwargs.get("do_dai", self.max_tokens)
 
         response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temp,
-            max_tokens=tokens
+            model=self.model, messages=messages, temperature=temp, max_tokens=tokens
         )
         return response.choices[0].message.content
 
@@ -84,11 +95,20 @@ class GeminiWrapper(BaseLLMWrapper):
     Wrapper cho Google Gemini API.
     Yêu cầu: pip install google-generativeai
     """
-    def __init__(self, api_key: str, model: str = "gemini-1.5-flash", max_tokens: int = 1024, temperature: float = 0.7):
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gemini-1.5-flash",
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+    ):
         try:
             import google.generativeai as genai
         except ImportError:
-            raise ImportError("Vui lòng cài đặt google-generativeai: pip install google-generativeai")
+            raise ImportError(
+                "Vui lòng cài đặt google-generativeai: pip install google-generativeai"
+            )
 
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(model)
@@ -107,10 +127,7 @@ class GeminiWrapper(BaseLLMWrapper):
             "max_output_tokens": tokens,
         }
 
-        response = self.model.generate_content(
-            prompt,
-            generation_config=generation_config
-        )
+        response = self.model.generate_content(prompt, generation_config=generation_config)
 
         try:
             return response.text

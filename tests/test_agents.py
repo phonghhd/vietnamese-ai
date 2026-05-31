@@ -12,6 +12,7 @@ def test_cong_cu_decorator():
     assert "b" in tinh_tong.tham_so
     assert tinh_tong.chay(a=5, b=10) == 15
 
+
 def test_bo_nho_tac_tu():
     bo_nho = BoNhoTacTu(system_prompt="Bạn là một trợ lý.")
     assert len(bo_nho.lay_lich_su()) == 1
@@ -25,6 +26,7 @@ def test_bo_nho_tac_tu():
     assert bo_nho.lay_lich_su()[2]["role"] == "tool"
     assert bo_nho.lay_lich_su()[2]["name"] == "may_tinh"
 
+
 class MockLLM:
     def __init__(self, responses):
         self.responses = responses
@@ -35,6 +37,7 @@ class MockLLM:
         self.index += 1
         return res
 
+
 def test_tac_tu_react():
     @cong_cu(ten="nhan_doi", mo_ta="Nhân đôi một số")
     def nhan_doi(x: int) -> int:
@@ -42,8 +45,8 @@ def test_tac_tu_react():
 
     # Giả lập 2 lượt suy luận của LLM
     mock_responses = [
-        "Suy nghĩ: Cần gọi công cụ nhan_doi với x=5.\nHành động: nhan_doi\nTham số: {\"x\": 5}",
-        "Suy nghĩ: Tôi đã có kết quả là 10.\nTrả lời: Kết quả là 10."
+        'Suy nghĩ: Cần gọi công cụ nhan_doi với x=5.\nHành động: nhan_doi\nTham số: {"x": 5}',
+        "Suy nghĩ: Tôi đã có kết quả là 10.\nTrả lời: Kết quả là 10.",
     ]
     mock_llm = MockLLM(mock_responses)
 
@@ -58,15 +61,13 @@ def test_tac_tu_react():
     has_tool = any(msg.get("role") == "tool" and "10" in msg.get("content", "") for msg in lich_su)
     assert has_tool
 
+
 def test_he_thong_da_tac_tu():
     class EchoAgent:
         def chay(self, text):
             return f"Echo: {text}"
 
-    agents = {
-        "AgentA": EchoAgent(),
-        "AgentB": EchoAgent()
-    }
+    agents = {"AgentA": EchoAgent(), "AgentB": EchoAgent()}
 
     he_thong = HeThongDaTacTu(agents, loai_dieu_phoi="sequential")
     ket_qua = he_thong.chay("Hello")

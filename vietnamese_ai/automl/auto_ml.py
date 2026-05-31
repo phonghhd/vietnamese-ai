@@ -30,11 +30,19 @@ class AutoML:
     """
 
     CAC_THUAT_TOAN_PHAN_LOAI = [
-        "logistic", "knn", "rung_ngau_nhien", "gradient_boosting", "naive_bayes"
+        "logistic",
+        "knn",
+        "rung_ngau_nhien",
+        "gradient_boosting",
+        "naive_bayes",
     ]
 
     CAC_THUAT_TOAN_HOI_QUY = [
-        "tuyen_tinh", "ridge", "lasso", "rung_ngau_nhien", "gradient_boosting"
+        "tuyen_tinh",
+        "ridge",
+        "lasso",
+        "rung_ngau_nhien",
+        "gradient_boosting",
     ]
 
     def __init__(
@@ -120,28 +128,29 @@ class AutoML:
                     diem_tot_nhat = diem
                     self._mo_hinh_tot_nhat = lop_mo_hinh(thuat_toan=tt)
 
-                self.logger.info(f"  {tt}: {chi_so}={diem:.4f} (+/- {ket_qua_cv['do_lech_chuan']:.4f})")
+                self.logger.info(
+                    f"  {tt}: {chi_so}={diem:.4f} (+/- {ket_qua_cv['do_lech_chuan']:.4f})"
+                )
 
             except Exception as e:
                 self.logger.warning(f"  {tt}: LỖI - {e}")
-                self._ket_qua.append({
-                    "thuat_toan": tt,
-                    "diem": None,
-                    "trang_thai": "that_bai",
-                    "loi": str(e),
-                })
+                self._ket_qua.append(
+                    {
+                        "thuat_toan": tt,
+                        "diem": None,
+                        "trang_thai": "that_bai",
+                        "loi": str(e),
+                    }
+                )
 
         # 4. Huấn luyện mô hình tốt nhất trên toàn bộ dữ liệu
         if self._mo_hinh_tot_nhat is not None:
             self._mo_hinh_tot_nhat.huan_luyen(X, y)
             self._da_fit = True
-            ten_tot_nhat = [
-                r["thuat_toan"] for r in self._ket_qua
-                if r["diem"] == diem_tot_nhat
-            ]
-            self.logger.info(f"\n{'='*60}")
+            ten_tot_nhat = [r["thuat_toan"] for r in self._ket_qua if r["diem"] == diem_tot_nhat]
+            self.logger.info(f"\n{'=' * 60}")
             self.logger.info(f"MÔ HÌNH TỐT NHẤT: {ten_tot_nhat[0]} ({chi_so}={diem_tot_nhat:.4f})")
-            self.logger.info(f"{'='*60}")
+            self.logger.info(f"{'=' * 60}")
 
         return {
             "mo_hinh_tot_nhat": self._mo_hinh_tot_nhat,
@@ -181,8 +190,8 @@ class AutoML:
         lines.append("-" * 70)
 
         for r in sorted(self._ket_qua, key=lambda x: x.get("diem") or 0, reverse=True):
-            diem_str = f"{r['diem']:.4f}" if r['diem'] else "N/A"
-            lech_str = f"{r.get('do_lech_chuan', 0):.4f}" if r['diem'] else "N/A"
+            diem_str = f"{r['diem']:.4f}" if r["diem"] else "N/A"
+            lech_str = f"{r.get('do_lech_chuan', 0):.4f}" if r["diem"] else "N/A"
             lines.append(f"{r['thuat_toan']:<25} {diem_str:<12} {lech_str:<15} {r['trang_thai']}")
 
         return "\n".join(lines)

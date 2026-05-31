@@ -100,14 +100,14 @@ class InstructionTuningTrainer:
         """
         self.logger.info(f"Bắt đầu instruction tuning ({self.so_vong} epochs)")
         self.logger.info(
-            f"  Samples: {len(dataset)}, "
-            f"Batch: {self.kich_thuoc_batch}, "
-            f"LR: {self.toc_do_hoc}"
+            f"  Samples: {len(dataset)}, Batch: {self.kich_thuoc_batch}, LR: {self.toc_do_hoc}"
         )
 
         du_lieu_train = dataset.train
-        tong_steps = len(du_lieu_train) * self.so_vong // (
-            self.kich_thuoc_batch * self.gradient_accumulation
+        tong_steps = (
+            len(du_lieu_train)
+            * self.so_vong
+            // (self.kich_thuoc_batch * self.gradient_accumulation)
         )
         warmup_steps = int(tong_steps * self.warmup_ratio)
 
@@ -115,19 +115,27 @@ class InstructionTuningTrainer:
 
         if _CO_PYTORCH and isinstance(model, nn.Module):
             ket_qua = self._huan_luyen_pytorch(
-                model, tokenizer, du_lieu_train, eval_dataset,
-                tong_steps, warmup_steps, callback, data_collator,
+                model,
+                tokenizer,
+                du_lieu_train,
+                eval_dataset,
+                tong_steps,
+                warmup_steps,
+                callback,
+                data_collator,
             )
         else:
             ket_qua = self._huan_luyen_numpy(
-                model, tokenizer, du_lieu_train, eval_dataset,
-                tong_steps, warmup_steps, callback,
+                model,
+                tokenizer,
+                du_lieu_train,
+                eval_dataset,
+                tong_steps,
+                warmup_steps,
+                callback,
             )
 
-        self.logger.info(
-            f"Instruction tuning hoàn tất. "
-            f"Best eval loss: {self._best_eval_loss:.4f}"
-        )
+        self.logger.info(f"Instruction tuning hoàn tất. Best eval loss: {self._best_eval_loss:.4f}")
 
         return ket_qua
 
@@ -172,9 +180,7 @@ class InstructionTuningTrainer:
 
                 if (step_idx + 1) % self.gradient_accumulation == 0:
                     if self.gradient_clip > 0:
-                        torch.nn.utils.clip_grad_norm_(
-                            model.parameters(), self.gradient_clip
-                        )
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
 
                     self._cap_nhat_lr(optimizer, self._global_step, warmup_steps, tong_steps)
                     optimizer.step()
@@ -184,8 +190,7 @@ class InstructionTuningTrainer:
                     if self._global_step % self.logging_steps == 0:
                         avg_loss = epoch_loss / max(1, steps_in_epoch)
                         self.logger.info(
-                            f"Step {self._global_step}/{tong_steps}: "
-                            f"loss={avg_loss:.4f}"
+                            f"Step {self._global_step}/{tong_steps}: loss={avg_loss:.4f}"
                         )
 
                     if callback:
@@ -193,7 +198,7 @@ class InstructionTuningTrainer:
 
             avg_epoch_loss = epoch_loss / max(1, steps_in_epoch)
             self._history["train_loss"].append(avg_epoch_loss)
-            self.logger.info(f"Epoch {epoch+1}/{self.so_vong}: loss={avg_epoch_loss:.4f}")
+            self.logger.info(f"Epoch {epoch + 1}/{self.so_vong}: loss={avg_epoch_loss:.4f}")
 
         tong_thoi_gian = time.time() - bat_dau
 
@@ -201,13 +206,13 @@ class InstructionTuningTrainer:
             "tong_thoi_gian": round(tong_thoi_gian, 2),
             "so_epoch": self.so_vong,
             "global_step": self._global_step,
-            "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0,
+            "train_loss_min": min(self._history["train_loss"])
+            if self._history["train_loss"]
+            else 0,
             "history": self._history,
         }
 
-    def _tinh_loss_mau(
-        self, model: "nn.Module", tokenizer: Any, mau: Dict, device: Any
-    ) -> Any:
+    def _tinh_loss_mau(self, model: "nn.Module", tokenizer: Any, mau: Dict, device: Any) -> Any:
         """Tính loss cho một mẫu."""
         try:
             if hasattr(tokenizer, "__call__"):
@@ -258,7 +263,7 @@ class InstructionTuningTrainer:
 
             avg_loss = epoch_loss / max(1, steps)
             self._history["train_loss"].append(avg_loss)
-            self.logger.info(f"Epoch {epoch+1}/{self.so_vong}: loss={avg_loss:.4f}")
+            self.logger.info(f"Epoch {epoch + 1}/{self.so_vong}: loss={avg_loss:.4f}")
 
         tong_thoi_gian = time.time() - bat_dau
 
@@ -266,7 +271,9 @@ class InstructionTuningTrainer:
             "tong_thoi_gian": round(tong_thoi_gian, 2),
             "so_epoch": self.so_vong,
             "global_step": self._global_step,
-            "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0,
+            "train_loss_min": min(self._history["train_loss"])
+            if self._history["train_loss"]
+            else 0,
             "history": self._history,
         }
 

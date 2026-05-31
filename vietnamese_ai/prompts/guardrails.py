@@ -60,14 +60,10 @@ class LuongAnToan:
 
         # Kiểm tra độ dài
         if len(noi_dung) > self.toi_da_do_dai:
-            loi.append(
-                f"Nội dung quá dài ({len(noi_dung)} > {self.toi_da_do_dai} ký tự)"
-            )
+            loi.append(f"Nội dung quá dài ({len(noi_dung)} > {self.toi_da_do_dai} ký tự)")
 
         if len(noi_dung) < self.toi_thieu_do_dai:
-            loi.append(
-                f"Nội dung quá ngắn ({len(noi_dung)} < {self.toi_thieu_do_dai} ký tự)"
-            )
+            loi.append(f"Nội dung quá ngắn ({len(noi_dung)} < {self.toi_thieu_do_dai} ký tự)")
 
         # Kiểm tra từ cấm
         noi_dung_lower = noi_dung.lower()
@@ -80,16 +76,12 @@ class LuongAnToan:
             pii_phat_hien = self._kiem_tra_pii(noi_dung)
             for loai, matches in pii_phat_hien.items():
                 if matches:
-                    canh_bao.append(
-                        f"Phát hiện {loai}: {len(matches)} kết quả"
-                    )
+                    canh_bao.append(f"Phát hiện {loai}: {len(matches)} kết quả")
 
         # Kiểm tra định dạng
         if self.dinh_dang_yeu_cau:
             if not self._kiem_tra_dinh_dang(noi_dung, self.dinh_dang_yeu_cau):
-                loi.append(
-                    f"Nội dung không đúng định dạng: {self.dinh_dang_yeu_cau}"
-                )
+                loi.append(f"Nội dung không đúng định dạng: {self.dinh_dang_yeu_cau}")
 
         # Custom rules
         for rule in self.rules:
@@ -142,12 +134,11 @@ class LuongAnToan:
             ket_qua[loai] = re.findall(mau, noi_dung)
         return ket_qua
 
-    def _kiem_tra_dinh_dang(
-        self, noi_dung: str, dinh_dang: str
-    ) -> bool:
+    def _kiem_tra_dinh_dang(self, noi_dung: str, dinh_dang: str) -> bool:
         """Kiểm tra nội dung có đúng định dạng không."""
         if dinh_dang == "json":
             import json
+
             try:
                 json.loads(noi_dung)
                 return True
@@ -189,10 +180,8 @@ class LuongAnToan:
         }
 
     def __repr__(self) -> str:
-        return (
-            f"LuongAnToan(so_tu_cam={len(self.tu_cam)}, "
-            f"chan_pii={self.chan_pii})"
-        )
+        return f"LuongAnToan(so_tu_cam={len(self.tu_cam)}, chan_pii={self.chan_pii})"
+
 
 class JSONOutputParser:
     """Ép và trích xuất JSON từ chuỗi văn bản của LLM."""
@@ -207,10 +196,12 @@ class JSONOutputParser:
         json_str = matches[0].strip() if matches else text.strip()
 
         import json
+
         try:
             return json.loads(json_str)
         except json.JSONDecodeError as e:
             raise ValueError(f"Không thể parse JSON từ đầu ra: {str(e)}\nĐầu ra thô: {text}")
+
 
 class ToxicityFilter:
     """Màng lọc từ ngữ độc hại cơ bản (cho tiếng Việt)."""
@@ -224,7 +215,7 @@ class ToxicityFilter:
         text_lower = text.lower()
         for word in cls.BAD_WORDS:
             # Kiểm tra từ đó có xuất hiện độc lập không
-            if re.search(r'\b' + re.escape(word) + r'\b', text_lower):
+            if re.search(r"\b" + re.escape(word) + r"\b", text_lower):
                 return True
         return False
 
@@ -235,5 +226,5 @@ class ToxicityFilter:
         filtered = text
         for word in cls.BAD_WORDS:
             # Thay thế không phân biệt hoa thường
-            filtered = re.sub(r'(?i)\b' + re.escape(word) + r'\b', '*' * len(word), filtered)
+            filtered = re.sub(r"(?i)\b" + re.escape(word) + r"\b", "*" * len(word), filtered)
         return filtered

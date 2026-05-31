@@ -68,10 +68,7 @@ class Engine:
             self.lich_su_huan_luyen.append(ban_ghi)
             self.mo_hinh_dang_su_dung[ten] = mo_hinh
 
-            self.logger.info(
-                f"Huấn luyện hoàn tất: {ten} "
-                f"({len(X)} mẫu, {thoi_gian:.2f}s)"
-            )
+            self.logger.info(f"Huấn luyện hoàn tất: {ten} ({len(X)} mẫu, {thoi_gian:.2f}s)")
             return ban_ghi
 
         except Exception as loi:
@@ -102,9 +99,7 @@ class Engine:
         self.logger.info(f"Dự đoán hoàn tất: {len(ket_qua)} kết quả")
         return ket_qua
 
-    def danh_gia(
-        self, mo_hinh: Any, X: np.ndarray, y: np.ndarray
-    ) -> Dict[str, float]:
+    def danh_gia(self, mo_hinh: Any, X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """
         Đánh giá hiệu suất mô hình.
 
@@ -135,7 +130,4 @@ class Engine:
         return list(self.mo_hinh_dang_su_dung.keys())
 
     def __repr__(self) -> str:
-        return (
-            f"Engine(ten='{self.ten}', "
-            f"so_mo_hinh={len(self.mo_hinh_dang_su_dung)})"
-        )
+        return f"Engine(ten='{self.ten}', so_mo_hinh={len(self.mo_hinh_dang_su_dung)})"

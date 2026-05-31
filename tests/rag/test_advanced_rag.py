@@ -12,6 +12,7 @@ class DummyLLM:
             return "Hà Nội, Việt Nam"
         return ""
 
+
 def test_graph_rag():
     llm = DummyLLM()
     extractor = GraphExtractor(llm=llm)
@@ -33,6 +34,7 @@ def test_graph_rag():
     ngu_canh = retriever.truy_xuat("Hà Nội ở đâu?")
     assert "hà nội thủ đô việt nam" in ngu_canh or "Hà Nội" in ngu_canh or "hà nội" in ngu_canh
 
+
 def test_multimodal_rag():
     # Test Image Embedder
     embedder = ImageEmbedder()
@@ -45,8 +47,7 @@ def test_multimodal_rag():
     store = MultimodalStore(text_store=mock_text_store, image_embedder=embedder)
 
     store.them_hinh_anh(
-        image_paths=["test1.jpg", "test2.jpg"],
-        metadatas=[{"name": "Ảnh 1"}, {"name": "Ảnh 2"}]
+        image_paths=["test1.jpg", "test2.jpg"], metadatas=[{"name": "Ảnh 1"}, {"name": "Ảnh 2"}]
     )
     assert len(store.image_vectors) == 2
 

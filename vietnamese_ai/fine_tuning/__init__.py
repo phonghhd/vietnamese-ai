@@ -1,10 +1,10 @@
 """Fine-tuning module - Fine-tune LLM với LoRA, PEFT, SFT, DPO, RLHF."""
 
+from vietnamese_ai.fine_tuning.bitlora import BitLoRALinear
 from vietnamese_ai.fine_tuning.dpo_trainer import DPOTrainer
 from vietnamese_ai.fine_tuning.hf_wrapper import HuggingFaceWrapper
 from vietnamese_ai.fine_tuning.instruction_trainer import InstructionTuningTrainer
 from vietnamese_ai.fine_tuning.lora import LoRAAdapter, QLoRAAdapter
-from vietnamese_ai.fine_tuning.bitlora import BitLoRALinear
 from vietnamese_ai.fine_tuning.lora_peft import LoRAPeft
 from vietnamese_ai.fine_tuning.peft_config import PEFTConfig
 from vietnamese_ai.fine_tuning.pytorch_trainer import HuanLuyenPyTorch

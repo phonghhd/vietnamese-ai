@@ -140,9 +140,7 @@ class TimKiemKienTruc:
                 if diem > self._diem_tot_nhat:
                     return True
                 if self._kien_truc_tot_nhat is not None:
-                    phuc_tap_hien_tai = self._tinh_do_phuc_tap(
-                        self._kien_truc_tot_nhat
-                    )
+                    phuc_tap_hien_tai = self._tinh_do_phuc_tap(self._kien_truc_tot_nhat)
                     return do_phuc_tap < phuc_tap_hien_tai
                 return True
             return False
@@ -206,9 +204,7 @@ class TimKiemKienTruc:
             if ket_qua["trang_thai"] == "thanh_cong":
                 diem = ket_qua["diem"]
                 if diem < self.diem_toi_thieu:
-                    self.logger.info(
-                        f"  Điểm {diem:.4f} < ngưỡng {self.diem_toi_thieu}, bỏ qua"
-                    )
+                    self.logger.info(f"  Điểm {diem:.4f} < ngưỡng {self.diem_toi_thieu}, bỏ qua")
                     continue
 
                 if self._so_sanh_tot_nhat(diem, ket_qua["do_phuc_tap"]):
@@ -225,13 +221,11 @@ class TimKiemKienTruc:
         tong_thoi_gian = time.time() - bat_dau
         self._da_tim_kiem = True
 
-        self.logger.info(f"\n{'='*60}")
+        self.logger.info(f"\n{'=' * 60}")
         self.logger.info(
-            f"KẾT QUẢ NAS: "
-            f"kien_truc={self._kien_truc_tot_nhat}, "
-            f"diem={self._diem_tot_nhat:.4f}"
+            f"KẾT QUẢ NAS: kien_truc={self._kien_truc_tot_nhat}, diem={self._diem_tot_nhat:.4f}"
         )
-        self.logger.info(f"{'='*60}")
+        self.logger.info(f"{'=' * 60}")
 
         return self._tao_bao_cao(tong_thoi_gian)
 
@@ -335,17 +329,21 @@ class TimKiemKienTruc:
                 mo_hinh = lop_mo_hinh(thuat_toan=tt)
                 kdc = KiemDinhCheo(so_fold=self.so_fold, seed=self.seed)
                 kq = kdc.chay(mo_hinh, X, y, chi_so=chi_so)
-                ket_qua_truyen_thong.append({
-                    "thuat_toan": tt,
-                    "diem": float(kq["diem_trung_binh"]),
-                    "do_lech_chuan": float(kq["do_lech_chuan"]),
-                })
+                ket_qua_truyen_thong.append(
+                    {
+                        "thuat_toan": tt,
+                        "diem": float(kq["diem_trung_binh"]),
+                        "do_lech_chuan": float(kq["do_lech_chuan"]),
+                    }
+                )
             except Exception as e:
-                ket_qua_truyen_thong.append({
-                    "thuat_toan": tt,
-                    "diem": None,
-                    "loi": str(e),
-                })
+                ket_qua_truyen_thong.append(
+                    {
+                        "thuat_toan": tt,
+                        "diem": None,
+                        "loi": str(e),
+                    }
+                )
 
         return {
             "nas": {

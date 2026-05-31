@@ -1,9 +1,9 @@
 """Lõi Selective State Space Model (Mamba) bằng PyTorch."""
 
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 
 class MambaBlock(nn.Module):
     """
@@ -11,6 +11,7 @@ class MambaBlock(nn.Module):
     Mô phỏng cơ chế lựa chọn (Selective) để lọc thông tin quan trọng.
     Độ phức tạp tuyến tính O(N) theo độ dài chuỗi, giải quyết bài toán O(N^2) của Transformer.
     """
+
     def __init__(self, d_model: int, d_state: int = 16, d_conv: int = 4, expand: int = 2):
         super().__init__()
         self.d_model = d_model
@@ -21,7 +22,7 @@ class MambaBlock(nn.Module):
 
         # 1. Chi nhánh Input (In projection)
         self.in_proj = nn.Linear(d_model, self.d_inner * 2, bias=False)
-        
+
         # 2. 1D Convolution để xử lý cục bộ (như Mamba)
         self.conv1d = nn.Conv1d(
             in_channels=self.d_inner,
@@ -60,9 +61,9 @@ class MambaBlock(nn.Module):
         # 2. 1D Convolution
         # Cần chuyển sang shape (Batch, Channels, SeqLen)
         x = x.transpose(1, 2)
-        x = self.conv1d(x)[:, :, :seqlen] # Lấy đúng seqlen
+        x = self.conv1d(x)[:, :, :seqlen]  # Lấy đúng seqlen
         x = x.transpose(1, 2)
-        
+
         # Activation
         x = F.silu(x)
 
@@ -70,20 +71,20 @@ class MambaBlock(nn.Module):
         # Các trọng số này biến đổi theo từng token
         x_dbl = self.x_proj(x)
         delta, B, C = torch.split(x_dbl, [1, self.d_state, self.d_state], dim=-1)
-        
+
         # Softplus cho Delta (để luôn dương)
-        delta = F.softplus(self.dt_proj(delta)) # (Batch, SeqLen, D_Inner)
+        delta = F.softplus(self.dt_proj(delta))  # (Batch, SeqLen, D_Inner)
 
         # Trạng thái A
-        A = -torch.exp(self.A_log.float()) # (D_Inner, D_State)
+        A = -torch.exp(self.A_log.float())  # (D_Inner, D_State)
 
         # 4. Selective Scan (Thuật toán quét tuần tự O(N) trên PyTorch)
         # Thay vì tính Attention O(N^2), ta cập nhật State (h) từ trái qua phải
         y = self._selective_scan_pytorch(x, delta, A, B, C)
-        
+
         # D residual
         y = y + x * self.D
-        
+
         # Nhân Gated (như SwiGLU)
         y = y * F.silu(z)
 
@@ -106,19 +107,19 @@ class MambaBlock(nn.Module):
 
         # Bước tính rời rạc hóa (Discretization: A_bar, B_bar)
         for t in range(seqlen):
-            delta_t = delta[:, t, :].unsqueeze(-1) # (B, D_inner, 1)
-            x_t = x[:, t, :].unsqueeze(-1) # (B, D_inner, 1)
-            B_t = B[:, t, :].unsqueeze(1) # (B, 1, D_state)
-            C_t = C[:, t, :].unsqueeze(1) # (B, 1, D_state)
-            
+            delta_t = delta[:, t, :].unsqueeze(-1)  # (B, D_inner, 1)
+            x_t = x[:, t, :].unsqueeze(-1)  # (B, D_inner, 1)
+            B_t = B[:, t, :].unsqueeze(1)  # (B, 1, D_state)
+            C_t = C[:, t, :].unsqueeze(1)  # (B, 1, D_state)
+
             # Khai triển Euler chuẩn xác
-            A_bar = torch.exp(delta_t * A) # (B, D_inner, D_state)
-            B_bar_x = delta_t * B_t * x_t # (B, D_inner, D_state)
-            
+            A_bar = torch.exp(delta_t * A)  # (B, D_inner, D_state)
+            B_bar_x = delta_t * B_t * x_t  # (B, D_inner, D_state)
+
             # Cập nhật State (h_t = A_bar * h_{t-1} + B_bar * x_t)
             h = A_bar * h + B_bar_x
-            
+
             # Tính Output (y_t = C * h_t)
             y[:, t, :] = torch.sum(h * C_t, dim=-1)
-            
+
         return y

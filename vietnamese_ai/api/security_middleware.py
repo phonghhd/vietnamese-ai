@@ -43,14 +43,16 @@ class AISecurityMiddleware(BaseHTTPMiddleware):
 
                             if not an_toan:
                                 if self.ghi_log:
-                                    self.logger.warning(f"BẢO MẬT: Đã chặn truy vấn độc hại. Lý do: {ly_do}. Nguồn: {request.client.host}")
+                                    self.logger.warning(
+                                        f"BẢO MẬT: Đã chặn truy vấn độc hại. Lý do: {ly_do}. Nguồn: {request.client.host}"
+                                    )
 
                                 return JSONResponse(
                                     status_code=400,
                                     content={
                                         "error": "SecurityViolation",
-                                        "message": f"Yêu cầu đã bị Tường lửa AI chặn. Lý do: {ly_do}"
-                                    }
+                                        "message": f"Yêu cầu đã bị Tường lửa AI chặn. Lý do: {ly_do}",
+                                    },
                                 )
             except Exception:
                 # Nếu không phải JSON hợp lệ hoặc có lỗi parse, bỏ qua việc quét

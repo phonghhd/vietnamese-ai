@@ -43,7 +43,10 @@ class BenchmarkRunner:
         {"question": "Trí tuệ nhân tạo là gì?", "answer": "nhánh của khoa học máy tính"},
         {"question": "Học máy hoạt động như thế nào?", "answer": "học từ dữ liệu"},
         {"question": "Mạng nơ-ron có mấy loại?", "answer": "nhiều loại"},
-        {"question": "Deep learning khác gì machine learning?", "answer": "sử dụng mạng nơ-ron sâu"},
+        {
+            "question": "Deep learning khác gì machine learning?",
+            "answer": "sử dụng mạng nơ-ron sâu",
+        },
         {"question": "NLP là viết tắt của gì?", "answer": "xử lý ngôn ngữ tự nhiên"},
     ] * 2
 
@@ -143,12 +146,14 @@ class BenchmarkRunner:
                     start = time.time()
                     text = model.sinh_van_ban(prompt, do_dai=30)
                     gen_time = time.time() - start
-                    results.append({
-                        "prompt": prompt,
-                        "generated": text,
-                        "do_dai": len(text.split()),
-                        "thoi_gian": round(gen_time, 4),
-                    })
+                    results.append(
+                        {
+                            "prompt": prompt,
+                            "generated": text,
+                            "do_dai": len(text.split()),
+                            "thoi_gian": round(gen_time, 4),
+                        }
+                    )
                 else:
                     results.append({"prompt": prompt, "generated": "N/A", "do_dai": 0})
             except Exception:

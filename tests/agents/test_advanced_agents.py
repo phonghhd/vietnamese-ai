@@ -26,6 +26,7 @@ class DummyLLM:
             return "Suy nghĩ: Đang xử lý\nTrả lời: Kết quả mặc định."
         return "Trả lời: OK"
 
+
 def test_he_thong_swarm():
     llm = DummyLLM()
     agent_a = TacTuSwarm(ten="Agent A", vai_tro="Xử lý ban đầu", llm=llm)
@@ -44,6 +45,7 @@ def test_he_thong_swarm():
     assert kq.tac_tu_tiep_theo is not None
     assert kq.tac_tu_tiep_theo.ten == "Agent B"
 
+
 def test_moa():
     llm = DummyLLM()
     p1 = TacTu(llm=llm, danh_sach_cong_cu=[])
@@ -54,6 +56,7 @@ def test_moa():
     kq = moa.chay("Tính tổng 1+1")
     # Tùy thuộc vào prompt nội bộ, kq có thể là "OK" hoặc "Kết quả tổng hợp MoA"
     assert "OK" in kq or "Kết quả tổng hợp" in kq
+
 
 def test_mcts_planning():
     llm = DummyLLM()

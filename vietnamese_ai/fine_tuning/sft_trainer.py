@@ -94,9 +94,7 @@ class SFTTrainer:
             self.logger.info(f"  Val samples: {len(du_lieu_val)}")
 
         if _CO_PYTORCH and isinstance(model, nn.Module):
-            return self._huan_luyen_pytorch(
-                model, du_lieu_train, du_lieu_val, callback
-            )
+            return self._huan_luyen_pytorch(model, du_lieu_train, du_lieu_val, callback)
         return self._huan_luyen_numpy(model, du_lieu_train, du_lieu_val, callback)
 
     def _huan_luyen_pytorch(
@@ -113,8 +111,10 @@ class SFTTrainer:
         )
         criterion = nn.CrossEntropyLoss(ignore_index=-100)
 
-        tong_steps = len(du_lieu_train) * self.so_vong // (
-            self.kich_thuoc_batch * self.gradient_accumulation
+        tong_steps = (
+            len(du_lieu_train)
+            * self.so_vong
+            // (self.kich_thuoc_batch * self.gradient_accumulation)
         )
         warmup_steps = int(tong_steps * self.warmup_ratio)
 
@@ -129,17 +129,21 @@ class SFTTrainer:
             indices = np.random.permutation(len(du_lieu_train))
 
             for batch_start in range(0, len(indices), self.kich_thuoc_batch):
-                batch_indices = indices[batch_start:batch_start + self.kich_thuoc_batch]
+                batch_indices = indices[batch_start : batch_start + self.kich_thuoc_batch]
 
                 batch_loss = torch.tensor(0.0, device=device, requires_grad=True)
                 for idx in batch_indices:
                     mau = du_lieu_train[idx]
-                    input_ids = torch.tensor(
-                        mau.get("input_ids", []), dtype=torch.long
-                    ).unsqueeze(0).to(device)
-                    labels = torch.tensor(
-                        mau.get("labels", mau.get("input_ids", [])), dtype=torch.long
-                    ).unsqueeze(0).to(device)
+                    input_ids = (
+                        torch.tensor(mau.get("input_ids", []), dtype=torch.long)
+                        .unsqueeze(0)
+                        .to(device)
+                    )
+                    labels = (
+                        torch.tensor(mau.get("labels", mau.get("input_ids", [])), dtype=torch.long)
+                        .unsqueeze(0)
+                        .to(device)
+                    )
 
                     if input_ids.numel() == 0:
                         continue
@@ -147,9 +151,13 @@ class SFTTrainer:
                     try:
                         if hasattr(model, "generate") and hasattr(model, "config"):
                             outputs = model(input_ids=input_ids, labels=labels)
-                            loss = outputs.loss if hasattr(outputs, "loss") else criterion(
-                                outputs.logits.view(-1, outputs.logits.size(-1)),
-                                labels.view(-1),
+                            loss = (
+                                outputs.loss
+                                if hasattr(outputs, "loss")
+                                else criterion(
+                                    outputs.logits.view(-1, outputs.logits.size(-1)),
+                                    labels.view(-1),
+                                )
                             )
                         else:
                             logits = model(input_ids)
@@ -175,7 +183,7 @@ class SFTTrainer:
 
                     if self._global_step % self.logging_steps == 0:
                         self.logger.info(
-                            f"Step {self._global_step}: loss={epoch_loss/max(1,steps):.4f}"
+                            f"Step {self._global_step}: loss={epoch_loss / max(1, steps):.4f}"
                         )
 
                     if callback:
@@ -183,7 +191,7 @@ class SFTTrainer:
 
             avg_loss = epoch_loss / max(1, steps)
             self._history["train_loss"].append(avg_loss)
-            self.logger.info(f"Epoch {epoch+1}/{self.so_vong}: loss={avg_loss:.4f}")
+            self.logger.info(f"Epoch {epoch + 1}/{self.so_vong}: loss={avg_loss:.4f}")
 
             if du_lieu_val:
                 eval_loss = self._danh_gia(model, du_lieu_val, criterion, device)
@@ -196,14 +204,17 @@ class SFTTrainer:
             "tong_thoi_gian": round(tong_thoi_gian, 2),
             "so_epoch": self.so_vong,
             "global_step": self._global_step,
-            "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0,
-            "eval_loss_min": min(self._history["eval_loss"]) if self._history["eval_loss"] else None,
+            "train_loss_min": min(self._history["train_loss"])
+            if self._history["train_loss"]
+            else 0,
+            "eval_loss_min": min(self._history["eval_loss"])
+            if self._history["eval_loss"]
+            else None,
             "history": self._history,
         }
 
     def _danh_gia(
-        self, model: "nn.Module", du_lieu_val: List[Dict],
-        criterion: Any, device: Any
+        self, model: "nn.Module", du_lieu_val: List[Dict], criterion: Any, device: Any
     ) -> float:
         """Đánh giá trên validation set."""
         model.eval()
@@ -212,21 +223,27 @@ class SFTTrainer:
 
         with torch.no_grad():
             for mau in du_lieu_val:
-                input_ids = torch.tensor(
-                    mau.get("input_ids", []), dtype=torch.long
-                ).unsqueeze(0).to(device)
-                labels = torch.tensor(
-                    mau.get("labels", mau.get("input_ids", [])), dtype=torch.long
-                ).unsqueeze(0).to(device)
+                input_ids = (
+                    torch.tensor(mau.get("input_ids", []), dtype=torch.long).unsqueeze(0).to(device)
+                )
+                labels = (
+                    torch.tensor(mau.get("labels", mau.get("input_ids", [])), dtype=torch.long)
+                    .unsqueeze(0)
+                    .to(device)
+                )
 
                 if input_ids.numel() == 0:
                     continue
 
                 try:
                     outputs = model(input_ids=input_ids, labels=labels)
-                    loss = outputs.loss if hasattr(outputs, "loss") else criterion(
-                        outputs.logits.view(-1, outputs.logits.size(-1)),
-                        labels.view(-1),
+                    loss = (
+                        outputs.loss
+                        if hasattr(outputs, "loss")
+                        else criterion(
+                            outputs.logits.view(-1, outputs.logits.size(-1)),
+                            labels.view(-1),
+                        )
                     )
                     total_loss += loss.item()
                     count += 1
@@ -237,8 +254,11 @@ class SFTTrainer:
         return total_loss / max(1, count)
 
     def _huan_luyen_numpy(
-        self, model: Any, du_lieu_train: List[Dict],
-        du_lieu_val: Optional[List[Dict]], callback: Optional[Callable],
+        self,
+        model: Any,
+        du_lieu_train: List[Dict],
+        du_lieu_val: Optional[List[Dict]],
+        callback: Optional[Callable],
     ) -> Dict[str, Any]:
         """NumPy fallback - yêu cầu PyTorch cho SFT training thực sự."""
         raise ImportError(

@@ -51,16 +51,41 @@ class NhanDienThucThe:
     }
 
     DIA_DANH = {
-        "Hà Nội", "TP.HCM", "Hồ Chí Minh", "Đà Nẵng", "Hải Phòng",
-        "Cần Thơ", "Nha Trang", "Huế", "Vũng Tàu", "Đà Lạt",
-        "Việt Nam", "Hàn Quốc", "Nhật Bản", "Mỹ", "Trung Quốc",
-        "Anh", "Pháp", "Đức", "Singapore", "Thái Lan",
+        "Hà Nội",
+        "TP.HCM",
+        "Hồ Chí Minh",
+        "Đà Nẵng",
+        "Hải Phòng",
+        "Cần Thơ",
+        "Nha Trang",
+        "Huế",
+        "Vũng Tàu",
+        "Đà Lạt",
+        "Việt Nam",
+        "Hàn Quốc",
+        "Nhật Bản",
+        "Mỹ",
+        "Trung Quốc",
+        "Anh",
+        "Pháp",
+        "Đức",
+        "Singapore",
+        "Thái Lan",
     }
 
     CHUC_DANH = {
-        "Giám đốc", "Tổng giám đốc", "Chủ tịch", "Phó giám đốc",
-        "Trưởng phòng", "Phó phòng", "Giáo viên", "Bác sĩ",
-        "Kỹ sư", "Luật sư", "Thủ tướng", "Chủ tịch nước",
+        "Giám đốc",
+        "Tổng giám đốc",
+        "Chủ tịch",
+        "Phó giám đốc",
+        "Trưởng phòng",
+        "Phó phòng",
+        "Giáo viên",
+        "Bác sĩ",
+        "Kỹ sư",
+        "Luật sư",
+        "Thủ tướng",
+        "Chủ tịch nước",
     }
 
     def __init__(
@@ -77,11 +102,10 @@ class NhanDienThucThe:
         if su_dung_underthesea:
             try:
                 import underthesea
+
                 self._underthesea = underthesea
             except ImportError:
-                self.logger.info(
-                    "underthesea không khả dụng, dùng regex + dictionary"
-                )
+                self.logger.info("underthesea không khả dụng, dùng regex + dictionary")
 
         # Compile regex patterns
         self._mau: Dict[str, List[re.Pattern]] = {}
@@ -122,12 +146,14 @@ class NhanDienThucThe:
                 continue
             for mau in patterns:
                 for match in mau.finditer(van_ban):
-                    ket_qua.append({
-                        "van_ban": match.group(0),
-                        "loai": loai,
-                        "vi_tri_bat_dau": match.start(),
-                        "vi_tri_ket_thuc": match.end(),
-                    })
+                    ket_qua.append(
+                        {
+                            "van_ban": match.group(0),
+                            "loai": loai,
+                            "vi_tri_bat_dau": match.start(),
+                            "vi_tri_ket_thuc": match.end(),
+                        }
+                    )
 
         # Dictionary-based NER
         if not loai_loc or "DIA_DANH" in loai_loc:
@@ -137,12 +163,14 @@ class NhanDienThucThe:
                     idx = van_ban.find(dia, start)
                     if idx == -1:
                         break
-                    ket_qua.append({
-                        "van_ban": dia,
-                        "loai": "DIA_DANH",
-                        "vi_tri_bat_dau": idx,
-                        "vi_tri_ket_thuc": idx + len(dia),
-                    })
+                    ket_qua.append(
+                        {
+                            "van_ban": dia,
+                            "loai": "DIA_DANH",
+                            "vi_tri_bat_dau": idx,
+                            "vi_tri_ket_thuc": idx + len(dia),
+                        }
+                    )
                     start = idx + len(dia)
 
         if not loai_loc or "CHUC_DANH" in loai_loc:
@@ -152,12 +180,14 @@ class NhanDienThucThe:
                     idx = van_ban.find(chuc, start)
                     if idx == -1:
                         break
-                    ket_qua.append({
-                        "van_ban": chuc,
-                        "loai": "CHUC_DANH",
-                        "vi_tri_bat_dau": idx,
-                        "vi_tri_ket_thuc": idx + len(chuc),
-                    })
+                    ket_qua.append(
+                        {
+                            "van_ban": chuc,
+                            "loai": "CHUC_DANH",
+                            "vi_tri_bat_dau": idx,
+                            "vi_tri_ket_thuc": idx + len(chuc),
+                        }
+                    )
                     start = idx + len(chuc)
 
         # underthesea NER
@@ -166,12 +196,14 @@ class NhanDienThucThe:
                 ner_results = self._underthesea.ner(van_ban)
                 for item in ner_results:
                     if len(item) >= 4 and item[3] in ("B-PER", "I-PER"):
-                        ket_qua.append({
-                            "van_ban": item[0],
-                            "loai": "PERSON",
-                            "vi_tri_bat_dau": -1,
-                            "vi_tri_ket_thuc": -1,
-                        })
+                        ket_qua.append(
+                            {
+                                "van_ban": item[0],
+                                "loai": "PERSON",
+                                "vi_tri_bat_dau": -1,
+                                "vi_tri_ket_thuc": -1,
+                            }
+                        )
             except Exception:
                 pass
 
@@ -195,9 +227,7 @@ class NhanDienThucThe:
             self._mau[loai] = []
         self._mau[loai].append(re.compile(mau))
 
-    def _loai_trung_lap(
-        self, ket_qua: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _loai_trung_lap(self, ket_qua: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Loại bỏ thực thể trùng lặp."""
         if not ket_qua:
             return []

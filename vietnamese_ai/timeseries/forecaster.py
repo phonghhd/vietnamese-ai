@@ -80,8 +80,8 @@ class DuDoanChuoiThoiGian(BaseModel):
 
     def _huan_luyen_moving_average(self) -> None:
         cumsum = np.cumsum(self._du_lieu)
-        cumsum[self.cua_so:] = cumsum[self.cua_so:] - cumsum[:-self.cua_so]
-        self._trung_binh_truot = cumsum[self.cua_so - 1:] / self.cua_so
+        cumsum[self.cua_so :] = cumsum[self.cua_so :] - cumsum[: -self.cua_so]
+        self._trung_binh_truot = cumsum[self.cua_so - 1 :] / self.cua_so
 
     def _huan_luyen_exponential(self) -> None:
         ket_qua = np.zeros(len(self._du_lieu))
@@ -101,7 +101,7 @@ class DuDoanChuoiThoiGian(BaseModel):
 
         X_win, y_win = [], []
         for i in range(self.cua_so, len(self._du_lieu)):
-            X_win.append(self._du_lieu[i - self.cua_so:i])
+            X_win.append(self._du_lieu[i - self.cua_so : i])
             y_win.append(self._du_lieu[i])
 
         X_win, y_win = np.array(X_win), np.array(y_win)
@@ -152,7 +152,7 @@ class DuDoanChuoiThoiGian(BaseModel):
 
     def _du_doan_window_regression(self, so_buoc: int) -> np.ndarray:
         ket_qua = []
-        cua_so_hien_tai = self._du_lieu[-self.cua_so:].copy()
+        cua_so_hien_tai = self._du_lieu[-self.cua_so :].copy()
 
         for _ in range(so_buoc):
             du_doan = self._mo_hinh_regression.du_doan(cua_so_hien_tai.reshape(1, -1))[0]

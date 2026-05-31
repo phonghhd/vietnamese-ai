@@ -24,7 +24,12 @@ class KiemTraChinhTa:
     """
 
     PHIEN_BAN_THAY_THE = {
-        "aa": "â", "aw": "ă", "dd": "đ", "ee": "ê", "oo": "ô", "ow": "ơ",
+        "aa": "â",
+        "aw": "ă",
+        "dd": "đ",
+        "ee": "ê",
+        "oo": "ô",
+        "ow": "ơ",
         "uu": "ư",
     }
 
@@ -71,6 +76,7 @@ class KiemTraChinhTa:
         if su_dung_underthesea:
             try:
                 import underthesea
+
                 self._underthesea = underthesea
             except ImportError:
                 pass
@@ -102,11 +108,13 @@ class KiemTraChinhTa:
 
             if not self._la_tu_hop_le(tu_lower):
                 goi_y = self._goi_y_sua(tu_lower)
-                loi.append({
-                    "tu": tu,
-                    "vi_tri": i,
-                    "goi_y": goi_y,
-                })
+                loi.append(
+                    {
+                        "tu": tu,
+                        "vi_tri": i,
+                        "goi_y": goi_y,
+                    }
+                )
 
                 if sua_tu_dong and goi_y:
                     # Tìm và thay thế trong van_ban
@@ -173,7 +181,7 @@ class KiemTraChinhTa:
 
         # Sắp xếp theo khoảng cách
         goi_y.sort(key=lambda x: self._khoang_cach_chinh_sua(tu, x))
-        return goi_y[:self.toi_da_sua]
+        return goi_y[: self.toi_da_sua]
 
     def _khoang_cach_chinh_sua(self, s1: str, s2: str) -> int:
         """Tính Levenshtein edit distance."""

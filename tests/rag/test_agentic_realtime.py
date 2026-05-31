@@ -12,6 +12,7 @@ def test_realtime_sync():
 
     # Xóa singleton RAGEventBus để đảm bảo môi trường sạch
     from vietnamese_ai.rag.realtime_sync import RAGEventBus
+
     RAGEventBus._instance = None
 
     pipeline = AgenticRAGPipeline(llm_engine=MockLLM())
@@ -21,7 +22,9 @@ def test_realtime_sync():
     watcher = DocumentWatcher("dummy_dir")
 
     # Giả lập Thread.start() thành hàm run() để chạy đồng bộ (synchronous)
-    with patch("threading.Thread.start", new=lambda self: self._target(*self._args, **self._kwargs)):
+    with patch(
+        "threading.Thread.start", new=lambda self: self._target(*self._args, **self._kwargs)
+    ):
         # Bắn sự kiện có file mới (giả lập file có nhiều hơn 20 từ)
         text = "Đây là dòng 1. " * 10 + "Đây là dòng 2. " * 10
         watcher.phat_hien_file_moi("doc_1", text)
@@ -33,6 +36,7 @@ def test_realtime_sync():
 
     # Số lượng chunks trong CSDL Vector phải tăng lên
     assert so_luong_chunks_sau > so_luong_chunks_truoc
+
 
 def test_agentic_rag():
     # Mock LLM giả vờ dùng tool

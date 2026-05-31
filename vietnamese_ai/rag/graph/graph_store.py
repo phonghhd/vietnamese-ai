@@ -6,11 +6,13 @@ try:
 except ImportError:
     nx = None
 
+
 class NetworkXStore:
     """
     Graph Store sử dụng NetworkX chạy trực tiếp trên bộ nhớ Local (hoặc lưu file).
     Lưu trữ cấu trúc Knowledge Graph.
     """
+
     def __init__(self, file_path: Optional[str] = None):
         if nx is None:
             raise ImportError("Cần cài đặt networkx: pip install networkx")
@@ -81,8 +83,9 @@ class NetworkXStore:
     def _tai_do_thi(self):
         """Tải đồ thị từ file JSON (Node-Link format)."""
         import os
+
         if os.path.exists(self.file_path):
-            with open(self.file_path, 'r', encoding='utf-8') as f:
+            with open(self.file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self.graph = nx.node_link_graph(data)
 
@@ -90,5 +93,5 @@ class NetworkXStore:
         """Lưu đồ thị ra file JSON."""
         if self.file_path:
             data = nx.node_link_data(self.graph)
-            with open(self.file_path, 'w', encoding='utf-8') as f:
+            with open(self.file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)

@@ -111,9 +111,7 @@ class LamNongModel:
             except Exception as e:
                 loi = str(e)
                 if i == 0:
-                    self.logger.warning(
-                        f"Warm-up '{ten}' lần {i+1} lỗi: {e}"
-                    )
+                    self.logger.warning(f"Warm-up '{ten}' lần {i + 1} lỗi: {e}")
 
         thoi_gian = (time.time() - bat_dau) * 1000
 
@@ -126,10 +124,7 @@ class LamNongModel:
                 "loi": loi,
             }
 
-        self.logger.info(
-            f"Warm-up '{ten}' hoàn tất: {thoi_gian:.1f}ms, "
-            f"{self.so_lan_warmup} lần"
-        )
+        self.logger.info(f"Warm-up '{ten}' hoàn tất: {thoi_gian:.1f}ms, {self.so_lan_warmup} lần")
 
         return {
             "ten": ten,
@@ -230,14 +225,8 @@ class LamNongModel:
     def thong_ke(self) -> Dict[str, Any]:
         """Thống kê warm-up manager."""
         with self._lock:
-            da_warmup = sum(
-                1 for t in self._trang_thai.values()
-                if t.get("da_warmup")
-            )
-            tong_time = sum(
-                t.get("thoi_gian_warmup", 0)
-                for t in self._trang_thai.values()
-            )
+            da_warmup = sum(1 for t in self._trang_thai.values() if t.get("da_warmup"))
+            tong_time = sum(t.get("thoi_gian_warmup", 0) for t in self._trang_thai.values())
 
             return {
                 "so_models": len(self._models),

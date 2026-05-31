@@ -66,9 +66,7 @@ class CatVanBan:
         else:
             return self._chia_theo_ky_tu(van_ban, metadata)
 
-    def _chia_theo_cau(
-        self, van_ban: str, metadata: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _chia_theo_cau(self, van_ban: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Chia theo câu."""
         ket_qua = []
         cac_cau = self._tach_cau(van_ban)
@@ -84,19 +82,19 @@ class CatVanBan:
             if bat_dau == -1:
                 bat_dau = vi_tri
 
-            ket_qua.append({
-                "noi_dung": cau,
-                "vi_tri_bat_dau": bat_dau,
-                "vi_tri_ket_thuc": bat_dau + len(cau),
-                "metadata": {**metadata, "loai": "cau"},
-            })
+            ket_qua.append(
+                {
+                    "noi_dung": cau,
+                    "vi_tri_bat_dau": bat_dau,
+                    "vi_tri_ket_thuc": bat_dau + len(cau),
+                    "metadata": {**metadata, "loai": "cau"},
+                }
+            )
             vi_tri = bat_dau + len(cau)
 
         return self._gop_chunks_nho(ket_qua)
 
-    def _chia_theo_doan(
-        self, van_ban: str, metadata: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _chia_theo_doan(self, van_ban: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Chia theo đoạn (double newline)."""
         ket_qua = []
         cac_doan = van_ban.split("\n\n")
@@ -116,12 +114,14 @@ class CatVanBan:
                 sub_chunks = self._chia_theo_tu(doan, metadata, bat_dau_offset=bat_dau)
                 ket_qua.extend(sub_chunks)
             else:
-                ket_qua.append({
-                    "noi_dung": doan,
-                    "vi_tri_bat_dau": bat_dau,
-                    "vi_tri_ket_thuc": bat_dau + len(doan),
-                    "metadata": {**metadata, "loai": "doan"},
-                })
+                ket_qua.append(
+                    {
+                        "noi_dung": doan,
+                        "vi_tri_bat_dau": bat_dau,
+                        "vi_tri_ket_thuc": bat_dau + len(doan),
+                        "metadata": {**metadata, "loai": "doan"},
+                    }
+                )
             vi_tri = bat_dau + len(doan)
 
         return ket_qua
@@ -151,12 +151,14 @@ class CatVanBan:
                 truoc = " ".join(cac_tu[:i])
                 bat_dau = bat_dau_offset + len(truoc) + (1 if truoc else 0)
 
-                ket_qua.append({
-                    "noi_dung": noi_dung,
-                    "vi_tri_bat_dau": bat_dau,
-                    "vi_tri_ket_thuc": bat_dau + len(noi_dung),
-                    "metadata": {**metadata, "loai": "tu", "so_tu": len(chunk_tu)},
-                })
+                ket_qua.append(
+                    {
+                        "noi_dung": noi_dung,
+                        "vi_tri_bat_dau": bat_dau,
+                        "vi_tri_ket_thuc": bat_dau + len(noi_dung),
+                        "metadata": {**metadata, "loai": "tu", "so_tu": len(chunk_tu)},
+                    }
+                )
 
             if ket_thuc >= len(cac_tu):
                 break
@@ -164,9 +166,7 @@ class CatVanBan:
 
         return ket_qua
 
-    def _chia_theo_ky_tu(
-        self, van_ban: str, metadata: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _chia_theo_ky_tu(self, van_ban: str, metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Chia theo số ký tự."""
         ket_qua = []
         buoc = self.kich_thuoc - self.chong_chong
@@ -180,12 +180,14 @@ class CatVanBan:
                 noi_dung = noi_dung.strip()
 
             if len(noi_dung) >= self.toi_thieu_kich_thuoc:
-                ket_qua.append({
-                    "noi_dung": noi_dung,
-                    "vi_tri_bat_dau": i,
-                    "vi_tri_ket_thuc": ket_thuc,
-                    "metadata": {**metadata, "loai": "ky_tu", "so_ky_tu": len(noi_dung)},
-                })
+                ket_qua.append(
+                    {
+                        "noi_dung": noi_dung,
+                        "vi_tri_bat_dau": i,
+                        "vi_tri_ket_thuc": ket_thuc,
+                        "metadata": {**metadata, "loai": "ky_tu", "so_ky_tu": len(noi_dung)},
+                    }
+                )
 
             if ket_thuc >= len(van_ban):
                 break
@@ -213,9 +215,7 @@ class CatVanBan:
 
         return ket_qua
 
-    def _gop_chunks_nho(
-        self, chunks: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _gop_chunks_nho(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Gộp các chunk quá nhỏ lại."""
         if not chunks:
             return []
@@ -230,12 +230,14 @@ class CatVanBan:
             if tong >= self.kich_thuoc or chunk == chunks[-1]:
                 noi_dung = " ".join(c["noi_dung"] for c in gop)
                 if len(noi_dung.split()) >= self.toi_thieu_kich_thuoc:
-                    ket_qua.append({
-                        "noi_dung": noi_dung,
-                        "vi_tri_bat_dau": gop[0]["vi_tri_bat_dau"],
-                        "vi_tri_ket_thuc": gop[-1]["vi_tri_ket_thuc"],
-                        "metadata": {**gop[0]["metadata"], "loai": "gop"},
-                    })
+                    ket_qua.append(
+                        {
+                            "noi_dung": noi_dung,
+                            "vi_tri_bat_dau": gop[0]["vi_tri_bat_dau"],
+                            "vi_tri_ket_thuc": gop[-1]["vi_tri_ket_thuc"],
+                            "metadata": {**gop[0]["metadata"], "loai": "gop"},
+                        }
+                    )
                 gop = []
 
         return ket_qua

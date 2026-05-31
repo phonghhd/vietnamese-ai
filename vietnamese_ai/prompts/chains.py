@@ -38,11 +38,13 @@ class ChuoiPrompt:
         dieu_kien: Optional[Callable[[Dict[str, Any]], bool]] = None,
     ) -> "ChuoiPrompt":
         """Thêm một bước vào chain."""
-        self._buoc.append({
-            "ten": ten,
-            "mau": mau,
-            "dieu_kien": dieu_kien,
-        })
+        self._buoc.append(
+            {
+                "ten": ten,
+                "mau": mau,
+                "dieu_kien": dieu_kien,
+            }
+        )
         return self
 
     def them_few_shot(
@@ -51,10 +53,12 @@ class ChuoiPrompt:
         dau_ra: str,
     ) -> "ChuoiPrompt":
         """Thêm một ví dụ few-shot."""
-        self._few_shot.append({
-            "dau_vao": dau_vao,
-            "dau_ra": dau_ra,
-        })
+        self._few_shot.append(
+            {
+                "dau_vao": dau_vao,
+                "dau_ra": dau_ra,
+            }
+        )
         return self
 
     def thuc_hien(
@@ -114,11 +118,13 @@ class ChuoiPrompt:
             # Gọi hàm sinh
             ket_qua = ham(prompt)
 
-            buoc_thuc_hien.append({
-                "ten": buoc["ten"],
-                "prompt": prompt,
-                "ket_qua": ket_qua,
-            })
+            buoc_thuc_hien.append(
+                {
+                    "ten": buoc["ten"],
+                    "prompt": prompt,
+                    "ket_qua": ket_qua,
+                }
+            )
 
             ket_qua_cuoi = ket_qua
             few_shot_prefix = ""  # Chỉ dùng few-shot ở buoc đầu
@@ -182,7 +188,4 @@ class ChuoiPrompt:
         return self._lich_su.copy()
 
     def __repr__(self) -> str:
-        return (
-            f"ChuoiPrompt(so_buoc={len(self._buoc)}, "
-            f"so_few_shot={len(self._few_shot)})"
-        )
+        return f"ChuoiPrompt(so_buoc={len(self._buoc)}, so_few_shot={len(self._few_shot)})"

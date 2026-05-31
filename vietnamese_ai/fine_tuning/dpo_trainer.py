@@ -103,9 +103,7 @@ class DPOTrainer:
         self.logger.info(f"  Beta: {self.beta}")
 
         if _CO_PYTORCH and isinstance(model, nn.Module):
-            return self._huan_luyen_pytorch(
-                model, ref_model, preference_data, callback
-            )
+            return self._huan_luyen_pytorch(model, ref_model, preference_data, callback)
         return self._huan_luyen_numpy(model, ref_model, preference_data, callback)
 
     def _huan_luyen_pytorch(
@@ -156,18 +154,14 @@ class DPOTrainer:
 
                     if steps % self.gradient_accumulation == 0:
                         if self.gradient_clip > 0:
-                            torch.nn.utils.clip_grad_norm_(
-                                model.parameters(), self.gradient_clip
-                            )
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
                         optimizer.step()
                         optimizer.zero_grad()
                         self._global_step += 1
 
                         if self._global_step % self.logging_steps == 0:
                             avg_loss = epoch_loss / max(1, steps)
-                            self.logger.info(
-                                f"Step {self._global_step}: loss={avg_loss:.4f}"
-                            )
+                            self.logger.info(f"Step {self._global_step}: loss={avg_loss:.4f}")
 
                         if callback:
                             callback(self._global_step, epoch_loss / max(1, steps))
@@ -188,7 +182,7 @@ class DPOTrainer:
                 self._history["reward_margin"].append(float(avg_chosen - avg_rejected))
 
             self.logger.info(
-                f"Epoch {epoch+1}/{self.so_vong}: loss={avg_loss:.4f}, "
+                f"Epoch {epoch + 1}/{self.so_vong}: loss={avg_loss:.4f}, "
                 f"margin={avg_chosen - avg_rejected:.4f}"
             )
 
@@ -198,8 +192,12 @@ class DPOTrainer:
             "tong_thoi_gian": round(tong_thoi_gian, 2),
             "so_epoch": self.so_vong,
             "global_step": self._global_step,
-            "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0,
-            "final_reward_margin": self._history["reward_margin"][-1] if self._history["reward_margin"] else 0,
+            "train_loss_min": min(self._history["train_loss"])
+            if self._history["train_loss"]
+            else 0,
+            "final_reward_margin": self._history["reward_margin"][-1]
+            if self._history["reward_margin"]
+            else 0,
             "history": self._history,
         }
 
@@ -213,14 +211,22 @@ class DPOTrainer:
         device: Any,
     ):
         """Tính DPO loss cho một cặp preference."""
-        chosen_ids = torch.tensor(
-            [ord(c) % 1000 for c in (prompt + chosen)],
-            dtype=torch.long,
-        ).unsqueeze(0).to(device)
-        rejected_ids = torch.tensor(
-            [ord(c) % 1000 for c in (prompt + rejected)],
-            dtype=torch.long,
-        ).unsqueeze(0).to(device)
+        chosen_ids = (
+            torch.tensor(
+                [ord(c) % 1000 for c in (prompt + chosen)],
+                dtype=torch.long,
+            )
+            .unsqueeze(0)
+            .to(device)
+        )
+        rejected_ids = (
+            torch.tensor(
+                [ord(c) % 1000 for c in (prompt + rejected)],
+                dtype=torch.long,
+            )
+            .unsqueeze(0)
+            .to(device)
+        )
 
         model.train()
         chosen_logits = model(chosen_ids) if hasattr(model, "__call__") else None
@@ -228,7 +234,9 @@ class DPOTrainer:
 
         with torch.no_grad():
             ref_chosen_logits = ref_model(chosen_ids) if hasattr(ref_model, "__call__") else None
-            ref_rejected_logits = ref_model(rejected_ids) if hasattr(ref_model, "__call__") else None
+            ref_rejected_logits = (
+                ref_model(rejected_ids) if hasattr(ref_model, "__call__") else None
+            )
 
         if chosen_logits is None:
             chosen_logits = torch.randn(1, 1, 100, device=device)
@@ -269,8 +277,11 @@ class DPOTrainer:
         return torch.tensor(0.0, device=logits.device)
 
     def _huan_luyen_numpy(
-        self, model: Any, ref_model: Any,
-        preference_data: List[Dict], callback: Optional[Callable],
+        self,
+        model: Any,
+        ref_model: Any,
+        preference_data: List[Dict],
+        callback: Optional[Callable],
     ) -> Dict[str, Any]:
         """NumPy fallback - yêu cầu PyTorch cho DPO training thực sự."""
         raise ImportError(

@@ -129,9 +129,7 @@ class LoRAPeft:
             f"(rank={self.config.rank}, alpha={self.config.alpha})"
         )
 
-        so_trainable = sum(
-            p.numel() for p in model.parameters() if p.requires_grad
-        )
+        so_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
         so_total = sum(p.numel() for p in model.parameters())
         self.logger.info(
             f"Trainable: {so_trainable:,}/{so_total:,} "
@@ -223,10 +221,12 @@ class LoRAPeft:
         if model is not None:
             trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
             total = sum(p.numel() for p in model.parameters())
-            tk.update({
-                "trainable_params": trainable,
-                "total_params": total,
-                "trainable_percent": round(100 * trainable / max(1, total), 2),
-            })
+            tk.update(
+                {
+                    "trainable_params": trainable,
+                    "total_params": total,
+                    "trainable_percent": round(100 * trainable / max(1, total), 2),
+                }
+            )
 
         return tk

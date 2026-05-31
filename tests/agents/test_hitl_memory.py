@@ -20,21 +20,18 @@ def test_hitl_agent_rejected():
     def ham_tu_choi(hanh_dong, tham_so):
         return False
 
-    agent = TacTu(
-        llm=MockLLM(),
-        danh_sach_cong_cu=[xoa_database],
-        ham_xac_nhan=ham_tu_choi
-    )
+    agent = TacTu(llm=MockLLM(), danh_sach_cong_cu=[xoa_database], ham_xac_nhan=ham_tu_choi)
 
     ket_qua = agent.chay("Xóa DB đi")
     assert "không thể thực hiện" in ket_qua.lower()
+
 
 def test_experience_memory():
     so_tay = SoTayKinhNghiem(vector_store=False)
     so_tay.ghi_nhan_bai_hoc(
         ngu_canh="Khi người dùng nhờ xóa DB",
         sai_lam="Dùng lệnh xoa_database",
-        cach_khac_phuc="Phải hỏi ý kiến cấp trên trước"
+        cach_khac_phuc="Phải hỏi ý kiến cấp trên trước",
     )
 
     bai_hoc = so_tay.truy_xuat_kinh_nghiem("xóa db")
@@ -48,11 +45,7 @@ def test_experience_memory():
                 return "Suy nghĩ: Mình nhớ bài học rồi.\nTrả lời: Tôi cần hỏi ý kiến cấp trên trước khi làm."
             return "Suy nghĩ: ...\nTrả lời: Đã rõ."
 
-    agent = TacTu(
-        llm=MockLLM(),
-        danh_sach_cong_cu=[],
-        so_tay_kinh_nghiem=so_tay
-    )
+    agent = TacTu(llm=MockLLM(), danh_sach_cong_cu=[], so_tay_kinh_nghiem=so_tay)
 
     ket_qua = agent.chay("Nhờ bạn xóa DB nha")
     assert "hỏi ý kiến cấp trên" in ket_qua.lower()

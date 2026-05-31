@@ -8,8 +8,10 @@ class KieuDang:
     LIGHT = "light"
     DARK = "dark"
 
+
 class Component:
     """Lớp cơ sở cho mọi thành phần giao diện V-UI."""
+
     def __init__(self):
         self.id = "comp_" + uuid.uuid4().hex[:8]
 
@@ -23,10 +25,12 @@ class Component:
         """Đăng ký các hàm callback Python vào thư mục API của Server."""
         pass
 
+
 class UIApp:
     """
     Micro-Framework cốt lõi. Gộp các Components lại và tự động chạy Server.
     """
+
     def __init__(self, tieu_de: str = "V-Neural Studio", theme: str = KieuDang.DARK):
         self.tieu_de = tieu_de
         self.theme = theme
@@ -40,7 +44,9 @@ class UIApp:
             comp.dang_ky_api(self.api_handlers)
 
     def _sinh_html(self) -> str:
-        bg_color = "bg-gray-900 text-white" if self.theme == KieuDang.DARK else "bg-gray-50 text-gray-900"
+        bg_color = (
+            "bg-gray-900 text-white" if self.theme == KieuDang.DARK else "bg-gray-50 text-gray-900"
+        )
 
         html_blocks = [c.render_html() for c in self.components]
         js_blocks = [c.render_js() for c in self.components]
@@ -102,29 +108,29 @@ class UIApp:
     def chay(self, port: int = 8080):
         """Chạy server Zero-Dependency (chỉ dùng chuẩn Python)."""
         app = self
-        html_content = self._sinh_html().encode('utf-8')
+        html_content = self._sinh_html().encode("utf-8")
 
         class VUIHandler(BaseHTTPRequestHandler):
             def do_GET(self):
-                if self.path == '/' or self.path == '/index.html':
+                if self.path == "/" or self.path == "/index.html":
                     self.send_response(200)
-                    self.send_header('Content-type', 'text/html; charset=utf-8')
+                    self.send_header("Content-type", "text/html; charset=utf-8")
                     self.end_headers()
                     self.wfile.write(html_content)
-                elif self.path == '/manifest.json':
+                elif self.path == "/manifest.json":
                     manifest = {
                         "name": app.tieu_de,
                         "short_name": "V-UI",
                         "start_url": "/",
                         "display": "standalone",
                         "background_color": "#111827",
-                        "theme_color": "#111827"
+                        "theme_color": "#111827",
                     }
                     self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
+                    self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps(manifest).encode('utf-8'))
-                elif self.path == '/sw.js':
+                    self.wfile.write(json.dumps(manifest).encode("utf-8"))
+                elif self.path == "/sw.js":
                     sw_code = """
                     const CACHE_NAME = 'v-ui-cache-v1';
                     self.addEventListener('install', event => {
@@ -135,18 +141,18 @@ class UIApp:
                     });
                     """
                     self.send_response(200)
-                    self.send_header('Content-type', 'application/javascript')
+                    self.send_header("Content-type", "application/javascript")
                     self.end_headers()
-                    self.wfile.write(sw_code.encode('utf-8'))
+                    self.wfile.write(sw_code.encode("utf-8"))
                 else:
                     self.send_response(404)
                     self.end_headers()
 
             def do_POST(self):
-                if self.path.startswith('/api/'):
+                if self.path.startswith("/api/"):
                     endpoint = self.path[5:]
                     if endpoint in app.api_handlers:
-                        content_len = int(self.headers.get('Content-Length', 0))
+                        content_len = int(self.headers.get("Content-Length", 0))
                         body = self.rfile.read(content_len)
                         try:
                             data = json.loads(body)
@@ -154,21 +160,21 @@ class UIApp:
                             ket_qua = app.api_handlers[endpoint](data)
 
                             self.send_response(200)
-                            self.send_header('Content-type', 'application/json')
+                            self.send_header("Content-type", "application/json")
                             self.end_headers()
-                            self.wfile.write(json.dumps(ket_qua).encode('utf-8'))
+                            self.wfile.write(json.dumps(ket_qua).encode("utf-8"))
                         except Exception as e:
                             self.send_response(500)
                             self.end_headers()
-                            self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+                            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
                     else:
                         self.send_response(404)
                         self.end_headers()
 
             def log_message(self, format, *args):
-                pass # Tắt log rác
+                pass  # Tắt log rác
 
-        server = HTTPServer(('0.0.0.0', port), VUIHandler)
+        server = HTTPServer(("0.0.0.0", port), VUIHandler)
         print(f"🚀 V-UI đang chạy tại: http://localhost:{port}")
 
         try:

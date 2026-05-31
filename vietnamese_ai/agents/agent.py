@@ -2,10 +2,10 @@ import json
 import re
 from typing import Any, Callable, Dict, List, Optional
 
+from .advanced_memory import GraphMemory
 from .experience_memory import SoTayKinhNghiem
 from .memory import BoNhoTacTu
 from .tools import CongCu
-from .advanced_memory import GraphMemory
 
 # Template hệ thống cơ bản cho Tác tử (ReAct)
 REACT_SYSTEM_PROMPT = """Bạn là một trợ lý AI thông minh có khả năng sử dụng công cụ để giải quyết vấn đề.
@@ -28,6 +28,7 @@ Trả lời: [Câu trả lời cuối cùng cho người dùng]
 LƯU Ý: Mỗi lượt bạn chỉ được gọi MỘT công cụ. Nếu bạn đã có câu trả lời cuối cùng, KHÔNG trả về "Hành động" và "Tham số".
 """
 
+
 class TacTu:
     """
     Tác tử (Agent) có khả năng lập kế hoạch và sử dụng công cụ.
@@ -40,7 +41,7 @@ class TacTu:
         max_iterations: int = 5,
         ham_xac_nhan: Optional[Callable[[str, Dict[str, Any]], bool]] = None,
         so_tay_kinh_nghiem: Optional[SoTayKinhNghiem] = None,
-        graph_memory: Optional[GraphMemory] = None
+        graph_memory: Optional[GraphMemory] = None,
     ):
         """
         Khởi tạo Tác tử.
@@ -61,7 +62,9 @@ class TacTu:
 
         tools_desc = ""
         for name, cc in self.cong_cu.items():
-            tools_desc += f"- {name}: {cc.mo_ta}. Tham số: {json.dumps(cc.tham_so, ensure_ascii=False)}\n"
+            tools_desc += (
+                f"- {name}: {cc.mo_ta}. Tham số: {json.dumps(cc.tham_so, ensure_ascii=False)}\n"
+            )
 
         system_prompt = REACT_SYSTEM_PROMPT.format(tools_desc=tools_desc)
         self.bo_nho = BoNhoTacTu(system_prompt=system_prompt)
@@ -76,24 +79,25 @@ class TacTu:
         elif callable(self.llm):
             return self.llm(prompt)
         else:
-            raise ValueError("LLM không được hỗ trợ. Cần có hàm sinh_van_ban(prompt) hoặc là một callable.")
+            raise ValueError(
+                "LLM không được hỗ trợ. Cần có hàm sinh_van_ban(prompt) hoặc là một callable."
+            )
 
     def _phan_tich_phan_hoi(self, response_text: str) -> Dict[str, Any]:
         """Phân tích văn bản phản hồi từ LLM để lấy Action và Action Input."""
-        ket_qua = {
-            "suy_nghi": "",
-            "hanh_dong": None,
-            "tham_so": None,
-            "tra_loi": None
-        }
+        ket_qua = {"suy_nghi": "", "hanh_dong": None, "tham_so": None, "tra_loi": None}
 
         # Tìm Suy nghĩ
-        match_thought = re.search(r"Suy nghĩ:(.*?)(?=Hành động:|Trả lời:|$)", response_text, re.DOTALL)
+        match_thought = re.search(
+            r"Suy nghĩ:(.*?)(?=Hành động:|Trả lời:|$)", response_text, re.DOTALL
+        )
         if match_thought:
             ket_qua["suy_nghi"] = match_thought.group(1).strip()
 
         # Tìm Hành động và Tham số
-        match_action = re.search(r"Hành động:(.*?)(?=Tham số:|Trả lời:|$)", response_text, re.DOTALL)
+        match_action = re.search(
+            r"Hành động:(.*?)(?=Tham số:|Trả lời:|$)", response_text, re.DOTALL
+        )
         match_input = re.search(r"Tham số:(.*?)(?=Trả lời:|$)", response_text, re.DOTALL)
 
         if match_action and match_action.group(1).strip():
@@ -106,7 +110,10 @@ class TacTu:
                     tham_so_str = tham_so_str.removeprefix("```").strip()
                     ket_qua["tham_so"] = json.loads(tham_so_str)
                 except json.JSONDecodeError:
-                    ket_qua["tham_so"] = {"error": "Lỗi định dạng JSON", "raw": match_input.group(1).strip()}
+                    ket_qua["tham_so"] = {
+                        "error": "Lỗi định dạng JSON",
+                        "raw": match_input.group(1).strip(),
+                    }
 
         # Tìm Trả lời (kết thúc)
         match_answer = re.search(r"Trả lời:(.*?)$", response_text, re.DOTALL)
@@ -115,7 +122,7 @@ class TacTu:
 
         # Fallback: nếu không thấy "Trả lời:" nhưng cũng không có "Hành động:" -> coi như trả lời
         if not ket_qua["hanh_dong"] and not ket_qua["tra_loi"]:
-             ket_qua["tra_loi"] = response_text.strip()
+            ket_qua["tra_loi"] = response_text.strip()
 
         return ket_qua
 
@@ -136,7 +143,9 @@ class TacTu:
         if self.so_tay_kinh_nghiem:
             kinh_nghiem = self.so_tay_kinh_nghiem.truy_xuat_kinh_nghiem(truy_van)
             if kinh_nghiem:
-                self.bo_nho.them_tin_nhan("system", f"BÀI HỌC KINH NGHIỆM TỪ QUÁ KHỨ (Cần lưu ý):\n{kinh_nghiem}")
+                self.bo_nho.them_tin_nhan(
+                    "system", f"BÀI HỌC KINH NGHIỆM TỪ QUÁ KHỨ (Cần lưu ý):\n{kinh_nghiem}"
+                )
 
         for i in range(self.max_iterations):
             prompt_hien_tai = self.bo_nho.lay_noi_dung_chuoi()
@@ -176,12 +185,18 @@ class TacTu:
                 # Thêm quan sát vào bộ nhớ để LLM tiếp tục xử lý ở vòng lặp sau
                 # Định dạng là User message hoặc Tool message tuỳ prompt. ReAct thường dùng format "Quan sát: "
                 self.bo_nho.them_tin_nhan("tool", f"Quan sát: {quan_sat}", ten_cong_cu=ten_cong_cu)
-                
+
                 # Self-Correction Loop
                 if str(quan_sat).startswith("Lỗi"):
-                    self.bo_nho.them_tin_nhan("system", "HỆ THỐNG (Tự Sửa Lỗi): Lần gọi công cụ vừa rồi thất bại. Hãy phân tích kỹ lý do lỗi trong phần 'Suy nghĩ' tiếp theo và tìm cách sửa tham số hoặc gọi công cụ khác. KHÔNG lặp lại hành động cũ gây lỗi.")
+                    self.bo_nho.them_tin_nhan(
+                        "system",
+                        "HỆ THỐNG (Tự Sửa Lỗi): Lần gọi công cụ vừa rồi thất bại. Hãy phân tích kỹ lý do lỗi trong phần 'Suy nghĩ' tiếp theo và tìm cách sửa tham số hoặc gọi công cụ khác. KHÔNG lặp lại hành động cũ gây lỗi.",
+                    )
             else:
                 # LLM không trả về hành động cũng không trả về câu trả lời hợp lệ
-                self.bo_nho.them_tin_nhan("user", "Lỗi: Bạn chưa cung cấp 'Trả lời:' hoặc 'Hành động:'. Vui lòng thử lại theo đúng định dạng.")
+                self.bo_nho.them_tin_nhan(
+                    "user",
+                    "Lỗi: Bạn chưa cung cấp 'Trả lời:' hoặc 'Hành động:'. Vui lòng thử lại theo đúng định dạng.",
+                )
 
         return "Lỗi: Tác tử đã đạt đến số vòng lặp tối đa mà không tìm được câu trả lời."

@@ -14,6 +14,7 @@ def test_p2p_tracker_registration():
     best_node = tracker.tim_node_tot_nhat()
     assert best_node == "Engine_2"
 
+
 def test_token_ledger():
     ledger = TokenLedger()
     ledger.thuong_token("node_1", 15.0)
@@ -21,6 +22,7 @@ def test_token_ledger():
 
     assert ledger.lay_so_du("node_1") == 20.0
     assert ledger.lay_so_du("node_2") == 0.0
+
 
 def test_hybrid_execution_edge_wins():
     ledger = TokenLedger()
@@ -35,8 +37,9 @@ def test_hybrid_execution_edge_wins():
             "node_id": "test_node",
             "cau_tra_loi": "Kết quả từ Edge",
             "proof": node.generate_proof(cau_hoi, "Kết quả từ Edge"),
-            "model_hash": node.model_hash
+            "model_hash": node.model_hash,
         }
+
     node.chay_suy_luan_an_toan = mock_chay_an_toan
 
     tracker.dang_ky_node("test_node", node, 10.0)
@@ -45,8 +48,9 @@ def test_hybrid_execution_edge_wins():
 
     # Chặn _call_cloud để cloud luôn chậm hơn Edge
     def mock_call_cloud(prompt, do_dai):
-        time.sleep(1) # Cố tình làm chậm Cloud
+        time.sleep(1)  # Cố tình làm chậm Cloud
         return "Kết quả từ Cloud"
+
     router._call_cloud = mock_call_cloud
 
     ket_qua = router.sinh_van_ban_song_song("Xin chào")
@@ -54,6 +58,7 @@ def test_hybrid_execution_edge_wins():
     assert ket_qua == "Kết quả từ Edge"
     # Node phải được cộng Token
     assert ledger.lay_so_du("test_node") == 10.0
+
 
 def test_hybrid_execution_cloud_wins_on_error():
     ledger = TokenLedger()
@@ -67,8 +72,9 @@ def test_hybrid_execution_cloud_wins_on_error():
             "node_id": "bad_node",
             "cau_tra_loi": "Kết quả Fake",
             "proof": "wrong_proof",
-            "model_hash": node.model_hash
+            "model_hash": node.model_hash,
         }
+
     node.chay_suy_luan_an_toan = mock_chay_an_toan_fake
     tracker.dang_ky_node("bad_node", node, 10.0)
 
@@ -76,6 +82,7 @@ def test_hybrid_execution_cloud_wins_on_error():
 
     def mock_call_cloud(prompt, do_dai):
         return "Kết quả từ Cloud an toàn"
+
     router._call_cloud = mock_call_cloud
 
     ket_qua = router.sinh_van_ban_song_song("Xin chào")

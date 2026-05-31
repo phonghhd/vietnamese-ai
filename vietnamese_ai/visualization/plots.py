@@ -20,11 +20,10 @@ class BieuDo:
     def _kiem_tra_matplotlib():
         try:
             import matplotlib.pyplot as plt
+
             return plt
         except ImportError:
-            raise ImportError(
-                "Cần cài đặt matplotlib: pip install matplotlib"
-            )
+            raise ImportError("Cần cài đặt matplotlib: pip install matplotlib")
 
     @staticmethod
     def phan_bo_du_lieu(
@@ -129,6 +128,7 @@ class BieuDo:
         X = np.asarray(X)
         if X.shape[1] > 2:
             from vietnamese_ai.preprocessing.feature_engineering import TaoDacTrung
+
             X = TaoDacTrung.giam_chieu_pca(X, so_chieu=2)
 
         plt.figure(figsize=(10, 8))
@@ -146,8 +146,13 @@ class BieuDo:
 
         if tam_cum is not None:
             plt.scatter(
-                tam_cum[:, 0], tam_cum[:, 1],
-                c="red", marker="x", s=200, linewidths=3, label="Tâm cụm"
+                tam_cum[:, 0],
+                tam_cum[:, 1],
+                c="red",
+                marker="x",
+                s=200,
+                linewidths=3,
+                label="Tâm cụm",
             )
             plt.legend()
 
@@ -182,8 +187,12 @@ class BieuDo:
 
         for bar, val in zip(bars, gia_tri):
             plt.text(
-                bar.get_x() + bar.get_width() / 2, bar.get_height(),
-                f"{val:.4f}", ha="center", va="bottom", fontsize=10
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height(),
+                f"{val:.4f}",
+                ha="center",
+                va="bottom",
+                fontsize=10,
             )
 
         plt.tight_layout()
