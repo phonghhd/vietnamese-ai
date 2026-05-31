@@ -60,8 +60,8 @@ class RedTeamSimulator:
         }
 
 
-from vietnamese_ai.agents.agent import TacTu
-from vietnamese_ai.agents.tools import CongCu
+from vietnamese_ai.agents.agent import TacTu  # noqa: E402
+from vietnamese_ai.agents.tools import CongCu  # noqa: E402
 
 
 class RedTeamAgent(TacTu):

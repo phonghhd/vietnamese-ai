@@ -77,9 +77,9 @@ def test_python_repl_tool_integration():
     assert "Lỗi bảo mật" in ket_qua_loi
 
 
-from vietnamese_ai.rag.retriever import IdentityAwareRetriever
-from vietnamese_ai.rag.vector_store import CSDLVector
-from vietnamese_ai.security.data_sanitizer import DataSanitizer
+from vietnamese_ai.rag.retriever import IdentityAwareRetriever  # noqa: E402
+from vietnamese_ai.rag.vector_store import CSDLVector  # noqa: E402
+from vietnamese_ai.security.data_sanitizer import DataSanitizer  # noqa: E402
 
 
 def test_data_sanitizer():
@@ -94,9 +94,9 @@ def test_data_sanitizer():
     assert "[EMAIL ĐÃ ẨN]" in da_lam_sach
 
 
-import numpy as np
+import numpy as np  # noqa: E402
 
-from vietnamese_ai.rag.chunker import CatVanBan
+from vietnamese_ai.rag.chunker import CatVanBan  # noqa: E402
 
 
 def test_identity_aware_retriever():

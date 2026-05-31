@@ -65,8 +65,9 @@ class SpeculativeEngine:
 
             # BƯỚC 3: Rejection Sampling (Duyệt qua từng token nháp)
             n_accepted = 0
+            len_ket_qua_ban_dau = len(ket_qua)
             for i in range(self.gamma):
-                t_token_idx = len(ket_qua) + i
+                t_token_idx = len_ket_qua_ban_dau + i
                 # Logits do Target dự đoán cho vị trí này
                 logits_t = logits_t_seq[t_token_idx - 1 : t_token_idx]
 

@@ -111,7 +111,7 @@ class TacTu:
                     if tham_so_str.endswith("```"):
                         tham_so_str = tham_so_str[:-3]
                     tham_so_str = tham_so_str.strip()
-                    
+
                     if tham_so_str.startswith("```"):
                         tham_so_str = tham_so_str[3:]
                     tham_so_str = tham_so_str.strip()
