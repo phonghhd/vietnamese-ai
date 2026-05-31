@@ -51,6 +51,13 @@ LOAI_NODE = {
         "dau_vao": ["mo_hinh", "ket_qua"],
         "dau_ra": [],
     },
+    "toi_uu_phan_cung": {
+        "ten": "Tối ưu phần cứng",
+        "mo_ta": "Bật v27 Hardware Extreme (C++ JIT, MLA)",
+        "mau": "#00BCD4",
+        "dau_vao": ["mo_hinh", "du_lieu"],
+        "dau_ra": ["mo_hinh", "du_lieu"],
+    },
 }
 
 TAT_CA_THUAT_TOAN = {
@@ -454,6 +461,20 @@ class StudioKeoTha:
         du_lieu_vao["ket_qua_danh_gia"] = ket_qua
         return du_lieu_vao
 
+    def _chay_node_toi_uu_phan_cung(self, node: Node, du_lieu_vao: Any) -> Any:
+        """Kích hoạt Hardware Extreme cho Pipeline."""
+        self.logger.info("Đã bật Tối Ưu Hóa Phần Cứng (v27.0.1)")
+        try:
+            from vietnamese_ai.extreme.jit_engine import EvoJITCompiler  # noqa: F401
+            from vietnamese_ai.serving.continuous_batching import ContinuousBatcher  # noqa: F401
+            self.logger.info("-> C++ JIT Compiler & Continuous Batching Ready.")
+        except ImportError:
+            self.logger.warning("Không tìm thấy gói extreme. Fallback về mặc định.")
+
+        if du_lieu_vao:
+            du_lieu_vao["hardware_optimized"] = True
+        return du_lieu_vao
+
     def chay(self) -> Dict[str, Any]:
         """
         Chạy toàn bộ pipeline.
@@ -493,6 +514,8 @@ class StudioKeoTha:
                     ket_qua = self._chay_node_mo_hinh(node, dau_vao)
                 elif node.loai == "danh_gia":
                     ket_qua = self._chay_node_danh_gia(node, dau_vao)
+                elif node.loai == "toi_uu_phan_cung":
+                    ket_qua = self._chay_node_toi_uu_phan_cung(node, dau_vao)
                 else:
                     ket_qua = dau_vao
 

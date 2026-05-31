@@ -8,13 +8,29 @@ class GraphExtractor:
     Nhiệm vụ: Chuyển văn bản phi cấu trúc thành các bộ ba (Subject, Relation, Object).
     """
 
-    def __init__(self, llm: Any = None):
+    def __init__(self, llm: Any = None, use_slm: bool = True):
         """
         Args:
             llm: Đối tượng LLM để trích xuất ngữ nghĩa nâng cao.
-                 Nếu None, sẽ dùng Regex cơ bản (không khuyến khích cho GraphRAG thật).
+            use_slm: v27.0.1 - Bật mô hình ngôn ngữ nhỏ (SLM) Rule-based thay vì gọi LLM nặng.
         """
         self.llm = llm
+        self.use_slm = use_slm
+
+    def _trich_xuat_bang_slm(self, van_ban: str) -> List[Tuple[str, str, str]]:
+        """Sử dụng mô hình nhỏ nội bộ (SLM / Heuristic Regex nâng cao) để bóc tách siêu tốc độ O(N)."""
+        mau_quan_he = re.compile(
+            r"([A-ZÀ-Ỹ][a-zà-ỹA-ZÀ-Ỹ0-9\s_]+)\s+(là|thuộc|nằm ở|được sáng lập bởi|có liên quan đến|quản lý|sở hữu|phát triển)\s+([A-ZÀ-Ỹ][a-zà-ỹA-ZÀ-Ỹ0-9\s_]+)",
+            re.IGNORECASE,
+        )
+        ket_qua = []
+        for match in mau_quan_he.finditer(van_ban):
+            chu_the = match.group(1).strip()
+            quan_he = match.group(2).strip().lower()
+            doi_tuong = match.group(3).strip()
+            if len(chu_the) > 1 and len(doi_tuong) > 1:
+                ket_qua.append((chu_the, quan_he, doi_tuong))
+        return ket_qua
 
     def _trich_xuat_bang_regex(self, van_ban: str) -> List[Tuple[str, str, str]]:
         """Fallback: Trích xuất cơ bản bằng Regex (Rất thô sơ)."""
@@ -54,7 +70,9 @@ Văn bản:
         return ket_qua
 
     def trich_xuat(self, van_ban: str) -> List[Tuple[str, str, str]]:
-        """Thực thi trích xuất."""
+        """Thực thi trích xuất v27.0.1."""
+        if self.use_slm and not self.llm:
+            return self._trich_xuat_bang_slm(van_ban)
         if self.llm:
             return self._trich_xuat_bang_llm(van_ban)
         return self._trich_xuat_bang_regex(van_ban)

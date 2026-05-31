@@ -83,6 +83,7 @@ setup(
             "fastapi>=0.100.0",
             "uvicorn>=0.23.0",
             "pydantic>=2.0.0",
+            "websockets>=11.0",
         ],
         "rag": [
             "chromadb>=0.4.0",
@@ -109,6 +110,7 @@ setup(
             "fastapi>=0.100.0",
             "uvicorn>=0.23.0",
             "pydantic>=2.0.0",
+            "websockets>=11.0",
             "chromadb>=0.4.0",
             "qdrant-client>=1.6.0",
             "pypdf>=3.0.0",

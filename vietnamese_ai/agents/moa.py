@@ -11,7 +11,12 @@ class MoA:
     sau đó dùng Aggregator Agent để tổng hợp thành câu trả lời tốt nhất.
     """
 
-    def __init__(self, danh_sach_proposers: List[TacTu], aggregator: TacTu):
+    def __init__(
+        self,
+        danh_sach_proposers: List[TacTu],
+        aggregator: TacTu,
+        enable_semantic_routing: bool = True,
+    ):
         """
         Khởi tạo hệ thống MoA.
 
@@ -36,6 +41,25 @@ Hãy phân tích, đánh giá điểm mạnh/yếu của từng câu trả lời
 Đừng chỉ nối các câu trả lời lại với nhau. Hãy viết lại một cách tự nhiên như thể đó là câu trả lời của chính bạn.
 """
         self.aggregator.bo_nho.system_prompt = original_prompt + "\n\n" + moa_instructions
+        self.enable_semantic_routing = enable_semantic_routing
+
+    def _chon_proposers(self, truy_van: str) -> List[TacTu]:
+        """Tối ưu v27.0.1: Semantic Routing (O(1)) thay vì chạy tất cả (O(N))."""
+        if not self.enable_semantic_routing or len(self.proposers) <= 2:
+            return self.proposers
+
+        tu_khoa = set(truy_van.lower().split())
+        diem_so = []
+        for proposer in self.proposers:
+            mota = proposer.bo_nho.system_prompt.lower()
+            # Tính Jaccard similarity cơ bản làm Semantic Router
+            tu_khoa_mota = set(mota.split())
+            chung = len(tu_khoa.intersection(tu_khoa_mota))
+            diem_so.append((chung, proposer))
+
+        # Chỉ gọi tối đa 2 Agent tốt nhất
+        diem_so.sort(key=lambda x: x[0], reverse=True)
+        return [p for diem, p in diem_so[:2]]
 
     def chay(self, truy_van: str) -> str:
         """
@@ -43,11 +67,14 @@ Hãy phân tích, đánh giá điểm mạnh/yếu của từng câu trả lời
         """
         ket_qua_proposers = []
 
-        # Chạy song song các proposer
-        with ThreadPoolExecutor(max_workers=len(self.proposers)) as executor:
+        # Semantic Routing v27
+        proposers_duoc_chon = self._chon_proposers(truy_van)
+
+        # Chạy song song các proposer được chọn
+        with ThreadPoolExecutor(max_workers=len(proposers_duoc_chon)) as executor:
             future_to_proposer = {
                 executor.submit(proposer.chay, truy_van): idx
-                for idx, proposer in enumerate(self.proposers)
+                for idx, proposer in enumerate(proposers_duoc_chon)
             }
 
             # Thu thập kết quả

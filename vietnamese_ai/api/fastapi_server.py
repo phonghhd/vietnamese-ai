@@ -4,13 +4,13 @@ import time
 import uuid
 from typing import Any, List
 
-from pydantic import BaseModel
-
 try:
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
+    from pydantic import BaseModel
 except ImportError:
-    raise ImportError("Vui lòng cài đặt fastapi: pip install fastapi uvicorn pydantic")
+    class BaseModel:
+        pass
 
 from vietnamese_ai.utils.logger import Logger
 
@@ -179,6 +179,36 @@ class FastAPIServer:
             except Exception as e:
                 self.logger.error(f"Lỗi xử lý request: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.websocket("/v1/chat/stream")
+        async def websocket_endpoint(websocket: WebSocket):
+            """Giao thức WebSocket (v27.0.1) thay thế cho HTTP Chunking để giảm tối đa độ trễ."""
+            await websocket.accept()
+            try:
+                import asyncio
+                import json
+                while True:
+                    data = await websocket.receive_text()
+                    request_data = json.loads(data)
+                    req = ChatCompletionRequest(**request_data)
+
+                    self.logger.info(f"Nhận WebSocket stream request (model: {req.model})")
+                    ket_qua = self._xu_ly_logic(req)
+
+                    # Giả lập streaming từng từ (chunking) qua WebSocket
+                    for tu in ket_qua.split():
+                        await websocket.send_text(json.dumps({"chunk": tu + " "}))
+                        await asyncio.sleep(0.01) # Độ trễ giả lập 10ms
+
+                    await websocket.send_text(json.dumps({"done": True}))
+            except WebSocketDisconnect:
+                self.logger.info("Client ngắt kết nối WebSocket")
+            except Exception as e:
+                self.logger.error(f"Lỗi WebSocket: {str(e)}")
+                try:
+                    await websocket.close()
+                except Exception:
+                    pass
 
     def chay(self, host: str = "0.0.0.0", port: int = 8000):
         """Chạy server với Uvicorn."""

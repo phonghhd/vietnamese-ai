@@ -219,19 +219,26 @@ class CSDLVector:
         """Lưu CSDL vector ra file pickle."""
         duong_dan = Path(duong_dan)
         duong_dan.parent.mkdir(parents=True, exist_ok=True)
+
+        # v27.0.1: Lưu file numpy rời để hỗ trợ mmap (Zero-Copy)
+        npy_path = duong_dan.with_suffix('.npy')
+        if self._vectors is not None:
+            np.save(npy_path, self._vectors)
+
         data = {
             "kich_thuoc": self.kich_thuoc,
             "khoang_cach": self.khoang_cach,
             "ids": self._ids,
-            "vectors": self._vectors,
+            "vectors": self._vectors if self._vectors is None else "mmap", # Xóa data thô
             "metadata": self._metadata,
+            "npy_file": npy_path.name if self._vectors is not None else None
         }
         with open(duong_dan, "wb") as f:
             pickle.dump(data, f)
 
     @classmethod
-    def tai(cls, duong_dan: str) -> "CSDLVector":
-        """Tải CSDL vector từ file."""
+    def tai(cls, duong_dan: str, use_mmap: bool = True) -> "CSDLVector":
+        """Tải CSDL vector từ file. Hỗ trợ Zero-Copy RAM v27.0.1."""
         try:
             with open(duong_dan, "rb") as f:
                 data = pickle.load(f)
@@ -245,9 +252,22 @@ class CSDLVector:
             khoang_cach=data["khoang_cach"],
         )
         csdl._ids = data["ids"]
-        csdl._vectors = data["vectors"]
         csdl._metadata = data["metadata"]
         csdl._id_to_idx = {ma: i for i, ma in enumerate(csdl._ids)}
+
+        if data.get("npy_file"):
+            npy_path = Path(duong_dan).parent / data["npy_file"]
+            if use_mmap:
+                # Trỏ thẳng memory-map vào ổ cứng, RAM = 0MB
+                csdl._vectors = np.load(npy_path, mmap_mode='r')
+            else:
+                csdl._vectors = np.load(npy_path)
+        elif isinstance(data.get("vectors"), np.ndarray):
+            # Tương thích ngược
+            csdl._vectors = data["vectors"]
+        else:
+            csdl._vectors = None
+
         return csdl
 
     def thong_ke(self) -> Dict[str, Any]:
