@@ -12,7 +12,7 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
-__version__ = "21.0.0"
+__version__ = "11.0.1"
 __author__ = "EvoNet AI Team"
 
 

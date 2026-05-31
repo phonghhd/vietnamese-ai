@@ -106,8 +106,15 @@ class TacTu:
                 try:
                     tham_so_str = match_input.group(1).strip()
                     # Cố gắng loại bỏ markdown code block nếu có
-                    tham_so_str = tham_so_str.removeprefix("```json").removesuffix("```").strip()
-                    tham_so_str = tham_so_str.removeprefix("```").strip()
+                    if tham_so_str.startswith("```json"):
+                        tham_so_str = tham_so_str[7:]
+                    if tham_so_str.endswith("```"):
+                        tham_so_str = tham_so_str[:-3]
+                    tham_so_str = tham_so_str.strip()
+                    
+                    if tham_so_str.startswith("```"):
+                        tham_so_str = tham_so_str[3:]
+                    tham_so_str = tham_so_str.strip()
                     ket_qua["tham_so"] = json.loads(tham_so_str)
                 except json.JSONDecodeError:
                     ket_qua["tham_so"] = {

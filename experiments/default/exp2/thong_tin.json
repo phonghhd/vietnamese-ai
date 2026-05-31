@@ -1,17 +1,17 @@
 {
   "id": "exp2",
-  "thoi_gian_bat_dau": 1780247728.9040582,
+  "thoi_gian_bat_dau": 1780248540.3302538,
   "params": {},
   "metrics": [
     {
       "key": "acc",
       "value": 0.95,
       "step": null,
-      "thoi_gian": 1780247728.9042308
+      "thoi_gian": 1780248540.3311543
     }
   ],
   "artifacts": [],
   "trang_thai": "hoan_tat",
-  "thoi_gian_ket_thuc": 1780247728.904236,
-  "thoi_gian_chay": 0.00017786026000976562
+  "thoi_gian_ket_thuc": 1780248540.331163,
+  "thoi_gian_chay": 0.0009090900421142578
 }

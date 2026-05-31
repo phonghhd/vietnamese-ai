@@ -1,17 +1,17 @@
 {
   "id": "test",
-  "thoi_gian_bat_dau": 1780247728.910466,
+  "thoi_gian_bat_dau": 1780248540.3457556,
   "params": {},
   "metrics": [
     {
       "key": "x",
       "value": 1.0,
       "step": null,
-      "thoi_gian": 1780247728.9109094
+      "thoi_gian": 1780248540.3466907
     }
   ],
   "artifacts": [],
   "trang_thai": "hoan_tat",
-  "thoi_gian_ket_thuc": 1780247728.9109144,
-  "thoi_gian_chay": 0.00044846534729003906
+  "thoi_gian_ket_thuc": 1780248540.3466966,
+  "thoi_gian_chay": 0.0009410381317138672
 }

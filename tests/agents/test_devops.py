@@ -27,7 +27,8 @@ def test_devops_tool_success():
 
     # Dọn dẹp
     try:
-        os.remove("/home/phong/V-Neural/scratch/tinh_tong_dung.py")
-        os.remove("/home/phong/V-Neural/scratch/test_tinh_tong_dung.py")
+        base_dir = os.path.abspath("scratch")
+        os.remove(os.path.join(base_dir, "tinh_tong_dung.py"))
+        os.remove(os.path.join(base_dir, "test_tinh_tong_dung.py"))
     except Exception:
         pass

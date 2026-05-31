@@ -12,7 +12,8 @@ def viet_code_an_toan(file_name: str, ma_nguon: str, ma_test: Optional[str] = No
     Công cụ ghi mã nguồn an toàn với AST Validation và Dry-Run Pipeline.
     """
     # 1. Kiểm tra Safe Zone
-    base_dir = "/home/phong/V-Neural/scratch"
+    import sys
+    base_dir = os.path.abspath("scratch")
     os.makedirs(base_dir, exist_ok=True)
 
     # Chỉ cho phép lưu vào scratch
@@ -45,10 +46,7 @@ def viet_code_an_toan(file_name: str, ma_nguon: str, ma_test: Optional[str] = No
 
         # Chạy Pytest trong thư mục scratch
         try:
-            # Need to run with the venv python to have pytest
-            python_path = "/home/phong/V-Neural/venv/bin/python"
-            if not os.path.exists(python_path):
-                python_path = "python"
+            python_path = sys.executable
 
             result = subprocess.run(
                 [python_path, "-m", "pytest", test_path, "-v"],
