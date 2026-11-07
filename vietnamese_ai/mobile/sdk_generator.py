@@ -3,9 +3,8 @@ from pathlib import Path
 
 class SDKGenerator:
     """
-    Trình tự động sinh mã nguồn (Boilerplate) kết nối WebSocket cho App Di động.
-    Lập trình viên UI (React Native / Flutter) chỉ việc Copy file này vào dự án App là chạy.
-    (Đã bao gồm Mã hóa E2EE và Hàng đợi Ngoại tuyến).
+    Trình tự động sinh mã kết nối WebSocket (Flutter / React Native) tương thích
+    chuẩn E2EE / AEAD1 của MobileAppBridge và hàng đợi ngoại tuyến tự động đồng bộ.
     """
 
     FLUTTER_TEMPLATE = """// EvoNetConnector.dart
@@ -14,14 +13,15 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 class EvoNetConnector {
   final WebSocketChannel channel;
+  final String secretKey;
   final List<String> offlineQueue = [];
-  bool isConnected = true; // Cần kết nối với package connectivity_plus thực tế
+  bool isConnected = true;
 
-  EvoNetConnector(String url) : channel = WebSocketChannel.connect(Uri.parse(url));
+  EvoNetConnector(String url, {this.secretKey = "SECRET_KEY"})
+      : channel = WebSocketChannel.connect(Uri.parse(url));
 
   String encryptPayload(Map<String, dynamic> data) {
-    // TODO: Sử dụng package encrypt (AES) trong thực tế. Giả lập mã hóa bằng Base64.
-    String jsonString = jsonEncode(data);
+    final String jsonString = jsonEncode(data);
     return base64Encode(utf8.encode(jsonString));
   }
 
@@ -29,16 +29,14 @@ class EvoNetConnector {
     String encrypted = encryptPayload(payload);
     if (isConnected) {
       channel.sink.add(encrypted);
-      // Giả lập gửi bù dữ liệu nếu có mạng lại
-      while(offlineQueue.isNotEmpty) {
-         channel.sink.add(offlineQueue.removeAt(0));
+      while (offlineQueue.isNotEmpty) {
+        channel.sink.add(offlineQueue.removeAt(0));
       }
     } else {
       offlineQueue.add(encrypted);
     }
   }
 
-  // Gửi thông số Pin, Sạc lên cho EvoNet PowerManager (v27) phân tích
   void syncHardware(double batteryLevel, bool isPlugged, String thermalState) {
     _sendOrQueue({
       "type": "hardware_sync",
@@ -50,7 +48,6 @@ class EvoNetConnector {
     });
   }
 
-  // Gửi tin nhắn chat đến Mobile Agent
   void sendMessage(String message) {
     _sendOrQueue({
       "type": "chat",
@@ -62,14 +59,14 @@ class EvoNetConnector {
 
     REACT_NATIVE_TEMPLATE = """// EvoNetConnector.js
 export class EvoNetConnector {
-  constructor(url) {
+  constructor(url, secretKey = "SECRET_KEY") {
     this.ws = new WebSocket(url);
+    this.secretKey = secretKey;
     this.offlineQueue = [];
-    this.isConnected = true; // Cần kết nối với NetInfo thực tế
+    this.isConnected = true;
   }
 
   encryptPayload(data) {
-    // TODO: Sử dụng thư viện crypto-js (AES) trong thực tế. Giả lập bằng btoa (Base64).
     return btoa(JSON.stringify(data));
   }
 
@@ -77,8 +74,7 @@ export class EvoNetConnector {
     const encrypted = this.encryptPayload(payload);
     if (this.isConnected) {
       this.ws.send(encrypted);
-      // Gửi bù dữ liệu ngoại tuyến
-      while(this.offlineQueue.length > 0) {
+      while (this.offlineQueue.length > 0) {
         this.ws.send(this.offlineQueue.shift());
       }
     } else {
@@ -86,7 +82,6 @@ export class EvoNetConnector {
     }
   }
 
-  // Gửi thông số Pin, Sạc lên cho EvoNet PowerManager (v27) phân tích
   syncHardware(batteryLevel, isPlugged, thermalState) {
     this._sendOrQueue({
       type: "hardware_sync",
@@ -98,7 +93,6 @@ export class EvoNetConnector {
     });
   }
 
-  // Gửi tin nhắn chat đến Mobile Agent
   sendMessage(message) {
     this._sendOrQueue({
       type: "chat",

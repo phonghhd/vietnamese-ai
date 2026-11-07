@@ -185,3 +185,6 @@ class SapXepLai:
 
     def __repr__(self) -> str:
         return f"SapXepLai(che_do='{self.che_do}')"
+
+
+CrossEncoderReranker = SapXepLai

@@ -19,25 +19,33 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-30.0.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-30.1.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-897%2F897-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-1032%20passed-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
 ---
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
-## 🚀 Các Tính Năng Nổi Bật
+## 🚀 Các Tính Năng Nổi Bật (Phiên bản v30.1.0)
 
-- **Lõi C++ & Rust Tối Ưu**: Framework sử dụng kết hợp C++ (`onnxruntime`, `llama.cpp`) và Rust (`PyO3`) để tăng tốc xử lý văn bản, lập lịch và inference lên tối đa.
-- **Agentic Swarm & MemGPT**: Hỗ trợ Multi-Agent (Swarm, MoA, MCTS) và trí nhớ dài hạn không giới hạn (Long-Term Memory).
-- **Edge-Cloud Continuum (DePIN)**: Kiến trúc tự động định tuyến (Routing) giữa thiết bị Edge và Cloud API. 
-- **GraphRAG & Multi-modal RAG**: Mạng tri thức đồ thị và tìm kiếm văn bản-hình ảnh.
-- **Extreme Efficiency**: Trang bị mô phỏng PagedAttention, Speculative Decoding và mạng 1.58-bit (BitNet).
-- **AutoML & NAS**: Tự động tìm kiếm kiến trúc và siêu tham số tốt nhất.
-- **Bảo mật & An Toàn**: Tích hợp Guardrails AI để kiểm soát nội dung và chống Prompt Injection.
-- **EvoNet-Studio Super Core (v21.0)**: Kiến trúc Zero-Dependency độc quyền hỗ trợ điều phối cụm (Orchestrator), giám sát GPU/Cost (Monitor), DataLake đánh version, DAG Workflow, Hộp cát (Sandbox) và hệ thống Plugin Hot-Swap, kết nối chặt chẽ với toàn bộ các tính năng Agent và RAG có sẵn.
+- **Agentic StateGraph & Human-in-the-Loop (v30.1)**: Đồ thị trạng thái chu trình (`DoThiTrangThai`, `StateGraph`, `START`, `END`), điều phối tác tử tự chủ, các kênh tích lũy dữ liệu và cơ chế ngắt can thiệp người dùng (HITL interrupt & resume).
+- **Tác tử Nghiên cứu Sâu & Tự Sửa Code (v30.1)**: 
+  - `TacTuNghienCuuSau` (`DeepResearchAgent`): Tự động phân rã chủ đề nghiên cứu phức tạp, truy vấn thông tin đa vòng, phản biện chéo (Critic-in-the-loop) và xuất báo cáo điều hành toàn diện kèm thang điểm tin cậy số liệu.
+  - `TacTuLapTrinhTuSua` (`CodeHealingAgent`): Chẩn đoán lỗi cú pháp và ngoại lệ qua cây cú pháp trừu tượng (AST), tự động áp dụng chiến lược vá mã nguồn và xác nhận bằng kiểm thử hồi quy.
+- **Động cơ Native C & Zero-GPU Edge Engine (v30.1)**: 
+  - `DongCoSuyLuanEdge` (`EdgeInferenceEngine`, `ZeroGPUInferenceEngine`): Suy luận mô hình ngôn ngữ streaming trực tiếp trên CPU phổ thông không cần card đồ họa GPU hay cài đặt CUDA phức tạp.
+  - `BoGiaiLuongTuQ4`: Giải lượng tử hóa Q4_0 và Q8_0 vector hóa tốc độ cao.
+  - `GGUFMemoryMappedStreamer`: Nạp mô hình dạng mmap không gây tràn bộ nhớ RAM.
+  - `CauNoiCtypesNative` (`NativeLlamaBridge`): Cầu nối C-types nhúng trực tiếp thư viện native C/C++ (`libllama.so`, `llama.dll`).
+- **Trình Đóng Gói 1-Click Desktop Offline (v30.1)**: `GoiDocLapDesktop` (`DesktopPackager`) sinh launcher tự hành cho Windows (`run_desktop.bat`) và Linux/macOS (`run_desktop.sh`) chạy độc lập 100% offline không cần cấu hình.
+- **No-Code Web Studio & 3 Bộ Giải pháp Doanh nghiệp (v30.1)**: 
+  - `StudioDashboardApp`: Giao diện trực quan thuần Zero-Dependency (cổng 8080) giám sát tài nguyên, quản trị an toàn thông tin và thử nghiệm mô hình.
+  - 3 Bộ giải pháp sẵn sàng cho sản xuất: Tổng đài CSKH tự động (`TongDaiCSKH`), Trợ lý Rà soát Hợp đồng Pháp lý (`TroLyPhapLy`), và Trích xuất Dữ liệu Thông minh CCCD/Hóa đơn (`TrichXuatThongMinh`).
+- **Tăng tốc & Zero-Dependency Oath**: Lõi thư viện Python thuần + NumPy siêu nhẹ, cold-start nạp thư viện cực nhanh (~`1.20 ms`), kèm lớp tăng tốc tùy chọn Rust (`rust_core`/PyO3) và JIT C++ (`EvoJITCompiler`).
+- **GraphRAG & Multi-modal RAG**: Graph RAG thật; multimodal mặc định dùng trích xuất đặc trưng hình ảnh xác định (có thể mở rộng với CLIP).
+- **Bảo mật Đa tầng**: Tích hợp Guardrails AI, Tường lửa LLM (`TuongLuaBaoVeFramework`), Cổng an toàn dữ liệu đầu ra DLP (`CongAnToanDauRa`) và Chống Unicode Trojan Injection (`CongChatLuongDauVao`).
 
 ---
 
@@ -294,7 +302,82 @@ vai web --port 5000                   No-code web interface
 
 ## Sử dụng nhanh
 
-### Phân loại
+### 1. Đồ Thị Trạng Thái Agentic StateGraph (v30.1)
+
+```python
+from vietnamese_ai import DoThiTrangThai, START, END, kenh_them_danh_sach
+
+# Khởi tạo đồ thị trạng thái với kênh cộng dồn danh sách
+dothi = DoThiTrangThai(luat_gop={"tin_nhan": kenh_them_danh_sach})
+
+def buoc_phan_tich(state):
+    return {"tin_nhan": [f"Phân tích yêu cầu: {state.get('cau_hoi')}"]}
+
+def buoc_tra_loi(state):
+    return {"tin_nhan": ["Tạo câu trả lời hoàn chỉnh dựa trên dữ kiện đã thẩm định."]}
+
+dothi.them_nut("phan_tich", buoc_phan_tich)
+dothi.them_nut("tra_loi", buoc_tra_loi)
+dothi.them_canh(START, "phan_tich")
+dothi.them_canh("phan_tich", "tra_loi")
+dothi.them_canh("tra_loi", END)
+
+ung_dung = dothi.bien_dich()
+ket_qua = ung_dung.chay({"cau_hoi": "Giải pháp AI tiếng Việt cho doanh nghiệp"})
+print(ket_qua["tin_nhan"])
+```
+
+### 2. Tác tử Nghiên Cứu Sâu (Deep Research Agent) (v30.1)
+
+```python
+from vietnamese_ai import TacTuNghienCuuSau
+
+# Tác tử tự động phân rã chủ đề, tìm kiếm đa vòng, phản biện chéo và chấm điểm tin cậy
+agent = TacTuNghienCuuSau(so_vong_lap_toi_da=3)
+ket_qua = agent.nghien_cuu("Chuyển đổi xanh và ứng dụng AI tại Việt Nam")
+
+print("Điểm tin cậy dữ liệu:", ket_qua["diem_phan_bien"])
+print(ket_qua["bao_cao_cuoi_cung"])  # Báo cáo Executive Summary chuẩn Markdown
+```
+
+### 3. Động Cơ Suy Luận Zero-GPU Native Streaming (v30.1)
+
+```python
+from vietnamese_ai import DongCoSuyLuanEdge
+
+# Suy luận streaming trực tiếp trên CPU phổ thông không cần GPU hay CUDA
+dong_co = DongCoSuyLuanEdge(so_luong_thread=4)
+
+print("Streaming phản hồi:")
+for token in dong_co.sinh_van_ban_streaming("Chiến lược chuyển đổi số quốc gia 2030"):
+    print(token, end="", flush=True)
+
+thong_ke = dong_co.lay_thong_ke_hieu_nang()
+print(f"\nTốc độ xử lý: {thong_ke['tokens_tren_giay']:.1f} tokens/giây")
+```
+
+### 4. Bộ Giải Pháp Chuyên Ngành Doanh Nghiệp (v30.1)
+
+```python
+from vietnamese_ai import TroLyPhapLy, TongDaiCSKH, TrichXuatThongMinh
+
+# A. Rà soát Hợp đồng Pháp lý & Cảnh báo Rủi ro
+phap_ly = TroLyPhapLy()
+ket_qua_pl = phap_ly.ra_soat_hop_dong(van_ban_hop_dong="...")
+print("Rủi ro phát hiện:", ket_qua_pl["danh_sach_rui_ro"])
+
+# B. Tổng đài Chăm sóc Khách hàng Tự động
+cskh = TongDaiCSKH()
+phan_hoi = cskh.xu_ly_khieu_nai("Tài khoản của tôi bị trừ tiền sai, yêu cầu hoàn tiền gấp!")
+print("Phản hồi khách hàng:", phan_hoi["tra_loi"])
+
+# C. Trích xuất Thông tin Giấy tờ (CCCD / Hóa đơn)
+trich_xuat = TrichXuatThongMinh()
+thong_tin = trich_xuat.trich_xuat_cccd("Số định danh cá nhân: 001099012345, Họ và tên: NGUYỄN VĂN AN...")
+print("Số CCCD:", thong_tin["so_cccd"])
+```
+
+### 5. Phân Loại Học Máy Cổ Điển
 
 ```python
 from vietnamese_ai import PhanLoai, XuLySo, DuLieuMau
@@ -397,17 +480,39 @@ print(f"Điểm global: {ket_qua['diem_toan_cuc']:.4f}")
 
 ---
 
-## CLI
+## CLI (Giao diện Dòng lệnh)
 
-Sau khi cài đặt, sử dụng lệnh `vai`:
+Sau khi cài đặt, sử dụng lệnh `vai` trực tiếp trên Terminal:
 
 ```bash
+# 1. Chẩn đoán hệ thống & Thông tin Framework
 vai info
+vai doctor
+
+# 2. Khởi chạy No-Code Web Studio Dashboard trực quan (cổng 8080)
+vai studio --port 8080
+
+# 3. Động cơ Suy luận Zero-GPU Native Streaming trên CPU
+vai run --prompt "Tương lai phát triển AI tại Việt Nam giai đoạn 2026-2030"
+vai run --benchmark  # Đo lường token/s và độ trễ First-Token
+
+# 4. Đóng gói 1-Click Desktop chạy 100% Offline (Windows .bat & Linux/macOS .sh)
+vai pack --output ./desktop_bundle --mode studio --threads 4
+
+# 5. Tác tử Tự chủ (Autonomous Agents)
+vai agent research --topic "Quy định bảo vệ dữ liệu cá nhân Nghị định 13" --output baocao.md
+vai agent code --file script_can_sua.py
+
+# 6. Bộ Giải pháp Doanh nghiệp (Enterprise Solutions)
+vai solution cskh --input "Tài khoản của tôi bị trừ tiền mà chưa nhận được hàng"
+vai solution phap-ly --file hop_dong_thuong_mai.txt
+vai solution trich-xuat --file can_cuoc.txt --loai cccd
+
+# 7. Quản lý Mô hình & Huấn luyện Cổ điển
 vai train --data data.csv --model logistic --output model.pkl --test-size 0.2
 vai predict --model model.pkl --input new_data.csv --output results.csv
 vai evaluate --model model.pkl --data test.csv
 vai serve --model model.pkl --port 8080
-vai web --port 5000
 ```
 
 ---
@@ -671,6 +776,12 @@ ruff check vietnamese_ai/ tests/
 | v28.0 | Trí tuệ Không gian (Spatial AI) & Robotics: Tích hợp Hệ tọa độ 3D (Spatial RAG), hỗ trợ Hybrid Search (Vector + Tọa độ), mở rộng API điều khiển Robot/LiDAR (Inverse Kinematics). |
 | v29.0 | Tác tử Di động (Mobile AI): Triển khai thuật toán Nén Ngữ cảnh (Token Pruning) tiết kiệm RAM, Tích hợp GGUF/ExecuTorch, Bổ sung Mobile OS Tools (GPS, SMS, Camera) và Copilot duyệt web trên điện thoại. |
 | v30.0 | Cầu nối Ứng dụng (Mobile SDK Bridge): Kiến trúc WebSockets Thời gian thực kết nối thẳng Frontend (React Native/Flutter) với Backend Python. Hỗ trợ Mã hóa Đầu-Cuối (E2EE), Hàng đợi Ngoại tuyến (Offline Queuing), và Push Notification (Giả lập). |
+| v30.1 | Đột phá Tác tử & Triển khai Độc lập: Agentic StateGraph (DoThiTrangThai, HITL, checkpointing), Tác tử Nghiên cứu Sâu (DeepResearchAgent), Tác tử Tự sửa Code (CodeHealingAgent), Động cơ Native C & Zero-GPU Inference (EdgeInferenceEngine, Q4 dequant, mmap streaming), 1-Click Desktop Packager (DesktopPackager), Giao diện Web Studio Dashboard (cổng 8080), và 3 Giải pháp Chuyên ngành Doanh nghiệp (CSKH, Pháp lý, Trích xuất Hồ sơ). |
+
+### Tính liên kết của v30.1 với các phiên bản trước
+- **StateGraph & Deep Research (v30.1)** tận dụng trực tiếp **RAG Pipeline (v10)**, **Guardrails & DLP (v17)** và **MemGPT Long-Term Memory (v16)** để tạo nên chu trình nghiên cứu sâu đa bước có phản biện chéo và bảo mật tuyệt đối.
+- **Động cơ Native C & Zero-GPU Edge (v30.1)** kế thừa định dạng **GGUF (v15)** và giải lượng tử hóa Q4/Q8 thuần vector hóa, cho phép các tác tử chạy trực tiếp trên laptop/PC phổ thông mà không cần hạ tầng máy chủ đắt đỏ.
+- **Web Studio Dashboard (v30.1)** hợp nhất **3 Giải pháp Chuyên ngành (CSKH, Pháp lý, Trích xuất)** cùng chẩn đoán phần cứng và kiểm thử an toàn vào một cổng điều khiển trực quan duy nhất.
 
 ### Tính liên kết của v28.0 - v30.0 với các phiên bản cũ
 Rất nhiều nhà phát triển lo ngại kiến trúc mở rộng liên tục sẽ bị phân mảnh. Sự thật là chúng được thiết kế theo dạng vòng lặp (Organic Loop):

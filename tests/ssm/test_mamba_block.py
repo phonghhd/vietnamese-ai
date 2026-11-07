@@ -1,4 +1,6 @@
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
 
 from vietnamese_ai.ssm.mamba_block import MambaBlock
 

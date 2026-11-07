@@ -1,32 +1,23 @@
-"""RAG (Retrieval-Augmented Generation) Pipeline cho tiếng Việt."""
+"""RAG (Retrieval-Augmented Generation) Pipeline cho tiếng Việt (Lazy PEP 562)."""
 
-from vietnamese_ai.rag.agentic_rag import AgenticRAGPipeline
-from vietnamese_ai.rag.chroma_store import ChromaVectorStore
-from vietnamese_ai.rag.chunker import CatVanBan
-from vietnamese_ai.rag.document_loaders import PyPDFLoader, TextLoader
-from vietnamese_ai.rag.graph import GraphExtractor, GraphRetriever, NetworkXStore
-from vietnamese_ai.rag.multimodal import ImageEmbedder, MultimodalStore
-from vietnamese_ai.rag.qdrant_store import QdrantVectorStore
-from vietnamese_ai.rag.rag_pipeline import RAGPipeline
-from vietnamese_ai.rag.realtime_sync import BoDongBoGraft, DocumentWatcher, RAGEventBus
-from vietnamese_ai.rag.reranker import CrossEncoderReranker, SapXepLai
-from vietnamese_ai.rag.retriever import Retriever, SearchResult, TrichXuat
-from vietnamese_ai.rag.spatial_store import SpatialVectorStore
-from vietnamese_ai.rag.text_splitters import RecursiveCharacterTextSplitter
-from vietnamese_ai.rag.vector_store import CSDLVector
+from vietnamese_ai.utils.lazy_loader import tao_lazy_getattr
 
 __all__ = [
     "Retriever",
-    "SearchResult",
+    "TrichXuat",
+    "IdentityAwareRetriever",
+    "MultiModalRetriever",
     "CSDLVector",
     "SpatialVectorStore",
     "CatVanBan",
-    "CatTheoNguNghia",
-    "BoDongBoGraft",
+    "NenNguCanh",
+    "PromptCompressor",
+    "BoNhoDemNguNghia",
+    "SemanticCache",
+    "DanhGiaRAG",
     "CrossEncoderReranker",
     "ChromaVectorStore",
     "QdrantVectorStore",
-    "TrichXuat",
     "RAGPipeline",
     "SapXepLai",
     "TextLoader",
@@ -41,3 +32,41 @@ __all__ = [
     "DocumentWatcher",
     "AgenticRAGPipeline",
 ]
+
+__getattr__ = tao_lazy_getattr(
+    __name__,
+    {
+        "Retriever": ("vietnamese_ai.rag.retriever", "TrichXuat"),
+        "TrichXuat": ("vietnamese_ai.rag.retriever", "TrichXuat"),
+        "IdentityAwareRetriever": ("vietnamese_ai.rag.retriever", "IdentityAwareRetriever"),
+        "MultiModalRetriever": ("vietnamese_ai.rag.retriever", "MultiModalRetriever"),
+        "CSDLVector": ("vietnamese_ai.rag.vector_store", "CSDLVector"),
+        "SpatialVectorStore": ("vietnamese_ai.rag.spatial_store", "SpatialVectorStore"),
+        "CatVanBan": ("vietnamese_ai.rag.chunker", "CatVanBan"),
+        "NenNguCanh": ("vietnamese_ai.rag.context_optimization", "NenNguCanh"),
+        "PromptCompressor": ("vietnamese_ai.rag.context_optimization", "PromptCompressor"),
+        "BoNhoDemNguNghia": ("vietnamese_ai.rag.context_optimization", "BoNhoDemNguNghia"),
+        "SemanticCache": ("vietnamese_ai.rag.context_optimization", "SemanticCache"),
+        "DanhGiaRAG": ("vietnamese_ai.rag.evaluation", "DanhGiaRAG"),
+        "CrossEncoderReranker": ("vietnamese_ai.rag.reranker", "CrossEncoderReranker"),
+        "SapXepLai": ("vietnamese_ai.rag.reranker", "SapXepLai"),
+        "ChromaVectorStore": ("vietnamese_ai.rag.chroma_store", "ChromaVectorStore"),
+        "QdrantVectorStore": ("vietnamese_ai.rag.qdrant_store", "QdrantVectorStore"),
+        "RAGPipeline": ("vietnamese_ai.rag.rag_pipeline", "RAGPipeline"),
+        "TextLoader": ("vietnamese_ai.rag.document_loaders", "TextLoader"),
+        "PyPDFLoader": ("vietnamese_ai.rag.document_loaders", "PyPDFLoader"),
+        "RecursiveCharacterTextSplitter": (
+            "vietnamese_ai.rag.text_splitters",
+            "RecursiveCharacterTextSplitter",
+        ),
+        "GraphExtractor": ("vietnamese_ai.rag.graph", "GraphExtractor"),
+        "NetworkXStore": ("vietnamese_ai.rag.graph", "NetworkXStore"),
+        "GraphRetriever": ("vietnamese_ai.rag.graph", "GraphRetriever"),
+        "ImageEmbedder": ("vietnamese_ai.rag.multimodal", "ImageEmbedder"),
+        "MultimodalStore": ("vietnamese_ai.rag.multimodal", "MultimodalStore"),
+        "RAGEventBus": ("vietnamese_ai.rag.realtime_sync", "RAGEventBus"),
+        "DocumentWatcher": ("vietnamese_ai.rag.realtime_sync", "DocumentWatcher"),
+        "AgenticRAGPipeline": ("vietnamese_ai.rag.agentic_rag", "AgenticRAGPipeline"),
+    },
+    globals(),
+)

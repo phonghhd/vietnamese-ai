@@ -68,9 +68,20 @@ class TrichXuat:
         metadata["tai_lieu_goc"] = ma
 
         chunks = self.cat_van_ban.chia(van_ban, metadata)
+        if not chunks and van_ban and van_ban.strip():
+            vb_clean = van_ban.strip()
+            chunks = [
+                {
+                    "noi_dung": vb_clean,
+                    "vi_tri_bat_dau": 0,
+                    "vi_tri_ket_thuc": len(vb_clean),
+                    "metadata": {**metadata, "loai": "tu", "so_tu": len(vb_clean.split())},
+                }
+            ]
 
         for i, chunk in enumerate(chunks):
             chunk_id = f"{ma}_chunk_{i}"
+            chunk_meta = {"noi_dung": chunk["noi_dung"], **chunk["metadata"]}
 
             # BM25 indexing
             tu_list = chunk["noi_dung"].lower().split()
@@ -86,11 +97,11 @@ class TrichXuat:
             # Vector embedding
             if self.ham_embed is not None:
                 vector = self.ham_embed(chunk["noi_dung"])
-                self.csdl_vector.chen(chunk_id, vector, chunk["metadata"])
+                self.csdl_vector.chen(chunk_id, vector, chunk_meta)
             else:
                 # Fallback: TF-IDF-like vector
                 vector = self._tao_vector_don_gian(chunk["noi_dung"])
-                self.csdl_vector.chen(chunk_id, vector, chunk["metadata"])
+                self.csdl_vector.chen(chunk_id, vector, chunk_meta)
 
         return len(chunks)
 
@@ -307,12 +318,17 @@ class TrichXuat:
 
     def thong_ke(self) -> Dict[str, Any]:
         """Thống kê retriever."""
+        if hasattr(self.csdl_vector, "thong_ke"):
+            csdl_info = self.csdl_vector.thong_ke()
+        else:
+            so = self.csdl_vector.so_luong() if hasattr(self.csdl_vector, "so_luong") else 0
+            csdl_info = {"so_luong": so}
         return {
             "so_tai_lieu": len(self._van_ban_goc),
             "so_chunks": self._tong_tai_lieu,
             "che_do": self.che_do,
             "trong_so_semantic": self.trong_so_semantic,
-            "csdl_vector": self.csdl_vector.thong_ke(),
+            "csdl_vector": csdl_info,
         }
 
     def __repr__(self) -> str:
@@ -328,6 +344,26 @@ class IdentityAwareRetriever(TrichXuat):
     Retriever hỗ trợ phân quyền (RBAC) cho dữ liệu RAG.
     Đảm bảo LLM chỉ tìm kiếm trên các dữ liệu mà người dùng được phép truy cập.
     """
+
+    @staticmethod
+    def _lay_allowed_roles(meta: Dict[str, Any]) -> Optional[List[str]]:
+        allowed = meta.get("allowed_roles")
+        if allowed is None:
+            allowed = meta.get("roles_allowed")
+        return allowed
+
+    def _loc_theo_quyen(
+        self, ket_qua_tho: List[Dict[str, Any]], required_roles: Optional[List[str]], top_k: int
+    ) -> List[Dict[str, Any]]:
+        if required_roles is None:
+            return ket_qua_tho[:top_k]
+        ket_qua_da_loc = []
+        for kq in ket_qua_tho:
+            meta = kq.get("metadata", {})
+            allowed = self._lay_allowed_roles(meta)
+            if allowed is None or any(role in allowed for role in required_roles):
+                ket_qua_da_loc.append(kq)
+        return ket_qua_da_loc
 
     def tim_kiem(
         self,
@@ -348,21 +384,17 @@ class IdentityAwareRetriever(TrichXuat):
                             ít nhất 1 role khớp để được đọc.
         """
         ket_qua_tho = super().tim_kiem(cau_hoi, top_k * 3, nguong)
+        return self._loc_theo_quyen(ket_qua_tho, required_roles, top_k)
 
-        # Nếu không yêu cầu kiểm tra quyền, trả về top_k kết quả
-        if required_roles is None:
-            return ket_qua_tho[:top_k]
-
-        ket_qua_da_loc = []
-        for kq in ket_qua_tho:
-            meta = kq.get("metadata", {})
-            allowed = meta.get("allowed_roles")
-
-            # Nếu tài liệu không giới hạn quyền, hoặc người dùng có quyền phù hợp
-            if allowed is None or any(role in allowed for role in required_roles):
-                ket_qua_da_loc.append(kq)
-
-        return ket_qua_da_loc
+    def tim_kiem_an_toan(
+        self,
+        query_vector: np.ndarray,
+        user_roles: Optional[List[str]] = None,
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
+        """Tìm kiếm bằng vector kèm lọc RBAC (dùng cho Mobile Copilot)."""
+        ket_qua_tho = self.csdl_vector.tim_kiem(query_vector, top_k=top_k * 3)
+        return self._loc_theo_quyen(ket_qua_tho, user_roles, top_k)
 
 
 class MultiModalRetriever(TrichXuat):
@@ -394,3 +426,6 @@ class MultiModalRetriever(TrichXuat):
             kq_anh = self.multimodal_store.tim_kiem_anh_tu_van_ban(cau_hoi, top_k=top_k)
             kq_van_ban = self.tim_kiem(cau_hoi, top_k=top_k)
             return {"anh": kq_anh, "van_ban": kq_van_ban}
+
+
+Retriever = TrichXuat

@@ -2,8 +2,11 @@
 
 import math
 
-import torch
-import torch.nn as nn
+try:
+    import torch
+    import torch.nn as nn
+except ImportError as e:  # pragma: no cover
+    raise ImportError("BitLoRALinear cần PyTorch: pip install torch") from e
 
 from vietnamese_ai.compression.extreme import BitLinear
 

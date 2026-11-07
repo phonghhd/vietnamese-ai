@@ -3,11 +3,21 @@
 from typing import Any, Optional
 
 import numpy as np
-from sklearn.cluster import DBSCAN, AgglomerativeClustering
-from sklearn.cluster import KMeans as SKKMeans
-from sklearn.metrics import silhouette_score
 
 from vietnamese_ai.models.base import BaseModel
+from vietnamese_ai.utils.lazy_loader import _KMeansNumPy
+
+try:
+    from sklearn.cluster import DBSCAN, AgglomerativeClustering
+    from sklearn.cluster import KMeans as SKKMeans
+    from sklearn.metrics import silhouette_score
+
+    _CO_SKLEARN = True
+except ImportError:
+    _CO_SKLEARN = False
+    SKKMeans = _KMeansNumPy
+    DBSCAN = _KMeansNumPy
+    AgglomerativeClustering = _KMeansNumPy
 
 
 class PhanCum(BaseModel):
@@ -77,7 +87,24 @@ class PhanCum(BaseModel):
         nhan = self.du_doan(X)
         if len(set(nhan)) < 2:
             return -1.0
-        return float(silhouette_score(np.asarray(X), nhan))
+        if _CO_SKLEARN:
+            return float(silhouette_score(np.asarray(X), nhan))
+        # Tính Silhouette xấp xỉ thuần NumPy
+        X_arr = np.asarray(X, dtype=float)
+        dists = np.sqrt(np.sum((X_arr[:, None, :] - X_arr[None, :, :]) ** 2, axis=-1))
+        scores = []
+        cac_nhan = np.unique(nhan)
+        for i in range(len(X_arr)):
+            c_i = nhan[i]
+            cung_cum = (nhan == c_i) & (np.arange(len(X_arr)) != i)
+            a_i = float(np.mean(dists[i, cung_cum])) if np.any(cung_cum) else 0.0
+            b_i = min(
+                float(np.mean(dists[i, nhan == c_khac]))
+                for c_khac in cac_nhan
+                if c_khac != c_i and np.any(nhan == c_khac)
+            )
+            scores.append((b_i - a_i) / max(a_i, b_i, 1e-8))
+        return float(np.mean(scores))
 
     def lay_tam_cum(self) -> Optional[np.ndarray]:
         """Lấy tọa độ tâm các cụm (chỉ áp dụng cho KMeans)."""

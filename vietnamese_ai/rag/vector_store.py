@@ -1,10 +1,33 @@
 """CSDL Vector - lưu trữ và tìm kiếm vector embeddings."""
 
 import pickle
+import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+
+
+class KetQuaTaiLieu:
+    """Đối tượng tài liệu trả về từ similarity_search (tương thích cả thuộc tính và dict)."""
+
+    def __init__(self, page_content: str, metadata: Dict[str, Any], diem: float = 0.0, ma: str = ""):
+        self.page_content = page_content
+        self.noi_dung = page_content
+        self.metadata = metadata
+        self.diem = diem
+        self.ma = ma
+
+    def __getitem__(self, key: str) -> Any:
+        if key == "page_content" or key == "noi_dung":
+            return self.page_content
+        if key == "metadata":
+            return self.metadata
+        if key == "diem":
+            return self.diem
+        if key == "ma":
+            return self.ma
+        return self.metadata.get(key)
 
 
 class CSDLVector:
@@ -110,9 +133,68 @@ class CSDLVector:
         self._id_to_idx = {ma: i for i, ma in enumerate(self._ids)}
         return True
 
+    def _nhung_chuoi(self, van_ban: str) -> np.ndarray:
+        """Nhúng chuỗi văn bản sang vector có kích thước bằng kich_thuoc của CSDL."""
+        from vietnamese_ai.rag.embedder import BoNhungVanBan
+
+        if not hasattr(self, "_bo_nhung_mac_dinh") or self._bo_nhung_mac_dinh is None:
+            self._bo_nhung_mac_dinh = BoNhungVanBan(
+                kich_thuoc=self.kich_thuoc, phuong_phap="hash"
+            )
+        return self._bo_nhung_mac_dinh.nhung_mot(van_ban)
+
+    def them_tai_lieu(
+        self,
+        id_tai_lieu: str,
+        noi_dung: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Nhúng và chèn trực tiếp một tài liệu văn bản vào CSDLVector."""
+        meta = dict(metadata) if metadata else {}
+        meta.setdefault("noi_dung", noi_dung)
+        meta.setdefault("page_content", noi_dung)
+        vector = self._nhung_chuoi(noi_dung)
+        self.chen(id_tai_lieu, vector, meta)
+
+    def add_documents(
+        self,
+        texts: List[str],
+        metadatas: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[str]:
+        """Thêm danh sách văn bản vào CSDLVector (tương thích MemGPT / LangChain API)."""
+        ids: List[str] = []
+        for i, text in enumerate(texts):
+            doc_id = f"doc_{len(self._ids) + 1}_{uuid.uuid4().hex[:6]}"
+            meta = dict(metadatas[i]) if metadatas and i < len(metadatas) else {}
+            self.them_tai_lieu(doc_id, text, meta)
+            ids.append(doc_id)
+        return ids
+
+    def similarity_search(
+        self,
+        query: str,
+        top_k: int = 3,
+        bo_loc: Optional[Dict[str, Any]] = None,
+    ) -> List[KetQuaTaiLieu]:
+        """Tìm kiếm tài liệu tương đồng theo truy vấn văn bản."""
+        ket_qua = self.tim_kiem(query, top_k=top_k, bo_loc=bo_loc)
+        docs: List[KetQuaTaiLieu] = []
+        for item in ket_qua:
+            meta = item.get("metadata", {})
+            noi_dung = meta.get("page_content") or meta.get("noi_dung") or meta.get("text") or ""
+            docs.append(
+                KetQuaTaiLieu(
+                    page_content=noi_dung,
+                    metadata=meta,
+                    diem=float(item.get("diem", 0.0)),
+                    ma=str(item.get("ma", "")),
+                )
+            )
+        return docs
+
     def tim_kiem(
         self,
-        query_vector: np.ndarray,
+        query_vector: Union[np.ndarray, str],
         top_k: int = 5,
         nguong: Optional[float] = None,
         bo_loc: Optional[Dict[str, Any]] = None,
@@ -121,7 +203,7 @@ class CSDLVector:
         Tìm kiếm vector gần nhất.
 
         Args:
-            query_vector: Vector truy vấn
+            query_vector: Vector truy vấn hoặc chuỗi văn bản truy vấn
             top_k: Số kết quả trả về
             nguong: Ngưỡng điểm tối thiểu
             bo_loc: Metadata filter (key-value match)
@@ -132,7 +214,10 @@ class CSDLVector:
         if self._vectors is None or len(self._ids) == 0:
             return []
 
-        query = np.asarray(query_vector, dtype=np.float32).flatten()
+        if isinstance(query_vector, str):
+            query = self._nhung_chuoi(query_vector).astype(np.float32).flatten()
+        else:
+            query = np.asarray(query_vector, dtype=np.float32).flatten()
         if query.shape[0] != self.kich_thuoc:
             raise ValueError(f"Query vector phải có {self.kich_thuoc} chiều")
 

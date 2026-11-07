@@ -2,6 +2,67 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v30.1.0 (2026-11-07)
+
+### 🌟 Tính năng Mới & Đột phá Công nghệ
+- **Agentic StateGraph & Human-in-the-Loop (HITL)**:
+  - Bổ sung `DoThiTrangThai` (`StateGraph`), điểm bắt đầu `START`, điểm kết thúc `END`, các kênh reducer (`kenh_them_danh_sach`, `kenh_ghi_de`), lưu trữ checkpoint (`BoLuuDiemKiemTra`) và cơ chế tạm dừng/can thiệp của con người (interrupt & resume).
+  - Tác tử Nghiên cứu Sâu `TacTuNghienCuuSau` (`DeepResearchAgent`): Tự động phân rã chủ đề, tìm kiếm dữ liệu đa vòng, phản biện chéo (Critic-in-the-loop) và xuất báo cáo điều hành chuẩn mực kèm điểm tin cậy số liệu.
+  - Tác tử Tự sửa Code `TacTuLapTrinhTuSua` (`CodeHealingAgent`): Chẩn đoán lỗi cú pháp AST, đề xuất bản vá và chạy kiểm thử hồi quy tự động.
+  - CLI: Bổ sung lệnh `vai agent research` và `vai agent code`.
+
+- **Động cơ Native C & Zero-GPU Edge Engine**:
+  - `DongCoSuyLuanEdge` (`EdgeInferenceEngine`, `ZeroGPUInferenceEngine`): Động cơ suy luận streaming siêu nhẹ, tối ưu hóa cho CPU tiêu dùng không cần GPU/CUDA.
+  - `BoGiaiLuongTuQ4`: Giải lượng tử hóa Q4_0 và Q8_0 vector hóa tốc độ cao.
+  - `GGUFMemoryMappedStreamer`: Đọc mô hình trực tiếp qua memory-map (mmap) không tốn RAM.
+  - `CauNoiCtypesNative` (`NativeLlamaBridge`): Cầu nối C-types gọi trực tiếp thư viện C/C++ native runtime (`libllama.so`, `llama.dll`).
+  - Trình đóng gói 1-Click Desktop `GoiDocLapDesktop` (`DesktopPackager`): Tự động sinh launcher độc lập chạy 100% offline cho Windows (`.bat`) và Linux/macOS (`.sh`).
+  - CLI: Bổ sung lệnh `vai run` (suy luận streaming / benchmark) và `vai pack` (đóng gói desktop 1-click).
+
+- **Giao diện Trực quan No-Code Web Studio & Bộ Giải pháp Doanh nghiệp**:
+  - `StudioDashboardApp`: Giao diện web trực quan thuần Zero-Dependency (cổng 8080) giám sát tài nguyên, trực quan hóa giải pháp và quản trị an toàn thông tin.
+  - 3 Bộ Giải pháp Chuyên ngành Doanh nghiệp: Tổng đài CSKH tự động (`TongDaiCSKH`), Trợ lý Rà soát Hợp đồng Pháp lý (`TroLyPhapLy`), và Trích xuất Dữ liệu Thông minh CCCD/Hóa đơn (`TrichXuatThongMinh`).
+  - CLI: Bổ sung lệnh `vai studio`, `vai solution cskh`, `vai solution phap-ly`, `vai solution trich-xuat`.
+
+### 🚀 Tối ưu hóa & Ổn định Hệ thống
+- Nâng cấp PEP 562 Lazy Loading: Quản lý và xuất khẩu **227 public API symbols** với thời gian nạp thư viện cực nhanh (~`1.20 ms`).
+- Mở rộng bộ kiểm thử tự động lên **1.032 bài kiểm thử (100% Passed)**, bảo đảm độ ổn định và an toàn tuyệt đối.
+- Đồng bộ phiên bản chuẩn hóa **30.1.0** trên toàn bộ hệ thống (`__init__.py`, `pyproject.toml`, `setup.py`, CI/CD, tests).
+
+## v30.0.0 (2026-10-16)
+
+### Release hygiene & API stability
+- Đồng bộ phiên bản **30.0.0** trên `__init__.py`, `setup.py`, `pyproject.toml`, tests, docs.
+- Sửa export `DieuPhoiCum` (alias `NutChinh` qua `orchestrator/cluster_manager.py`).
+- Đồng bộ extras `llm` / `api` / `rag` (+ `networkx`, `pytest-asyncio`) giữa `pyproject.toml` và `setup.py`.
+- Chuẩn hóa `__init__` các module (`core`, `nlp`, `serving`, `models`, `automl`, `export`, `enterprise`, `agents`, `extreme`, `rag`, `mobile`).
+- Sửa export gãy: `CrossEncoderReranker`, `Retriever`, `MobileDeployer`/`ONNXExporter`, bỏ `BoDongBoGraft`/`SearchResult` không tồn tại.
+- Multimodal `ImageEmbedder` dùng embedding hash xác định; PhoBERT có `che_do_mo_phong`.
+- Sửa API mismatch: `BrowserCopilot` ↔ `IdentityAwareRetriever`, `SelfHealingAgent` nhận `ham_xac_nhan`.
+- CI: coverage floor + mypy; tách publish khỏi job test trùng lặp.
+- Ghi rõ Edge/TEE/WASM/mobile GGUF/ExecuTorch/SDK Base64 đang **mô phỏng/placeholder**.
+
+### Post-release polish & Real Execution Upgrade (v30.0.0)
+- **GPT Transformer & Pre-training**: Bổ sung lan truyền ngược giải tích đầy đủ (`CausalSelfAttention.nguoc`, `GPTBlock.nguoc`, `GPTModel.buoc_huan_luyen`) kèm bộ tối ưu AdamW và cập nhật `PreTrainer` huấn luyện giảm hàm mất mát thực tế.
+- **Fine-tuning (Zero-Dependency NumPy)**: Hiện thực hóa huấn luyện thật trong `SFTTrainer`, `DPOTrainer` (Bradley-Terry preference optimization), và `RewardModel` (chấm điểm thực bằng vector đặc trưng đã học, loại bỏ hoàn toàn `np.random.normal`).
+- **Export & Mobile Runtime**:
+  - `XuatGGUF`: Sửa mã kiểu `int32` chuẩn GGUF v3, lưu hệ số tỷ lệ lượng tử hóa và bổ sung `tai_tu_gguf` giải lượng tử hóa F32/F16/Q8_0/Q4_K_M.
+  - `XuatONNX`: Bổ sung bộ tuần tự hóa đồ thị gốc và runtime NumPy cho `xuat_sklearn`, `chay_onnx`, `kiem_tra_onnx` ngay cả khi không cài `skl2onnx`/`onnxruntime`.
+  - `TriKhaiDiDong`: Xuất file GGUF/ExecuTorch chứa trọng số thật và bổ sung `chay_suy_luan_di_dong` chạy suy luận trực tiếp từ `.tflite`, `.mlmodel`, `.onnx`, `.gguf`, `.pte`.
+  - `HocLienKet`: Nạp trực tiếp trọng số toàn cục FedAvg vào mô hình dự đoán mà không cần huấn luyện giả trên nhãn `y_dummy`.
+- **RAG, NLP & Multimodal**:
+  - `BoNhungVanBan` & `PhoBERTWrapper`: Thay thế băm SHA256 ngẫu nhiên cả chuỗi bằng Feature Hashing đa n-gram (từ đơn, từ ghép, ký tự 3..5-gram) bảo toàn độ tương đồng ngữ nghĩa tiếng Việt.
+  - `ImageEmbedder` & `cong_cu_phan_tich_anh`: Trích xuất vector thị giác 512 chiều thật từ pixel ảnh qua `Pillow` (RGB histogram, 4x4 spatial pyramid, Sobel HOG-lite, aHash/dHash, radial profile).
+  - Đồng bộ hóa API `CSDLVector` (`them_tai_lieu`, `add_documents`, `similarity_search`) với `SoTayKinhNghiem` và `HethongNhoMemGPT`; bổ sung quét thư mục thật cho `DocumentWatcher` và bóc tách HTML thật cho `BrowserCopilot`.
+- **Serving & Distributed**:
+  - `BlockManager` & `PagedAttentionSimulation`: Lưu KV cache thực (`k_cache`, `v_cache`), hỗ trợ Copy-on-Write (`fork_sequence`) và tính Scaled Dot-Product Attention thật trên các khối vật lý phân mảnh.
+  - `SpeculativeEngine`: Lấy mẫu chính xác từ phân phối phần dư chuẩn hóa $\max(0, P_t(x) - P_d(x))$ khi từ chối token nháp.
+  - `RingAttentionNode` & `RingAttentionCluster`: Truyền và xoay vòng các phân đoạn $(K, V)$ qua các nút mạng, khớp tuyệt đối với Attention toàn cục.
+- **Bảo mật E2EE, ZKP & Công cụ Không gian/Di động**:
+  - `MobileAppBridge`: Bổ sung mã hóa xác thực AEAD1 (`PBKDF2-HMAC-SHA256` + `SHA256-CTR` + `HMAC-SHA256`) và ASGI WebSocket handler.
+  - `SecureEdgeNode` & `WebBrowserNode`: Triển khai Non-Interactive Schnorr Zero-Knowledge Proof (Fiat-Shamir heuristic) trên trường nguyên tố 256-bit với khóa công khai độc lập.
+  - `spatial_tools` & `mobile_tools`: Giải động học ngược 3-DOF (`giai_dong_hoc_nguoc_3dof`), nạp đám mây điểm vào `SpatialVectorStore`, và quản lý trạng thái thiết bị thực qua `MobileDeviceState`.
+
 ## v20.0.0 (2026-05-29)
 
 ### Real-time Agentic RAG

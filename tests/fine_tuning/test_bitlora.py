@@ -1,4 +1,6 @@
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
 
 from vietnamese_ai.compression.extreme import BitLinear
 from vietnamese_ai.fine_tuning.bitlora import BitLoRALinear

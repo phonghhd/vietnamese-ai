@@ -28,6 +28,8 @@ class LuongAnToan:
         toi_da_do_dai: int = 10000,
         toi_thieu_do_dai: int = 0,
         chan_pii: bool = False,
+        chan_bi_mat: bool = True,
+        loi_khi_co_pii: bool = False,
         dinh_dang_yeu_cau: Optional[str] = None,
         rules: Optional[List[Callable[[str], Tuple[bool, str]]]] = None,
     ):
@@ -35,6 +37,8 @@ class LuongAnToan:
         self.toi_da_do_dai = toi_da_do_dai
         self.toi_thieu_do_dai = toi_thieu_do_dai
         self.chan_pii = chan_pii
+        self.chan_bi_mat = chan_bi_mat
+        self.loi_khi_co_pii = loi_khi_co_pii
         self.dinh_dang_yeu_cau = dinh_dang_yeu_cau
         self.rules = rules or []
 
@@ -43,6 +47,12 @@ class LuongAnToan:
             "email": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
             "cmnd": r"\b\d{9}(?:\d{3})?\b",
             "the_ngan_hang": r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b",
+        }
+        self._mau_bi_mat = {
+            "api_key": r"\b(?:vai_[a-fA-F0-9]{16,64}|sk-[a-zA-Z0-9_-]{16,128}|hf_[a-zA-Z0-9]{16,64}|AIza[0-9A-Za-z_-]{20,60})\b",
+            "jwt_token": r"\beyJ[a-zA-Z0-9_-]{8,}\.[a-zA-Z0-9_-]{8,}\.[a-zA-Z0-9_-]{8,}\b",
+            "private_key": r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+            "chuoi_ket_noi_db": r"\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^\s\"']+",
         }
 
     def kiem_tra(self, noi_dung: str) -> Dict[str, Any]:
@@ -76,7 +86,17 @@ class LuongAnToan:
             pii_phat_hien = self._kiem_tra_pii(noi_dung)
             for loai, matches in pii_phat_hien.items():
                 if matches:
-                    canh_bao.append(f"Phát hiện {loai}: {len(matches)} kết quả")
+                    msg = f"Phát hiện {loai}: {len(matches)} kết quả"
+                    canh_bao.append(msg)
+                    if self.loi_khi_co_pii:
+                        loi.append(msg)
+
+        # Kiểm tra rò rỉ khóa bí mật (API Key, JWT, Private Key, DB URI)
+        if self.chan_bi_mat:
+            for loai, mau in self._mau_bi_mat.items():
+                matches = re.findall(mau, noi_dung)
+                if matches:
+                    loi.append(f"Rò rỉ thông tin bí mật ({loai}): {len(matches)} kết quả")
 
         # Kiểm tra định dạng
         if self.dinh_dang_yeu_cau:

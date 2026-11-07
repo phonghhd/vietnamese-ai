@@ -49,6 +49,24 @@ class BaseModel(ABC):
         """Trả về các tham số của mô hình."""
         return self.tham_so.copy()
 
+    def kiem_dinh_du_lieu(
+        self, X: Any, y: Any = None, X_test: Any = None, loai_bo_mau_doc: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Kiểm định chất lượng đầu vào (0–100) và quét đầu độc dữ liệu (Spectral SVD & k-NN Label Flip).
+        """
+        from vietnamese_ai.security.data_defense import CongChatLuongDauVao, PhongThuDuLieu
+
+        bc_chat_luong = CongChatLuongDauVao.kiem_tra_mang_so(X, y=y, X_test=X_test)
+        du_lieu_sach, bc_phong_thu = PhongThuDuLieu.quet_va_lam_sach_dataset(
+            X, y=y, loai_bo_mau_doc=loai_bo_mau_doc
+        )
+        return {
+            **bc_chat_luong,
+            "bao_cao_phong_thu": bc_phong_thu,
+            "du_lieu_sach": du_lieu_sach if loai_bo_mau_doc else None,
+        }
+
     def luu(self, duong_dan: str) -> None:
         """Lưu mô hình ra file (pickle format).
 

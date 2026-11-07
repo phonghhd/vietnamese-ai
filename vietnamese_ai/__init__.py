@@ -12,20 +12,21 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
-__version__ = "11.0.1"
+__version__ = "30.1.0"
 __author__ = "EvoNet AI Team"
 
 
-def __getattr__(name: str):
-    """Lazy imports - chỉ import khi cần dùng, tránh load dependencies không cần thiết."""
-    _lazy_imports = {
-        # Core
-        "AutoML": ("vietnamese_ai.automl.auto_ml", "AutoML"),
+_LAZY_IMPORTS = {
+    # Core
+    "AutoML": ("vietnamese_ai.automl.auto_ml", "AutoML"),
         "BaseModel": ("vietnamese_ai.models.base", "BaseModel"),
         "Engine": ("vietnamese_ai.core.engine", "Engine"),
         "KiemDinhCheo": ("vietnamese_ai.core.cross_validation", "KiemDinhCheo"),
         "Pipeline": ("vietnamese_ai.core.pipeline", "Pipeline"),
         "TimKiemThamSo": ("vietnamese_ai.core.hyperparameter", "TimKiemThamSo"),
+        "QuyTrinhDauCuoi": ("vietnamese_ai.core.end_to_end", "QuyTrinhDauCuoi"),
+        "HeSinhThaiAI": ("vietnamese_ai.core.end_to_end", "HeSinhThaiAI"),
+        "EndToEndWorkflow": ("vietnamese_ai.core.end_to_end", "EndToEndWorkflow"),
         # Models
         "PhanLoai": ("vietnamese_ai.models.classifier", "PhanLoai"),
         "HoiQuy": ("vietnamese_ai.models.regression", "HoiQuy"),
@@ -85,8 +86,17 @@ def __getattr__(name: str):
         "StudioKeoTha": ("vietnamese_ai.studio.builder", "StudioKeoTha"),
         # Timeseries
         "DuDoanChuoiThoiGian": ("vietnamese_ai.timeseries.forecaster", "DuDoanChuoiThoiGian"),
-        # Vision
+        # Vision & Audio
         "PhanLoaiHinhAnh": ("vietnamese_ai.vision.image_classifier", "PhanLoaiHinhAnh"),
+        "TrichXuatVanBanAnh": ("vietnamese_ai.vision.ocr", "TrichXuatVanBanAnh"),
+        "MoHinhThiGiacNgonNgu": ("vietnamese_ai.vision.vlm", "MoHinhThiGiacNgonNgu"),
+        "VietnameseVLM": ("vietnamese_ai.vision.vlm", "VietnameseVLM"),
+        "NhanDienGiongNoi": ("vietnamese_ai.audio.speech", "NhanDienGiongNoi"),
+        "TongHopGiongNoi": ("vietnamese_ai.audio.speech", "TongHopGiongNoi"),
+        # API
+        "ServerDonGian": ("vietnamese_ai.api.server", "ServerDonGian"),
+        "MayChuOpenAI": ("vietnamese_ai.api.server", "MayChuOpenAI"),
+        "OpenAICompatibleServer": ("vietnamese_ai.api.server", "OpenAICompatibleServer"),
         # Streaming
         "XuLyStream": ("vietnamese_ai.realtime.processor", "XuLyStream"),
         # Registry
@@ -105,6 +115,15 @@ def __getattr__(name: str):
         "TransformerModel": ("vietnamese_ai.transformer.model", "TransformerModel"),
         "VietnameseTokenizer": ("vietnamese_ai.transformer.tokenizer", "VietnameseTokenizer"),
         "GPTModel": ("vietnamese_ai.transformer.gpt_model", "GPTModel"),
+        "RotaryPositionEmbedding": (
+            "vietnamese_ai.transformer.moe_rope",
+            "RotaryPositionEmbedding",
+        ),
+        "GroupedQueryAttention": (
+            "vietnamese_ai.transformer.moe_rope",
+            "GroupedQueryAttention",
+        ),
+        "SparseMoELayer": ("vietnamese_ai.transformer.moe_rope", "SparseMoELayer"),
         "PreTrainer": ("vietnamese_ai.transformer.pretrainer", "PreTrainer"),
         "TextDataset": ("vietnamese_ai.transformer.pretrainer", "TextDataset"),
         # LLM
@@ -112,12 +131,44 @@ def __getattr__(name: str):
         "ModelConfig": ("vietnamese_ai.llm.model_configs", "ModelConfig"),
         "LMEvalHarness": ("vietnamese_ai.llm.lm_eval", "LMEvalHarness"),
         "BenchmarkRunner": ("vietnamese_ai.llm.benchmark_runner", "BenchmarkRunner"),
+        "OllamaWrapper": ("vietnamese_ai.llm.wrappers", "OllamaWrapper"),
+        "VLLMWrapper": ("vietnamese_ai.llm.wrappers", "VLLMWrapper"),
+        "LlamaCppWrapper": ("vietnamese_ai.llm.wrappers", "LlamaCppWrapper"),
         # Fine-tuning
+        "BoTinhChinhMoHinh": ("vietnamese_ai.fine_tuning.auto_finetuner", "BoTinhChinhMoHinh"),
+        "AutoFineTuner": ("vietnamese_ai.fine_tuning.auto_finetuner", "AutoFineTuner"),
+        "InstructionDataset": ("vietnamese_ai.fine_tuning.dataset", "InstructionDataset"),
         "HuanLuyenPyTorch": ("vietnamese_ai.fine_tuning.pytorch_trainer", "HuanLuyenPyTorch"),
         "UnslothWrapper": ("vietnamese_ai.fine_tuning.unsloth_wrapper", "UnslothWrapper"),
         "HuggingFaceWrapper": ("vietnamese_ai.fine_tuning.hf_wrapper", "HuggingFaceWrapper"),
         "LoRAAdapter": ("vietnamese_ai.fine_tuning.lora", "LoRAAdapter"),
         "QLoRAAdapter": ("vietnamese_ai.fine_tuning.lora", "QLoRAAdapter"),
+        "DoRALayer": ("vietnamese_ai.fine_tuning.lora", "DoRALayer"),
+        "BoTangTocHuanLuyen": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "BoTangTocHuanLuyen",
+        ),
+        "TrainingAccelerator": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "TrainingAccelerator",
+        ),
+        "BoGopChuoi": ("vietnamese_ai.fine_tuning.training_accelerator", "BoGopChuoi"),
+        "SequencePacker": ("vietnamese_ai.fine_tuning.training_accelerator", "SequencePacker"),
+        "HamMatMatPhanManh": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "HamMatMatPhanManh",
+        ),
+        "ChunkedCrossEntropy": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "ChunkedCrossEntropy",
+        ),
+        "BoToiUuGaLore": ("vietnamese_ai.fine_tuning.training_accelerator", "BoToiUuGaLore"),
+        "GaLoreOptimizer": ("vietnamese_ai.fine_tuning.training_accelerator", "GaLoreOptimizer"),
+        "BenchmarkTangToc": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "BenchmarkTangToc",
+        ),
+        "SpeedBenchmark": ("vietnamese_ai.fine_tuning.training_accelerator", "SpeedBenchmark"),
         "PEFTConfig": ("vietnamese_ai.fine_tuning.peft_config", "PEFTConfig"),
         "LoRAPeft": ("vietnamese_ai.fine_tuning.lora_peft", "LoRAPeft"),
         "InstructionTuningTrainer": (
@@ -126,13 +177,19 @@ def __getattr__(name: str):
         ),
         "SFTTrainer": ("vietnamese_ai.fine_tuning.sft_trainer", "SFTTrainer"),
         "DPOTrainer": ("vietnamese_ai.fine_tuning.dpo_trainer", "DPOTrainer"),
+        "GRPOTrainer": ("vietnamese_ai.fine_tuning.grpo_trainer", "GRPOTrainer"),
         "RewardModel": ("vietnamese_ai.fine_tuning.reward_model", "RewardModel"),
         "RLHFPipeline": ("vietnamese_ai.fine_tuning.rlhf_pipeline", "RLHFPipeline"),
         # === v10.0: RAG ===
         "CSDLVector": ("vietnamese_ai.rag.vector_store", "CSDLVector"),
         "TrichXuat": ("vietnamese_ai.rag.retriever", "TrichXuat"),
         "CatVanBan": ("vietnamese_ai.rag.chunker", "CatVanBan"),
+        "NenNguCanh": ("vietnamese_ai.rag.context_optimization", "NenNguCanh"),
+        "PromptCompressor": ("vietnamese_ai.rag.context_optimization", "PromptCompressor"),
+        "BoNhoDemNguNghia": ("vietnamese_ai.rag.context_optimization", "BoNhoDemNguNghia"),
+        "SemanticCache": ("vietnamese_ai.rag.context_optimization", "SemanticCache"),
         "RAGPipeline": ("vietnamese_ai.rag.rag_pipeline", "RAGPipeline"),
+        "DanhGiaRAG": ("vietnamese_ai.rag.evaluation", "DanhGiaRAG"),
         "SapXepLai": ("vietnamese_ai.rag.reranker", "SapXepLai"),
         "GraphExtractor": ("vietnamese_ai.rag.graph", "GraphExtractor"),
         "NetworkXStore": ("vietnamese_ai.rag.graph", "NetworkXStore"),
@@ -148,6 +205,7 @@ def __getattr__(name: str):
         "ChuoiPrompt": ("vietnamese_ai.prompts.chains", "ChuoiPrompt"),
         "LuongAnToan": ("vietnamese_ai.prompts.guardrails", "LuongAnToan"),
         "PhanTichDauRa": ("vietnamese_ai.prompts.parser", "PhanTichDauRa"),
+        "SinhCoCauTruc": ("vietnamese_ai.prompts.parser", "SinhCoCauTruc"),
         # === v10.0: Compression ===
         "HocRutGon": ("vietnamese_ai.compression.distillation", "HocRutGon"),
         "CatTiaMoHinh": ("vietnamese_ai.compression.pruning", "CatTiaMoHinh"),
@@ -166,12 +224,18 @@ def __getattr__(name: str):
         # === v12.0: Multi-Agent System ===
         "TacTu": ("vietnamese_ai.agents.agent", "TacTu"),
         "CongCu": ("vietnamese_ai.agents.tools", "CongCu"),
+        "CongCuManHinh": ("vietnamese_ai.agents.tools", "CongCuManHinh"),
+        "ComputerUseTool": ("vietnamese_ai.agents.tools", "ComputerUseTool"),
         "cong_cu": ("vietnamese_ai.agents.tools", "cong_cu"),
+        "cong_cu_man_hinh": ("vietnamese_ai.agents.tools", "cong_cu_man_hinh"),
         "BoNhoTacTu": ("vietnamese_ai.agents.memory", "BoNhoTacTu"),
         "TacTuSwarm": ("vietnamese_ai.agents.swarm", "TacTuSwarm"),
         "HeThongSwarm": ("vietnamese_ai.agents.swarm", "HeThongSwarm"),
         "MoA": ("vietnamese_ai.agents.moa", "MoA"),
         "LapKeHoachMCTS": ("vietnamese_ai.agents.mcts_planning", "LapKeHoachMCTS"),
+        "MCPServer": ("vietnamese_ai.agents.mcp", "MCPServer"),
+        "MCPClient": ("vietnamese_ai.agents.mcp", "MCPClient"),
+        "MCPBridge": ("vietnamese_ai.agents.mcp", "MCPBridge"),
         "HethongNhoMemGPT": ("vietnamese_ai.agents.long_term_memory", "HethongNhoMemGPT"),
         # === v13.0: Edge & DePIN ===
         "NodeLlamaEngine": ("vietnamese_ai.edge.node_llama", "NodeLlamaEngine"),
@@ -184,42 +248,135 @@ def __getattr__(name: str):
             "vietnamese_ai.serving.paged_attention",
             "PagedAttentionSimulation",
         ),
+        # === v17.0: Security & AI Firewall ===
+        "TuongLuaAI": ("vietnamese_ai.security.llm_firewall", "TuongLuaAI"),
+        "TuongLuaBaoVeFramework": (
+            "vietnamese_ai.security.llm_firewall",
+            "TuongLuaBaoVeFramework",
+        ),
+        "KhienBaoVeAI": ("vietnamese_ai.security.llm_firewall", "KhienBaoVeAI"),
+        "AIFirewallShield": ("vietnamese_ai.security.llm_firewall", "AIFirewallShield"),
+        "DataSanitizer": ("vietnamese_ai.security.data_sanitizer", "DataSanitizer"),
+        "MoiTruongCachLy": ("vietnamese_ai.security.agent_sandbox", "MoiTruongCachLy"),
         # === v21.0: EvoNet-Studio Super Core ===
         "DieuPhoiCum": ("vietnamese_ai.orchestrator.cluster_manager", "DieuPhoiCum"),
+        "NutChinh": ("vietnamese_ai.orchestrator.master", "NutChinh"),
+        "NutPhu": ("vietnamese_ai.orchestrator.worker", "NutPhu"),
         "MayTinhTien": ("vietnamese_ai.monitor.cost_engine", "MayTinhTien"),
         "HoDuLieu": ("vietnamese_ai.datalake.dataset_manager", "HoDuLieu"),
         "ThucThiDocLap": ("vietnamese_ai.sandbox.executor", "ThucThiDocLap"),
         "DongChayDAG": ("vietnamese_ai.workflow.dag_engine", "DongChayDAG"),
         "QuanLyPlugin": ("vietnamese_ai.plugin.plugin_manager", "QuanLyPlugin"),
-    }
+        # === Ultra-Lightweight SDK & Ecosystem Closure ===
+        "QuanLyPhuThuoc": ("vietnamese_ai.utils.lazy_loader", "QuanLyPhuThuoc"),
+        "DependencyManager": ("vietnamese_ai.utils.lazy_loader", "DependencyManager"),
+        "ContinuousBatcher": ("vietnamese_ai.serving.continuous_batching", "ContinuousBatcher"),
+        "BoPhanLoLienTuc": ("vietnamese_ai.serving.continuous_batching", "BoPhanLoLienTuc"),
+        "MambaBlock": ("vietnamese_ai.ssm.mamba_block", "MambaBlock"),
+        "JambaBlock": ("vietnamese_ai.ssm.jamba_block", "JambaBlock"),
+        "SparseMoE": ("vietnamese_ai.ssm.jamba_block", "SparseMoE"),
+        "FederatedRLHF": ("vietnamese_ai.federated.rlhf", "FederatedRLHF"),
+        "RMSNorm": ("vietnamese_ai.compression.extreme", "RMSNorm"),
+        "BitNetTransformerBlock": (
+            "vietnamese_ai.compression.extreme",
+            "BitNetTransformerBlock",
+        ),
+        # === Data Defense, Image CDR & Input/Output Quality Gates ===
+        "KhienBaoVeHinhAnh": ("vietnamese_ai.security.data_defense", "KhienBaoVeHinhAnh"),
+        "ImageSecurityShield": ("vietnamese_ai.security.data_defense", "ImageSecurityShield"),
+        "PhongThuDuLieu": ("vietnamese_ai.security.data_defense", "PhongThuDuLieu"),
+        "DatasetDefenseShield": ("vietnamese_ai.security.data_defense", "DatasetDefenseShield"),
+        "BoGiamSatTichTuDuLieu": ("vietnamese_ai.security.data_defense", "BoGiamSatTichTuDuLieu"),
+        "StreamingPoisoningMonitor": (
+            "vietnamese_ai.security.data_defense",
+            "StreamingPoisoningMonitor",
+        ),
+        "CongChatLuongDauVao": ("vietnamese_ai.security.data_defense", "CongChatLuongDauVao"),
+        "InputQualityGate": ("vietnamese_ai.security.data_defense", "InputQualityGate"),
+        "CongAnToanDauRa": ("vietnamese_ai.security.data_defense", "CongAnToanDauRa"),
+        "OutputSafetyQualityGate": (
+            "vietnamese_ai.security.data_defense",
+            "OutputSafetyQualityGate",
+        ),
+        # === Web Studio Dashboard & Solutions (Phase 15) ===
+        "StudioDashboard": ("vietnamese_ai.ui.studio_dashboard", "StudioDashboard"),
+        "MayChuStudioDashboard": (
+            "vietnamese_ai.ui.studio_dashboard",
+            "MayChuStudioDashboard",
+        ),
+        "TroLyPhapLy": ("vietnamese_ai.solutions.phap_ly", "TroLyPhapLy"),
+        "LegalAssistant": ("vietnamese_ai.solutions.phap_ly", "LegalAssistant"),
+        "TrichXuatThongMinh": ("vietnamese_ai.solutions.trich_xuat", "TrichXuatThongMinh"),
+        "SmartExtractor": ("vietnamese_ai.solutions.trich_xuat", "SmartExtractor"),
+        "TongDaiCSKH": ("vietnamese_ai.solutions.cskh", "TongDaiCSKH"),
+        "CustomerSupportBot": ("vietnamese_ai.solutions.cskh", "CustomerSupportBot"),
+        # === StateGraph, Deep Research & Code Healing (Phase 16) ===
+        "DoThiTrangThai": ("vietnamese_ai.agents.state_graph", "DoThiTrangThai"),
+        "StateGraph": ("vietnamese_ai.agents.state_graph", "StateGraph"),
+        "START": ("vietnamese_ai.agents.state_graph", "START"),
+        "END": ("vietnamese_ai.agents.state_graph", "END"),
+        "BoLuuDiemKiemTra": ("vietnamese_ai.agents.state_graph", "BoLuuDiemKiemTra"),
+        "MemorySaver": ("vietnamese_ai.agents.state_graph", "MemorySaver"),
+        "Checkpointer": ("vietnamese_ai.agents.state_graph", "Checkpointer"),
+        "TacTuNghienCuuSau": ("vietnamese_ai.agents.deep_research", "TacTuNghienCuuSau"),
+        "DeepResearchAgent": ("vietnamese_ai.agents.deep_research", "DeepResearchAgent"),
+        "TacTuLapTrinhTuSua": ("vietnamese_ai.agents.code_healing", "TacTuLapTrinhTuSua"),
+        "CodeHealingAgent": ("vietnamese_ai.agents.code_healing", "CodeHealingAgent"),
+        # === Edge Native Zero-GPU & Desktop Packager (Phase 17) ===
+        "DongCoSuyLuanEdge": ("vietnamese_ai.edge.native_inference", "DongCoSuyLuanEdge"),
+        "EdgeInferenceEngine": ("vietnamese_ai.edge.native_inference", "EdgeInferenceEngine"),
+        "ZeroGPUInferenceEngine": ("vietnamese_ai.edge.native_inference", "ZeroGPUInferenceEngine"),
+        "BoGiaiLuongTuQ4": ("vietnamese_ai.edge.native_inference", "BoGiaiLuongTuQ4"),
+        "GGUFMemoryMappedStreamer": ("vietnamese_ai.edge.native_inference", "GGUFMemoryMappedStreamer"),
+        "CauNoiCtypesNative": ("vietnamese_ai.edge.c_bridge", "CauNoiCtypesNative"),
+        "NativeLlamaBridge": ("vietnamese_ai.edge.c_bridge", "NativeLlamaBridge"),
+        "CtypesLlamaBridge": ("vietnamese_ai.edge.c_bridge", "CtypesLlamaBridge"),
+        "GoiDocLapDesktop": ("vietnamese_ai.portable.desktop_packager", "GoiDocLapDesktop"),
+        "DesktopPackager": ("vietnamese_ai.portable.desktop_packager", "DesktopPackager"),
+        "StandalonePackager": ("vietnamese_ai.portable.desktop_packager", "StandalonePackager"),
+}
 
-    if name in _lazy_imports:
-        module_path, attr_name = _lazy_imports[name]
+
+def __getattr__(name: str):
+    """Lazy imports (PEP 562) - chỉ nạp phân hệ khi thực sự truy cập và lưu cache O(1)."""
+    if name in _LAZY_IMPORTS:
+        module_path, attr_name = _LAZY_IMPORTS[name]
         import importlib
 
         module = importlib.import_module(module_path)
-        return getattr(module, attr_name)
+        gia_tri = getattr(module, attr_name)
+        globals()[name] = gia_tri
+        return gia_tri
 
     raise AttributeError(f"module 'vietnamese_ai' has no attribute '{name}'")
 
 
+def __dir__() -> list[str]:
+    return sorted(set(globals().keys()) | set(__all__))
+
+
 __all__ = [
     # v1.0 - v9.0
+    "AutoFineTuner",
     "AutoML",
     "BaseModel",
     "BenchmarkRunner",
+    "BoTinhChinhMoHinh",
     "CloudDeployment",
     "DPOTrainer",
     "DuDoanChuoiThoiGian",
+    "EndToEndWorkflow",
     "Engine",
     "FastTextTiengViet",
     "GPTModel",
     "GiaiThichMoHinh",
+    "HeSinhThaiAI",
     "HeThongXacThuc",
     "HocLienKet",
     "HoiQuy",
     "HuanLuyenPyTorch",
     "HuggingFaceWrapper",
+    "InstructionDataset",
     "InstructionTuningTrainer",
     "KiemDinhCheo",
     "LMEvalHarness",
@@ -251,6 +408,7 @@ __all__ = [
     "PreTrainer",
     "QLoRAAdapter",
     "QuanLyMoHinh",
+    "QuyTrinhDauCuoi",
     "RLHFPipeline",
     "RewardModel",
     "SFTTrainer",
@@ -340,4 +498,104 @@ __all__ = [
     "ThucThiDocLap",
     "DongChayDAG",
     "QuanLyPlugin",
+    # v30.0+: Multimodal, Local LLM, OpenAI API, MCP & RAGAS
+    "OllamaWrapper",
+    "VLLMWrapper",
+    "LlamaCppWrapper",
+    "ServerDonGian",
+    "MayChuOpenAI",
+    "OpenAICompatibleServer",
+    "NhanDienGiongNoi",
+    "TongHopGiongNoi",
+    "TrichXuatVanBanAnh",
+    "SinhCoCauTruc",
+    "MCPServer",
+    "MCPClient",
+    "MCPBridge",
+    "DanhGiaRAG",
+    "GRPOTrainer",
+    "RotaryPositionEmbedding",
+    "GroupedQueryAttention",
+    "SparseMoELayer",
+    "MoHinhThiGiacNgonNgu",
+    "VietnameseVLM",
+    "NenNguCanh",
+    "PromptCompressor",
+    "BoNhoDemNguNghia",
+    "SemanticCache",
+    "CongCuManHinh",
+    "ComputerUseTool",
+    "cong_cu_man_hinh",
+    "TuongLuaAI",
+    "TuongLuaBaoVeFramework",
+    "KhienBaoVeAI",
+    "AIFirewallShield",
+    "DataSanitizer",
+    "MoiTruongCachLy",
+    "DoRALayer",
+    "BoTangTocHuanLuyen",
+    "TrainingAccelerator",
+    "BoGopChuoi",
+    "SequencePacker",
+    "HamMatMatPhanManh",
+    "ChunkedCrossEntropy",
+    "BoToiUuGaLore",
+    "GaLoreOptimizer",
+    "BenchmarkTangToc",
+    "SpeedBenchmark",
+    "BieuDo",
+    "NutChinh",
+    "NutPhu",
+    "QuanLyPhuThuoc",
+    "DependencyManager",
+    "ContinuousBatcher",
+    "BoPhanLoLienTuc",
+    "MambaBlock",
+    "JambaBlock",
+    "SparseMoE",
+    "FederatedRLHF",
+    "RMSNorm",
+    "BitNetTransformerBlock",
+    "KhienBaoVeHinhAnh",
+    "ImageSecurityShield",
+    "PhongThuDuLieu",
+    "DatasetDefenseShield",
+    "BoGiamSatTichTuDuLieu",
+    "StreamingPoisoningMonitor",
+    "CongChatLuongDauVao",
+    "InputQualityGate",
+    "CongAnToanDauRa",
+    "OutputSafetyQualityGate",
+    "StudioDashboard",
+    "MayChuStudioDashboard",
+    "TroLyPhapLy",
+    "LegalAssistant",
+    "TrichXuatThongMinh",
+    "SmartExtractor",
+    "TongDaiCSKH",
+    "CustomerSupportBot",
+    # Phase 16: StateGraph, Deep Research & Code Healing
+    "DoThiTrangThai",
+    "StateGraph",
+    "START",
+    "END",
+    "BoLuuDiemKiemTra",
+    "MemorySaver",
+    "Checkpointer",
+    "TacTuNghienCuuSau",
+    "DeepResearchAgent",
+    "TacTuLapTrinhTuSua",
+    "CodeHealingAgent",
+    # Phase 17: Edge Native Zero-GPU & Desktop Packager
+    "DongCoSuyLuanEdge",
+    "EdgeInferenceEngine",
+    "ZeroGPUInferenceEngine",
+    "BoGiaiLuongTuQ4",
+    "GGUFMemoryMappedStreamer",
+    "CauNoiCtypesNative",
+    "NativeLlamaBridge",
+    "CtypesLlamaBridge",
+    "GoiDocLapDesktop",
+    "DesktopPackager",
+    "StandalonePackager",
 ]

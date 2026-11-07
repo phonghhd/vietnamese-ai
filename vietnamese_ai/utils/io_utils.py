@@ -1,16 +1,64 @@
-"""IO Utils - Lưu và tải dữ liệu, mô hình."""
+"""IO Utils - Lưu và tải dữ liệu, mô hình kèm kiểm tra chữ ký toàn vẹn HMAC-SHA256."""
 
+import hashlib
+import hmac
 import json
+import os
 import pickle
 import warnings
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 
 
 class RestrictedUnpickler(pickle.Unpickler):
-    """Unpickler an toàn - chỉ cho phép các loại dữ liệu cơ bản."""
+    """Unpickler an toàn - chỉ cho phép các loại dữ liệu cơ bản và các module học máy tin cậy."""
+
+    BLOCKED_MODULES = {
+        "os",
+        "sys",
+        "subprocess",
+        "posix",
+        "nt",
+        "shutil",
+        "socket",
+        "urllib",
+        "requests",
+        "http",
+        "ctypes",
+        "importlib",
+        "pty",
+        "commands",
+        " marshal",
+    }
+
+    BLOCKED_BUILTINS = {
+        "eval",
+        "exec",
+        "compile",
+        "open",
+        "__import__",
+        "getattr",
+        "setattr",
+        "delattr",
+        "globals",
+        "locals",
+        "input",
+    }
+
+    ALLOWED_PREFIXES = (
+        "vietnamese_ai.",
+        "numpy.",
+        "sklearn.",
+        "scipy.",
+        "torch.",
+        "transformers.",
+        "xgboost.",
+        "lightgbm.",
+        "collections.",
+        "pathlib.",
+    )
 
     ALLOWED_CLASSES = {
         ("builtins", "dict"),
@@ -28,7 +76,13 @@ class RestrictedUnpickler(pickle.Unpickler):
         ("builtins", "complex"),
         ("builtins", "range"),
         ("builtins", "NoneType"),
+        ("builtins", "object"),
         ("collections", "OrderedDict"),
+        ("collections", "defaultdict"),
+        ("collections", "deque"),
+        ("pathlib", "PosixPath"),
+        ("pathlib", "WindowsPath"),
+        ("pathlib", "Path"),
         ("numpy", "ndarray"),
         ("numpy", "dtype"),
         ("numpy", "float32"),
@@ -41,8 +95,21 @@ class RestrictedUnpickler(pickle.Unpickler):
         ("_codecs", "encode"),
     }
 
+    def __init__(self, file: Any, cho_phep_mo_hinh: bool = False):
+        super().__init__(file)
+        self.cho_phep_mo_hinh = cho_phep_mo_hinh
+
     def find_class(self, module: str, name: str) -> Any:
+        root_mod = module.split(".")[0]
+        if root_mod in self.BLOCKED_MODULES or (module == "builtins" and name in self.BLOCKED_BUILTINS):
+            raise pickle.UnpicklingError(
+                f"Bảo mật: Đã chặn hành vi deserialize nguy hiểm '{module}.{name}'."
+            )
         if (module, name) in self.ALLOWED_CLASSES:
+            return super().find_class(module, name)
+        if self.cho_phep_mo_hinh and (
+            module == "vietnamese_ai" or module.startswith(self.ALLOWED_PREFIXES)
+        ):
             return super().find_class(module, name)
         raise pickle.UnpicklingError(
             f"Không cho phép deserialize: {module}.{name}. "
@@ -50,15 +117,14 @@ class RestrictedUnpickler(pickle.Unpickler):
         )
 
 
-def tai_an_toan(duong_dan: str) -> Any:
+def tai_an_toan(duong_dan: str, cho_phep_mo_hinh: bool = False) -> Any:
     """Tải mô hình từ pickle với restricted unpickler.
 
-    Chỉ cho phép các loại dữ liệu cơ bản (dict, list, numpy arrays, etc.).
-    Nếu file chứa object tùy chỉnh (sklearn models, custom classes),
-    sẽ raise lỗi - dùng pickle.load() trực tiếp trong trường hợp đó.
+    Chỉ cho phép các loại dữ liệu cơ bản (dict, list, numpy arrays, etc.),
+    hoặc các lớp mô hình hợp lệ thuộc `vietnamese_ai`/`sklearn` khi `cho_phep_mo_hinh=True`.
     """
     with open(duong_dan, "rb") as f:
-        return RestrictedUnpickler(f).load()
+        return RestrictedUnpickler(f, cho_phep_mo_hinh=cho_phep_mo_hinh).load()
 
 
 class LuuTai:
@@ -73,12 +139,39 @@ class LuuTai:
     """
 
     @staticmethod
-    def luu_mo_hinh(mo_hinh: Any, duong_dan: str) -> None:
-        """Lưu mô hình ra file pickle."""
-        duong_dan = Path(duong_dan)
-        duong_dan.parent.mkdir(parents=True, exist_ok=True)
-        with open(duong_dan, "wb") as f:
+    def _khoa_hmac(khoa_bi_mat: Optional[str] = None) -> bytes:
+        raw = khoa_bi_mat or os.environ.get("VAI_MODEL_SIGNING_KEY", "vietnamese-ai-integrity-key-v30")
+        return raw.encode("utf-8")
+
+    @classmethod
+    def ky_file(cls, duong_dan: str, khoa_bi_mat: Optional[str] = None) -> str:
+        """Tạo chữ ký toàn vẹn HMAC-SHA256 (`.sig`) cho file mô hình."""
+        p = Path(duong_dan)
+        sig = hmac.new(cls._khoa_hmac(khoa_bi_mat), p.read_bytes(), hashlib.sha256).hexdigest()
+        sig_path = p.with_suffix(p.suffix + ".sig")
+        sig_path.write_text(sig, encoding="utf-8")
+        return sig
+
+    @classmethod
+    def xac_thuc_file(cls, duong_dan: str, khoa_bi_mat: Optional[str] = None) -> bool:
+        """Xác thực chữ ký toàn vẹn HMAC-SHA256 (`.sig`) của file mô hình."""
+        p = Path(duong_dan)
+        sig_path = p.with_suffix(p.suffix + ".sig")
+        if not sig_path.exists():
+            return False
+        expected = sig_path.read_text(encoding="utf-8").strip()
+        actual = hmac.new(cls._khoa_hmac(khoa_bi_mat), p.read_bytes(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, actual)
+
+    @staticmethod
+    def luu_mo_hinh(mo_hinh: Any, duong_dan: str, ky_so: bool = False) -> None:
+        """Lưu mô hình ra file pickle (tùy chọn tạo chữ ký toàn vẹn `.sig`)."""
+        duong_dan_path = Path(duong_dan)
+        duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(duong_dan_path, "wb") as f:
             pickle.dump(mo_hinh, f)
+        if ky_so:
+            LuuTai.ky_file(str(duong_dan_path))
 
     @staticmethod
     def tai_mo_hinh(duong_dan: str) -> Any:

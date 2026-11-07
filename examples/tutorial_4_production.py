@@ -62,7 +62,7 @@ from vietnamese_ai import LoggerCauTruc
 
 logger = LoggerCauTruc(ten="my-app", cap_do="INFO")
 
-logger.info("Application started", {"version": "11.0.0"})
+logger.info("Application started", {"version": "30.0.0"})
 logger.them_context(request_id="req-123")
 logger.info("Processing request")
 logger.xoa_context()

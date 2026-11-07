@@ -40,9 +40,10 @@ class HeThongXacThuc:
         "viewer": ["predict", "view"],
     }
 
-    def __init__(self, duong_dan: str = "auth"):
+    def __init__(self, duong_dan: str = "auth", ttl_token_giay: int = 86400):
         self.duong_dan = Path(duong_dan)
         self.duong_dan.mkdir(parents=True, exist_ok=True)
+        self.ttl_token_giay = ttl_token_giay
         self.logger = Logger("HeThongXacThuc")
         self._users_file = self.duong_dan / "users.json"
         self._tokens_file = self.duong_dan / "tokens.json"
@@ -128,10 +129,24 @@ class HeThongXacThuc:
         return token
 
     def xac_thuc(self, token: str) -> Dict:
-        """Xác thực token và trả về thông tin người dùng."""
+        """Xác thực token (kèm kiểm tra thời hạn TTL) và trả về thông tin người dùng."""
         if token not in self._tokens:
             raise PermissionError("Token không hợp lệ")
-        return self._tokens[token]
+        info = self._tokens[token]
+        thoi_gian_tao = float(info.get("thoi_gian", 0.0))
+        if self.ttl_token_giay > 0 and thoi_gian_tao > 0 and (time.time() - thoi_gian_tao) > self.ttl_token_giay:
+            del self._tokens[token]
+            self._luu_json(self._tokens_file, self._tokens)
+            raise PermissionError("Token đã hết hạn")
+        return info
+
+    def thu_hoi_token(self, token: str) -> bool:
+        """Thu hồi (đăng xuất) một token đang hoạt động."""
+        if token in self._tokens:
+            del self._tokens[token]
+            self._luu_json(self._tokens_file, self._tokens)
+            return True
+        return False
 
     def kiem_tra_quyen(self, token: str, quyen: str) -> bool:
         """Kiểm tra người dùng có quyền thực hiện hành động không."""
@@ -171,18 +186,25 @@ class HeThongXacThuc:
         ]
 
     def tao_api_key(self, ten_dang_nhap: str) -> str:
-        """Tạo API key cho người dùng."""
+        """Tạo API key cho người dùng (lưu mã băm SHA-256 thay vì plaintext)."""
         if ten_dang_nhap not in self._users:
             raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
 
         api_key = f"vai_{os.urandom(24).hex()}"
-        self._users[ten_dang_nhap]["api_key"] = api_key
+        key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+        self._users[ten_dang_nhap]["api_key_hash"] = key_hash
+        self._users[ten_dang_nhap].pop("api_key", None)
         self._luu_json(self._users_file, self._users)
         return api_key
 
     def xac_thuc_api_key(self, api_key: str) -> Dict:
-        """Xác thực bằng API key."""
+        """Xác thực bằng API key chống tấn công đo thời gian (constant-time comparison)."""
+        cand_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
         for ten, info in self._users.items():
-            if info.get("api_key") == api_key:
+            stored_hash = info.get("api_key_hash")
+            if stored_hash and hmac.compare_digest(stored_hash, cand_hash):
+                return {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]}
+            legacy_plain = info.get("api_key")
+            if legacy_plain and hmac.compare_digest(str(legacy_plain), api_key):
                 return {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]}
         raise PermissionError("API key không hợp lệ")

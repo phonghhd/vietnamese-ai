@@ -39,6 +39,7 @@ class RewardModel:
         self._history: Dict[str, List[float]] = {"train_loss": [], "accuracy": []}
         self._score_mean = 0.0
         self._score_std = 1.0
+        self._weights = np.zeros(256, dtype=np.float64)
 
     def huan_luyen(
         self,
@@ -170,6 +171,30 @@ class RewardModel:
         except Exception:
             return torch.tensor(0.0, device=device, requires_grad=True)
 
+    @staticmethod
+    def _trich_xuat_dac_trung(text: str, dim: int = 256) -> np.ndarray:
+        import hashlib
+
+        vec = np.zeros(dim, dtype=np.float64)
+        s = text.lower().strip()
+        words = s.split()
+        tokens = list(words)
+        for i in range(len(words) - 1):
+            tokens.append(f"{words[i]}_{words[i + 1]}")
+        for i in range(max(0, len(s) - 2)):
+            tokens.append(s[i : i + 3])
+        if not tokens:
+            tokens = [s]
+        for tok in tokens:
+            h = int.from_bytes(hashlib.md5(tok.encode("utf-8")).digest()[:4], "little")
+            idx = h % dim
+            sign = 1.0 if ((h >> 16) & 1) == 0 else -1.0
+            vec[idx] += sign
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec /= norm
+        return vec
+
     def _huan_luyen_numpy(
         self,
         model: Any,
@@ -177,11 +202,60 @@ class RewardModel:
         so_vong: int,
         callback: Optional[Any],
     ) -> Dict[str, Any]:
-        """NumPy fallback - yêu cầu PyTorch cho Reward Model training thực sự."""
-        raise ImportError(
-            "RewardModel yêu cầu PyTorch để huấn luyện. "
-            "Cài đặt: pip install torch hoặc pip install vietnamese-ai[torch]"
-        )
+        """Huấn luyện Reward Model bằng NumPy theo hàm mục tiêu Bradley-Terry."""
+        np.random.seed(self.seed)
+        lr = max(self.toc_do_hoc, 0.2)
+        all_scores: List[float] = []
+
+        for epoch in range(so_vong):
+            epoch_loss = 0.0
+            correct = 0
+            total = 0
+            indices = np.random.permutation(len(preference_data))
+
+            for idx in indices:
+                mau = preference_data[idx]
+                chosen = mau.get("chosen", "")
+                rejected = mau.get("rejected", "")
+
+                phi_w = self._trich_xuat_dac_trung(chosen)
+                phi_l = self._trich_xuat_dac_trung(rejected)
+
+                r_w = float(np.dot(self._weights, phi_w))
+                r_l = float(np.dot(self._weights, phi_l))
+                diff = r_w - r_l
+
+                sig = 1.0 / (1.0 + np.exp(-np.clip(diff, -30.0, 30.0)))
+                loss = float(-np.log(sig + 1e-12))
+
+                grad = -(1.0 - sig) * (phi_w - phi_l)
+                self._weights -= lr * grad
+
+                epoch_loss += loss
+                if float(np.dot(self._weights, phi_w)) > float(np.dot(self._weights, phi_l)):
+                    correct += 1
+                total += 1
+                all_scores.extend([r_w, r_l])
+
+            avg_loss = epoch_loss / max(1, total)
+            acc = correct / max(1, total)
+            self._history["train_loss"].append(avg_loss)
+            self._history["accuracy"].append(acc)
+            if callback:
+                callback(epoch + 1, avg_loss)
+
+        if all_scores:
+            self._score_mean = float(np.mean(all_scores))
+            self._score_std = max(float(np.std(all_scores)), 1e-6)
+
+        return {
+            "so_epoch": so_vong,
+            "final_loss": self._history["train_loss"][-1] if self._history["train_loss"] else 0.0,
+            "final_accuracy": self._history["accuracy"][-1] if self._history["accuracy"] else 0.0,
+            "score_mean": self._score_mean,
+            "score_std": self._score_std,
+            "history": self._history,
+        }
 
     def diem_danh_gia(self, model: Any, cac_van_ban: List[str]) -> List[Dict[str, float]]:
         """
@@ -212,12 +286,19 @@ class RewardModel:
                     )
         else:
             for vb in cac_van_ban:
-                score = np.random.normal(0, 1)
+                phi = self._trich_xuat_dac_trung(vb)
+                score = float(np.dot(self._weights, phi))
+                if np.allclose(self._weights, 0.0):
+                    # Nếu chưa huấn luyện, chấm theo chất lượng cấu trúc & độ dài từ vựng
+                    words = vb.split()
+                    unique_ratio = len(set(words)) / max(1, len(words))
+                    score = float(np.tanh(len(words) / 20.0) * unique_ratio)
+                normalized = (score - self._score_mean) / max(self._score_std, 1e-6)
                 ket_qua.append(
                     {
                         "van_ban": vb,
                         "score": round(float(score), 4),
-                        "score_normalized": round(float(score), 4),
+                        "score_normalized": round(float(normalized), 4),
                     }
                 )
 

@@ -276,6 +276,30 @@ class DPOTrainer:
             return logps.sum(-1)
         return torch.tensor(0.0, device=logits.device)
 
+    @staticmethod
+    def _trich_xuat_dac_trung_dpo(text: str, dim: int = 256) -> np.ndarray:
+        import hashlib
+
+        vec = np.zeros(dim, dtype=np.float64)
+        s = text.lower().strip()
+        words = s.split()
+        tokens = list(words)
+        for i in range(len(words) - 1):
+            tokens.append(f"{words[i]}_{words[i + 1]}")
+        for i in range(max(0, len(s) - 2)):
+            tokens.append(s[i : i + 3])
+        if not tokens:
+            tokens = [s]
+        for tok in tokens:
+            h = int.from_bytes(hashlib.md5(tok.encode("utf-8")).digest()[:4], "little")
+            idx = h % dim
+            sign = 1.0 if ((h >> 16) & 1) == 0 else -1.0
+            vec[idx] += sign
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec /= norm
+        return vec
+
     def _huan_luyen_numpy(
         self,
         model: Any,
@@ -283,11 +307,100 @@ class DPOTrainer:
         preference_data: List[Dict],
         callback: Optional[Callable],
     ) -> Dict[str, Any]:
-        """NumPy fallback - yêu cầu PyTorch cho DPO training thực sự."""
-        raise ImportError(
-            "DPOTrainer yêu cầu PyTorch để huấn luyện. "
-            "Cài đặt: pip install torch hoặc pip install vietnamese-ai[torch]"
-        )
+        """Huấn luyện DPO bằng NumPy với Bradley-Terry preference gradient."""
+        bat_dau = time.time()
+        np.random.seed(self.seed)
+
+        dim = 256
+        w_policy = getattr(model, "_dpo_weights", np.zeros(dim, dtype=np.float64)).copy()
+        w_ref = getattr(ref_model, "_dpo_weights", np.zeros(dim, dtype=np.float64)).copy()
+        lr = max(self.toc_do_hoc, 0.1)
+
+        for epoch in range(self.so_vong):
+            epoch_loss = 0.0
+            chosen_rewards_epoch = []
+            rejected_rewards_epoch = []
+            steps = 0
+            indices = np.random.permutation(len(preference_data))
+
+            for idx in indices:
+                mau = preference_data[idx]
+                prompt = mau.get("prompt", "")
+                chosen = mau.get("chosen", "")
+                rejected = mau.get("rejected", "")
+
+                phi_w = self._trich_xuat_dac_trung_dpo(f"{prompt} {chosen}", dim)
+                phi_l = self._trich_xuat_dac_trung_dpo(f"{prompt} {rejected}", dim)
+
+                logp_w = float(np.dot(w_policy, phi_w))
+                logp_l = float(np.dot(w_policy, phi_l))
+                ref_logp_w = float(np.dot(w_ref, phi_w))
+                ref_logp_l = float(np.dot(w_ref, phi_l))
+
+                chosen_logratio = logp_w - ref_logp_w
+                rejected_logratio = logp_l - ref_logp_l
+                u = self.beta * (chosen_logratio - rejected_logratio)
+
+                sig_u = 1.0 / (1.0 + np.exp(-np.clip(u, -30.0, 30.0)))
+                sig_neg_u = 1.0 - sig_u
+
+                if self.label_smoothing > 0:
+                    loss = float(
+                        -(1.0 - self.label_smoothing) * np.log(sig_u + 1e-12)
+                        - self.label_smoothing * np.log(sig_neg_u + 1e-12)
+                    )
+                    d_u = -((1.0 - self.label_smoothing) * (1.0 - sig_u) - self.label_smoothing * sig_u)
+                else:
+                    loss = float(-np.log(sig_u + 1e-12))
+                    d_u = -(1.0 - sig_u)
+
+                grad_w = d_u * self.beta * (phi_w - phi_l)
+                grad_norm = np.linalg.norm(grad_w)
+                if self.gradient_clip > 0 and grad_norm > self.gradient_clip:
+                    grad_w = grad_w * (self.gradient_clip / (grad_norm + 1e-8))
+
+                w_policy -= lr * grad_w
+                if hasattr(model, "buoc_huan_luyen"):
+                    ids_c = np.array([[ord(c) % model.so_tu_vung for c in (prompt + chosen)[:64]]], dtype=int)
+                    if ids_c.shape[1] > 1:
+                        model.buoc_huan_luyen(ids_c[:, :-1], ids_c[:, 1:], toc_do_hoc=max(self.toc_do_hoc, 1e-3))
+
+                epoch_loss += loss
+                chosen_rewards_epoch.append(float(self.beta * chosen_logratio))
+                rejected_rewards_epoch.append(float(self.beta * rejected_logratio))
+                steps += 1
+                self._global_step += 1
+
+                if callback and steps % max(1, self.gradient_accumulation) == 0:
+                    callback(self._global_step, epoch_loss / max(1, steps))
+
+            avg_loss = epoch_loss / max(1, steps) if steps > 0 else 0.0
+            self._history["train_loss"].append(avg_loss)
+            if chosen_rewards_epoch:
+                avg_c = float(np.mean(chosen_rewards_epoch))
+                avg_r = float(np.mean(rejected_rewards_epoch))
+                self._history["chosen_rewards"].append(avg_c)
+                self._history["rejected_rewards"].append(avg_r)
+                self._history["reward_margin"].append(avg_c - avg_r)
+
+        if model is not None and not isinstance(model, (int, float, str)):
+            try:
+                model._dpo_weights = w_policy
+            except Exception:
+                pass
+        self._dpo_weights = w_policy
+
+        tong_thoi_gian = time.time() - bat_dau
+        return {
+            "tong_thoi_gian": round(tong_thoi_gian, 2),
+            "so_epoch": self.so_vong,
+            "global_step": self._global_step,
+            "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0.0,
+            "final_reward_margin": self._history["reward_margin"][-1]
+            if self._history["reward_margin"]
+            else 0.0,
+            "history": self._history,
+        }
 
     def lay_lich_su(self) -> Dict[str, List[float]]:
         return self._history.copy()

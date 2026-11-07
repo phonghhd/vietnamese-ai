@@ -14,7 +14,7 @@ from vietnamese_ai.utils.logger import Logger
 
 class VietnameseLLM:
     """
-    Mô hình ngôn ngữ tiếng Việt (Vietnamese Language Model).
+    Mô hình ngôn ngữ tiếng Việt dạng **n-gram** (không phải neural/transformer LLM).
 
     Tính năng:
     - N-gram language model (bigram, trigram, 4-gram)
@@ -30,8 +30,8 @@ class VietnameseLLM:
         >>> van_ban = llm.sinh_van_ban("học máy là", do_dai=50)
         >>> hoan_thanh = llm.hoan_thanh_cau("Trí tuệ nhân tạo")
 
-    Lưu ý: Mô hình n-gram lightweight, không cần GPU.
-    Sử dụng cho: text completion, autocomplete, text suggestion.
+    Lưu ý: Lightweight, không cần GPU. Dùng cho autocomplete / gợi ý câu.
+    Với transformer LLM, dùng `GPTModel` / `HuggingFaceWrapper`.
     """
 
     def __init__(

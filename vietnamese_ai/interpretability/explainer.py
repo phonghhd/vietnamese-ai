@@ -172,6 +172,65 @@ class GiaiThichMoHinh:
             self.logger.warning(f"LIME thất bại: {e}")
             return {}
 
+    def tinh_shapley(
+        self,
+        mau: Optional[np.ndarray] = None,
+        so_hoan_vi: int = 32,
+        seed: int = 42,
+    ) -> Dict[str, float]:
+        r"""
+        Tính giá trị đóng góp Shapley (Shapley Values / SHAP) cho một mẫu cụ thể
+        hoặc trung bình độ lớn đóng góp (`|SHAP|`) trên tập dữ liệu.
+
+        Công thức Monte-Carlo Shapley trên các hoán vị $\pi$:
+        $\phi_j(x) = \frac{1}{M} \sum_{m=1}^M [f(x_{+j}^{\pi_m}) - f(x_{-j}^{\pi_m})]$
+        """
+        rng = np.random.default_rng(seed)
+        n_samples, n_features = self.X.shape
+
+        def _ham_gia_tri(X_eval: np.ndarray) -> np.ndarray:
+            if hasattr(self.mo_hinh, "du_doan_xac_suat"):
+                try:
+                    proba = self.mo_hinh.du_doan_xac_suat(X_eval)
+                    if proba.ndim == 2 and proba.shape[1] >= 2:
+                        return proba[:, -1].astype(float)
+                except Exception:
+                    pass
+            return np.asarray(self.mo_hinh.du_doan(X_eval), dtype=float).flatten()
+
+        def _shapley_mot_mau(x_target: np.ndarray) -> np.ndarray:
+            phi = np.zeros(n_features, dtype=float)
+            bg_indices = rng.integers(0, n_samples, size=so_hoan_vi)
+
+            for m in range(so_hoan_vi):
+                x_bg = self.X[bg_indices[m]].copy()
+                perm = rng.permutation(n_features)
+                x_curr = x_bg.copy()
+                val_prev = float(_ham_gia_tri(x_curr.reshape(1, -1))[0])
+
+                for feat_idx in perm:
+                    x_curr[feat_idx] = x_target[feat_idx]
+                    val_new = float(_ham_gia_tri(x_curr.reshape(1, -1))[0])
+                    phi[feat_idx] += val_new - val_prev
+                    val_prev = val_new
+
+            return phi / max(1, so_hoan_vi)
+
+        if mau is not None:
+            x_single = np.asarray(mau, dtype=float).flatten()
+            phi_vals = _shapley_mot_mau(x_single)
+            ket_qua = {self.ten_dac_trung[j]: round(float(phi_vals[j]), 6) for j in range(n_features)}
+            return dict(sorted(ket_qua.items(), key=lambda item: abs(item[1]), reverse=True))
+
+        # Trung bình |SHAP| trên tối đa 10 mẫu đại diện
+        eval_rows = self.X[: min(10, n_samples)]
+        all_phis = np.array([np.abs(_shapley_mot_mau(row)) for row in eval_rows])
+        mean_abs_phi = np.mean(all_phis, axis=0)
+        ket_qua_global = {
+            self.ten_dac_trung[j]: round(float(mean_abs_phi[j]), 6) for j in range(n_features)
+        }
+        return dict(sorted(ket_qua_global.items(), key=lambda item: item[1], reverse=True))
+
     def bao_cao(self, X_test=None, y_test=None) -> str:
         """Tạo báo cáo giải thích dạng text."""
         lines = ["=== BÁO CÁO GIẢI THÍCH MÔ HÌNH ===\n"]

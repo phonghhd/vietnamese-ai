@@ -320,29 +320,40 @@ class HocLienKet:
         }
 
     def du_doan(self, lop_mo_hinh: type, X: np.ndarray, **tham_so: Any) -> np.ndarray:
-        """Dự đoán với global model."""
+        """Dự đoán trực tiếp với trọng số global model đã tổng hợp (FedAvg)."""
         if not self._da_huan_luyen:
             raise RuntimeError("Chưa huấn luyện. Gọi huan_luyen() trước.")
 
-        X = np.asarray(X)
+        X = np.asarray(X, dtype=np.float64)
+        classes = np.asarray(self._trong_so_toan_cuc.get("classes", [0, 1]))
 
-        classes = self._trong_so_toan_cuc.get("classes", [0, 1])
-        n_samples = len(X)
-        y_dummy = np.array([classes[i % len(classes)] for i in range(n_samples)])
+        if "coef" in self._trong_so_toan_cuc:
+            coef = np.asarray(self._trong_so_toan_cuc["coef"], dtype=np.float64)
+            intercept = np.asarray(self._trong_so_toan_cuc.get("intercept", [0.0]), dtype=np.float64)
 
-        mo_hinh = lop_mo_hinh(**tham_so)
-        mo_hinh.huan_luyen(X, y_dummy)
+            mo_hinh = lop_mo_hinh(**tham_so)
+            model = getattr(mo_hinh, "_mo_hinh", mo_hinh)
+            model.coef_ = coef
+            model.intercept_ = intercept
+            model.classes_ = classes
+            model.n_features_in_ = X.shape[1] if X.ndim > 1 else 1
+            if hasattr(mo_hinh, "da_huan_luyen"):
+                mo_hinh.da_huan_luyen = True
+            if hasattr(mo_hinh, "_so_lop"):
+                mo_hinh._so_lop = len(classes)
 
-        model = mo_hinh
-        if hasattr(model, "_mo_hinh"):
-            model = model._mo_hinh
+            try:
+                return mo_hinh.du_doan(X)
+            except Exception:
+                if coef.ndim == 1:
+                    scores = X @ coef + (intercept.ravel()[0] if intercept.size > 0 else 0.0)
+                else:
+                    scores = X @ coef.T + intercept.reshape(1, -1)
+                if scores.ndim == 1 or scores.shape[1] == 1:
+                    return classes[(scores.ravel() >= 0.0).astype(int)]
+                return classes[np.argmax(scores, axis=-1)]
 
-        if "coef" in self._trong_so_toan_cuc and hasattr(model, "coef_"):
-            model.coef_ = np.array(self._trong_so_toan_cuc["coef"])
-        if "intercept" in self._trong_so_toan_cuc and hasattr(model, "intercept_"):
-            model.intercept_ = np.array(self._trong_so_toan_cuc["intercept"])
-
-        return mo_hinh.du_doan(X)
+        return np.array([classes[0]] * len(X))
 
     def lay_lich_su(self) -> List[Dict[str, Any]]:
         """Lấy lịch sử huấn luyện."""

@@ -137,3 +137,12 @@ class ChromaVectorStore:
     def so_luong(self) -> int:
         """Số lượng vector trong CSDL."""
         return self.collection.count()
+
+    def thong_ke(self) -> Dict[str, Any]:
+        """Thống kê store."""
+        return {
+            "backend": "chroma",
+            "so_luong": self.so_luong(),
+            "khoang_cach": self.space,
+            "ten_collection": self.collection.name,
+        }

@@ -37,28 +37,36 @@ class TacTu:
     def __init__(
         self,
         llm: Any,
-        danh_sach_cong_cu: List[CongCu],
+        danh_sach_cong_cu: Optional[List[CongCu]] = None,
         max_iterations: int = 5,
         ham_xac_nhan: Optional[Callable[[str, Dict[str, Any]], bool]] = None,
         so_tay_kinh_nghiem: Optional[SoTayKinhNghiem] = None,
         graph_memory: Optional[GraphMemory] = None,
+        bat_tuong_lua: bool = True,
     ):
         """
-        Khởi tạo Tác tử.
+        Khởi tạo Tác tử (mặc định tích hợp khiên Tường lửa AI Đa tầng).
 
         Args:
             llm: Đối tượng LLM (ví dụ: VietnameseLLM) có phương thức sinh_van_ban(prompt) hoặc tương đương.
-            danh_sach_cong_cu: Danh sách các đối tượng CongCu.
+            danh_sach_cong_cu: Danh sách các đối tượng CongCu (tùy chọn).
             max_iterations: Số vòng lặp suy luận tối đa để tránh bị kẹt.
             ham_xac_nhan: Hàm callback cho Human-in-the-Loop, trả về True/False.
             so_tay_kinh_nghiem: Sổ tay ghi nhận bài học trong quá khứ.
+            bat_tuong_lua: Bật kiểm duyệt Prompt Injection, SSRF/Path Traversal trên tool và DLP đầu ra.
         """
+        from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework
+
         self.llm = llm
-        self.cong_cu = {cc.ten: cc for cc in danh_sach_cong_cu}
+        self.cong_cu = {cc.ten: cc for cc in (danh_sach_cong_cu or [])}
         self.max_iterations = max_iterations
         self.ham_xac_nhan = ham_xac_nhan
         self.so_tay_kinh_nghiem = so_tay_kinh_nghiem
         self.graph_memory = graph_memory
+        self.bat_tuong_lua = bat_tuong_lua
+        self.tuong_lua = (
+            TuongLuaBaoVeFramework(gioi_han_req_moi_phut=10000) if bat_tuong_lua else None
+        )
 
         tools_desc = ""
         for name, cc in self.cong_cu.items():
@@ -134,13 +142,26 @@ class TacTu:
         return ket_qua
 
     def _thuc_thi_cong_cu(self, ten_cong_cu: str, cc: CongCu, tham_so: dict) -> str:
-        """Thực thi công cụ. Có thể ghi đè bởi lớp con."""
-        return str(cc.chay(**(tham_so or {})))
+        """Thực thi công cụ kèm kiểm duyệt Tường lửa (chặn SSRF, Path Traversal & Indirect Prompt Injection)."""
+        if self.tuong_lua is not None:
+            hop_le, ly_do = self.tuong_lua.kiem_tra_lenh_cong_cu(ten_cong_cu, tham_so or {})
+            if not hop_le:
+                return f"Lỗi bảo mật (Tường lửa AI): {ly_do}"
+        ket_qua_raw = str(cc.chay(**(tham_so or {})))
+        if self.tuong_lua is not None:
+            kq_sach = self.tuong_lua.lam_sach_tai_lieu_rag(ket_qua_raw)
+            return kq_sach["van_ban_sach"]
+        return ket_qua_raw
 
     def chay(self, truy_van: str) -> str:
         """
         Thực thi vòng lặp tác tử để trả lời truy vấn.
         """
+        if self.tuong_lua is not None:
+            kq_in = self.tuong_lua.kiem_tra_dau_vao(str(truy_van))
+            if not kq_in["an_toan"]:
+                return f"[Bị chặn bởi Tường lửa AI]: {kq_in['ly_do']}"
+
         self.bo_nho.them_tin_nhan("user", truy_van)
 
         # Tiêm kiến thức từ GraphMemory
@@ -168,7 +189,10 @@ class TacTu:
 
             # Đã có câu trả lời cuối cùng
             if phan_tich["tra_loi"]:
-                return phan_tich["tra_loi"]
+                tra_loi_cuoi = phan_tich["tra_loi"]
+                if self.tuong_lua is not None:
+                    tra_loi_cuoi = self.tuong_lua.loc_dau_ra(str(tra_loi_cuoi))
+                return tra_loi_cuoi
 
             # Cần gọi công cụ
             ten_cong_cu = phan_tich["hanh_dong"]

@@ -115,3 +115,12 @@ class QdrantVectorStore:
     def so_luong(self) -> int:
         """Số lượng vector trong CSDL."""
         return self.client.count(collection_name=self.ten_collection).count
+
+    def thong_ke(self) -> Dict[str, Any]:
+        """Thống kê store."""
+        return {
+            "backend": "qdrant",
+            "so_luong": self.so_luong(),
+            "kich_thuoc": self.kich_thuoc,
+            "ten_collection": self.ten_collection,
+        }

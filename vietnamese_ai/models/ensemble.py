@@ -3,17 +3,24 @@
 from typing import Any, List, Optional
 
 import numpy as np
-from sklearn.ensemble import (
-    AdaBoostClassifier,
-    AdaBoostRegressor,
-    BaggingClassifier,
-    BaggingRegressor,
-    VotingClassifier,
-    VotingRegressor,
-)
-from sklearn.metrics import accuracy_score, mean_squared_error
 
 from vietnamese_ai.models.base import BaseModel
+from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+from vietnamese_ai.utils.metrics import Metrics
+
+try:
+    from sklearn.ensemble import (
+        AdaBoostClassifier,
+        AdaBoostRegressor,
+        BaggingClassifier,
+        BaggingRegressor,
+        VotingClassifier,
+        VotingRegressor,
+    )
+
+    _CO_SKLEARN = True
+except ImportError:
+    _CO_SKLEARN = False
 
 
 class MoHinhTapHop(BaseModel):
@@ -57,6 +64,8 @@ class MoHinhTapHop(BaseModel):
 
     @staticmethod
     def _tao_mo_hinh(loai, nhiem_vu, cac_mo_hinh, kwargs):
+        if not _CO_SKLEARN:
+            QuanLyPhuThuoc.yeu_cau("sklearn", nhom_extra="ml", tinh_nang="MoHinhTapHop")
         if loai == "voting":
             if nhiem_vu == "phan_loai":
                 return VotingClassifier(estimators=cac_mo_hinh, **kwargs)
@@ -88,5 +97,5 @@ class MoHinhTapHop(BaseModel):
         du_doan = self.du_doan(X)
         y = np.asarray(y)
         if self.nhiem_vu == "phan_loai":
-            return float(accuracy_score(y, du_doan))
-        return float(mean_squared_error(y, du_doan))
+            return Metrics.do_chinh_xac(y, du_doan)
+        return Metrics.mse(y, du_doan)

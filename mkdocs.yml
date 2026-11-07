@@ -58,6 +58,7 @@ nav:
     - Production Hardening: guides/production.md
     - Self-Adapting LMs (SALM): guides/salm.md
     - Google Colab / Kaggle: guides/google-colab-kaggle.md
+    - Trạng thái v30: guides/trang-thai-v30.md
   - API Reference:
     - Models: api/models.md
     - Preprocessing: api/preprocessing.md

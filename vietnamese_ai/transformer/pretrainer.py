@@ -226,10 +226,24 @@ class PreTrainer:
             steps = 0
 
             for input_ids, targets in dataset.iter_batches(self.kich_thuoc_batch, "train"):
-                loss = model.tinh_loss(input_ids, targets)
+                self._global_step += 1
+                if self.warmup_steps > 0 and self._global_step <= self.warmup_steps:
+                    lr_hien_tai = self.toc_do_hoc * (self._global_step / self.warmup_steps)
+                else:
+                    lr_hien_tai = self.toc_do_hoc
+
+                if hasattr(model, "buoc_huan_luyen"):
+                    loss = model.buoc_huan_luyen(
+                        input_ids,
+                        targets,
+                        toc_do_hoc=lr_hien_tai,
+                        weight_decay=self.weight_decay,
+                        grad_clip=self.gradient_clip,
+                    )
+                else:
+                    loss = model.tinh_loss(input_ids, targets)
                 epoch_loss += loss
                 steps += 1
-                self._global_step += 1
 
                 if self._global_step % self.logging_steps == 0:
                     avg_loss = epoch_loss / max(1, steps)

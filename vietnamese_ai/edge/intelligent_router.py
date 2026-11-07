@@ -80,11 +80,14 @@ class EdgeRouter:
             if hasattr(self.edge_engine, "chay_suy_luan_an_toan"):
                 kq = self.edge_engine.chay_suy_luan_an_toan(prompt)
 
-                # Xác minh tính toàn vẹn (Zero-Knowledge Proof simulation)
-                # Trong thực tế public_key sẽ được fetch từ Registry
+                pub_key = getattr(
+                    self.edge_engine,
+                    "public_key",
+                    self.edge_engine.private_key.decode("utf-8"),
+                )
                 is_valid = self.edge_engine.__class__.verify_proof(
                     node_id=kq["node_id"],
-                    public_key=self.edge_engine.private_key.decode("utf-8"),  # Chuyển private key dạng bytes sang chuỗi để giả lập public_key
+                    public_key=pub_key,
                     cau_hoi=prompt,
                     cau_tra_loi=kq["cau_tra_loi"],
                     proof=kq["proof"],
@@ -155,8 +158,9 @@ class EdgeRouter:
             if hasattr(edge_node, "chay_suy_luan_an_toan"):
                 kq = edge_node.chay_suy_luan_an_toan(prompt)
 
-                # ZKP Verification
-                public_key = edge_node.private_key.decode("utf-8")
+                public_key = getattr(
+                    edge_node, "public_key", edge_node.private_key.decode("utf-8")
+                )
                 is_valid = edge_node.__class__.verify_proof(
                     node_id=kq["node_id"],
                     public_key=public_key,

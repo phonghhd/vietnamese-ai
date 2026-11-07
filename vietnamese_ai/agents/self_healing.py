@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, Callable, Dict, List, Optional
 
 from vietnamese_ai.agents.agent import TacTu
 from vietnamese_ai.agents.tools import CongCu
@@ -19,8 +19,14 @@ class SelfHealingAgent(TacTu):
         danh_sach_cong_cu: List[CongCu],
         max_iterations: int = 10,
         so_lan_thu_lai_toi_da: int = 3,
+        ham_xac_nhan: Optional[Callable[[str, Dict[str, Any]], bool]] = None,
     ):
-        super().__init__(llm=llm, danh_sach_cong_cu=danh_sach_cong_cu, max_iterations=max_iterations)
+        super().__init__(
+            llm=llm,
+            danh_sach_cong_cu=danh_sach_cong_cu,
+            max_iterations=max_iterations,
+            ham_xac_nhan=ham_xac_nhan,
+        )
         self.so_lan_thu_lai_toi_da = so_lan_thu_lai_toi_da
 
         # Thêm hướng dẫn Self-Healing vào System Prompt

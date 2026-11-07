@@ -1,4 +1,6 @@
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
 
 from vietnamese_ai.compression.cpu_kernel import EvoKernelCPU
 from vietnamese_ai.distributed.offload import OffloadEngine

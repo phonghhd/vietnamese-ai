@@ -9,29 +9,20 @@ from vietnamese_ai.utils.logger import Logger
 
 class PluginManager:
     """
-    Hệ thống plugin mở rộng cho Vietnamese AI Framework.
+    Hệ thống plugin legacy: đăng ký hook/metric.
+
+    Khác với `QuanLyPlugin` (hot-swap + Sandbox). Giữ lại để tương thích API cũ.
 
     Tính năng:
     - Đăng ký plugin tùy chỉnh (model, preprocessor, metric, ...)
     - Tải plugin từ file Python
-    - Quản lý lifecycle plugin
     - Hook system (pre_train, post_train, pre_predict, post_predict)
 
     Sử dụng:
         >>> pm = PluginManager()
-
-        >>> # Đăng ký plugin tùy chỉnh
         >>> @pm.dang_ky_plugin("my_metric")
         ... def my_metric(y_true, y_pred):
         ...     return float(np.mean(y_true == y_pred))
-
-        >>> # Sử dụng hook
-        >>> @pm.hook("pre_train")
-        ... def log_before_train(X, y):
-        ...     print(f"Training với {len(X)} mẫu")
-
-        >>> # Tải plugin từ file
-        >>> pm.tai_plugin("path/to/my_plugin.py")
     """
 
     def __init__(self):

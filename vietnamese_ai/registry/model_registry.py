@@ -6,12 +6,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from vietnamese_ai.utils.io_utils import LuuTai, tai_an_toan
 from vietnamese_ai.utils.logger import Logger
 
 
 class QuanLyMoHinh:
     """
-    Hệ thống quản lý phiên bản mô hình (Model Registry).
+    Hệ thống quản lý phiên bản mô hình (Model Registry) tích hợp xác thực chữ ký HMAC-SHA256.
 
     Tính năng:
     - Đăng ký mô hình với version
@@ -28,9 +29,10 @@ class QuanLyMoHinh:
         >>> mo_hinh = ql.tai("phan_loai", "production")
     """
 
-    def __init__(self, duong_dan: str = "model_registry"):
+    def __init__(self, duong_dan: str = "model_registry", xac_thuc_chu_ky: bool = True):
         self.duong_dan = Path(duong_dan)
         self.duong_dan.mkdir(parents=True, exist_ok=True)
+        self.xac_thuc_chu_ky = xac_thuc_chu_ky
         self.logger = Logger("QuanLyMoHinh")
         self._metadata_file = self.duong_dan / "registry.json"
         self._metadata = self._tai_metadata()
@@ -78,27 +80,55 @@ class QuanLyMoHinh:
 
         duong_dan_model = self.duong_dan / ten / version
         duong_dan_model.mkdir(parents=True, exist_ok=True)
-        mo_hinh.luu(str(duong_dan_model / "model.pkl"))
+
+        loai_mo_hinh = mo_hinh.__class__.__name__
+        duong_dan_luu = str(duong_dan_model / "model.pkl")
+
+        if loai_mo_hinh in ("BoTinhChinhMoHinh", "AutoFineTuner"):
+            import pickle
+
+            with open(duong_dan_luu, "wb") as f:
+                pickle.dump(mo_hinh, f)
+        elif loai_mo_hinh == "HuggingFaceWrapper":
+            import pickle
+
+            with open(duong_dan_luu, "wb") as f:
+                pickle.dump(mo_hinh, f)
+        elif hasattr(mo_hinh, "luu"):
+            res = mo_hinh.luu(duong_dan_luu)
+            if isinstance(res, str) and Path(res).exists():
+                duong_dan_luu = res
+        else:
+            import pickle
+
+            with open(duong_dan_luu, "wb") as f:
+                pickle.dump(mo_hinh, f)
+
+        chu_ky_hmac = ""
+        if Path(duong_dan_luu).is_file():
+            chu_ky_hmac = LuuTai.ky_file(duong_dan_luu)
 
         ban_ghi = {
             "version": version,
+            "loai_mo_hinh": loai_mo_hinh,
             "thoi_gian": datetime.now().isoformat(),
             "metrics": metrics or {},
             "params": params or {},
             "tags": tags or [],
             "ghi_chu": ghi_chu,
-            "duong_dan": str(duong_dan_model / "model.pkl"),
+            "duong_dan": duong_dan_luu,
+            "hmac_sha256": chu_ky_hmac,
         }
 
         self._metadata[ten]["versions"][version] = ban_ghi
         self._luu_metadata()
 
-        self.logger.info(f"Đã đăng ký: {ten} v{version}")
+        self.logger.info(f"Đã đăng ký: {ten} v{version} ({loai_mo_hinh})")
         return version
 
     def tai(self, ten: str, version: Optional[str] = None) -> Any:
         """
-        Tải mô hình theo tên và version.
+        Tải mô hình theo tên và version (kèm kiểm tra chữ ký toàn vẹn HMAC-SHA256 và RestrictedUnpickler).
 
         Args:
             ten: Tên mô hình
@@ -115,11 +145,37 @@ class QuanLyMoHinh:
         if version not in self._metadata[ten]["versions"]:
             raise KeyError(f"Không tìm thấy version {version} cho {ten}")
 
-        duong_dan = self._metadata[ten]["versions"][version]["duong_dan"]
+        info = self._metadata[ten]["versions"][version]
+        duong_dan = info["duong_dan"]
+        loai_mo_hinh = info.get("loai_mo_hinh", "BaseModel")
+
+        if self.xac_thuc_chu_ky and Path(duong_dan).is_file():
+            co_chu_ky_meta = bool(info.get("hmac_sha256"))
+            sig_path = Path(duong_dan).with_suffix(Path(duong_dan).suffix + ".sig")
+            if co_chu_ky_meta or sig_path.exists():
+                if not LuuTai.xac_thuc_file(duong_dan):
+                    raise ValueError(
+                        f"Bảo mật: Phát hiện file mô hình '{duong_dan}' đã bị can thiệp trái phép "
+                        "hoặc thiếu chữ ký toàn vẹn HMAC-SHA256!"
+                    )
+
+        if loai_mo_hinh == "GPTModel":
+            from vietnamese_ai.transformer.gpt_model import GPTModel
+
+            return GPTModel.tai(duong_dan)
+        if loai_mo_hinh == "Pipeline":
+            from vietnamese_ai.core.pipeline import Pipeline
+
+            return Pipeline.tai(duong_dan)
+        if loai_mo_hinh in ("BoTinhChinhMoHinh", "AutoFineTuner", "HuggingFaceWrapper"):
+            return tai_an_toan(duong_dan, cho_phep_mo_hinh=True)
 
         from vietnamese_ai.models.base import BaseModel
 
-        return BaseModel.tai(duong_dan)
+        try:
+            return BaseModel.tai(duong_dan)
+        except Exception:
+            return tai_an_toan(duong_dan, cho_phep_mo_hinh=True)
 
     def promote(self, ten: str, version: str, alias: str) -> None:
         """

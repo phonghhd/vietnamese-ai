@@ -58,6 +58,34 @@ LOAI_NODE = {
         "dau_vao": ["mo_hinh", "du_lieu"],
         "dau_ra": ["mo_hinh", "du_lieu"],
     },
+    "llm": {
+        "ten": "Mô hình Ngôn ngữ Lớn (LLM)",
+        "mo_ta": "Fine-tune (SFT/DPO/GRPO) hoặc sinh văn bản với Qwen3.8, Gemma 4, DeepSeek-R1",
+        "mau": "#673AB7",
+        "dau_vao": ["du_lieu"],
+        "dau_ra": ["mo_hinh", "du_lieu"],
+    },
+    "rag": {
+        "ten": "RAG & Nén Ngữ cảnh",
+        "mo_ta": "Truy xuất tri thức tiếng Việt kết hợp Prompt Compression & Semantic Cache",
+        "mau": "#009688",
+        "dau_vao": ["du_lieu"],
+        "dau_ra": ["ket_qua", "du_lieu"],
+    },
+    "vlm": {
+        "ten": "Thị giác - Ngôn ngữ (VLM)",
+        "mo_ta": "Hỏi đáp và phân tích hình ảnh đa phương thức (Qwen3.7-Omni / Gemma 4 Vision)",
+        "mau": "#FF5722",
+        "dau_vao": ["du_lieu"],
+        "dau_ra": ["ket_qua", "mo_hinh"],
+    },
+    "tuong_lua": {
+        "ten": "Tường lửa AI & Lọc Bảo mật",
+        "mo_ta": "Quét chống Data Poisoning, Prompt Injection và ẩn PII/API Keys tự động",
+        "mau": "#D32F2F",
+        "dau_vao": ["du_lieu"],
+        "dau_ra": ["du_lieu", "bao_cao_an_ninh"],
+    },
 }
 
 TAT_CA_THUAT_TOAN = {
@@ -67,6 +95,9 @@ TAT_CA_THUAT_TOAN = {
         "svm",
         "rung_ngau_nhien",
         "gradient_boosting",
+        "hist_gradient_boosting",
+        "xgboost",
+        "lightgbm",
         "naive_bayes",
     ],
     "hoi_quy": [
@@ -75,8 +106,23 @@ TAT_CA_THUAT_TOAN = {
         "lasso",
         "rung_ngau_nhien",
         "gradient_boosting",
+        "hist_gradient_boosting",
+        "xgboost",
+        "lightgbm",
     ],
     "phan_cum": ["kmeans", "dbscan", "hierarchical"],
+    "llm": [
+        "qwen3.5",
+        "qwen3.6",
+        "qwen3.7",
+        "qwen3.8",
+        "qwen3.8-moe",
+        "gemma4",
+        "gemma4-omni",
+        "llama4",
+        "deepseek-r1",
+        "vistral-7b",
+    ],
 }
 
 
@@ -373,9 +419,25 @@ class StudioKeoTha:
 
         return thu_tu
 
-    def _chay_node_du_lieu(self, node: Node) -> np.ndarray:
-        """Chạy node dữ liệu."""
+    def _chay_node_du_lieu(self, node: Node) -> Any:
+        """Chạy node dữ liệu (hỗ trợ cả dữ liệu bảng mẫu và 16 bộ dữ liệu tiếng Việt chuẩn trong HoDuLieu)."""
         from vietnamese_ai.datalake.sample_data import DuLieuMau
+
+        ten_bo_du_lieu = node.tham_so.get("ten_bo_du_lieu")
+        if ten_bo_du_lieu:
+            from vietnamese_ai.datalake.dataset_manager import HoDuLieu
+
+            ho = HoDuLieu()
+            kq_mau = ho.tai_bo_mau(ten_bo_du_lieu)
+            ds = kq_mau["du_lieu"]
+            X, y = ho.xuat_xy(kq_mau["ten_dataset"])
+            return {
+                "X": X,
+                "y": y,
+                "records": ds,
+                "ten_bo_du_lieu": ten_bo_du_lieu,
+                "nhiem_vu": node.tham_so.get("nhiem_vu", "llm"),
+            }
 
         nhiem_vu = node.tham_so.get("nhiem_vu", "phan_loai")
         so_mau = node.tham_so.get("so_mau", 200)
@@ -475,9 +537,183 @@ class StudioKeoTha:
             du_lieu_vao["hardware_optimized"] = True
         return du_lieu_vao
 
-    def chay(self) -> Dict[str, Any]:
+    def _chay_node_llm(self, node: Node, du_lieu_vao: Any) -> Dict[str, Any]:
+        """Chạy node tinh chỉnh hoặc suy luận LLM thế hệ mới (Qwen3.8, Gemma 4, DeepSeek-R1)."""
+        from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh
+
+        ten_mo_hinh = node.tham_so.get("mo_hinh", "qwen3.8")
+        nhiem_vu = node.tham_so.get("nhiem_vu", "sft")
+        so_vong = int(node.tham_so.get("so_vong", 2))
+        tuner = BoTinhChinhMoHinh(
+            mo_hinh=ten_mo_hinh,
+            nhiem_vu=nhiem_vu,
+            dung_lora=True,
+            che_do_offline=True,
+        )
+        du_lieu_vao = du_lieu_vao or {}
+        records = du_lieu_vao.get("records")
+        if not records:
+            X = du_lieu_vao.get("X", ["Xin chào Việt Nam"])
+            y = du_lieu_vao.get("y", ["Chào bạn!"])
+            records = [
+                {"instruction": str(xi), "output": str(yi), "prompt": str(xi), "chosen": str(yi), "rejected": "Không biết"}
+                for xi, yi in zip(X[:10], y[:10])
+            ]
+        kq_train = tuner.huan_luyen(records, so_vong=so_vong)
+        du_lieu_vao["mo_hinh"] = tuner
+        du_lieu_vao["ket_qua_llm"] = kq_train
+        return du_lieu_vao
+
+    def _chay_node_rag(self, node: Node, du_lieu_vao: Any) -> Dict[str, Any]:
+        """Chạy node RAG với tính năng Nén ngữ cảnh (Prompt Compression) & Semantic Cache."""
+        from vietnamese_ai.rag.rag_pipeline import RAGPipeline
+
+        nen_ngu_canh = bool(node.tham_so.get("nen_ngu_canh", True))
+        dung_cache = bool(node.tham_so.get("dung_semantic_cache", True))
+        rag = RAGPipeline(nen_ngu_canh=nen_ngu_canh, dung_semantic_cache=dung_cache)
+
+        du_lieu_vao = du_lieu_vao or {}
+        records = du_lieu_vao.get("records", [])
+        if records:
+            for idx, r in enumerate(records[:20]):
+                van_ban = " ".join(str(v) for v in r.values() if isinstance(v, str))
+                rag.them_tai_lieu(f"doc_{idx}", van_ban)
+        else:
+            rag.them_tai_lieu("doc_default", "Framework Vietnamese AI hỗ trợ Qwen3.8, Gemma 4 và RAG tiếng Việt.")
+
+        cau_hoi = node.tham_so.get("cau_hoi", "Nội dung chính của tài liệu là gì?")
+        kq_hoi = rag.hoi(cau_hoi)
+        du_lieu_vao["rag"] = rag
+        du_lieu_vao["ket_qua_rag"] = kq_hoi
+        return du_lieu_vao
+
+    def _chay_node_vlm(self, node: Node, du_lieu_vao: Any) -> Dict[str, Any]:
+        """Chạy node Thị giác - Ngôn ngữ (VLM)."""
+        from vietnamese_ai.vision.vlm import MoHinhThiGiacNgonNgu
+
+        ten_mo_hinh = node.tham_so.get("mo_hinh", "qwen3.7-omni")
+        vlm = MoHinhThiGiacNgonNgu(mo_hinh_ngon_ngu=ten_mo_hinh)
+        du_lieu_vao = du_lieu_vao or {}
+        anh = node.tham_so.get("anh")
+        if anh is None:
+            anh = np.full((64, 160), 240, dtype=np.uint8)
+            anh[20:36, 15:140] = 20
+        cau_hoi = node.tham_so.get("cau_hoi", "Mô tả nội dung bức ảnh này.")
+        kq_vlm = vlm.hoi_dap_anh(anh, cau_hoi)
+        du_lieu_vao["mo_hinh"] = vlm
+        du_lieu_vao["ket_qua_vlm"] = kq_vlm
+        return du_lieu_vao
+
+    def _chay_node_tuong_lua(self, node: Node, du_lieu_vao: Any) -> Dict[str, Any]:
+        """Chạy node Tường lửa AI & Lọc Bảo mật (khử Data Poisoning, Prompt Injection và PII/Secrets)."""
+        from vietnamese_ai.security.data_sanitizer import DataSanitizer
+        from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework
+
+        du_lieu_vao = dict(du_lieu_vao) if isinstance(du_lieu_vao, dict) else {}
+        an_pii = bool(node.tham_so.get("an_pii", True))
+        loai_bo_mau_doc = bool(node.tham_so.get("loai_bo_mau_doc", True))
+        tuong_lua = TuongLuaBaoVeFramework(
+            tu_dong_an_pii_dau_ra=an_pii, gioi_han_req_moi_phut=10000
+        )
+
+        bao_cao_an_ninh: Dict[str, Any] = {"trang_thai": "da_quet"}
+        records = du_lieu_vao.get("records")
+        if isinstance(records, list) and records:
+            records_sach, bc = DataSanitizer.quet_dau_doc_du_lieu(
+                records, an_pii=an_pii, loai_bo_mau_doc=loai_bo_mau_doc
+            )
+            du_lieu_vao["records"] = records_sach
+            bao_cao_an_ninh.update(bc)
+
+        if "mo_hinh" in du_lieu_vao and du_lieu_vao["mo_hinh"] is not None:
+            du_lieu_vao["mo_hinh"] = tuong_lua.boc_bao_ve(du_lieu_vao["mo_hinh"])
+            bao_cao_an_ninh["da_boc_bao_ve_mo_hinh"] = True
+
+        du_lieu_vao["tuong_lua"] = tuong_lua
+        du_lieu_vao["bao_cao_an_ninh"] = bao_cao_an_ninh
+        return du_lieu_vao
+
+    def _thuc_thi_mot_node(self, node: Node, dau_vao: Any) -> Any:
+        """Thực thi logic cốt lõi của một Node trên Studio Canvas."""
+        if node.loai == "du_lieu":
+            return self._chay_node_du_lieu(node)
+        if node.loai == "tien_xu_ly":
+            return self._chay_node_tien_xu_ly(node, dau_vao)
+        if node.loai == "mo_hinh":
+            return self._chay_node_mo_hinh(node, dau_vao)
+        if node.loai == "danh_gia":
+            return self._chay_node_danh_gia(node, dau_vao)
+        if node.loai == "toi_uu_phan_cung":
+            return self._chay_node_toi_uu_phan_cung(node, dau_vao)
+        if node.loai == "llm":
+            return self._chay_node_llm(node, dau_vao)
+        if node.loai == "rag":
+            return self._chay_node_rag(node, dau_vao)
+        if node.loai == "vlm":
+            return self._chay_node_vlm(node, dau_vao)
+        if node.loai == "tuong_lua":
+            return self._chay_node_tuong_lua(node, dau_vao)
+        return dau_vao
+
+    def xuat_dag(self) -> Any:
         """
-        Chạy toàn bộ pipeline.
+        Biên dịch toàn bộ Canvas của `StudioKeoTha` thành đồ thị thực thi song song `DongChayDAG`.
+        Các nhánh độc lập (ví dụ nhánh `rag` và nhánh `llm` cùng nối từ một node `du_lieu`) sẽ được
+        chạy đa luồng đồng thời qua `ThreadPoolExecutor` với cơ chế cách ly bản sao dữ liệu an toàn luồng.
+        """
+        from vietnamese_ai.workflow.dag_engine import DongChayDAG
+        from vietnamese_ai.workflow.node import NutCongViec
+
+        dag = DongChayDAG()
+        for ma_node, node in self._nodes.items():
+            upstream_vars = [f"out_{kn.tu_node}" for kn in self._ket_noi if kn.den_node == ma_node]
+            out_var = f"out_{ma_node}"
+
+            def _tao_ham_node(n_ref: Node, u_vars: List[str], o_var: str):
+                def _ham_chay(**kwargs: Any) -> Dict[str, Any]:
+                    self.logger.info(f"Chạy node (DAG): {n_ref.ten} ({n_ref.loai})")
+                    dau_vao_gop: Any = None
+                    for uv in u_vars:
+                        val = kwargs.get(uv)
+                        if isinstance(val, dict):
+                            if dau_vao_gop is None:
+                                dau_vao_gop = dict(val)
+                            elif isinstance(dau_vao_gop, dict):
+                                dau_vao_gop.update(val)
+                        elif val is not None and dau_vao_gop is None:
+                            dau_vao_gop = val
+
+                    try:
+                        kq = self._thuc_thi_mot_node(n_ref, dau_vao_gop)
+                        n_ref.da_chay = True
+                        n_ref.ket_qua = kq
+                        n_ref.loi = None
+                        return {o_var: kq}
+                    except Exception as e:
+                        n_ref.loi = str(e)
+                        n_ref.da_chay = False
+                        n_ref.ket_qua = None
+                        self.logger.error(f"Lỗi node {n_ref.ten}: {e}")
+                        return {o_var: None}
+
+                return _ham_chay
+
+            dag.them_nut(
+                NutCongViec(
+                    id_nut=ma_node,
+                    ham_xu_ly=_tao_ham_node(node, upstream_vars, out_var),
+                    dau_vao=upstream_vars,
+                    dau_ra=[out_var],
+                )
+            )
+        return dag
+
+    def chay(self, song_song: bool = True) -> Dict[str, Any]:
+        """
+        Chạy toàn bộ pipeline (mặc định thực thi đa luồng song song qua `DongChayDAG`).
+
+        Args:
+            song_song: Khi `True`, biên dịch Canvas sang `DongChayDAG` để chạy song song các nhánh độc lập.
 
         Returns:
             Dict chứa kết quả của tất cả nodes
@@ -486,55 +722,49 @@ class StudioKeoTha:
             raise RuntimeError("Pipeline trống. Thêm nodes trước.")
 
         self.logger.info("=" * 50)
-        self.logger.info(f"CHẠY PIPELINE: {self.ten}")
+        self.logger.info(f"CHẠY PIPELINE: {self.ten} (song_song={song_song})")
         self.logger.info(f"Nodes: {len(self._nodes)}, Kết nối: {len(self._ket_noi)}")
         self.logger.info("=" * 50)
 
         thu_tu = self._sap_xep_topo()
-        du_lieu_node: Dict[str, Any] = {}
         bat_dau = time.time()
-        loi_count = 0
 
-        for ma_node in thu_tu:
-            node = self._nodes[ma_node]
-            self.logger.info(f"Chạy node: {node.ten} ({node.loai})")
-
-            try:
-                dau_vao = None
-                for kn in self._ket_noi:
-                    if kn.den_node == ma_node:
-                        dau_vao = du_lieu_node.get(kn.tu_node)
-                        break
-
-                if node.loai == "du_lieu":
-                    ket_qua = self._chay_node_du_lieu(node)
-                elif node.loai == "tien_xu_ly":
-                    ket_qua = self._chay_node_tien_xu_ly(node, dau_vao)
-                elif node.loai == "mo_hinh":
-                    ket_qua = self._chay_node_mo_hinh(node, dau_vao)
-                elif node.loai == "danh_gia":
-                    ket_qua = self._chay_node_danh_gia(node, dau_vao)
-                elif node.loai == "toi_uu_phan_cung":
-                    ket_qua = self._chay_node_toi_uu_phan_cung(node, dau_vao)
-                else:
-                    ket_qua = dau_vao
-
-                du_lieu_node[ma_node] = ket_qua
-                node.da_chay = True
-                node.ket_qua = ket_qua
-                node.loi = None
-
-            except Exception as e:
-                node.loi = str(e)
-                node.da_chay = False
-                loi_count += 1
-                self.logger.error(f"Lỗi node {node.ten}: {e}")
+        if song_song:
+            dag = self.xuat_dag()
+            dag.thuc_thi()
+            loi_count = sum(1 for ma in thu_tu if not self._nodes[ma].da_chay)
+        else:
+            du_lieu_node: Dict[str, Any] = {}
+            loi_count = 0
+            for ma_node in thu_tu:
+                node = self._nodes[ma_node]
+                self.logger.info(f"Chạy node: {node.ten} ({node.loai})")
+                try:
+                    dau_vao: Any = None
+                    for kn in self._ket_noi:
+                        if kn.den_node == ma_node:
+                            val = du_lieu_node.get(kn.tu_node)
+                            if isinstance(val, dict):
+                                dau_vao = dict(val) if dau_vao is None else {**dau_vao, **val}
+                            elif val is not None and dau_vao is None:
+                                dau_vao = val
+                    ket_qua = self._thuc_thi_mot_node(node, dau_vao)
+                    du_lieu_node[ma_node] = ket_qua
+                    node.da_chay = True
+                    node.ket_qua = ket_qua
+                    node.loi = None
+                except Exception as e:
+                    node.loi = str(e)
+                    node.da_chay = False
+                    loi_count += 1
+                    self.logger.error(f"Lỗi node {node.ten}: {e}")
 
         tong_thoi_gian = time.time() - bat_dau
         self._da_chay = True
 
         self._ket_qua_chay = {
             "trang_thai": "thanh_cong" if loi_count == 0 else "co_loi",
+            "che_do_thuc_thi": "dag_song_song" if song_song else "tuan_tu",
             "so_node": len(self._nodes),
             "so_node_thanh_cong": len(self._nodes) - loi_count,
             "so_loi": loi_count,

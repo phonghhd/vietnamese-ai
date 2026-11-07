@@ -36,8 +36,10 @@ class EvoNetGateway(FastAPIServer):
             """
             Dùng để SDK kiểm tra tính tương thích phiên bản.
             """
+            from vietnamese_ai import __version__
+
             return {
                 "name": "EvoNetAI Gateway",
-                "version": "25.0.0",
+                "version": __version__,
                 "supported_sdks": ["nodejs", "php", "python"],
             }

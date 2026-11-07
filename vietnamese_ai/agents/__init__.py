@@ -1,52 +1,55 @@
-from .advanced_memory import GraphMemory, SummaryMemory, WindowMemory
-from .agent import TacTu
-from .collaboration import ManagerAgent, WorkerAgent
-from .decentralized_swarm import P2PSwarmOrchestrator
-from .devops import DevOpsAgent
-from .experience_memory import SoTayKinhNghiem
-from .mcts_planning import LapKeHoachMCTS, MCTSNode
-from .memory import BoNhoTacTu
-from .moa import MoA
-from .multi_agent import HeThongDaTacTu
-from .self_healing import SelfHealingAgent
-from .spatial_tools import cong_cu_di_chuyen_robot, cong_cu_quet_radar_3d
-from .swarm import HeThongSwarm, KetQuaSwarm, TacTuSwarm
-from .tools import (
-    CongCu,
-    cong_cu,
-    cong_cu_doc_file,
-    cong_cu_may_tinh,
-    cong_cu_phan_tich_anh,
-    cong_cu_python_repl,
-    cong_cu_tim_kiem_web,
-)
+"""Hệ sinh thái Tác tử AI (Multi-Agent, Swarm, MoA, MCTS, MCP — Lazy-loaded < 5ms)."""
 
-__all__ = [
-    "CongCu",
-    "cong_cu",
-    "cong_cu_may_tinh",
-    "cong_cu_doc_file",
-    "cong_cu_tim_kiem_web",
-    "cong_cu_python_repl",
-    "cong_cu_phan_tich_anh",
-    "cong_cu_di_chuyen_robot",
-    "cong_cu_quet_radar_3d",
-    "BoNhoTacTu",
-    "WindowMemory",
-    "SummaryMemory",
-    "TacTu",
-    "HeThongDaTacTu",
-    "TacTuSwarm",
-    "HeThongSwarm",
-    "KetQuaSwarm",
-    "MoA",
-    "LapKeHoachMCTS",
-    "MCTSNode",
-    "SoTayKinhNghiem",
-    "GraphMemory",
-    "ManagerAgent",
-    "WorkerAgent",
-    "DevOpsAgent",
-    "P2PSwarmOrchestrator",
-    "SelfHealingAgent",
-]
+from vietnamese_ai.utils.lazy_loader import tao_lazy_getattr
+
+_LAZY = {
+    "CongCu": ("vietnamese_ai.agents.tools", "CongCu"),
+    "CongCuManHinh": ("vietnamese_ai.agents.tools", "CongCuManHinh"),
+    "ComputerUseTool": ("vietnamese_ai.agents.tools", "ComputerUseTool"),
+    "cong_cu": ("vietnamese_ai.agents.tools", "cong_cu"),
+    "cong_cu_may_tinh": ("vietnamese_ai.agents.tools", "cong_cu_may_tinh"),
+    "cong_cu_doc_file": ("vietnamese_ai.agents.tools", "cong_cu_doc_file"),
+    "cong_cu_tim_kiem_web": ("vietnamese_ai.agents.tools", "cong_cu_tim_kiem_web"),
+    "cong_cu_python_repl": ("vietnamese_ai.agents.tools", "cong_cu_python_repl"),
+    "cong_cu_phan_tich_anh": ("vietnamese_ai.agents.tools", "cong_cu_phan_tich_anh"),
+    "cong_cu_man_hinh": ("vietnamese_ai.agents.tools", "cong_cu_man_hinh"),
+    "cong_cu_di_chuyen_robot": ("vietnamese_ai.agents.spatial_tools", "cong_cu_di_chuyen_robot"),
+    "cong_cu_quet_radar_3d": ("vietnamese_ai.agents.spatial_tools", "cong_cu_quet_radar_3d"),
+    "BoNhoTacTu": ("vietnamese_ai.agents.memory", "BoNhoTacTu"),
+    "WindowMemory": ("vietnamese_ai.agents.advanced_memory", "WindowMemory"),
+    "SummaryMemory": ("vietnamese_ai.agents.advanced_memory", "SummaryMemory"),
+    "GraphMemory": ("vietnamese_ai.agents.advanced_memory", "GraphMemory"),
+    "TacTu": ("vietnamese_ai.agents.agent", "TacTu"),
+    "HeThongDaTacTu": ("vietnamese_ai.agents.multi_agent", "HeThongDaTacTu"),
+    "TacTuSwarm": ("vietnamese_ai.agents.swarm", "TacTuSwarm"),
+    "HeThongSwarm": ("vietnamese_ai.agents.swarm", "HeThongSwarm"),
+    "KetQuaSwarm": ("vietnamese_ai.agents.swarm", "KetQuaSwarm"),
+    "MoA": ("vietnamese_ai.agents.moa", "MoA"),
+    "LapKeHoachMCTS": ("vietnamese_ai.agents.mcts_planning", "LapKeHoachMCTS"),
+    "MCTSNode": ("vietnamese_ai.agents.mcts_planning", "MCTSNode"),
+    "MCPServer": ("vietnamese_ai.agents.mcp", "MCPServer"),
+    "MCPClient": ("vietnamese_ai.agents.mcp", "MCPClient"),
+    "MCPBridge": ("vietnamese_ai.agents.mcp", "MCPBridge"),
+    "SoTayKinhNghiem": ("vietnamese_ai.agents.experience_memory", "SoTayKinhNghiem"),
+    "HethongNhoMemGPT": ("vietnamese_ai.agents.long_term_memory", "HethongNhoMemGPT"),
+    "ManagerAgent": ("vietnamese_ai.agents.collaboration", "ManagerAgent"),
+    "WorkerAgent": ("vietnamese_ai.agents.collaboration", "WorkerAgent"),
+    "DevOpsAgent": ("vietnamese_ai.agents.devops", "DevOpsAgent"),
+    "P2PSwarmOrchestrator": ("vietnamese_ai.agents.decentralized_swarm", "P2PSwarmOrchestrator"),
+    "SelfHealingAgent": ("vietnamese_ai.agents.self_healing", "SelfHealingAgent"),
+    # === StateGraph, Deep Research & Code Healing (Phase 16) ===
+    "DoThiTrangThai": ("vietnamese_ai.agents.state_graph", "DoThiTrangThai"),
+    "StateGraph": ("vietnamese_ai.agents.state_graph", "StateGraph"),
+    "START": ("vietnamese_ai.agents.state_graph", "START"),
+    "END": ("vietnamese_ai.agents.state_graph", "END"),
+    "BoLuuDiemKiemTra": ("vietnamese_ai.agents.state_graph", "BoLuuDiemKiemTra"),
+    "MemorySaver": ("vietnamese_ai.agents.state_graph", "MemorySaver"),
+    "Checkpointer": ("vietnamese_ai.agents.state_graph", "Checkpointer"),
+    "TacTuNghienCuuSau": ("vietnamese_ai.agents.deep_research", "TacTuNghienCuuSau"),
+    "DeepResearchAgent": ("vietnamese_ai.agents.deep_research", "DeepResearchAgent"),
+    "TacTuLapTrinhTuSua": ("vietnamese_ai.agents.code_healing", "TacTuLapTrinhTuSua"),
+    "CodeHealingAgent": ("vietnamese_ai.agents.code_healing", "CodeHealingAgent"),
+}
+
+__all__ = list(_LAZY.keys())
+__getattr__ = tao_lazy_getattr(__name__, _LAZY, globals())

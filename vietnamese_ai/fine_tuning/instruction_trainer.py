@@ -78,9 +78,9 @@ class InstructionTuningTrainer:
     def huan_luyen(
         self,
         model: Any,
-        tokenizer: Any,
-        dataset: InstructionDataset,
-        eval_dataset: Optional[InstructionDataset] = None,
+        tokenizer: Any = None,
+        dataset: Optional[Any] = None,
+        eval_dataset: Optional[Any] = None,
         callback: Optional[Callable] = None,
         data_collator: Optional[Callable] = None,
     ) -> Dict[str, Any]:
@@ -88,26 +88,39 @@ class InstructionTuningTrainer:
         Huấn luyện instruction tuning.
 
         Args:
-            model: Mô hình (PyTorch nn.Module hoặc HuggingFace model)
-            tokenizer: Tokenizer
-            dataset: InstructionDataset cho training
-            eval_dataset: InstructionDataset cho evaluation
+            model: Mô hình (PyTorch nn.Module, GPTModel, hoặc HuggingFaceWrapper)
+            tokenizer: Tokenizer (hoặc truyền dataset vào tham số thứ 2 nếu không dùng tokenizer)
+            dataset: InstructionDataset hoặc List[Dict] cho training
+            eval_dataset: InstructionDataset hoặc List[Dict] cho evaluation
             callback: Callback function
             data_collator: Custom data collator
 
         Returns:
             Dict chứa training results
         """
+        if dataset is None and (isinstance(tokenizer, (InstructionDataset, list))):
+            dataset = tokenizer
+            tokenizer = None
+
+        if dataset is None:
+            du_lieu_train: List[Dict[str, Any]] = []
+        elif isinstance(dataset, InstructionDataset):
+            du_lieu_train = dataset.train
+        elif isinstance(dataset, list):
+            du_lieu_train = list(dataset)
+        else:
+            du_lieu_train = list(getattr(dataset, "train", []))
+
         self.logger.info(f"Bắt đầu instruction tuning ({self.so_vong} epochs)")
         self.logger.info(
-            f"  Samples: {len(dataset)}, Batch: {self.kich_thuoc_batch}, LR: {self.toc_do_hoc}"
+            f"  Samples: {len(du_lieu_train)}, Batch: {self.kich_thuoc_batch}, LR: {self.toc_do_hoc}"
         )
 
-        du_lieu_train = dataset.train
-        tong_steps = (
+        tong_steps = max(
+            1,
             len(du_lieu_train)
             * self.so_vong
-            // (self.kich_thuoc_batch * self.gradient_accumulation)
+            // max(1, self.kich_thuoc_batch * self.gradient_accumulation),
         )
         warmup_steps = int(tong_steps * self.warmup_ratio)
 
@@ -232,18 +245,70 @@ class InstructionTuningTrainer:
             return None
         return None
 
+    def _ma_hoa_mau_numpy(
+        self, mau: Dict[str, Any], tokenizer: Any, vocab_size: int
+    ) -> Optional[tuple]:
+        max_len = min(self.max_seq_length, 64)
+        if "input_ids" in mau and isinstance(mau["input_ids"], (list, np.ndarray)):
+            raw_in = [int(x) % vocab_size for x in mau["input_ids"]][:max_len]
+            raw_lbl = [int(x) % vocab_size for x in mau.get("labels", raw_in)][:max_len]
+            if len(raw_in) < 2:
+                return None
+            if raw_in == raw_lbl:
+                return np.array([raw_in[:-1]], dtype=int), np.array([raw_lbl[1:]], dtype=int)
+            seq_len = min(len(raw_in), len(raw_lbl))
+            return np.array([raw_in[:seq_len]], dtype=int), np.array([raw_lbl[:seq_len]], dtype=int)
+
+        text_parts = []
+        if "conversations" in mau and isinstance(mau["conversations"], list):
+            for turn in mau["conversations"]:
+                text_parts.append(f"{turn.get('from', 'user')}: {turn.get('value', '')}")
+        else:
+            inst = str(mau.get("instruction", mau.get("prompt", "")))
+            inp = str(mau.get("input", ""))
+            out = str(mau.get("output", mau.get("response", mau.get("chosen", ""))))
+            text_parts.append(f"{inst} {inp} -> {out}".strip())
+        full_text = " ".join(text_parts).strip()
+        if not full_text:
+            return None
+
+        if tokenizer is not None and hasattr(tokenizer, "ma_hoa"):
+            ids = [int(x) % vocab_size for x in tokenizer.ma_hoa(full_text)][:max_len]
+        else:
+            ids = [int(b) % vocab_size for b in full_text.encode("utf-8")[:max_len]]
+        if len(ids) < 2:
+            ids = ids + [1]
+        return np.array([ids[:-1]], dtype=int), np.array([ids[1:]], dtype=int)
+
     def _huan_luyen_numpy(
         self,
         model: Any,
         tokenizer: Any,
         du_lieu_train: List[Dict],
-        eval_dataset: Optional[InstructionDataset],
+        eval_dataset: Optional[Any],
         tong_steps: int,
         warmup_steps: int,
         callback: Optional[Callable],
     ) -> Dict[str, Any]:
-        """Huấn luyện với NumPy backend (fallback)."""
+        """Huấn luyện thật với GPTModel / NumPy backend."""
         bat_dau = time.time()
+        np.random.seed(self.seed)
+
+        target_model = getattr(model, "_native_model", model)
+        if target_model is None or not hasattr(target_model, "buoc_huan_luyen"):
+            from vietnamese_ai.transformer.gpt_model import GPTModel
+
+            target_model = GPTModel(
+                d_model=32,
+                so_dau=2,
+                d_ff=64,
+                so_block=1,
+                so_tu_vung=256,
+                do_dai_toi_da=max(64, min(self.max_seq_length, 128)),
+            )
+
+        vocab_size = getattr(target_model, "so_tu_vung", 256)
+        base_lr = max(self.toc_do_hoc, 2e-3) if not hasattr(model, "buoc_huan_luyen") else max(self.toc_do_hoc, 5e-4)
 
         for epoch in range(self.so_vong):
             epoch_loss = 0.0
@@ -251,10 +316,30 @@ class InstructionTuningTrainer:
 
             for mau in du_lieu_train:
                 try:
-                    loss_val = np.random.exponential(1.0 / (epoch + 1))
+                    encoded = self._ma_hoa_mau_numpy(mau, tokenizer, vocab_size)
+                    if encoded is None:
+                        continue
+                    in_arr, tgt_arr = encoded
+
+                    step_num = self._global_step + 1
+                    if step_num < warmup_steps:
+                        lr_scale = max(0.1, step_num / max(1, warmup_steps))
+                    else:
+                        progress = (step_num - warmup_steps) / max(1, tong_steps - warmup_steps)
+                        lr_scale = max(0.1, 0.5 * (1.0 + float(np.cos(np.pi * min(1.0, progress)))))
+                    cur_lr = base_lr * lr_scale
+
+                    loss_val = target_model.buoc_huan_luyen(
+                        in_arr,
+                        tgt_arr,
+                        toc_do_hoc=cur_lr,
+                        weight_decay=self.weight_decay,
+                        grad_clip=self.gradient_clip,
+                    )
                     epoch_loss += loss_val
                     steps += 1
                     self._global_step += 1
+                    self._history["learning_rate"].append(cur_lr)
 
                     if callback and self._global_step % self.logging_steps == 0:
                         callback(self._global_step, epoch_loss / max(1, steps))
@@ -263,6 +348,31 @@ class InstructionTuningTrainer:
 
             avg_loss = epoch_loss / max(1, steps)
             self._history["train_loss"].append(avg_loss)
+
+            if eval_dataset is not None:
+                eval_samples = (
+                    eval_dataset.train
+                    if isinstance(eval_dataset, InstructionDataset)
+                    else (
+                        list(eval_dataset)
+                        if isinstance(eval_dataset, list)
+                        else list(getattr(eval_dataset, "val", getattr(eval_dataset, "train", [])))
+                    )
+                )
+                val_losses = []
+                for vmau in eval_samples:
+                    enc = self._ma_hoa_mau_numpy(vmau, tokenizer, vocab_size)
+                    if enc is not None:
+                        val_losses.append(target_model.tinh_loss(enc[0], enc[1]))
+                if val_losses:
+                    eval_loss = float(np.mean(val_losses))
+                    self._history["eval_loss"].append(eval_loss)
+                    if eval_loss < self._best_eval_loss:
+                        self._best_eval_loss = eval_loss
+            else:
+                if avg_loss < self._best_eval_loss:
+                    self._best_eval_loss = avg_loss
+
             self.logger.info(f"Epoch {epoch + 1}/{self.so_vong}: loss={avg_loss:.4f}")
 
         tong_thoi_gian = time.time() - bat_dau
@@ -274,6 +384,9 @@ class InstructionTuningTrainer:
             "train_loss_min": min(self._history["train_loss"])
             if self._history["train_loss"]
             else 0,
+            "eval_loss_min": min(self._history["eval_loss"])
+            if self._history["eval_loss"]
+            else None,
             "history": self._history,
         }
 

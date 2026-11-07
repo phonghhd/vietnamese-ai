@@ -183,8 +183,20 @@ class MayChuBatch:
                 if isinstance(dau_vao_list[0], np.ndarray):
                     batched = np.array(dau_vao_list)
                     ket_qua = self.mo_hinh.du_doan(batched)
+                elif isinstance(dau_vao_list[0], str):
+                    try:
+                        batch_res = self.mo_hinh.du_doan(dau_vao_list)
+                        ket_qua = (
+                            batch_res
+                            if isinstance(batch_res, (list, np.ndarray)) and len(batch_res) == len(dau_vao_list)
+                            else [self.mo_hinh.du_doan(x) for x in dau_vao_list]
+                        )
+                    except Exception:
+                        ket_qua = [self.mo_hinh.du_doan(x) for x in dau_vao_list]
                 else:
                     ket_qua = [self.mo_hinh.du_doan(x) for x in dau_vao_list]
+            elif hasattr(self.mo_hinh, "sinh_van_ban"):
+                ket_qua = [self.mo_hinh.sinh_van_ban(str(x)) for x in dau_vao_list]
             else:
                 ket_qua = [None] * len(dau_vao_list)
         except Exception:

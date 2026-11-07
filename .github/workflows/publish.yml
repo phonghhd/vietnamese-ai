@@ -11,6 +11,9 @@ jobs:
   build-and-publish:
     name: Build and upload to PyPI
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # Bắt buộc cho Trusted Publishing (OIDC) để xác thực nguồn gốc GitHub
+      contents: read
 
     steps:
       - name: Checkout mã nguồn

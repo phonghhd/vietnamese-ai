@@ -26,6 +26,16 @@ class BieuDo:
             raise ImportError("Cần cài đặt matplotlib: pip install matplotlib")
 
     @staticmethod
+    def _ket_thuc_bieu_do(plt, luu_tai: Optional[str] = None) -> None:
+        """Lưu file nếu cần; chỉ show khi backend tương tác; luôn đóng figure."""
+        if luu_tai:
+            plt.savefig(luu_tai, dpi=150, bbox_inches="tight")
+        backend = str(plt.get_backend()).lower()
+        if "agg" not in backend:
+            plt.show()
+        plt.close()
+
+    @staticmethod
     def phan_bo_du_lieu(
         data: np.ndarray,
         tieu_de: str = "Phân bố dữ liệu",
@@ -44,9 +54,7 @@ class BieuDo:
         plt.ylabel(ten_truc_y)
         plt.grid(True, alpha=0.3)
 
-        if luu_tai:
-            plt.savefig(luu_tai, dpi=150, bbox_inches="tight")
-        plt.show()
+        BieuDo._ket_thuc_bieu_do(plt, luu_tai)
 
     @staticmethod
     def matran_nham_lan(
@@ -88,9 +96,7 @@ class BieuDo:
         plt.xlabel("Nhãn dự đoán")
         plt.tight_layout()
 
-        if luu_tai:
-            plt.savefig(luu_tai, dpi=150, bbox_inches="tight")
-        plt.show()
+        BieuDo._ket_thuc_bieu_do(plt, luu_tai)
 
     @staticmethod
     def lich_su_huan_luyen(
@@ -110,9 +116,7 @@ class BieuDo:
         plt.ylabel(ten_truc_y)
         plt.grid(True, alpha=0.3)
 
-        if luu_tai:
-            plt.savefig(luu_tai, dpi=150, bbox_inches="tight")
-        plt.show()
+        BieuDo._ket_thuc_bieu_do(plt, luu_tai)
 
     @staticmethod
     def scatter_2d(
@@ -161,9 +165,7 @@ class BieuDo:
         plt.ylabel("Thành phần 2")
         plt.grid(True, alpha=0.3)
 
-        if luu_tai:
-            plt.savefig(luu_tai, dpi=150, bbox_inches="tight")
-        plt.show()
+        BieuDo._ket_thuc_bieu_do(plt, luu_tai)
 
     @staticmethod
     def so_sanh_mo_hinh(
@@ -197,6 +199,4 @@ class BieuDo:
 
         plt.tight_layout()
 
-        if luu_tai:
-            plt.savefig(luu_tai, dpi=150, bbox_inches="tight")
-        plt.show()
+        BieuDo._ket_thuc_bieu_do(plt, luu_tai)

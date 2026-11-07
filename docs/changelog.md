@@ -2,6 +2,12 @@
 
 Xem [CHANGELOG.md](https://github.com/phonghhd/vietnamese-ai/blob/main/CHANGELOG.md) đầy đủ trên GitHub.
 
+## v30.0.0 (2026-10-15)
+
+- Đồng bộ phiên bản 30.0.0, sửa export `DieuPhoiCum`, extras packaging
+- Chuẩn hóa public API các module, bổ sung test coverage gaps
+- Ghi rõ tính năng mô phỏng (Edge/TEE/WASM/multimodal placeholder)
+
 ## v11.0.0 (2026-05-06)
 
 - Self-Adapting Language Models (SALM): SelfRefine, SelfConsistency, AdaptiveLoRA, SinhDuLieuTuDong, TestTimeTraining

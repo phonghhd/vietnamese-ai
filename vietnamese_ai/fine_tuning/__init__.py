@@ -1,30 +1,89 @@
-"""Fine-tuning module - Fine-tune LLM với LoRA, PEFT, SFT, DPO, RLHF."""
+"""Fine-tuning module - Fine-tune LLM & Transformers với LoRA, PEFT, SFT, DPO, RLHF (Lazy PEP 562)."""
 
-from vietnamese_ai.fine_tuning.bitlora import BitLoRALinear
-from vietnamese_ai.fine_tuning.dpo_trainer import DPOTrainer
-from vietnamese_ai.fine_tuning.hf_wrapper import HuggingFaceWrapper
-from vietnamese_ai.fine_tuning.instruction_trainer import InstructionTuningTrainer
-from vietnamese_ai.fine_tuning.lora import LoRAAdapter, QLoRAAdapter
-from vietnamese_ai.fine_tuning.lora_peft import LoRAPeft
-from vietnamese_ai.fine_tuning.peft_config import PEFTConfig
-from vietnamese_ai.fine_tuning.pytorch_trainer import HuanLuyenPyTorch
-from vietnamese_ai.fine_tuning.reward_model import RewardModel
-from vietnamese_ai.fine_tuning.rlhf_pipeline import RLHFPipeline
-from vietnamese_ai.fine_tuning.sft_trainer import SFTTrainer
-from vietnamese_ai.fine_tuning.unsloth_wrapper import UnslothWrapper
+from vietnamese_ai.utils.lazy_loader import tao_lazy_getattr
 
 __all__ = [
-    "HuanLuyenPyTorch",
-    "UnslothWrapper",
+    "AutoFineTuner",
+    "BoTinhChinhMoHinh",
+    "InstructionDataset",
+    "PEFTConfig",
     "HuggingFaceWrapper",
+    "UnslothWrapper",
+    "LoRALayer",
     "LoRAAdapter",
     "QLoRAAdapter",
-    "BitLoRALinear",
-    "PEFTConfig",
-    "LoRAPeft",
+    "DoRALayer",
+    "BoTangTocHuanLuyen",
+    "TrainingAccelerator",
+    "BoGopChuoi",
+    "SequencePacker",
+    "HamMatMatPhanManh",
+    "ChunkedCrossEntropy",
+    "BoToiUuGaLore",
+    "GaLoreOptimizer",
+    "BenchmarkTangToc",
+    "SpeedBenchmark",
     "InstructionTuningTrainer",
     "SFTTrainer",
     "DPOTrainer",
+    "GRPOTrainer",
     "RewardModel",
     "RLHFPipeline",
+    "LoRAPeft",
+    "HuanLuyenPyTorch",
+    "BitLoRALinear",
 ]
+
+__getattr__ = tao_lazy_getattr(
+    __name__,
+    {
+        "AutoFineTuner": ("vietnamese_ai.fine_tuning.auto_finetuner", "AutoFineTuner"),
+        "BoTinhChinhMoHinh": ("vietnamese_ai.fine_tuning.auto_finetuner", "BoTinhChinhMoHinh"),
+        "InstructionDataset": ("vietnamese_ai.fine_tuning.dataset", "InstructionDataset"),
+        "PEFTConfig": ("vietnamese_ai.fine_tuning.peft_config", "PEFTConfig"),
+        "HuggingFaceWrapper": ("vietnamese_ai.fine_tuning.hf_wrapper", "HuggingFaceWrapper"),
+        "UnslothWrapper": ("vietnamese_ai.fine_tuning.unsloth_wrapper", "UnslothWrapper"),
+        "LoRALayer": ("vietnamese_ai.fine_tuning.lora", "LoRALayer"),
+        "LoRAAdapter": ("vietnamese_ai.fine_tuning.lora", "LoRAAdapter"),
+        "QLoRAAdapter": ("vietnamese_ai.fine_tuning.lora", "QLoRAAdapter"),
+        "DoRALayer": ("vietnamese_ai.fine_tuning.lora", "DoRALayer"),
+        "BoTangTocHuanLuyen": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "BoTangTocHuanLuyen",
+        ),
+        "TrainingAccelerator": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "TrainingAccelerator",
+        ),
+        "BoGopChuoi": ("vietnamese_ai.fine_tuning.training_accelerator", "BoGopChuoi"),
+        "SequencePacker": ("vietnamese_ai.fine_tuning.training_accelerator", "SequencePacker"),
+        "HamMatMatPhanManh": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "HamMatMatPhanManh",
+        ),
+        "ChunkedCrossEntropy": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "ChunkedCrossEntropy",
+        ),
+        "BoToiUuGaLore": ("vietnamese_ai.fine_tuning.training_accelerator", "BoToiUuGaLore"),
+        "GaLoreOptimizer": ("vietnamese_ai.fine_tuning.training_accelerator", "GaLoreOptimizer"),
+        "BenchmarkTangToc": (
+            "vietnamese_ai.fine_tuning.training_accelerator",
+            "BenchmarkTangToc",
+        ),
+        "SpeedBenchmark": ("vietnamese_ai.fine_tuning.training_accelerator", "SpeedBenchmark"),
+        "InstructionTuningTrainer": (
+            "vietnamese_ai.fine_tuning.instruction_trainer",
+            "InstructionTuningTrainer",
+        ),
+        "SFTTrainer": ("vietnamese_ai.fine_tuning.sft_trainer", "SFTTrainer"),
+        "DPOTrainer": ("vietnamese_ai.fine_tuning.dpo_trainer", "DPOTrainer"),
+        "GRPOTrainer": ("vietnamese_ai.fine_tuning.grpo_trainer", "GRPOTrainer"),
+        "RewardModel": ("vietnamese_ai.fine_tuning.reward_model", "RewardModel"),
+        "RLHFPipeline": ("vietnamese_ai.fine_tuning.rlhf_pipeline", "RLHFPipeline"),
+        "LoRAPeft": ("vietnamese_ai.fine_tuning.lora_peft", "LoRAPeft"),
+        "HuanLuyenPyTorch": ("vietnamese_ai.fine_tuning.pytorch_trainer", "HuanLuyenPyTorch"),
+        "BitLoRALinear": ("vietnamese_ai.fine_tuning.bitlora", "BitLoRALinear"),
+    },
+    globals(),
+)

@@ -2,7 +2,7 @@
 
 from vietnamese_ai.prompts.chains import ChuoiPrompt
 from vietnamese_ai.prompts.guardrails import LuongAnToan
-from vietnamese_ai.prompts.parser import PhanTichDauRa
+from vietnamese_ai.prompts.parser import PhanTichDauRa, SinhCoCauTruc
 from vietnamese_ai.prompts.templates import MauPrompt
 
-__all__ = ["MauPrompt", "ChuoiPrompt", "LuongAnToan", "PhanTichDauRa"]
+__all__ = ["MauPrompt", "ChuoiPrompt", "LuongAnToan", "PhanTichDauRa", "SinhCoCauTruc"]

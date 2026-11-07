@@ -51,6 +51,20 @@ class MoiTruongCachLy:
                 if isinstance(node.func, ast.Name):
                     if node.func.id in cau_hinh.get("ham_cam", []):
                         return False, f"Bảo mật: Không được phép sử dụng hàm '{node.func.id}'"
+                elif isinstance(node.func, ast.Attribute):
+                    if node.func.attr.startswith("__") and node.func.attr.endswith("__"):
+                        return (
+                            False,
+                            f"Bảo mật: Không được phép truy cập thuộc tính hệ thống '{node.func.attr}'",
+                        )
+
+            # Chặn truy cập thuộc tính dunder (__class__, __subclasses__, __globals__)
+            elif isinstance(node, ast.Attribute):
+                if node.attr.startswith("__") and node.attr.endswith("__"):
+                    return (
+                        False,
+                        f"Bảo mật: Không được phép truy cập thuộc tính hệ thống '{node.attr}'",
+                    )
 
         return True, "An toàn"
 

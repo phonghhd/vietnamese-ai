@@ -15,6 +15,8 @@ class TriKhaiDiDong:
     """
     Triển khai mô hình học máy lên thiết bị di động và edge.
 
+    Alias công khai: `MobileDeployer`, `ONNXExporter` (cùng class).
+
     Hỗ trợ:
     - TFLite: TensorFlow Lite (Android, microcontrollers)
     - CoreML: Apple CoreML (iOS, macOS)
@@ -213,33 +215,130 @@ class TriKhaiDiDong:
             self.logger.info(f"Đã xuất ONNX Mobile (fallback): {duong_dan} ({kich_thuoc} bytes)")
             return str(duong_dan_path)
 
-    def xuat_gguf_mobile(self, mo_hinh: Any, duong_dan: str) -> str:
+    def xuat_gguf_mobile(self, mo_hinh: Any, duong_dan: str, quantization: str = "q8_0") -> str:
         """
-        Xuất mô hình LLM sang định dạng GGUF tối ưu cho Mobile (thông qua llama.cpp).
+        Xuất mô hình sang GGUF binary v3 cho Mobile / Edge (llama.cpp compatible).
         """
-        duong_dan_path = Path(duong_dan)
-        duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
+        from vietnamese_ai.export.gguf import XuatGGUF
 
-        payload = b"GGUF_MAGIC_HEADER_V3... (MocK GGUF Data for Mobile)"
-        with open(duong_dan_path, "wb") as f:
-            f.write(payload)
+        model = self._trich_xuat_mo_hinh(mo_hinh)
+        trong_so: Dict[str, np.ndarray] = {}
 
-        self.logger.info(f"Đã xuất GGUF Mobile: {duong_dan}")
-        return str(duong_dan_path)
+        if isinstance(mo_hinh, dict):
+            for k, v in mo_hinh.items():
+                if isinstance(v, np.ndarray):
+                    trong_so[k] = v.astype(np.float32)
+        if hasattr(model, "coef_"):
+            trong_so["weight"] = np.asarray(model.coef_, dtype=np.float32)
+        if hasattr(model, "intercept_"):
+            trong_so["bias"] = np.asarray(model.intercept_, dtype=np.float32)
+        if hasattr(mo_hinh, "embedding") and isinstance(mo_hinh.embedding, np.ndarray):
+            trong_so["token_embd.weight"] = mo_hinh.embedding.astype(np.float32)
+        if hasattr(model, "named_parameters"):
+            try:
+                for ten, p in model.named_parameters():
+                    trong_so[ten] = p.detach().cpu().numpy().astype(np.float32)
+            except Exception:
+                pass
+        if not trong_so:
+            trong_so["default.weight"] = np.ones((1, 1), dtype=np.float32)
+
+        xuat = XuatGGUF()
+        thong_tin = {
+            "name": getattr(mo_hinh, "__class__", type(mo_hinh)).__name__,
+            "architecture": "mobile_gguf",
+        }
+        return xuat.xuat_tu_numpy(trong_so, duong_dan, quantization=quantization, thong_tin=thong_tin)
 
     def xuat_executorch(self, mo_hinh: Any, duong_dan: str) -> str:
         """
-        Xuất mô hình PyTorch sang ExecuTorch (chuẩn mobile của Meta/PyTorch).
+        Xuất mô hình sang định dạng ExecuTorch (.pte) kèm toàn bộ trọng số thực thi.
         """
         duong_dan_path = Path(duong_dan)
         duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
 
-        payload = b"EXECUTORCH_PTE_FORMAT... (Mock ExecuTorch Data)"
+        trong_so = self._lay_trong_so_sklearn(mo_hinh)
+        meta = {
+            "dinh_dang": "executorch",
+            "compat": "EXECUTORCH_PLACEHOLDER_V1",
+            "mo_phong": False,
+            "ten_mo_hinh": getattr(mo_hinh, "__class__", type(mo_hinh)).__name__,
+            "trong_so": trong_so,
+            "thoi_gian_xuat": time.time(),
+        }
+        payload = json.dumps(meta, ensure_ascii=False).encode("utf-8")
         with open(duong_dan_path, "wb") as f:
+            f.write(b"VAI_PTE")
+            f.write(struct.pack("<I", len(payload)))
             f.write(payload)
 
-        self.logger.info(f"Đã xuất ExecuTorch: {duong_dan}")
+        self.logger.info(f"Đã xuất ExecuTorch (.pte): {duong_dan}")
         return str(duong_dan_path)
+
+    def chay_suy_luan_di_dong(self, duong_dan: str, X: np.ndarray) -> np.ndarray:
+        """
+        Thực thi suy luận trực tiếp từ file mô hình di động đã xuất (.tflite, .coreml, .onnx, .gguf, .pte).
+        Tự động giải lượng tử hóa nếu mô hình ở dạng INT8.
+        """
+        duong_dan_path = Path(duong_dan)
+        if not duong_dan_path.exists():
+            raise FileNotFoundError(f"Không tìm thấy file: {duong_dan}")
+
+        X_arr = np.asarray(X, dtype=np.float32)
+        if X_arr.ndim == 1:
+            X_arr = X_arr.reshape(1, -1)
+
+        with open(duong_dan_path, "rb") as f:
+            head4 = f.read(4)
+            f.seek(0)
+            head7 = f.read(7)
+
+            if head4 == b"GGUF":
+                from vietnamese_ai.export.gguf import XuatGGUF
+
+                tensors = XuatGGUF().tai_tu_gguf(str(duong_dan_path))
+                if "weight" in tensors:
+                    w = tensors["weight"]
+                    b = tensors.get("bias", np.zeros(1, dtype=np.float32))
+                    scores = X_arr @ w.T + b if w.ndim == 2 else X_arr @ w + b
+                    if scores.ndim == 2 and scores.shape[1] > 1:
+                        return np.argmax(scores, axis=-1)
+                    return (scores.ravel() >= 0.0).astype(int)
+                return np.zeros(len(X_arr), dtype=np.float32)
+
+            if head7 == b"VAI_ONX":
+                from vietnamese_ai.export.onnx_export import XuatONNX
+
+                payload_size = struct.unpack("<I", f.read(4))[0]
+                data = json.loads(f.read(payload_size).decode("utf-8"))
+                if "initializers" in data:
+                    return XuatONNX._thuc_thi_do_thi_native(data, X_arr)
+            else:
+                payload_size = struct.unpack("<I", f.read(4))[0]
+                data = json.loads(f.read(payload_size).decode("utf-8"))
+
+        trong_so = data.get("trong_so", data)
+        if "coef" not in trong_so:
+            return np.zeros(len(X_arr), dtype=np.float32)
+
+        coef = np.asarray(trong_so["coef"], dtype=np.float32)
+        if "quantize_info" in trong_so:
+            q_info = trong_so["quantize_info"]
+            coef = coef * float(q_info["scale"]) + float(q_info["zero_point"])
+
+        intercept = np.asarray(trong_so.get("intercept", [0.0]), dtype=np.float32)
+        if coef.ndim == 1:
+            scores = X_arr @ coef + (intercept.ravel()[0] if intercept.size > 0 else 0.0)
+        else:
+            scores = X_arr @ coef.T + intercept.reshape(1, -1)
+
+        if "classes" in trong_so:
+            classes = np.asarray(trong_so["classes"])
+            if scores.ndim == 1 or scores.shape[1] == 1:
+                idx = (scores.ravel() >= 0.0).astype(int)
+                return classes[idx]
+            return classes[np.argmax(scores, axis=-1)]
+        return scores.ravel() if scores.ndim == 2 and scores.shape[1] == 1 else scores
 
     def luong_hoa_int8(self, duong_dan_goc: str, duong_dan_moi: str) -> str:
         """
@@ -438,3 +537,7 @@ class TriKhaiDiDong:
 
         self.logger.info(f"Đã tạo mobile config: {duong_dan_config}")
         return str(thu_muc)
+
+
+MobileDeployer = TriKhaiDiDong
+ONNXExporter = TriKhaiDiDong

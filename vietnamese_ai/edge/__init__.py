@@ -1,4 +1,14 @@
+"""Hệ thống Tính toán Edge & Động cơ Suy luận C++ / Zero-GPU Native."""
+
+from .c_bridge import CauNoiCtypesNative, CtypesLlamaBridge, NativeLlamaBridge
 from .intelligent_router import EdgeRouter
+from .native_inference import (
+    BoGiaiLuongTuQ4,
+    DongCoSuyLuanEdge,
+    EdgeInferenceEngine,
+    GGUFMemoryMappedStreamer,
+    ZeroGPUInferenceEngine,
+)
 from .node_llama import NodeLlamaEngine
 from .p2p_network import P2PTracker, TokenLedger
 from .tee_zkp_node import SecureEdgeNode
@@ -13,4 +23,12 @@ __all__ = [
     "TokenLedger",
     "WebBrowserNode",
     "WebXRNode",
+    "DongCoSuyLuanEdge",
+    "EdgeInferenceEngine",
+    "ZeroGPUInferenceEngine",
+    "BoGiaiLuongTuQ4",
+    "GGUFMemoryMappedStreamer",
+    "CauNoiCtypesNative",
+    "NativeLlamaBridge",
+    "CtypesLlamaBridge",
 ]

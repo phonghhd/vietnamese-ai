@@ -36,10 +36,27 @@ class UnslothWrapper:
     UNSLOTH_MODELS = {
         "llama3-8b": "unsloth/llama-3-8b-bnb-4bit",
         "llama3-70b": "unsloth/llama-3-70b-bnb-4bit",
+        "llama3.3-70b": "unsloth/Llama-3.3-70B-Instruct-bnb-4bit",
+        "llama4-scout": "unsloth/Llama-4-Scout-17B-16E-Instruct-bnb-4bit",
+        "llama4-maverick": "unsloth/Llama-4-Maverick-17B-128E-Instruct-bnb-4bit",
         "mistral-7b": "unsloth/mistral-7b-v0.3-bnb-4bit",
+        "mistral-small-3.1": "unsloth/Mistral-Small-3.1-24B-Instruct-2503-bnb-4bit",
         "qwen2-7b": "unsloth/qwen2-7b-bnb-4bit",
+        "qwen3-8b": "unsloth/Qwen3-8B-bnb-4bit",
+        "qwen3.5": "unsloth/Qwen3.5-7B-Instruct-bnb-4bit",
+        "qwen3.6": "unsloth/Qwen3.6-8B-Instruct-bnb-4bit",
+        "qwen3.7": "unsloth/Qwen3.7-8B-Instruct-bnb-4bit",
+        "qwen3.8": "unsloth/Qwen3.8-8B-Instruct-bnb-4bit",
+        "qwen3.8-32b": "unsloth/Qwen3.8-32B-Instruct-bnb-4bit",
         "gemma-7b": "unsloth/gemma-7b-bnb-4bit",
+        "gemma3-4b": "unsloth/gemma-3-4b-it-bnb-4bit",
+        "gemma4": "unsloth/gemma-4-9b-it-bnb-4bit",
+        "gemma4-2b": "unsloth/gemma-4-2b-it-bnb-4bit",
+        "gemma4-27b": "unsloth/gemma-4-27b-it-bnb-4bit",
+        "deepseek-r1": "unsloth/DeepSeek-R1-Distill-Qwen-7B-bnb-4bit",
+        "deepseek-r1-32b": "unsloth/DeepSeek-R1-Distill-Qwen-32B-bnb-4bit",
         "phi3-mini": "unsloth/Phi-3-mini-4k-instruct-bnb-4bit",
+        "phi4": "unsloth/phi-4-bnb-4bit",
     }
 
     def __init__(self):
@@ -65,6 +82,11 @@ class UnslothWrapper:
     @property
     def co_unsloth(self) -> bool:
         return self._co_unsloth
+
+    @property
+    def co_san_gpu(self) -> bool:
+        """Kiểm tra máy có sẵn cả thư viện Unsloth lẫn nhân CUDA GPU hay không."""
+        return bool(self._co_unsloth and _CO_PYTORCH and torch.cuda.is_available())
 
     def danh_sach_models(self) -> Dict[str, str]:
         """Liệt kê models hỗ trợ."""
@@ -132,9 +154,11 @@ class UnslothWrapper:
         lora_dropout: float = 0.0,
         target_modules: Optional[List[str]] = None,
         bias: str = "none",
+        use_rslora: bool = False,
+        use_dora: bool = False,
     ) -> Dict[str, Any]:
         """
-        Cấu hình LoRA adapter.
+        Cấu hình LoRA / rsLoRA / DoRA adapter với Unsloth Gradient Checkpointing tối ưu.
 
         Args:
             r: Rank của LoRA (8, 16, 32, 64)
@@ -142,6 +166,8 @@ class UnslothWrapper:
             lora_dropout: Dropout rate
             target_modules: Các module áp dụng LoRA
             bias: Bias handling ("none", "all", "lora_only")
+            use_rslora: Bật Rank-Stabilized LoRA (alpha / sqrt(r))
+            use_dora: Bật Weight-Decomposed LoRA (DoRA)
 
         Returns:
             Dict chứa LoRA config
@@ -166,6 +192,8 @@ class UnslothWrapper:
             "lora_dropout": lora_dropout,
             "target_modules": target_modules,
             "bias": bias,
+            "use_rslora": use_rslora,
+            "use_dora": use_dora,
         }
 
         try:
@@ -178,6 +206,9 @@ class UnslothWrapper:
                 lora_dropout=lora_dropout,
                 target_modules=target_modules,
                 bias=bias,
+                use_gradient_checkpointing="unsloth",
+                use_rslora=use_rslora,
+                use_dora=use_dora,
             )
             self._da_lora = True
 
@@ -212,24 +243,11 @@ class UnslothWrapper:
         logging_steps: int = 1,
         save_steps: int = 100,
         output_dir: str = "outputs",
+        packing: bool = True,
+        max_seq_length: int = 2048,
     ) -> Dict[str, Any]:
         """
-        Fine-tune model với SFTTrainer.
-
-        Args:
-            datasets: HuggingFace Dataset hoặc dict
-            so_vong: Số epochs
-            batch_size: Batch size per device
-            gradient_accumulation: Gradient accumulation steps
-            learning_rate: Learning rate
-            warmup_steps: Warmup steps
-            max_steps: Max training steps (-1 = all)
-            logging_steps: Logging interval
-            save_steps: Save checkpoint interval
-            output_dir: Output directory
-
-        Returns:
-            Dict chứa training results
+        Fine-tune model nhanh gấp 2x với Unsloth + Sequence Packing + AdamW 8-bit.
         """
         if not self._da_tai:
             raise RuntimeError("Chưa tải model.")
@@ -261,10 +279,11 @@ class UnslothWrapper:
                 tokenizer=self._tokenizer,
                 train_dataset=datasets,
                 args=training_args,
-                max_seq_length=2048,
+                max_seq_length=max_seq_length,
+                packing=packing,
             )
 
-            self.logger.info(f"Bắt đầu fine-tune ({so_vong} epochs)")
+            self.logger.info(f"Bắt đầu fine-tune Unsloth 2x ({so_vong} epochs, packing={packing})")
             bat_dau = time.time()
             result = trainer.train()
             tong_thoi_gian = time.time() - bat_dau
@@ -273,13 +292,79 @@ class UnslothWrapper:
 
             return {
                 "train_loss": result.training_loss,
+                "loss_cuoi": result.training_loss,
                 "tong_thoi_gian": round(tong_thoi_gian, 2),
                 "so_epoch": so_vong,
                 "global_step": result.global_step,
+                "packing": packing,
             }
 
         except ImportError:
             raise ImportError("Cần cài đặt trl: pip install trl")
+
+    def fine_tune_dpo(
+        self,
+        datasets: Any,
+        so_vong: int = 2,
+        batch_size: int = 2,
+        learning_rate: float = 5e-5,
+        beta: float = 0.1,
+        output_dir: str = "outputs_dpo",
+    ) -> Dict[str, Any]:
+        """Tinh chỉnh căn chỉnh ưu tiên DPO tốc độ cao với `PatchDPOTrainer` của Unsloth."""
+        if not self._da_tai:
+            raise RuntimeError("Chưa tải model.")
+        try:
+            from transformers import TrainingArguments
+            from trl import DPOTrainer
+            from unsloth import PatchDPOTrainer
+
+            PatchDPOTrainer()
+            args = TrainingArguments(
+                output_dir=output_dir,
+                num_train_epochs=so_vong,
+                per_device_train_batch_size=batch_size,
+                learning_rate=learning_rate,
+                bf16=torch.cuda.is_bf16_supported() if torch.cuda.is_available() else False,
+                fp16=not torch.cuda.is_bf16_supported() if torch.cuda.is_available() else False,
+                optim="adamw_8bit",
+                report_to="none",
+            )
+            trainer = DPOTrainer(
+                model=self._model,
+                ref_model=None,
+                args=args,
+                beta=beta,
+                train_dataset=datasets,
+                tokenizer=self._tokenizer,
+            )
+            bat_dau = time.time()
+            result = trainer.train()
+            return {
+                "train_loss": result.training_loss,
+                "loss_cuoi": result.training_loss,
+                "tong_thoi_gian": round(time.time() - bat_dau, 2),
+                "so_epoch": so_vong,
+                "global_step": result.global_step,
+            }
+        except ImportError:
+            raise ImportError("Cần cài đặt unsloth và trl: pip install unsloth trl")
+
+    def sinh_van_ban(self, prompt: str, do_dai: int = 128, nhiet_do: float = 0.7) -> str:
+        """Sinh văn bản nhanh gấp 2x với `FastLanguageModel.for_inference`."""
+        if not self._da_tai or self._model is None or self._tokenizer is None:
+            raise RuntimeError("Chưa tải model.")
+        from unsloth import FastLanguageModel
+
+        FastLanguageModel.for_inference(self._model)
+        inputs = self._tokenizer([prompt], return_tensors="pt").to(next(self._model.parameters()).device)
+        outputs = self._model.generate(
+            **inputs,
+            max_new_tokens=do_dai,
+            temperature=max(nhiet_do, 1e-4),
+            do_sample=nhiet_do > 0,
+        )
+        return self._tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
 
     def luu_model(self, duong_dan: str) -> str:
         """Lưu model đã fine-tune."""

@@ -1,23 +1,16 @@
 services:
-  vai-train:
-    build: .
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-    command: ["train", "--data", "/app/data/train.csv", "--output", "/app/models/model.pkl"]
-
-  vai-serve:
-    build: .
+  vietnamese-ai-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vietnamese-ai-studio
+    restart: unless-stopped
     ports:
       - "8080:8080"
-    volumes:
-      - ./models:/app/models
-    command: ["serve", "--model", "/app/models/model.pkl", "--port", "8080"]
-    restart: unless-stopped
-
-  vai-evaluate:
-    build: .
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-    command: ["evaluate", "--model", "/app/models/model.pkl", "--data", "/app/data/test.csv"]
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/overview')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

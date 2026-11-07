@@ -3,15 +3,49 @@
 from typing import Any, Dict, Optional
 
 import numpy as np
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
 
 from vietnamese_ai.models.base import BaseModel
+from vietnamese_ai.utils.lazy_loader import (
+    _KNNPhanLoaiNumPy,
+    _LogisticNumPy,
+    _NaiveBayesNumPy,
+)
+from vietnamese_ai.utils.metrics import Metrics
+
+try:
+    from sklearn.ensemble import (
+        GradientBoostingClassifier,
+        HistGradientBoostingClassifier,
+        RandomForestClassifier,
+    )
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+    from sklearn.naive_bayes import GaussianNB
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.svm import SVC
+    from sklearn.tree import DecisionTreeClassifier
+
+    _CO_SKLEARN = True
+except ImportError:
+    _CO_SKLEARN = False
+    LogisticRegression = _LogisticNumPy
+    KNeighborsClassifier = _KNNPhanLoaiNumPy
+    GaussianNB = _NaiveBayesNumPy
+    SVC = _LogisticNumPy
+    DecisionTreeClassifier = _LogisticNumPy
+    RandomForestClassifier = _LogisticNumPy
+    GradientBoostingClassifier = _LogisticNumPy
+    HistGradientBoostingClassifier = _LogisticNumPy
+
+try:
+    from xgboost import XGBClassifier as _XGBClassifier  # type: ignore
+except ImportError:
+    _XGBClassifier = HistGradientBoostingClassifier
+
+try:
+    from lightgbm import LGBMClassifier as _LGBMClassifier  # type: ignore
+except ImportError:
+    _LGBMClassifier = HistGradientBoostingClassifier
 
 
 class PhanLoai(BaseModel):
@@ -25,10 +59,13 @@ class PhanLoai(BaseModel):
     - 'cay_quyet_dinh': Cây quyết định
     - 'rung_ngau_nhien': Rừng ngẫu nhiên
     - 'gradient_boosting': Gradient Boosting
+    - 'hist_gradient_boosting': Histogram Gradient Boosting
+    - 'xgboost': XGBoost (tự động fallback sang HistGradientBoosting nếu chưa cài xgboost)
+    - 'lightgbm': LightGBM (tự động fallback sang HistGradientBoosting nếu chưa cài lightgbm)
     - 'naive_bayes': Naive Bayes
 
     Sử dụng:
-        >>> phan_loai = PhanLoai(thuat_toan='logistic')
+        >>> phan_loai = PhanLoai(thuat_toan='xgboost')
         >>> phan_loai.huan_luyen(X_train, y_train)
         >>> du_doan = phan_loai.du_doan(X_test)
         >>> diem = phan_loai.danh_gia(X_test, y_test)
@@ -41,6 +78,9 @@ class PhanLoai(BaseModel):
         "cay_quyet_dinh": DecisionTreeClassifier,
         "rung_ngau_nhien": RandomForestClassifier,
         "gradient_boosting": GradientBoostingClassifier,
+        "hist_gradient_boosting": HistGradientBoostingClassifier,
+        "xgboost": _XGBClassifier,
+        "lightgbm": _LGBMClassifier,
         "naive_bayes": GaussianNB,
     }
 
@@ -83,16 +123,26 @@ class PhanLoai(BaseModel):
 
     def danh_gia(self, X: np.ndarray, y: np.ndarray) -> float:
         du_doan = self.du_doan(X)
-        return float(accuracy_score(np.asarray(y), du_doan))
+        if _CO_SKLEARN:
+            return float(accuracy_score(np.asarray(y), du_doan))
+        return Metrics.do_chinh_xac(np.asarray(y), du_doan)
 
     def bao_cao(self, X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """Báo cáo chi tiết các chỉ số đánh giá."""
         y = np.asarray(y)
         du_doan = self.du_doan(X)
-        trung_binh = "binary" if self._so_lop == 2 else "weighted"
+        if _CO_SKLEARN:
+            trung_binh = "binary" if self._so_lop == 2 else "weighted"
+            return {
+                "do_chinh_xac": float(accuracy_score(y, du_doan)),
+                "precision": float(precision_score(y, du_doan, average=trung_binh, zero_division=0)),
+                "recall": float(recall_score(y, du_doan, average=trung_binh, zero_division=0)),
+                "f1": float(f1_score(y, du_doan, average=trung_binh, zero_division=0)),
+            }
+        prf = Metrics.precision_recall_f1(y, du_doan)
         return {
-            "do_chinh_xac": float(accuracy_score(y, du_doan)),
-            "precision": float(precision_score(y, du_doan, average=trung_binh, zero_division=0)),
-            "recall": float(recall_score(y, du_doan, average=trung_binh, zero_division=0)),
-            "f1": float(f1_score(y, du_doan, average=trung_binh, zero_division=0)),
+            "do_chinh_xac": Metrics.do_chinh_xac(y, du_doan),
+            "precision": prf["precision"],
+            "recall": prf["recall"],
+            "f1": prf["f1"],
         }

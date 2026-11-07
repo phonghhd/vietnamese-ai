@@ -8,30 +8,42 @@ try:
     from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
+
+    _CO_FASTAPI = True
 except ImportError:
-    class BaseModel:
-        pass
+    _CO_FASTAPI = False
+    FastAPI = None  # type: ignore
+    HTTPException = Exception  # type: ignore
+    WebSocket = Any  # type: ignore
+    WebSocketDisconnect = Exception  # type: ignore
+    CORSMiddleware = None  # type: ignore
+
+    class BaseModel:  # type: ignore
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
 
 from vietnamese_ai.utils.logger import Logger
 
 
 # --- Pydantic Models ---
 class ChatMessage(BaseModel):
-    role: str
-    content: str
+    role: str = ""
+    content: str = ""
 
 
 class ChatCompletionRequest(BaseModel):
     model: str = "vietnamese-ai-default"
-    messages: List[ChatMessage]
+    messages: List[ChatMessage] = []
     temperature: float = 0.7
     max_tokens: int = 1024
     stream: bool = False
 
 
 class ChatCompletionResponseChoice(BaseModel):
-    index: int
-    message: ChatMessage
+    index: int = 0
+    message: Any = None
     finish_reason: str = "stop"
 
 
@@ -42,12 +54,12 @@ class Usage(BaseModel):
 
 
 class ChatCompletionResponse(BaseModel):
-    id: str
+    id: str = ""
     object: str = "chat.completion"
-    created: int
-    model: str
-    choices: List[ChatCompletionResponseChoice]
-    usage: Usage
+    created: int = 0
+    model: str = ""
+    choices: List[Any] = []
+    usage: Any = None
 
 
 # --- FastAPI Server ---
@@ -55,6 +67,8 @@ class FastAPIServer:
     """
     Server FastAPI với chuẩn API tương thích OpenAI.
     Hỗ trợ xử lý request qua Hệ thống Đa Tác Tử hoặc LLM Model.
+
+    Yêu cầu: pip install fastapi uvicorn pydantic
     """
 
     def __init__(self, bo_xu_ly: Any, ten: str = "VietnameseAI-API", enable_watermark: bool = True):
@@ -65,6 +79,11 @@ class FastAPIServer:
             bo_xu_ly: Có thể là một đối tượng `HeThongDaTacTu` hoặc LLM Wrapper
                       (có hàm `chay(truy_van)` hoặc `sinh_van_ban(prompt)`).
         """
+        if not _CO_FASTAPI:
+            raise ImportError(
+                "Cần cài đặt fastapi để dùng FastAPIServer: pip install fastapi uvicorn pydantic"
+            )
+
         self.bo_xu_ly = bo_xu_ly
         self.ten = ten
         self.enable_watermark = enable_watermark
@@ -72,12 +91,12 @@ class FastAPIServer:
 
         self.app = FastAPI(title=ten, description="Vietnamese AI Framework API")
 
-        # CORS
+        # CORS an toàn (không bật allow_credentials=True khi allow_origins=["*"])
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
+            allow_credentials=False,
+            allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["*"],
         )
 
@@ -192,8 +211,30 @@ class FastAPIServer:
                     request_data = json.loads(data)
                     req = ChatCompletionRequest(**request_data)
 
+                    # Quét Tường lửa AI cho cả giao thức WebSocket
+                    from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework
+
+                    fw = TuongLuaBaoVeFramework()
+                    bi_chan = False
+                    for m in req.messages:
+                        if m.role == "user":
+                            kq_in = fw.kiem_tra_dau_vao(m.content)
+                            if not kq_in["an_toan"]:
+                                await websocket.send_text(
+                                    json.dumps(
+                                        {
+                                            "error": "SecurityViolation",
+                                            "message": f"Yêu cầu WebSocket bị Tường lửa AI chặn: {kq_in['ly_do']}",
+                                        }
+                                    )
+                                )
+                                bi_chan = True
+                                break
+                    if bi_chan:
+                        continue
+
                     self.logger.info(f"Nhận WebSocket stream request (model: {req.model})")
-                    ket_qua = self._xu_ly_logic(req)
+                    ket_qua = fw.loc_dau_ra(self._xu_ly_logic(req))
 
                     # Giả lập streaming từng từ (chunking) qua WebSocket
                     for tu in ket_qua.split():

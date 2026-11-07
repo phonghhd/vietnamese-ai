@@ -54,7 +54,7 @@ docker run -p 8080:8080 vietnamese-ai serve --model model.pkl --port 8080
 
 ```python
 import vietnamese_ai
-print(vietnamese_ai.__version__)  # 4.0.0
+print(vietnamese_ai.__version__)  # 30.0.0
 ```
 
 ```bash

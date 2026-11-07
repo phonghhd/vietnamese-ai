@@ -1,6 +1,9 @@
-"""EvoKernelCPU - Nhân ma trận 1.58-bit (BitNet) tối ưu cho CPU."""
+"""EvoKernelCPU - Nhân ma trận 1.58-bit (BitNet) tối ưu cho CPU (hỗ trợ cả NumPy và PyTorch)."""
 
 import logging
+from typing import Any
+
+import numpy as np
 
 try:
     import torch
@@ -15,50 +18,48 @@ logger = logging.getLogger("EvoKernelCPU")
 class EvoKernelCPU:
     """
     Nhân ma trận lượng tử hoá 1.58-bit (Trọng số chỉ là -1, 0, 1).
-    Bằng cách thay thế phép nhân (Multiplication) bằng phép cộng/trừ (Addition/Subtraction),
-    CPU có thể thực thi suy luận cực kỳ tiết kiệm năng lượng và RAM.
+    Bằng cách thay thế phép nhân dấu phẩy động bằng phép cộng/trừ thuần túy (Add-only),
+    CPU có thể thực thi suy luận cực kỳ tiết kiệm năng lượng và bộ nhớ trên cả NumPy lẫn PyTorch.
     """
 
     @staticmethod
-    def add_only_matmul(x: "torch.Tensor", w_quantized: "torch.Tensor") -> "torch.Tensor":
+    def add_only_matmul(x: Any, w_quantized: Any) -> Any:
         """
-        Nhân ma trận Add-only cho kiến trúc 1.58-bit.
+        Nhân ma trận Add-only cho kiến trúc 1.58-bit:
+            Out_j = sum_{i: W_ij = +1} X_i - sum_{i: W_ij = -1} X_i
 
-        Thay vì dùng phép nhân dấu phẩy động tốn kém, thuật toán sử dụng toán tử:
-        Out = sum(X_pos) - sum(X_neg)
-
-        Args:
-            x: Tensor đầu vào (fp32 hoặc fp16), kích thước (B, In_Features).
-            w_quantized: Trọng số đã lượng tử hoá (-1, 0, 1) dạng int8, kích thước (In_Features, Out_Features).
-
-        Returns:
-            Kết quả của phép nhân ma trận.
+        Hỗ trợ đầu vào 2D `(B, In)` hoặc 3D `(B, T, In)` trên cả `np.ndarray` và `torch.Tensor`.
         """
-        if not _CO_TORCH:
-            raise ImportError("Yêu cầu PyTorch để chạy EvoKernelCPU.")
+        if isinstance(x, np.ndarray) or not _CO_TORCH:
+            x_np = np.asarray(x, dtype=np.float64)
+            w_np = np.asarray(w_quantized)
+            orig_shape = x_np.shape
+            x_2d = x_np.reshape(-1, orig_shape[-1])
+            out_2d = np.zeros((x_2d.shape[0], w_np.shape[1]), dtype=x_np.dtype)
+            for j in range(w_np.shape[1]):
+                col = w_np[:, j]
+                pos_idx = col == 1
+                neg_idx = col == -1
+                if np.any(pos_idx):
+                    out_2d[:, j] += np.sum(x_2d[:, pos_idx], axis=1)
+                if np.any(neg_idx):
+                    out_2d[:, j] -= np.sum(x_2d[:, neg_idx], axis=1)
+            return out_2d.reshape(*orig_shape[:-1], w_np.shape[1])
 
         if x.device.type != "cpu" or w_quantized.device.type != "cpu":
             logger.warning("EvoKernelCPU được thiết kế đặc biệt cho CPU, nhưng tensor đang ở GPU.")
 
-        # Mô phỏng Add-Only thực sự:
-        # Out_j = sum_{i: W_ij=1} X_i - sum_{i: W_ij=-1} X_i
+        orig_shape = x.shape
+        x_2d = x.reshape(-1, orig_shape[-1])
+        out = torch.zeros(x_2d.size(0), w_quantized.size(1), device=x.device, dtype=x.dtype)
 
-        out = torch.zeros(x.size(0), w_quantized.size(1), device=x.device, dtype=x.dtype)
-
-        # Thuật toán thuần Cộng/Trừ (Add-only)
         for j in range(w_quantized.size(1)):
             col = w_quantized[:, j]
-
-            # Tìm vị trí các số 1 và -1 (Không bao giờ có phép nhân)
             pos_idx = col == 1
             neg_idx = col == -1
-
             if pos_idx.any():
-                # Phép cộng (Add)
-                out[:, j] += x[:, pos_idx].sum(dim=1)
-
+                out[:, j] += x_2d[:, pos_idx].sum(dim=1)
             if neg_idx.any():
-                # Phép trừ (Subtract)
-                out[:, j] -= x[:, neg_idx].sum(dim=1)
+                out[:, j] -= x_2d[:, neg_idx].sum(dim=1)
 
-        return out
+        return out.reshape(*orig_shape[:-1], w_quantized.size(1))

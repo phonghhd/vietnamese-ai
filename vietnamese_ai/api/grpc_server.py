@@ -51,20 +51,50 @@ class MockEvoNetServiceServicer:
         )
 
 
-def serve_grpc(bo_xu_ly, port=50051):
+def serve_grpc(bo_xu_ly, port=50051, block: bool = True):
     """
-    Khởi chạy máy chủ gRPC.
+    Khởi chạy máy chủ gRPC với Generic RPC Handler thực tế.
     """
+    servicer = MockEvoNetServiceServicer(bo_xu_ly)
     try:
+        import json
         from concurrent import futures
 
         import grpc
 
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        # Thực tế sẽ gọi: evonet_pb2_grpc.add_EvoNetServiceServicer_to_server(MockEvoNetServiceServicer(bo_xu_ly), server)
+        def _unary_handler(request_bytes: bytes, context):
+            payload = json.loads(request_bytes.decode("utf-8"))
+
+            class _Req:
+                prompt = payload.get("prompt", "")
+                model = payload.get("model", "evonet")
+
+            resp = servicer.ChatCompletion(_Req(), context)
+            return json.dumps(
+                {
+                    "id": resp.id,
+                    "model": resp.model,
+                    "text": resp.text,
+                    "total_tokens": resp.total_tokens,
+                }
+            ).encode("utf-8")
+
+        generic_handler = grpc.method_handlers_generic_handler(
+            "evonet.EvoNetService",
+            {
+                "ChatCompletion": grpc.unary_unary_rpc_method_handler(_unary_handler),
+            },
+        )
+        server = grpc.server(
+            futures.ThreadPoolExecutor(max_workers=10),
+            handlers=(generic_handler,),
+        )
         server.add_insecure_port(f"[::]:{port}")
         server.start()
         logger.info(f"gRPC Server listening on port {port}")
-        server.wait_for_termination()
+        if block:
+            server.wait_for_termination()
+        return server
     except ImportError:
-        logger.warning("Thư viện 'grpcio' chưa được cài đặt. Bỏ qua khởi động gRPC Server.")
+        logger.warning("Thư viện 'grpcio' chưa được cài đặt. Trả về Servicer cục bộ.")
+        return servicer

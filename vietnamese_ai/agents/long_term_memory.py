@@ -21,12 +21,23 @@ class HethongNhoMemGPT(BoNhoTacTu):
         vector_store: Any = None,
     ):
         self.max_core_tokens = max_core_tokens
+        if vector_store is None:
+            try:
+                from vietnamese_ai.rag.vector_store import CSDLVector
+
+                vector_store = CSDLVector(kich_thuoc=128)
+            except Exception:
+                vector_store = None
         self.vector_store = vector_store
         super().__init__(system_prompt)
 
     def _tinh_so_token_mo_phong(self, text: str) -> int:
-        """Hàm mô phỏng tính số token (thực tế dùng tokenizer)."""
-        return len(text.split())
+        """Tính số lượng token xấp xỉ cho tiếng Việt (dựa trên từ và dấu câu)."""
+        import re
+
+        if not text:
+            return 0
+        return len(re.findall(r"\w+|[^\w\s]", text, flags=re.UNICODE))
 
     def _kiem_tra_trang_thai_bo_nho(self):
         """Kiểm tra và tự động nén nếu bộ nhớ sắp đầy."""

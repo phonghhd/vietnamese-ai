@@ -183,3 +183,32 @@ class ModelHub:
             del self._catalog["models"][model_id]
             self._luu_catalog()
             self.logger.info(f"Đã xóa: {model_id}")
+
+    def danh_muc_open_source(self, tu_khoa: str = "") -> List[Dict[str, Any]]:
+        """
+        Tra cứu kho mô hình Open-Source thế hệ mới tích hợp sẵn
+        (`qwen3.5`, `qwen3.6`, `qwen3.7`, `qwen3.8`, `gemma4`, `llama4`, `deepseek-r1`, `phi4`, v.v.).
+        """
+        from vietnamese_ai.llm.model_configs import ModelConfig
+
+        return ModelConfig.tim_kiem_mo_hinh(tu_khoa)
+
+    def khoi_tao_open_source(
+        self,
+        ten_preset: str = "qwen3.8",
+        nhiem_vu: str = "sft",
+        dung_lora: bool = True,
+        che_do_offline: bool = True,
+    ) -> Any:
+        """
+        Khởi tạo nhanh mô hình Open-Source mới (`qwen3.8`, `gemma4`, `deepseek-r1`, `llama4`, ...)
+        sẵn sàng để huấn luyện LoRA hoặc suy luận qua `BoTinhChinhMoHinh`.
+        """
+        from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh
+
+        return BoTinhChinhMoHinh(
+            mo_hinh=ten_preset,
+            nhiem_vu=nhiem_vu,
+            dung_lora=dung_lora,
+            che_do_offline=che_do_offline,
+        )

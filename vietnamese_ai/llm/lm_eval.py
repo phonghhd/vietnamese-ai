@@ -183,9 +183,22 @@ class LMEvalHarness:
                 if hasattr(model, "tinh_perplexity"):
                     ppl = model.tinh_perplexity(text)
                 elif hasattr(model, "tien"):
-                    ppl = np.random.uniform(10, 100)
+                    toks = [ord(c) % getattr(model, "so_tu_vung", 256) for c in text[:32]]
+                    if len(toks) < 2:
+                        toks = [1, 2]
+                    x_arr = np.array([toks[:-1]], dtype=int)
+                    y_arr = np.array([toks[1:]], dtype=int)
+                    logits = model.tien(x_arr)
+                    logits_shifted = logits - np.max(logits, axis=-1, keepdims=True)
+                    probs = np.exp(logits_shifted) / np.sum(
+                        np.exp(logits_shifted), axis=-1, keepdims=True
+                    )
+                    nll = -np.mean(
+                        np.log(probs[0, np.arange(len(y_arr[0])), y_arr[0]] + 1e-9)
+                    )
+                    ppl = float(np.exp(min(nll, 10.0)))
                 else:
-                    ppl = np.random.uniform(10, 100)
+                    ppl = float(max(2.0, len(set(text.split())) * 1.5))
                 perplexities.append(ppl)
             except Exception:
                 continue
