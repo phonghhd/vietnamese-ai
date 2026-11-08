@@ -350,7 +350,7 @@ def test_federated_rlhf_hmac_byzantine_va_cli_lenh_moi(tmp_path: Path):
     assert kq_ap["da_cap_nhat"] is True
     assert np.allclose(kq_ap["ban_gop"]["q_proj"], d2["q_proj"])
 
-    assert cmd_doctor()["phien_ban_framework"] == "30.1.0"
+    assert cmd_doctor()["phien_ban_framework"] == "30.2.0"
     kq_inst = cmd_install(Namespace(group="rag", dry_run=True))
     assert kq_inst["thanh_cong"] is True
 

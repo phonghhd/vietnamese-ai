@@ -10,6 +10,11 @@ _LAZY = {
     "KiemTraChinhTa": ("vietnamese_ai.nlp.spelling", "KiemTraChinhTa"),
     "PhanTichCamXuc": ("vietnamese_ai.nlp.sentiment", "PhanTichCamXuc"),
     "PhoBERTWrapper": ("vietnamese_ai.nlp.pretrained.phobert", "PhoBERTWrapper"),
+    "BoTachTuTiengVietSieuToc": ("vietnamese_ai.nlp.native_tokenizer", "BoTachTuTiengVietSieuToc"),
+    "FastVietnameseTokenizer": ("vietnamese_ai.nlp.native_tokenizer", "FastVietnameseTokenizer"),
+    "NativeVietnameseTokenizer": ("vietnamese_ai.nlp.native_tokenizer", "NativeVietnameseTokenizer"),
+    "BoNhungVanBanSieuToc": ("vietnamese_ai.nlp.native_tokenizer", "BoNhungVanBanSieuToc"),
+    "FastVietnameseEmbedder": ("vietnamese_ai.nlp.native_tokenizer", "FastVietnameseEmbedder"),
 }
 
 __all__ = list(_LAZY.keys())

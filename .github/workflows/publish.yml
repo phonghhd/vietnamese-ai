@@ -32,7 +32,5 @@ jobs:
       - name: Đóng gói project (từ pyproject.toml)
         run: python -m build
 
-      - name: Upload lên PyPI
+      - name: Upload lên PyPI (qua OIDC Trusted Publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}

@@ -97,7 +97,22 @@ Ví dụ sử dụng:
     chat_parser.add_argument("--prompt", default=None, help="Câu hỏi đơn lẻ (bỏ trống để vào chế độ hội thoại tương tác)")
 
     # === BENCHMARK ===
-    subparsers.add_parser("benchmark", help="Đo kiểm tốc độ huấn luyện Sequence Packing & suy luận KV-Cache thực tế")
+    bench_parser = subparsers.add_parser(
+        "benchmark",
+        help="Đo kiểm hiệu năng và so sánh đối đầu khoa học định lượng (vs LangChain / LlamaIndex)",
+    )
+    bench_parser.add_argument("--compare", action="store_true", help="Chạy bộ đo lường đối đầu định lượng vs LangChain/LlamaIndex")
+    bench_parser.add_argument("--latex", action="store_true", help="Xuất bảng số liệu định dạng LaTeX cho bài báo khoa học")
+    bench_parser.add_argument("--output", default=None, help="Đường dẫn tệp xuất báo cáo (.json hoặc .md)")
+
+    # === TOKENIZE ===
+    tok_parser = subparsers.add_parser(
+        "tokenize",
+        help="Tách từ và chuẩn hóa văn bản tiếng Việt siêu tốc (Native Fast Tokenizer)",
+    )
+    tok_parser.add_argument("text", nargs="?", default="Trí tuệ nhân tạo và chuyển đổi số tại Việt Nam", help="Văn bản tiếng Việt cần phân tích")
+    tok_parser.add_argument("--no-compound", action="store_true", help="Không nối từ ghép bằng dấu gạch dưới")
+    tok_parser.add_argument("--unaccent", action="store_true", help="Loại bỏ dấu tiếng Việt (unaccented / slugify)")
 
     # === SCAN ===
     scan_parser = subparsers.add_parser(
@@ -501,8 +516,36 @@ def cmd_chat(args):
     return ""
 
 
-def cmd_benchmark():
-    """Đo kiểm tốc độ huấn luyện và KV-Cache thực tế ngay từ dòng lệnh."""
+def cmd_benchmark(args=None):
+    """Đo kiểm tốc độ huấn luyện hoặc so sánh đối đầu khoa học vs LangChain/LlamaIndex."""
+    is_compare = getattr(args, "compare", False) if args else False
+    is_latex = getattr(args, "latex", False) if args else False
+    out_file = getattr(args, "output", None) if args else None
+
+    if is_compare:
+        from vietnamese_ai.benchmark.comparative_benchmark import BoDoLuongDoiDau
+
+        print("Đang thực hiện đo kiểm đối đầu định lượng (Vietnamese AI vs LangChain / LlamaIndex)...")
+        suite = BoDoLuongDoiDau()
+        kq = suite.chay_benchmark_toan_dien()
+
+        if is_latex:
+            bao_cao = suite.xuat_bang_so_sanh_latex(kq)
+        else:
+            bao_cao = suite.xuat_bang_so_sanh_markdown(kq)
+
+        print(bao_cao)
+
+        if out_file:
+            p = Path(out_file)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            if p.suffix.lower() == ".json":
+                suite.xuat_du_lieu_json(p)
+            else:
+                p.write_text(bao_cao, encoding="utf-8")
+            print(f"-> Đã lưu báo cáo benchmark ra tệp: {out_file}")
+        return kq
+
     from vietnamese_ai.fine_tuning.training_accelerator import BenchmarkTangToc
 
     kq_train = BenchmarkTangToc.do_toc_do_huan_luyen(so_mau=24, so_vong=2)
@@ -519,6 +562,28 @@ def cmd_benchmark():
         f"(Nhanh gấp {kq_kv['he_so_tang_toc_kv_cache']}x | Khớp tuyệt đối: {kq_kv['khop_dau_ra_tuyet_doi']})"
     )
     return {"train": kq_train, "kv_cache": kq_kv}
+
+
+def cmd_tokenize(args):
+    """Xử lý lệnh `vai tokenize` (Tách từ & chuẩn hóa tiếng Việt)."""
+    from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+    tok = BoTachTuTiengVietSieuToc()
+    text = getattr(args, "text", "Trí tuệ nhân tạo và chuyển đổi số tại Việt Nam")
+    noi_tu = not getattr(args, "no_compound", False)
+    xoa_dau = getattr(args, "unaccent", False)
+
+    print("=== TÁCH TỪ & CHUẨN HÓA TIẾNG VIỆT (NATIVE FAST TOKENIZER) ===")
+    print(f"Văn bản gốc   : {text}")
+
+    if xoa_dau:
+        khong_dau = tok.xoa_dau_tieng_viet(text)
+        print(f"Không dấu      : {khong_dau}")
+
+    tokens = tok.tach_tu(text, noi_tu_ghep=noi_tu)
+    print(f"Số lượng tokens: {len(tokens)}")
+    print(f"Tokens kết quả : {tokens}")
+    return tokens
 
 
 def cmd_scan(args):
@@ -793,7 +858,8 @@ def main():
         "finetune": lambda: cmd_finetune(args),
         "rag": lambda: cmd_rag(args),
         "chat": lambda: cmd_chat(args),
-        "benchmark": lambda: cmd_benchmark(),
+        "benchmark": lambda: cmd_benchmark(args),
+        "tokenize": lambda: cmd_tokenize(args),
         "scan": lambda: cmd_scan(args),
         "export": lambda: cmd_export(args),
         "studio": lambda: cmd_studio(args),

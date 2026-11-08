@@ -1,4 +1,4 @@
-"""Kiểm thử thực thi thật (Real Execution) toàn diện cho Vietnamese AI Framework v30.1.0."""
+"""Kiểm thử thực thi thật (Real Execution) toàn diện cho Vietnamese AI Framework v30.2.0."""
 
 
 import numpy as np

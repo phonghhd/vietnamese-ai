@@ -2,7 +2,7 @@
 
 ## Project Info
 - **Name**: Vietnamese AI Framework (`vietnamese-ai`)
-- **Version**: 30.1.0
+- **Version**: 30.2.0
 - **Language**: Python 3.8+
 - **Package dir**: `vietnamese_ai/`
 
@@ -96,6 +96,6 @@ vietnamese_ai/
 - Follow existing code patterns (see models/base.py for base class pattern)
 - New modules need: `__init__.py` with exports, implementation file, tests
 - Một số module Edge/DePIN/multimodal/WASM là **mô phỏng** — xem docstring từng class
-- Version canonical: **30.1.0** (`__init__.py` == `pyproject.toml` == `setup.py`)
+- Version canonical: **30.2.0** (`__init__.py` == `pyproject.toml` == `setup.py`)
 - Plugin: `QuanLyPlugin` = hot-swap; `PluginManager` = legacy hooks (cả hai đều hợp lệ)
 - Baseline test (v30): ~959 passed, ~31 skipped (torch/optional deps)

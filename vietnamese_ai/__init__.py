@@ -12,7 +12,7 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
-__version__ = "30.1.0"
+__version__ = "30.2.0"
 __author__ = "EvoNet AI Team"
 
 
@@ -334,6 +334,16 @@ _LAZY_IMPORTS = {
         "GoiDocLapDesktop": ("vietnamese_ai.portable.desktop_packager", "GoiDocLapDesktop"),
         "DesktopPackager": ("vietnamese_ai.portable.desktop_packager", "DesktopPackager"),
         "StandalonePackager": ("vietnamese_ai.portable.desktop_packager", "StandalonePackager"),
+        # === Vietnamese-Centric Optimization & Comparative Benchmark (Phase 18 / v30.2) ===
+        "BoTachTuTiengVietSieuToc": ("vietnamese_ai.nlp.native_tokenizer", "BoTachTuTiengVietSieuToc"),
+        "FastVietnameseTokenizer": ("vietnamese_ai.nlp.native_tokenizer", "FastVietnameseTokenizer"),
+        "NativeVietnameseTokenizer": ("vietnamese_ai.nlp.native_tokenizer", "NativeVietnameseTokenizer"),
+        "BoNhungVanBanSieuToc": ("vietnamese_ai.nlp.native_tokenizer", "BoNhungVanBanSieuToc"),
+        "FastVietnameseEmbedder": ("vietnamese_ai.nlp.native_tokenizer", "FastVietnameseEmbedder"),
+        "BoToiUuNguCanhHanhChinh": ("vietnamese_ai.rag.vietnamese_context", "BoToiUuNguCanhHanhChinh"),
+        "VietnameseAdministrativeRAG": ("vietnamese_ai.rag.vietnamese_context", "VietnameseAdministrativeRAG"),
+        "BoDoLuongDoiDau": ("vietnamese_ai.benchmark.comparative_benchmark", "BoDoLuongDoiDau"),
+        "ComparativeBenchmarkSuite": ("vietnamese_ai.benchmark.comparative_benchmark", "ComparativeBenchmarkSuite"),
 }
 
 
@@ -598,4 +608,14 @@ __all__ = [
     "GoiDocLapDesktop",
     "DesktopPackager",
     "StandalonePackager",
+    # Phase 18: Vietnamese-Centric Optimization & Comparative Benchmark
+    "BoTachTuTiengVietSieuToc",
+    "FastVietnameseTokenizer",
+    "NativeVietnameseTokenizer",
+    "BoNhungVanBanSieuToc",
+    "FastVietnameseEmbedder",
+    "BoToiUuNguCanhHanhChinh",
+    "VietnameseAdministrativeRAG",
+    "BoDoLuongDoiDau",
+    "ComparativeBenchmarkSuite",
 ]

@@ -47,6 +47,10 @@ from vietnamese_ai.audio.speech import NhanDienGiongNoi as NhanDienGiongNoi
 from vietnamese_ai.audio.speech import TongHopGiongNoi as TongHopGiongNoi
 from vietnamese_ai.automl.auto_ml import AutoML as AutoML
 from vietnamese_ai.automl.nas import TimKiemKienTruc as TimKiemKienTruc
+from vietnamese_ai.benchmark.comparative_benchmark import BoDoLuongDoiDau as BoDoLuongDoiDau
+from vietnamese_ai.benchmark.comparative_benchmark import (
+    ComparativeBenchmarkSuite as ComparativeBenchmarkSuite,
+)
 from vietnamese_ai.compression.distillation import HocRutGon as HocRutGon
 from vietnamese_ai.compression.extreme import BitLinear as BitLinear
 from vietnamese_ai.compression.extreme import BitNetTransformerBlock as BitNetTransformerBlock
@@ -134,6 +138,13 @@ from vietnamese_ai.models.mang_sau import MangSau as MangSau
 from vietnamese_ai.models.neural_net import MangNron as MangNron
 from vietnamese_ai.models.regression import HoiQuy as HoiQuy
 from vietnamese_ai.monitor.cost_engine import MayTinhTien as MayTinhTien
+from vietnamese_ai.nlp.native_tokenizer import BoNhungVanBanSieuToc as BoNhungVanBanSieuToc
+from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc as BoTachTuTiengVietSieuToc
+from vietnamese_ai.nlp.native_tokenizer import FastVietnameseEmbedder as FastVietnameseEmbedder
+from vietnamese_ai.nlp.native_tokenizer import FastVietnameseTokenizer as FastVietnameseTokenizer
+from vietnamese_ai.nlp.native_tokenizer import (
+    NativeVietnameseTokenizer as NativeVietnameseTokenizer,
+)
 from vietnamese_ai.nlp.ner import NhanDienThucThe as NhanDienThucThe
 from vietnamese_ai.nlp.pretrained.phobert import PhoBERTWrapper as PhoBERTWrapper
 from vietnamese_ai.nlp.qa import HoiDapTiengViet as HoiDapTiengViet
@@ -178,6 +189,10 @@ from vietnamese_ai.rag.rag_pipeline import RAGPipeline as RAGPipeline
 from vietnamese_ai.rag.reranker import SapXepLai as SapXepLai
 from vietnamese_ai.rag.retriever import TrichXuat as TrichXuat
 from vietnamese_ai.rag.vector_store import CSDLVector as CSDLVector
+from vietnamese_ai.rag.vietnamese_context import BoToiUuNguCanhHanhChinh as BoToiUuNguCanhHanhChinh
+from vietnamese_ai.rag.vietnamese_context import (
+    VietnameseAdministrativeRAG as VietnameseAdministrativeRAG,
+)
 from vietnamese_ai.realtime.pipeline import PipelineThoiGianThuc as PipelineThoiGianThuc
 from vietnamese_ai.realtime.processor import XuLyStream as XuLyStream
 from vietnamese_ai.registry.model_hub import ModelHub as ModelHub

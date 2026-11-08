@@ -636,7 +636,7 @@ class TestPhase5Integration:
     def test_version(self):
         import vietnamese_ai
 
-        assert vietnamese_ai.__version__ == "30.1.0"
+        assert vietnamese_ai.__version__ == "30.2.0"
 
     def test_all_exports_count(self):
         import vietnamese_ai

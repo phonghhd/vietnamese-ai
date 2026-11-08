@@ -31,6 +31,8 @@ __all__ = [
     "RAGEventBus",
     "DocumentWatcher",
     "AgenticRAGPipeline",
+    "BoToiUuNguCanhHanhChinh",
+    "VietnameseAdministrativeRAG",
 ]
 
 __getattr__ = tao_lazy_getattr(
@@ -67,6 +69,14 @@ __getattr__ = tao_lazy_getattr(
         "RAGEventBus": ("vietnamese_ai.rag.realtime_sync", "RAGEventBus"),
         "DocumentWatcher": ("vietnamese_ai.rag.realtime_sync", "DocumentWatcher"),
         "AgenticRAGPipeline": ("vietnamese_ai.rag.agentic_rag", "AgenticRAGPipeline"),
+        "BoToiUuNguCanhHanhChinh": (
+            "vietnamese_ai.rag.vietnamese_context",
+            "BoToiUuNguCanhHanhChinh",
+        ),
+        "VietnameseAdministrativeRAG": (
+            "vietnamese_ai.rag.vietnamese_context",
+            "VietnameseAdministrativeRAG",
+        ),
     },
     globals(),
 )
