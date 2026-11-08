@@ -12,7 +12,7 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
-__version__ = "30.2.0"
+__version__ = "31.0.0"
 __author__ = "EvoNet AI Team"
 
 
@@ -344,6 +344,15 @@ _LAZY_IMPORTS = {
         "VietnameseAdministrativeRAG": ("vietnamese_ai.rag.vietnamese_context", "VietnameseAdministrativeRAG"),
         "BoDoLuongDoiDau": ("vietnamese_ai.benchmark.comparative_benchmark", "BoDoLuongDoiDau"),
         "ComparativeBenchmarkSuite": ("vietnamese_ai.benchmark.comparative_benchmark", "ComparativeBenchmarkSuite"),
+        # === Swarm CPU Inference & Verifiable AI (Phase 19 / v31.0) ===
+        "CayMerkleSuyLuan": ("vietnamese_ai.security.verifiable_inference", "CayMerkleSuyLuan"),
+        "InferenceMerkleTree": ("vietnamese_ai.security.verifiable_inference", "InferenceMerkleTree"),
+        "XacThucSuyLuanMaoHiem": ("vietnamese_ai.security.verifiable_inference", "XacThucSuyLuanMaoHiem"),
+        "VerifiableInference": ("vietnamese_ai.security.verifiable_inference", "VerifiableInference"),
+        "NutSwarmCPU": ("vietnamese_ai.edge.swarm_inference", "NutSwarmCPU"),
+        "SwarmCPUNode": ("vietnamese_ai.edge.swarm_inference", "SwarmCPUNode"),
+        "DieuPhoiSwarmCPU": ("vietnamese_ai.edge.swarm_inference", "DieuPhoiSwarmCPU"),
+        "SwarmInferenceOrchestrator": ("vietnamese_ai.edge.swarm_inference", "SwarmInferenceOrchestrator"),
 }
 
 
@@ -618,4 +627,13 @@ __all__ = [
     "VietnameseAdministrativeRAG",
     "BoDoLuongDoiDau",
     "ComparativeBenchmarkSuite",
+    # Phase 19: Swarm CPU Inference & Verifiable AI (Merkle & zkML)
+    "CayMerkleSuyLuan",
+    "InferenceMerkleTree",
+    "XacThucSuyLuanMaoHiem",
+    "VerifiableInference",
+    "NutSwarmCPU",
+    "SwarmCPUNode",
+    "DieuPhoiSwarmCPU",
+    "SwarmInferenceOrchestrator",
 ]

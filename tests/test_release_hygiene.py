@@ -7,15 +7,15 @@ import vietnamese_ai
 
 class TestVersionDongBo:
     def test_package_version(self):
-        assert vietnamese_ai.__version__ == "30.2.0"
+        assert vietnamese_ai.__version__ == "31.0.0"
 
     def test_pyproject_version(self):
         text = Path("pyproject.toml").read_text(encoding="utf-8")
-        assert 'version = "30.2.0"' in text
+        assert 'version = "31.0.0"' in text
 
     def test_setup_version(self):
         text = Path("setup.py").read_text(encoding="utf-8")
-        assert 'version="30.2.0"' in text
+        assert 'version="31.0.0"' in text
 
 
 class TestDieuPhoiCum:

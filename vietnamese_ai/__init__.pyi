@@ -70,6 +70,12 @@ from vietnamese_ai.edge.c_bridge import CauNoiCtypesNative as CauNoiCtypesNative
 from vietnamese_ai.edge.c_bridge import CtypesLlamaBridge as CtypesLlamaBridge
 from vietnamese_ai.edge.c_bridge import NativeLlamaBridge as NativeLlamaBridge
 from vietnamese_ai.edge.intelligent_router import EdgeRouter as EdgeRouter
+from vietnamese_ai.edge.swarm_inference import (
+    DieuPhoiSwarmCPU as DieuPhoiSwarmCPU,
+    NutSwarmCPU as NutSwarmCPU,
+    SwarmCPUNode as SwarmCPUNode,
+    SwarmInferenceOrchestrator as SwarmInferenceOrchestrator,
+)
 from vietnamese_ai.edge.native_inference import BoGiaiLuongTuQ4 as BoGiaiLuongTuQ4
 from vietnamese_ai.edge.native_inference import DongCoSuyLuanEdge as DongCoSuyLuanEdge
 from vietnamese_ai.edge.native_inference import EdgeInferenceEngine as EdgeInferenceEngine
@@ -221,6 +227,12 @@ from vietnamese_ai.security.llm_firewall import AIFirewallShield as AIFirewallSh
 from vietnamese_ai.security.llm_firewall import KhienBaoVeAI as KhienBaoVeAI
 from vietnamese_ai.security.llm_firewall import TuongLuaAI as TuongLuaAI
 from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework as TuongLuaBaoVeFramework
+from vietnamese_ai.security.verifiable_inference import (
+    CayMerkleSuyLuan as CayMerkleSuyLuan,
+    InferenceMerkleTree as InferenceMerkleTree,
+    VerifiableInference as VerifiableInference,
+    XacThucSuyLuanMaoHiem as XacThucSuyLuanMaoHiem,
+)
 from vietnamese_ai.serving.batch_server import MayChuBatch as MayChuBatch
 from vietnamese_ai.serving.continuous_batching import BoPhanLoLienTuc as BoPhanLoLienTuc
 from vietnamese_ai.serving.continuous_batching import ContinuousBatcher as ContinuousBatcher

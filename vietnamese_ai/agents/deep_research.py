@@ -217,7 +217,7 @@ class TacTuNghienCuuSau:
 
         bao_cao = f"""# BÁO CÁO NGHIÊN CỨU CHUYÊN SÂU: {chu_de.upper()}
 
-> **Đơn vị thực hiện**: Vietnamese AI Deep Research Agent v30.2.0
+> **Đơn vị thực hiện**: Vietnamese AI Deep Research Agent v31.0.0
 > **Độ tin cậy dữ liệu (Groundedness Score)**: {diem_phan_bien * 100:.1f}%
 > **Trạng thái thẩm định**: ĐÃ QUA PHẢN BIỆN CHÉO (Critic Verified)
 

@@ -2,6 +2,28 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v31.0.0 (2026-11-08)
+
+### 🌟 DePIN Swarm CPU Inference & Verifiable AI (Merkle & zkML)
+- **Hệ Thống Suy Luận Bầy Đàn CPU Phân Tán (Swarm CPU Inference & Pipeline Parallelism)**:
+  - `NutSwarmCPU` (`SwarmCPUNode`): Đại diện cho một máy tính CPU văn phòng (Mini PC, laptop, workstation phổ thông không có GPU) tham gia mạng lưới tính toán. Mỗi nút chịu trách nhiệm một phân đoạn layer (Model Sharding / Pipeline Parallelism) với trọng số cục bộ và forward pass tối ưu trên CPU.
+  - `DieuPhoiSwarmCPU` (`SwarmInferenceOrchestrator`): Bộ điều phối cụm Swarm kết nối nhiều máy CPU qua mạng LAN/WAN để cùng chạy mô hình lớn; tự động phân chia layer, chuyển tiếp activation states tuần tự và hỗ trợ sinh chuỗi theo luồng (streaming generation).
+  - Tối ưu hóa bộ nhớ: Cho phép các thiết bị cấu hình thấp (2GB - 4GB RAM) có thể phối hợp tải tính toán thay vì phải trang bị GPU cao cấp đắt đỏ.
+
+- **Xác Thực Suy Luận Mật Mã Học (Verifiable AI Inference & Proof of Inference)**:
+  - `CayMerkleSuyLuan` (`InferenceMerkleTree`): Cây băm mật mã Merkle Tree đóng gói trạng thái ẩn (hidden states) và model execution traces, cung cấp Merkle Audit Path với độ phức tạp xác thực $O(\log N)$.
+  - `XacThucSuyLuanMaoHiem` (`VerifiableInference`): Lược đồ cam kết mật mã phi tương tác Schnorr / Fiat-Shamir Zero-Knowledge Proof (zkML Commitment) trên trường nguyên tố 256-bit ($g^z \equiv a \cdot y^e \pmod p$).
+  - **Khả Năng Chống Gian Lận Byzantine (Byzantine Fault Tolerance)**: Tự động phát hiện và ngăn chặn các nút độc hại can thiệp, làm sai lệch hoặc làm giả activation tensors, bảo đảm kết quả trả về trung thực 100%.
+
+- **Giao Diện Dòng Lệnh Mới (CLI Subcommands)**:
+  - `vai swarm`: Khởi chạy và điều phối cụm suy luận phân tán trên các CPU văn phòng (`vai swarm --nodes 3 --layers 6 --prompt "..." --bench`).
+  - `vai verify`: Kiểm định tính toàn vẹn của kết quả suy luận AI bằng chứng thực mật mã học (`vai verify --proof zkml1:...` hoặc `vai verify --text "..."`).
+
+- **Nâng Cấp Hệ Thống & Zero-Dependency Oath**:
+  - Toàn bộ cơ chế Merkle Tree và Schnorr/Fiat-Shamir ZKP cam kết tính toán được hiện thực hóa thuần túy trên Python & NumPy tiêu chuẩn, không phụ thuộc thư viện ngoài nặng nề.
+  - Mở rộng số lượng biểu tượng công khai lên **244 public symbols** qua PEP 562 Lazy Loading và PEP 561 Type Stubs.
+  - Đồng bộ phiên bản chuẩn hóa **31.0.0** trên toàn bộ hệ thống (`__init__.py`, `pyproject.toml`, `setup.py`, CI/CD, tests, docs).
+
 ## v30.2.0 (2026-11-08)
 
 ### 🌟 Vietnamese-Centric Optimization & Comparative Benchmark

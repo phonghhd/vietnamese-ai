@@ -35,9 +35,20 @@ class BoToiUuNguCanhHanhChinh:
         re.IGNORECASE,
     )
 
-    def __init__(self, embedder: Optional[BoNhungVanBanSieuToc] = None):
+    def __init__(
+        self,
+        embedder: Optional[BoNhungVanBanSieuToc] = None,
+        bat_tuong_lua: bool = True,
+    ):
         self.tokenizer = BoTachTuTiengVietSieuToc()
         self.embedder = embedder or BoNhungVanBanSieuToc(tokenizer=self.tokenizer)
+        self.bat_tuong_lua = bat_tuong_lua
+        if bat_tuong_lua:
+            from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework
+
+            self.tuong_lua: Optional[TuongLuaBaoVeFramework] = TuongLuaBaoVeFramework(chan_khi_vi_pham=False)
+        else:
+            self.tuong_lua = None
 
     def trich_xuat_can_cu_va_so_hieu(self, van_ban: str) -> Dict[str, List[str]]:
         """Trích xuất tất cả các căn cứ pháp lý và số hiệu văn bản có trong nội dung."""
@@ -180,6 +191,21 @@ class BoToiUuNguCanhHanhChinh:
         """
         if not cac_chunks:
             return []
+
+        # Kiểm tra an toàn truy vấn qua Tường lửa AI
+        if self.tuong_lua is not None:
+            kt = self.tuong_lua.kiem_tra_dau_vao(str(cau_hoi or ""))
+            if not kt.get("an_toan", True):
+                ly_do = kt.get("ly_do", "Vi phạm chính sách an toàn thông tin")
+                return [
+                    {
+                        "id": "firewall_blocked",
+                        "diem_tuong_dong": 0.0,
+                        "trich_dan_phap_ly": "Tường lửa AI (Cảnh báo an ninh)",
+                        "noi_dung": f"[Bị chặn bởi Tường lửa AI]: {ly_do}",
+                        "ngu_canh": "Truy vấn vi phạm chính sách an toàn thông tin.",
+                    }
+                ]
 
         q_vec = self.embedder.nhung(cau_hoi)
         scored: List[Tuple[float, Dict[str, Any]]] = []

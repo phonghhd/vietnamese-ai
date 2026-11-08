@@ -194,7 +194,7 @@ class StudioDashboard:
             <div class="logo-badge">V</div>
             <div class="title">
                 <h1>Vietnamese AI Web Studio</h1>
-                <p>Nền tảng Trực quan Toàn năng (Version 30.2.0)</p>
+                <p>Nền tảng Trực quan Toàn năng (Version 31.0.0)</p>
             </div>
         </div>
         <div class="status-pill">Hệ thống Sẵn sàng (Micro-Core Active)</div>
@@ -377,7 +377,7 @@ Có giá trị đến: 15/08/2035</textarea>
     </div>
 
     <footer>
-        Vietnamese AI Framework v30.2.0 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
+        Vietnamese AI Framework v31.0.0 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
     </footer>
 
     <script>

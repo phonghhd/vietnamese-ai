@@ -22,6 +22,10 @@ __all__ = [
     "RedTeamSimulator",
     "TextWatermarker",
     "BlueTeamAgent",
+    "CayMerkleSuyLuan",
+    "InferenceMerkleTree",
+    "XacThucSuyLuanMaoHiem",
+    "VerifiableInference",
 ]
 
 __getattr__ = tao_lazy_getattr(
@@ -52,6 +56,10 @@ __getattr__ = tao_lazy_getattr(
         "RedTeamSimulator": ("vietnamese_ai.security.red_team", "RedTeamSimulator"),
         "TextWatermarker": ("vietnamese_ai.security.watermark", "TextWatermarker"),
         "BlueTeamAgent": ("vietnamese_ai.security.blue_team", "BlueTeamAgent"),
+        "CayMerkleSuyLuan": ("vietnamese_ai.security.verifiable_inference", "CayMerkleSuyLuan"),
+        "InferenceMerkleTree": ("vietnamese_ai.security.verifiable_inference", "InferenceMerkleTree"),
+        "XacThucSuyLuanMaoHiem": ("vietnamese_ai.security.verifiable_inference", "XacThucSuyLuanMaoHiem"),
+        "VerifiableInference": ("vietnamese_ai.security.verifiable_inference", "VerifiableInference"),
     },
     globals(),
 )

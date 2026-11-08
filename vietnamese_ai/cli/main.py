@@ -178,6 +178,25 @@ Ví dụ sử dụng:
     pack_parser.add_argument("--port", type=int, default=8080, help="Cổng chạy Web Studio")
     pack_parser.add_argument("--threads", type=int, default=4, help="Số luồng CPU cấu hình")
 
+    # === SWARM (CPU SWARM INFERENCE & PIPELINE PARALLELISM) ===
+    swarm_parser = subparsers.add_parser(
+        "swarm", help="Suy luận bầy đàn phân tán trên CPU văn phòng (Pipeline Parallelism & Verifiable AI)"
+    )
+    swarm_parser.add_argument("--nodes", "-n", type=int, default=3, help="Số node CPU văn phòng tham gia (mặc định: 3)")
+    swarm_parser.add_argument("--layers", "-l", type=int, default=6, help="Tổng số layer mô hình sharding (mặc định: 6)")
+    swarm_parser.add_argument("--prompt", "-p", default="Trí tuệ nhân tạo Việt Nam phát triển bền vững.", help="Câu prompt đầu vào")
+    swarm_parser.add_argument("--tokens", type=int, default=16, help="Số token tối đa cần sinh")
+    swarm_parser.add_argument("--verify", action="store_true", default=True, help="Bật xác thực mật mã học Merkle Tree & zkML")
+    swarm_parser.add_argument("--bench", action="store_true", help="Hiển thị bảng đo lường hiệu năng Swarm")
+
+    # === VERIFY (VERIFIABLE INFERENCE AUDIT) ===
+    verify_parser = subparsers.add_parser(
+        "verify", help="Kiểm tra và xác thực tính trung thực của kết quả suy luận AI (Merkle Proof & zkML)"
+    )
+    verify_parser.add_argument("--proof", default=None, help="Chuỗi cam kết zkML (zkml1:...) hoặc mã hash cần xác thực")
+    verify_parser.add_argument("--text", "-t", default=None, help="Văn bản cần kiểm tra tính toàn vẹn Merkle Tree")
+    verify_parser.add_argument("--tamper-check", action="store_true", help="Chạy thử nghiệm phát hiện Byzantine can thiệp dữ liệu")
+
     return parser
 
 
@@ -837,6 +856,104 @@ def cmd_pack(args):
     return res
 
 
+def cmd_swarm(args):
+    """Xử lý lệnh `vai swarm` (Suy luận bầy đàn phân tán trên CPU văn phòng)."""
+    import time
+
+    from vietnamese_ai.edge.swarm_inference import DieuPhoiSwarmCPU
+
+    so_node = getattr(args, "nodes", 3)
+    tong_so_layer = getattr(args, "layers", 6)
+    prompt = getattr(args, "prompt", "Trí tuệ nhân tạo Việt Nam")
+    so_token = getattr(args, "tokens", 16)
+    xac_thuc = getattr(args, "verify", True)
+    bench = getattr(args, "bench", False)
+
+    print("=== SUY LUẬN BẦY ĐÀN PHÂN TÁN TRÊN CPU (SWARM PIPELINE PARALLELISM) ===")
+    print(f"  * Số node CPU tham gia: {so_node}")
+    print(f"  * Tổng số layer:       {tong_so_layer}")
+    print(f"  * Xác thực Verifiable: {'BẬT (Merkle Tree & zkML)' if xac_thuc else 'TẮT'}")
+    print(f"  * Prompt:              \"{prompt}\"\n")
+
+    orchestrator = DieuPhoiSwarmCPU(tong_so_layer=tong_so_layer, bat_xac_thuc_mat_ma=xac_thuc)
+    orchestrator.khoi_tao_cum_gia_lap(so_node=so_node, so_core_moi_node=4)
+
+    thong_tin_cum = orchestrator.lay_trang_thai_cum()
+    print("Phân bổ Layer trên các Node CPU:")
+    for n in thong_tin_cum["danh_sach_node"]:
+        print(f"  Node [{n['node_id']}]: Layer {n['dai_layer'][0]} -> {n['dai_layer'][1]} ({n['so_core_cpu']} cores, {n['ram_mb']}MB RAM)")
+    print()
+
+    print("AI (Swarm Streaming): ", end="", flush=True)
+    tokens = []
+    t0 = time.perf_counter()
+    for tok in orchestrator.sinh_stream(prompt, do_dai_toi_da=so_token):
+        print(tok, end="", flush=True)
+        tokens.append(tok)
+    thoi_gian = time.perf_counter() - t0
+    van_ban = "".join(tokens)
+    print("\n")
+
+    if bench:
+        print("┌────────────────────────────────────────────────────────┐")
+        print("│ BẢNG THỐNG KÊ SWARM CPU PIPELINE PARALLELISM           │")
+        print("├──────────────────────┬─────────────────────────────────┤")
+        print(f"│ Số node hoạt động    │ {so_node:>6d} nodes                     │")
+        print(f"│ Tổng tokens sinh     │ {len(tokens):>6d} tokens                    │")
+        print(f"│ Thời gian thực thi   │ {thoi_gian:>6.3f} giây                      │")
+        toc_do = len(tokens) / thoi_gian if thoi_gian > 0 else 0
+        print(f"│ Tốc độ trung bình    │ {toc_do:>6.2f} tokens/giây             │")
+        print(f"│ Bảo vệ Byzantine     │ {'ĐÃ XÁC THỰC MẬT MÃ' if xac_thuc else 'CHƯA BẬT':>20s}      │")
+        print("└──────────────────────┴─────────────────────────────────┘")
+
+    return {"van_ban": van_ban, "so_token": len(tokens), "so_node": so_node}
+
+
+def cmd_verify(args):
+    """Xử lý lệnh `vai verify` (Xác thực suy luận mật mã học Merkle Tree & zkML)."""
+    from vietnamese_ai.security.verifiable_inference import CayMerkleSuyLuan, XacThucSuyLuanMaoHiem
+
+    proof = getattr(args, "proof", None)
+    text = getattr(args, "text", None)
+    tamper_check = getattr(args, "tamper_check", False)
+
+    print("=== XÁC THỰC MẬT MÃ HỌC SUY LUẬN AI (VERIFIABLE INFERENCE AUDIT) ===")
+    verifier = XacThucSuyLuanMaoHiem()
+
+    if proof:
+        print(f"Kiểm tra cam kết zkML: {proof[:40]}...")
+        hop_le = verifier.xac_nhan_cam_ket_chuoi(proof)
+        status = "HỢP LỆ (BẰNG CHỨNG XÁC THỰC THÀNH CÔNG)" if hop_le else "KHÔNG HỢP LỆ (CÓ DẤU HIỆU GIAN LẬN/BYZANTINE)"
+        print(f"  Kết quả kiểm tra: {status}")
+        return {"hop_le": hop_le}
+    elif text:
+        tokens = text.split()
+        merkle = CayMerkleSuyLuan(tokens)
+        root = merkle.lay_root_hash()
+        print(f"  * Số lá (Leaf tokens): {len(tokens)}")
+        print(f"  * Merkle Root Hash:    {root}")
+        ok = True
+        if len(tokens) > 0:
+            p = merkle.sinh_bang_chung(0)
+            ok = merkle.kiem_tra_bang_chung(tokens[0], 0, p, root)
+            print(f"  * Kiểm tra Proof lá #0: {'CHÍNH XÁC (O(log N))' if ok else 'THẤT BẠI'}")
+        return {"root": root, "so_la": len(tokens), "hop_le": ok}
+    else:
+        print("Chạy kiểm định mật mã mẫu tự động:")
+        arr = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
+        cam_ket = verifier.tao_cam_ket_zkml(arr)
+        print(f"  * Tạo cam kết zkML: {cam_ket['chuoi_cam_ket'][:35]}...")
+        ok = verifier.xac_thuc_cam_ket(cam_ket["y"], cam_ket["a"], cam_ket["e"], cam_ket["z"])
+        print(f"  * Xác thực Schnorr/Fiat-Shamir: {'HỢP LỆ (TRUE)' if ok else 'THẤT BẠI'}")
+        if tamper_check:
+            arr_tampered = arr.copy()
+            arr_tampered[0] += 0.5
+            hash_tampered = verifier.bam_tensor(arr_tampered)
+            gian_lan = hash_tampered != cam_ket["tensor_hash"]
+            print(f"  * Phát hiện can thiệp tensor (Tamper Detection): {'ĐÃ CHẶN GIAN LẬN' if gian_lan else 'LỖI'}")
+        return {"hop_le": ok}
+
+
 def main():
     """Entry point cho CLI."""
     parser = _tao_parser()
@@ -867,6 +984,8 @@ def main():
         "agent": lambda: cmd_agent(args),
         "run": lambda: cmd_run(args),
         "pack": lambda: cmd_pack(args),
+        "swarm": lambda: cmd_swarm(args),
+        "verify": lambda: cmd_verify(args),
     }
     ham = bang_lenh.get(args.command)
     if ham is not None:

@@ -194,7 +194,7 @@ def test_goi_doc_lap_desktop_packager(tmp_path: Path):
     # 4. Kiểm tra file cấu hình JSON
     cfg_data = json.loads(cfg_file.read_text(encoding="utf-8"))
     assert cfg_data["app_name"] == "Vietnamese AI Desktop"
-    assert cfg_data["version"] == "30.2.0"
+    assert cfg_data["version"] == "31.0.0"
     assert cfg_data["offline_only"] is True
 
 

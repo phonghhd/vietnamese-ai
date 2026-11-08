@@ -343,7 +343,7 @@ class TestSALMIntegration:
     def test_version(self):
         import vietnamese_ai
 
-        assert vietnamese_ai.__version__ == "30.2.0"
+        assert vietnamese_ai.__version__ == "31.0.0"
 
     def test_imports(self):
         from vietnamese_ai import (
