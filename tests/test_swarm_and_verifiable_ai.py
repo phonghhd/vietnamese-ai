@@ -254,6 +254,41 @@ class TestDieuPhoiSwarmCPU:
         dp = SwarmInferenceOrchestrator(tong_so_layer=2)
         assert dp.tong_so_layer == 2
 
+    def test_node_mang_vat_ly_lan_va_phan_ra_do_tre(self):
+        """Kiểm thử kết nối nút mạng LAN vật lý và phân rã độ trễ (compute vs network)."""
+        orchestrator = DieuPhoiSwarmCPU(tong_so_layer=4, bat_xac_thuc_mat_ma=True)
+        # Đăng ký 2 node mạng LAN vật lý với endpoint và độ trễ đường truyền
+        n1 = orchestrator.them_node_mang_vat_ly(
+            node_id="minipc_lan_node_1",
+            endpoint_url="http://192.168.1.101:8000/forward",
+            dai_layer=(0, 2),
+            so_core_cpu=4,
+            ram_mb=8192.0,
+            do_tre_mang_co_dinh_ms=0.5,
+        )
+        n2 = orchestrator.them_node_mang_vat_ly(
+            node_id="laptop_lan_node_2",
+            endpoint_url="http://192.168.1.102:8000/forward",
+            dai_layer=(2, 4),
+            so_core_cpu=8,
+            ram_mb=16384.0,
+            do_tre_mang_co_dinh_ms=0.5,
+        )
+
+        assert n1.endpoint_url == "http://192.168.1.101:8000/forward"
+        assert n1.che_do == "mang_vat_ly_lan"
+        assert n2.node_id == "laptop_lan_node_2"
+        cfg1 = n1.lay_thong_tin_cau_hinh()
+        assert cfg1["la_node_mang_vat_ly"] is True
+
+        res = orchestrator.suy_luan_swarm("Học máy phân tán tiếng Việt", so_token_sinh=4)
+        assert res["che_do_thuc_thi"] == "mang_vat_ly_lan"
+        assert "phan_ra_do_tre" in res
+        phan_ra = res["phan_ra_do_tre"]
+        assert "tinh_toan_cpu_ms" in phan_ra
+        assert "truyen_tai_mang_lan_ms" in phan_ra
+        assert phan_ra["truyen_tai_mang_lan_ms"] >= 0.5
+
 
 class TestCLISwarmVaVerify:
     """Kiểm thử lệnh CLI `vai swarm` và `vai verify`."""

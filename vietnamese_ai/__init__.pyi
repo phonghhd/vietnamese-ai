@@ -70,18 +70,24 @@ from vietnamese_ai.edge.c_bridge import CauNoiCtypesNative as CauNoiCtypesNative
 from vietnamese_ai.edge.c_bridge import CtypesLlamaBridge as CtypesLlamaBridge
 from vietnamese_ai.edge.c_bridge import NativeLlamaBridge as NativeLlamaBridge
 from vietnamese_ai.edge.intelligent_router import EdgeRouter as EdgeRouter
-from vietnamese_ai.edge.swarm_inference import (
-    DieuPhoiSwarmCPU as DieuPhoiSwarmCPU,
-    NutSwarmCPU as NutSwarmCPU,
-    SwarmCPUNode as SwarmCPUNode,
-    SwarmInferenceOrchestrator as SwarmInferenceOrchestrator,
-)
 from vietnamese_ai.edge.native_inference import BoGiaiLuongTuQ4 as BoGiaiLuongTuQ4
 from vietnamese_ai.edge.native_inference import DongCoSuyLuanEdge as DongCoSuyLuanEdge
 from vietnamese_ai.edge.native_inference import EdgeInferenceEngine as EdgeInferenceEngine
 from vietnamese_ai.edge.native_inference import GGUFMemoryMappedStreamer as GGUFMemoryMappedStreamer
 from vietnamese_ai.edge.native_inference import ZeroGPUInferenceEngine as ZeroGPUInferenceEngine
 from vietnamese_ai.edge.node_llama import NodeLlamaEngine as NodeLlamaEngine
+from vietnamese_ai.edge.swarm_inference import (
+    DieuPhoiSwarmCPU as DieuPhoiSwarmCPU,
+)
+from vietnamese_ai.edge.swarm_inference import (
+    NutSwarmCPU as NutSwarmCPU,
+)
+from vietnamese_ai.edge.swarm_inference import (
+    SwarmCPUNode as SwarmCPUNode,
+)
+from vietnamese_ai.edge.swarm_inference import (
+    SwarmInferenceOrchestrator as SwarmInferenceOrchestrator,
+)
 from vietnamese_ai.embeddings.fasttext import FastTextTiengViet as FastTextTiengViet
 from vietnamese_ai.embeddings.word2vec import Word2VecTiengViet as Word2VecTiengViet
 from vietnamese_ai.enterprise.audit import NhatKyHoatDong as NhatKyHoatDong
@@ -229,8 +235,14 @@ from vietnamese_ai.security.llm_firewall import TuongLuaAI as TuongLuaAI
 from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework as TuongLuaBaoVeFramework
 from vietnamese_ai.security.verifiable_inference import (
     CayMerkleSuyLuan as CayMerkleSuyLuan,
+)
+from vietnamese_ai.security.verifiable_inference import (
     InferenceMerkleTree as InferenceMerkleTree,
+)
+from vietnamese_ai.security.verifiable_inference import (
     VerifiableInference as VerifiableInference,
+)
+from vietnamese_ai.security.verifiable_inference import (
     XacThucSuyLuanMaoHiem as XacThucSuyLuanMaoHiem,
 )
 from vietnamese_ai.serving.batch_server import MayChuBatch as MayChuBatch

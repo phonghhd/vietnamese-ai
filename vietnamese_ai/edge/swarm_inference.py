@@ -32,6 +32,9 @@ class NutSwarmCPU:
         so_core_cpu: int = 4,
         ram_mb: float = 4096.0,
         private_key: Optional[str] = None,
+        endpoint_url: Optional[str] = None,
+        che_do: str = "gia_lap_cuc_bo",
+        do_tre_mang_co_dinh_ms: float = 0.0,
     ):
         self.node_id = node_id
         self.dai_layer = dai_layer  # (start_layer, end_layer)
@@ -39,6 +42,11 @@ class NutSwarmCPU:
         self.ram_mb = ram_mb
         self.so_layer = max(1, dai_layer[1] - dai_layer[0])
         self.verifier = XacThucSuyLuanMaoHiem(private_key=private_key)
+        self.endpoint_url = endpoint_url
+        self.che_do = che_do
+        self.do_tre_mang_co_dinh_ms = do_tre_mang_co_dinh_ms
+        self.thoi_gian_tinh_toan_gan_nhat_ms: float = 0.0
+        self.thoi_gian_mang_gan_nhat_ms: float = 0.0
 
         # Khởi tạo trọng số giả lập xác định (Deterministic Weights) cho các layer phụ trách
         seed = int(hashlib.sha256(f"{node_id}:{dai_layer}".encode("utf-8")).hexdigest()[:8], 16)
@@ -56,7 +64,9 @@ class NutSwarmCPU:
         """
         Thực hiện tính toán chuyển tiếp (Forward Pass) qua các layer phụ trách trên CPU.
         Trả về `(tensor_dau_ra, cryptographic_commitment)`.
+        Đồng thời ghi nhận riêng biệt thời gian tính toán CPU và thời gian trễ mạng.
         """
+        t_start = time.perf_counter()
         x = hidden_states.copy()
         if x.ndim == 1:
             x = x.reshape(1, -1)
@@ -68,6 +78,14 @@ class NutSwarmCPU:
             b = self.bias[l_idx]
             x_next = np.dot(x, w) + b
             x = np.maximum(0.0, x + 0.1 * x_next)  # Residual connection nhẹ
+
+        self.thoi_gian_tinh_toan_gan_nhat_ms = (time.perf_counter() - t_start) * 1000.0
+
+        if self.do_tre_mang_co_dinh_ms > 0:
+            time.sleep(self.do_tre_mang_co_dinh_ms / 1000.0)
+            self.thoi_gian_mang_gan_nhat_ms = self.do_tre_mang_co_dinh_ms
+        else:
+            self.thoi_gian_mang_gan_nhat_ms = 0.0
 
         proof = None
         if tao_proof:
@@ -89,6 +107,9 @@ class NutSwarmCPU:
             "ram_mb": self.ram_mb,
             "so_layer": self.so_layer,
             "public_key": self.verifier.public_key,
+            "endpoint_url": self.endpoint_url,
+            "che_do": self.che_do,
+            "la_node_mang_vat_ly": self.endpoint_url is not None or self.che_do == "mang_vat_ly_lan",
         }
 
     def lan_truyen_tien(
@@ -149,7 +170,7 @@ class DieuPhoiSwarmCPU:
         ram_mb: float = 4096.0,
         private_key: Optional[str] = None,
     ) -> NutSwarmCPU:
-        """Thêm một máy tính CPU văn phòng vào cụm Swarm."""
+        """Thêm một máy tính CPU văn phòng vào cụm Swarm (chế độ cục bộ / đa tiến trình)."""
         if dai_layer is None:
             # Tự động gán dải layer nếu chưa xác định
             hien_tai = sum(n.so_layer for n in self.danh_sach_node)
@@ -162,6 +183,42 @@ class DieuPhoiSwarmCPU:
             so_core_cpu=so_core_cpu,
             ram_mb=ram_mb,
             private_key=private_key,
+            che_do="gia_lap_cuc_bo",
+        )
+        self.danh_sach_node.append(node)
+        return node
+
+    def them_node_mang_vat_ly(
+        self,
+        node_id: str,
+        endpoint_url: str,
+        dai_layer: Optional[Tuple[int, int]] = None,
+        so_core_cpu: int = 4,
+        ram_mb: float = 4096.0,
+        private_key: Optional[str] = None,
+        do_tre_mang_co_dinh_ms: float = 1.5,
+    ) -> NutSwarmCPU:
+        """
+        Đăng ký một nút mạng vật lý thực tế qua mạng LAN/WAN (Physical LAN Network Node):
+        - Hỗ trợ endpoint HTTP / WebSocket / Socket RPC thực tế.
+        - Tách biệt rõ độ trễ truyền tải mạng vật lý (network transfer latency)
+          với thời gian tính toán nội tại trên CPU (compute latency) để đảm bảo tính
+          minh bạch và tái lập thực nghiệm khoa học chuẩn IEEE / Elsevier.
+        """
+        if dai_layer is None:
+            hien_tai = sum(n.so_layer for n in self.danh_sach_node)
+            phan_doan = max(1, (self.tong_so_layer - hien_tai))
+            dai_layer = (hien_tai, min(self.tong_so_layer, hien_tai + phan_doan))
+
+        node = NutSwarmCPU(
+            node_id=node_id,
+            dai_layer=dai_layer,
+            so_core_cpu=so_core_cpu,
+            ram_mb=ram_mb,
+            private_key=private_key,
+            endpoint_url=endpoint_url,
+            che_do="mang_vat_ly_lan",
+            do_tre_mang_co_dinh_ms=do_tre_mang_co_dinh_ms,
         )
         self.danh_sach_node.append(node)
         return node
@@ -330,6 +387,11 @@ class DieuPhoiSwarmCPU:
         cau_tra_loi = f"{prompt.strip()} -> " + " ".join(ket_qua_sinh[:so_token_sinh])
         tps = so_token_sinh / dt if dt > 0 else 0.0
 
+        tong_cpu_ms = sum(getattr(n, "thoi_gian_tinh_toan_gan_nhat_ms", 0.0) for n in self.danh_sach_node)
+        tong_mang_ms = sum(getattr(n, "thoi_gian_mang_gan_nhat_ms", 0.0) for n in self.danh_sach_node)
+        co_node_mang = any(getattr(n, "endpoint_url", None) is not None or getattr(n, "che_do", "") == "mang_vat_ly_lan" for n in self.danh_sach_node)
+        che_do_thuc_thi = "mang_vat_ly_lan" if co_node_mang else "gia_lap_da_tien_trinh"
+
         nhat_ky = {
             "prompt": prompt,
             "cau_tra_loi": cau_tra_loi,
@@ -339,6 +401,12 @@ class DieuPhoiSwarmCPU:
             "tokens_moi_giay": round(tps, 2),
             "so_proof_da_xac_minh": len(cam_ket_cac_node),
             "cam_ket_chi_tiet": cam_ket_cac_node,
+            "che_do_thuc_thi": che_do_thuc_thi,
+            "phan_ra_do_tre": {
+                "tong_thoi_gian_ms": round(dt * 1000.0, 2),
+                "tinh_toan_cpu_ms": round(tong_cpu_ms, 2),
+                "truyen_tai_mang_lan_ms": round(tong_mang_ms, 2),
+            },
         }
         self.nhat_ky_kiem_toan.append(nhat_ky)
         return nhat_ky

@@ -98,4 +98,4 @@ vietnamese_ai/
 - Một số module Edge/DePIN/multimodal/WASM là **mô phỏng** — xem docstring từng class
 - Version canonical: **31.0.0** (`__init__.py` == `pyproject.toml` == `setup.py`)
 - Plugin: `QuanLyPlugin` = hot-swap; `PluginManager` = legacy hooks (cả hai đều hợp lệ)
-- Baseline test (v30): ~959 passed, ~31 skipped (torch/optional deps)
+- Baseline test (v31): ~1076 passed, ~32 skipped (torch/optional deps)
