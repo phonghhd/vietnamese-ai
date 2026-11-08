@@ -39,7 +39,9 @@ class BoNhungVanBan:
         self._che_do = "chua_tai"
         self._cache_nhung: dict = {}
         self._max_cache = 2048
-        if phuong_phap == "hash":
+        if phuong_phap == "hash" or (
+            kich_thuoc != 384 and not bat_buoc_st and ten_model == self.MODEL_MAC_DINH
+        ):
             self._che_do = "hash"
         else:
             self._tai_model()
@@ -147,8 +149,30 @@ class BoNhungVanBan:
         texts: List[str] = [van_ban] if la_don else list(van_ban)
 
         if self._model is not None:
-            vectors = self._model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
-            out = np.asarray(vectors, dtype=np.float32)
+            dim = self.kich_thuoc
+            results = {}
+            missing_set = set()
+            missing_texts = []
+            for t in texts:
+                cache_key = (dim, t)
+                if cache_key in self._cache_nhung:
+                    results[t] = self._cache_nhung[cache_key].copy()
+                elif t not in missing_set:
+                    missing_set.add(t)
+                    missing_texts.append(t)
+
+            if missing_texts:
+                vectors = self._model.encode(
+                    missing_texts, convert_to_numpy=True, show_progress_bar=False
+                )
+                for t, vec in zip(missing_texts, vectors):
+                    vec_f32 = np.asarray(vec, dtype=np.float32)
+                    cache_key = (dim, t)
+                    if len(self._cache_nhung) < self._max_cache:
+                        self._cache_nhung[cache_key] = vec_f32.copy()
+                    results[t] = vec_f32
+
+            out = np.vstack([results[t] for t in texts])
         else:
             out = np.vstack([self._nhung_hash(t) for t in texts])
 

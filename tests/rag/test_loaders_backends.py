@@ -1,5 +1,6 @@
 """Test RAG loaders và backends tùy chọn."""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -22,6 +23,8 @@ class TestTextLoaderVaSplitter:
 
 class TestChromaOptional:
     def test_chroma_ephemeral(self):
+        if sys.version_info < (3, 9):
+            pytest.skip("ChromaDB không hỗ trợ Python 3.8")
         pytest.importorskip("chromadb")
         from vietnamese_ai.rag.chroma_store import ChromaVectorStore
 
