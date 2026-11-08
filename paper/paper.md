@@ -115,6 +115,12 @@ The framework adheres to high standards of software quality:
   vai verify
   ```
 
+# AI Use Disclosure
+
+During the preparation of this project and manuscript, the author utilized generative AI coding assistants (including Google Antigravity / Gemini models) to assist with code refactoring, test suite scaffolding, PEP 561 static type stub generation, and English grammar/academic drafting of the manuscript. 
+
+The human author confirms that all core system architectures, algorithm designs (including the zero-dependency pipeline parallelism, Vietnamese administrative RAG hierarchy, and Fiat-Shamir Schnorr cryptographic commitments), and experimental methodologies were conceived, directed, and evaluated by the author. The author thoroughly reviewed, debugged, tested, and validated all software code and text, and assumes full scientific, legal, and ethical responsibility for the entirety of the submitted work.
+
 # Acknowledgements
 
 The author thanks the Vietnamese open-source AI community for valuable insights, testing feedback, and continuous support in advancing native AI technologies for low-resource environments.
