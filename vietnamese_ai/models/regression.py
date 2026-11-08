@@ -95,6 +95,9 @@ class HoiQuy(BaseModel):
             raise ValueError(f"Thuật toán '{thuat_toan}' không hợp lệ. Chọn một trong: {hop_le}")
 
         self.thuat_toan = thuat_toan
+        if thuat_toan == "lightgbm" and self.THUAT_TOAN[thuat_toan] is not HistGradientBoostingRegressor:
+            kwargs.setdefault("min_child_samples", 5)
+            kwargs.setdefault("verbose", -1)
         self.tham_so = kwargs
         self._mo_hinh = self.THUAT_TOAN[thuat_toan](**kwargs)
 

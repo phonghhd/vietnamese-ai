@@ -38,15 +38,22 @@ if _CO_TORCH:
             quantized_x = torch.round(torch.clamp(x / scale, -128, 127))
             return (quantized_x - x).detach() + x
 
-        def forward(self, x: "torch.Tensor") -> "torch.Tensor":
+        def forward(self, x: Any) -> Any:
+            la_numpy = isinstance(x, np.ndarray)
+            if la_numpy:
+                x_tensor = torch.from_numpy(x)
+            else:
+                x_tensor = x
             quantized_weight = self.weight_quantizer(self.weight)
-            quantized_x = self._quantize_activation_8_bit(x)
-            if x.device.type == "cpu":
+            quantized_x = self._quantize_activation_8_bit(x_tensor)
+            if x_tensor.device.type == "cpu":
                 output = EvoKernelCPU.add_only_matmul(quantized_x, quantized_weight.t())
                 if self.bias is not None:
                     output = output + self.bias
             else:
                 output = F.linear(quantized_x, quantized_weight, self.bias)
+            if la_numpy:
+                return output.detach().cpu().numpy()
             return output
 
         def dong_goi_2bit(self) -> bytes:
@@ -70,9 +77,17 @@ if _CO_TORCH:
             self.eps = eps
             self.weight = nn.Parameter(torch.ones(dim))
 
-        def forward(self, x: "torch.Tensor") -> "torch.Tensor":
-            normed = x.float() * torch.rsqrt(x.float().pow(2).mean(-1, keepdim=True) + self.eps)
-            return normed.type_as(x) * self.weight
+        def forward(self, x: Any) -> Any:
+            la_numpy = isinstance(x, np.ndarray)
+            if la_numpy:
+                x_tensor = torch.from_numpy(x)
+            else:
+                x_tensor = x
+            normed = x_tensor.float() * torch.rsqrt(x_tensor.float().pow(2).mean(-1, keepdim=True) + self.eps)
+            out = normed.type_as(x_tensor) * self.weight
+            if la_numpy:
+                return out.detach().cpu().numpy()
+            return out
 
     class BitNetTransformerBlock(nn.Module):
         """Khối Transformer sử dụng hoàn toàn BitLinear 1.58-bit + RMSNorm + SwiGLU."""
@@ -92,8 +107,13 @@ if _CO_TORCH:
             self.up_proj = BitLinear(dim, hidden_dim, bias=False)
             self.down_proj = BitLinear(hidden_dim, dim, bias=False)
 
-        def forward(self, x: "torch.Tensor") -> "torch.Tensor":
-            h = self.norm1(x)
+        def forward(self, x: Any) -> Any:
+            la_numpy = isinstance(x, np.ndarray)
+            if la_numpy:
+                x_tensor = torch.from_numpy(x)
+            else:
+                x_tensor = x
+            h = self.norm1(x_tensor)
             q, k, v = self.q_proj(h), self.k_proj(h), self.v_proj(h)
             B, T, C = q.size()
             q = q.view(B, T, self.num_heads, C // self.num_heads).transpose(1, 2)
@@ -102,10 +122,12 @@ if _CO_TORCH:
             scores = torch.matmul(q, k.transpose(-2, -1)) / (q.size(-1) ** 0.5)
             attn = F.softmax(scores, dim=-1)
             context = torch.matmul(attn, v).transpose(1, 2).contiguous().view(B, T, C)
-            x = x + self.o_proj(context)
-            h = self.norm2(x)
-            x = x + self.down_proj(F.silu(self.gate_proj(h)) * self.up_proj(h))
-            return x
+            x_res = x_tensor + self.o_proj(context)
+            h2 = self.norm2(x_res)
+            out = x_res + self.down_proj(F.silu(self.gate_proj(h2)) * self.up_proj(h2))
+            if la_numpy:
+                return out.detach().cpu().numpy()
+            return out
 
 else:
 

@@ -70,6 +70,9 @@ class CSDLVector:
     ) -> None:
         """Chen một vector vào CSDL."""
         vector = np.asarray(vector, dtype=np.float32).flatten()
+        if len(self._ids) == 0 and vector.shape[0] != self.kich_thuoc:
+            self.kich_thuoc = int(vector.shape[0])
+            self._vectors = None
         if vector.shape[0] != self.kich_thuoc:
             raise ValueError(f"Vector phải có {self.kich_thuoc} chiều, nhận được {vector.shape[0]}")
 
@@ -105,6 +108,9 @@ class CSDLVector:
         vectors = np.asarray(vectors, dtype=np.float32)
         if vectors.ndim == 1:
             vectors = vectors.reshape(1, -1)
+        if len(self._ids) == 0 and vectors.shape[1] != self.kich_thuoc:
+            self.kich_thuoc = int(vectors.shape[1])
+            self._vectors = None
         if vectors.shape[1] != self.kich_thuoc:
             raise ValueError(
                 f"Vector phải có {self.kich_thuoc} chiều, nhận được {vectors.shape[1]}"
@@ -137,7 +143,11 @@ class CSDLVector:
         """Nhúng chuỗi văn bản sang vector có kích thước bằng kich_thuoc của CSDL."""
         from vietnamese_ai.rag.embedder import BoNhungVanBan
 
-        if not hasattr(self, "_bo_nhung_mac_dinh") or self._bo_nhung_mac_dinh is None:
+        if (
+            not hasattr(self, "_bo_nhung_mac_dinh")
+            or self._bo_nhung_mac_dinh is None
+            or getattr(self._bo_nhung_mac_dinh, "kich_thuoc", None) != self.kich_thuoc
+        ):
             self._bo_nhung_mac_dinh = BoNhungVanBan(
                 kich_thuoc=self.kich_thuoc, phuong_phap="hash"
             )

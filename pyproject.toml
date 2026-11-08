@@ -69,7 +69,6 @@ docs = [
 llm = [
     "openai>=1.0.0",
     "google-genai>=1.0.0; python_version >= '3.9'",
-    "google-generativeai>=0.8.0; python_version < '3.9'",
     "requests>=2.25.0",
     "beautifulsoup4>=4.9.0",
 ]
@@ -103,7 +102,6 @@ full = [
     "transformers>=4.30",
     "openai>=1.0.0",
     "google-genai>=1.0.0; python_version >= '3.9'",
-    "google-generativeai>=0.8.0; python_version < '3.9'",
     "requests>=2.25.0",
     "beautifulsoup4>=4.9.0",
     "fastapi>=0.100.0",
@@ -127,7 +125,6 @@ all = [
     "transformers>=4.30",
     "openai>=1.0.0",
     "google-genai>=1.0.0; python_version >= '3.9'",
-    "google-generativeai>=0.8.0; python_version < '3.9'",
     "requests>=2.25.0",
     "beautifulsoup4>=4.9.0",
     "fastapi>=0.100.0",
