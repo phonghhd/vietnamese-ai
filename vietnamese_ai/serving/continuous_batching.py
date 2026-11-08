@@ -1,7 +1,9 @@
 """Continuous Batching (BoPhanLoLienTuc) - Phân lô liên tục ở mức Token kết hợp KV-Cache thật."""
 
+from __future__ import annotations
+
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -57,7 +59,7 @@ class ContinuousBatcher:
             self.running_batch.append(next_req)
 
     @staticmethod
-    def _lay_gpt_va_tokenizer(mo_hinh: Any) -> tuple[Optional[Any], Optional[Any]]:
+    def _lay_gpt_va_tokenizer(mo_hinh: Any) -> Tuple[Optional[Any], Optional[Any]]:
         """Trích xuất `GPTModel` có hỗ trợ `tien_kv` từ model hoặc wrapper."""
         if hasattr(mo_hinh, "tien_kv") and hasattr(mo_hinh, "so_tu_vung"):
             return mo_hinh, getattr(mo_hinh, "_tokenizer", None)

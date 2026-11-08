@@ -71,6 +71,13 @@ class HuanLuyenPyTorch:
                 "Cần cài đặt PyTorch: pip install torch hoặc pip install vietnamese-ai[torch]"
             )
 
+        if hasattr(torch, "set_default_device"):
+            try:
+                if str(torch.get_default_device()) == "meta":
+                    torch.set_default_device(None)
+            except Exception:
+                pass
+
         if thiet_bi == "auto":
             if torch.cuda.is_available():
                 self.thiet_bi = "cuda"
@@ -178,7 +185,16 @@ class HuanLuyenPyTorch:
         Returns:
             Dict chứa history và best metrics
         """
-        self._model = model.to(self.thiet_bi)
+        try:
+            self._model = model.to(self.thiet_bi)
+        except NotImplementedError:
+            if hasattr(model, "to_empty"):
+                self._model = model.to_empty(device=self.thiet_bi)
+                for m in self._model.modules():
+                    if hasattr(m, "reset_parameters"):
+                        m.reset_parameters()
+            else:
+                self._model = model
         self._tao_optimizer(model)
         self._tao_scaler()
 
@@ -366,7 +382,16 @@ class HuanLuyenPyTorch:
         """Tải checkpoint."""
         checkpoint = torch.load(duong_dan, map_location=self.thiet_bi, weights_only=True)
         model.load_state_dict(checkpoint["model_state_dict"])
-        self._model = model.to(self.thiet_bi)
+        try:
+            self._model = model.to(self.thiet_bi)
+        except NotImplementedError:
+            if hasattr(model, "to_empty"):
+                self._model = model.to_empty(device=self.thiet_bi)
+                for m in self._model.modules():
+                    if hasattr(m, "reset_parameters"):
+                        m.reset_parameters()
+            else:
+                self._model = model
         self._history = checkpoint.get("history", self._history)
         self._best_val_loss = checkpoint.get("best_val_loss", float("inf"))
         self.logger.info(f"Đã tải checkpoint: {duong_dan}")

@@ -55,9 +55,14 @@ if _CO_TORCH:
             self.D = nn.Parameter(torch.ones(self.d_inner))
             self.out_proj = nn.Linear(self.d_inner, d_model, bias=False)
 
-        def forward(self, hidden_states: "torch.Tensor") -> "torch.Tensor":
-            _, seqlen, _ = hidden_states.shape
-            xz = self.in_proj(hidden_states)
+        def forward(self, hidden_states: Any) -> Any:
+            la_numpy = isinstance(hidden_states, np.ndarray)
+            if la_numpy:
+                hidden_states_t = torch.as_tensor(hidden_states, dtype=torch.float32)
+            else:
+                hidden_states_t = hidden_states
+            _, seqlen, _ = hidden_states_t.shape
+            xz = self.in_proj(hidden_states_t)
             x, z = xz.chunk(2, dim=-1)
             x = self.conv1d(x.transpose(1, 2))[:, :, :seqlen].transpose(1, 2)
             x = F.silu(x)
@@ -69,7 +74,10 @@ if _CO_TORCH:
 
             y = self._selective_scan_pytorch(x, delta, A, B, C)
             y = (y + x * self.D) * F.silu(z)
-            return self.out_proj(y)
+            out = self.out_proj(y)
+            if la_numpy:
+                return out.detach().cpu().numpy()
+            return out
 
         @staticmethod
         def _selective_scan_pytorch(x, delta, A, B, C):

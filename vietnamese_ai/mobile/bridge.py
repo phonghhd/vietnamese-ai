@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import base64
 import hashlib
 import hmac
 import json
 import os
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Tuple
 
 from vietnamese_ai.mobile.mobile_agent import MobileHybridAgent
 from vietnamese_ai.mobile.power_manager import PowerManager
@@ -28,7 +30,7 @@ class MobileAppBridge:
         self.strict_aead = strict_aead
         self.notification_history: List[str] = []
 
-    def _dan_xuat_khoa(self, nonce: bytes) -> tuple[bytes, bytes]:
+    def _dan_xuat_khoa(self, nonce: bytes) -> Tuple[bytes, bytes]:
         """Dẫn xuất khóa mã hóa (enc_key) và khóa xác thực (mac_key) bằng PBKDF2-HMAC-SHA256."""
         dk = hashlib.pbkdf2_hmac(
             "sha256", self.e2e_key.encode("utf-8"), nonce, iterations=1000, dklen=64

@@ -12,6 +12,10 @@ Sử dụng:
     >>> du_doan = auto.predict(X_test)
 """
 
+from __future__ import annotations
+
+from typing import List
+
 __version__ = "31.0.0"
 __author__ = "EvoNet AI Team"
 
@@ -370,7 +374,7 @@ def __getattr__(name: str):
     raise AttributeError(f"module 'vietnamese_ai' has no attribute '{name}'")
 
 
-def __dir__() -> list[str]:
+def __dir__() -> List[str]:
     return sorted(set(globals().keys()) | set(__all__))
 
 

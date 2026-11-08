@@ -3,6 +3,8 @@ NutChinh (Master Node / DieuPhoiCum) - Quản lý Workers, cân bằng tải, Au
 kết nối Tường lửa AI Đa tầng và xác thực khóa cụm HMAC.
 """
 
+from __future__ import annotations
+
 import hmac
 import json
 import logging
@@ -12,7 +14,7 @@ import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .balancer import CanBangTai
 from .worker import NutPhu
@@ -158,7 +160,7 @@ class NutChinh:
 
     def kiem_tra_xac_thuc_header(
         self, auth_header: str = "", cluster_token: str = ""
-    ) -> tuple[bool, str]:
+    ) -> Tuple[bool, str]:
         """Kiểm tra khóa bí mật cụm (`Bearer <token>` hoặc `X-Cluster-Token`) bằng `hmac.compare_digest`."""
         if not self.ma_bi_mat_cum:
             return True, "OK"
@@ -169,7 +171,7 @@ class NutChinh:
             return True, "OK"
         return False, "Thiếu hoặc sai mã xác thực cụm (X-Cluster-Token / Bearer)"
 
-    def kiem_tra_payload_dau_vao(self, raw_bytes: bytes, nguon: str = "client") -> tuple[bool, str]:
+    def kiem_tra_payload_dau_vao(self, raw_bytes: bytes, nguon: str = "client") -> Tuple[bool, str]:
         """Quét JSON payload qua `TuongLuaBaoVeFramework` trước khi chuyển tiếp xuống Worker."""
         if len(raw_bytes) > MAX_CLUSTER_BODY_BYTES:
             return False, "Payload vượt quá 1 MB"

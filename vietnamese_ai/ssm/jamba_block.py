@@ -37,9 +37,14 @@ if _CO_TORCH:
             )
             self.router = nn.Linear(d_model, num_experts, bias=False)
 
-        def forward(self, x: "torch.Tensor") -> "torch.Tensor":
-            batch, seqlen, d_model = x.shape
-            x_flat = x.view(-1, d_model)
+        def forward(self, x: Any) -> Any:
+            la_numpy = isinstance(x, np.ndarray)
+            if la_numpy:
+                x_t = torch.as_tensor(x, dtype=torch.float32)
+            else:
+                x_t = x
+            batch, seqlen, d_model = x_t.shape
+            x_flat = x_t.view(-1, d_model)
             routing_weights = F.softmax(self.router(x_flat), dim=-1)
             routing_weights, selected_experts = torch.topk(routing_weights, self.top_k, dim=-1)
             routing_weights = routing_weights / routing_weights.sum(dim=-1, keepdim=True)
@@ -52,7 +57,10 @@ if _CO_TORCH:
                     weight_idx = expert_mask[token_indices].nonzero(as_tuple=True)[1]
                     expert_weights = routing_weights[token_indices, weight_idx].unsqueeze(-1)
                     final_output[token_indices] += expert_out * expert_weights
-            return final_output.view(batch, seqlen, d_model)
+            out = final_output.view(batch, seqlen, d_model)
+            if la_numpy:
+                return out.detach().cpu().numpy()
+            return out
 
     class JambaBlock(nn.Module):
         """Khối Jamba lai luân phiên giữa Mamba + MLP và Self-Attention + MoE."""
@@ -76,14 +84,28 @@ if _CO_TORCH:
                     nn.Linear(d_model, d_model * 2), nn.SiLU(), nn.Linear(d_model * 2, d_model)
                 )
 
-        def forward(self, x: "torch.Tensor") -> "torch.Tensor":
-            x_norm = self.norm1(x)
+        def forward(self, x: Any) -> Any:
+            la_numpy = isinstance(x, np.ndarray)
+            if la_numpy:
+                x_t = torch.as_tensor(x, dtype=torch.float32)
+            else:
+                x_t = x
+            x_norm = self.norm1(x_t)
             if self.is_attn_layer:
                 mixed_x, _ = self.mixer(x_norm, x_norm, x_norm)
             else:
                 mixed_x = self.mixer(x_norm)
-            x = x + mixed_x
-            return x + self.mlp(self.norm2(x))
+            if isinstance(mixed_x, np.ndarray):
+                mixed_x = torch.as_tensor(mixed_x, dtype=x_t.dtype, device=x_t.device)
+            x_res = x_t + mixed_x
+            mlp_in = self.norm2(x_res)
+            mlp_out = self.mlp(mlp_in)
+            if isinstance(mlp_out, np.ndarray):
+                mlp_out = torch.as_tensor(mlp_out, dtype=x_t.dtype, device=x_t.device)
+            out = x_res + mlp_out
+            if la_numpy:
+                return out.detach().cpu().numpy()
+            return out
 
 else:
 

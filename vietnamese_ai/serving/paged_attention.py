@@ -1,4 +1,6 @@
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -55,7 +57,7 @@ class BlockManager:
 
         self.logical_block_counter = 0
 
-    def _tao_kv_mac_dinh(self, token_id: int) -> tuple[np.ndarray, np.ndarray]:
+    def _tao_kv_mac_dinh(self, token_id: int) -> Tuple[np.ndarray, np.ndarray]:
         """Sinh cặp vector (k, v) xác định từ token_id khi người gọi không truyền trực tiếp."""
         angles = (np.arange(self.d_model, dtype=np.float32) + 1.0) * float(token_id + 1) * 0.1
         k_vec = np.sin(angles).astype(np.float32)
@@ -149,7 +151,7 @@ class BlockManager:
         phys_block.k_cache[slot_idx, : min(self.d_model, k_arr.shape[0])] = k_arr[: self.d_model]
         phys_block.v_cache[slot_idx, : min(self.d_model, v_arr.shape[0])] = v_arr[: self.d_model]
 
-    def gather_kv(self, seq_id: str) -> tuple[np.ndarray, np.ndarray]:
+    def gather_kv(self, seq_id: str) -> Tuple[np.ndarray, np.ndarray]:
         """Thu thập toàn bộ K và V thực tế từ các Physical Blocks không liên tiếp."""
         if seq_id not in self.logical_blocks:
             raise KeyError(f"Sequence '{seq_id}' chưa được cấp phát.")
