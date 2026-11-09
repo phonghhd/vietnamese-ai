@@ -14,18 +14,18 @@ class MockModel:
     def __call__(self, input_ids: list) -> np.ndarray:
         self.call_count += 1
         seq_len = len(input_ids)
-        # Giả lập trả về Logits cho toàn bộ chuỗi
-        logits = np.random.randn(seq_len, self.vocab_size)
-
-        # Nếu là Target Model, cố ý làm cho phân phối xác suất sắc nét hơn (chính xác hơn)
-        if self.is_target:
-            logits *= 2.0
+        # Giả lập trả về Logits cho toàn bộ chuỗi dựa trên token ngữ cảnh
+        logits = np.zeros((seq_len, self.vocab_size))
+        for i, tid in enumerate(input_ids):
+            next_tid = (tid + 1) % self.vocab_size
+            logits[i, next_tid] = 5.0 if self.is_target else 4.0
 
         return logits
 
 
 def test_speculative_decoding_speedup():
     """Kiểm tra Speculative Decoding sinh token nhanh hơn Auto-regressive thông thường."""
+    np.random.seed(42)
     vocab_size = 100
     gamma = 4
     max_tokens = 20
