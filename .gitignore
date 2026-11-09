@@ -54,3 +54,9 @@ models/*.pkl
 models/*.json
 data/*.csv
 results/*.csv
+
+# Modal internal training & data curation (DO NOT COMMIT)
+.modal_scripts/
+.modal_training/
+modal_*.py
+
