@@ -7,7 +7,13 @@ mà không cần GPU đắt đỏ, tích hợp cơ chế xác thực chứng th�
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import json
+import logging
+import socket
+import struct
+import threading
 import time
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
@@ -15,6 +21,8 @@ import numpy as np
 
 from vietnamese_ai.nlp.native_tokenizer import BoNhungVanBanSieuToc, BoTachTuTiengVietSieuToc
 from vietnamese_ai.security.verifiable_inference import XacThucSuyLuanMaoHiem
+
+logger = logging.getLogger("VietnameseAI.SwarmCPU")
 
 
 class NutSwarmCPU:
@@ -47,6 +55,13 @@ class NutSwarmCPU:
         self.do_tre_mang_co_dinh_ms = do_tre_mang_co_dinh_ms
         self.thoi_gian_tinh_toan_gan_nhat_ms: float = 0.0
         self.thoi_gian_mang_gan_nhat_ms: float = 0.0
+        self.duong_dan_gguf_shard: Optional[str] = None
+        self.checksum_trong_so_sha256: str = ""
+
+        # Quản lý Socket Server LAN cục bộ nếu nút này là máy chủ vật lý
+        self._server_lan: Optional[asyncio.Server] = None
+        self._server_thread: Optional[threading.Thread] = None
+        self._server_loop: Optional[asyncio.AbstractEventLoop] = None
 
         # Khởi tạo trọng số giả lập xác định (Deterministic Weights) cho các layer phụ trách
         seed = int(hashlib.sha256(f"{node_id}:{dai_layer}".encode("utf-8")).hexdigest()[:8], 16)
@@ -56,28 +71,235 @@ class NutSwarmCPU:
         self.w_proj = rng.randn(self.so_layer, self.d_model, self.d_model).astype(np.float32) * 0.05
         self.bias = np.zeros((self.so_layer, self.d_model), dtype=np.float32)
 
-    def thuc_thi_layer(
+    def nap_trong_so_gguf(self, duong_dan_gguf: str) -> Dict[str, Any]:
+        """
+        Nạp ma trận trọng số thực tế từ tệp GGUF vào bộ nhớ RAM của nút CPU:
+        - Tự động trích xuất các layer tương ứng với dải `self.dai_layer`.
+        - Giải lượng tử hóa (dequantize) Q8_0, Q4_0 hoặc FP16 thành Float32.
+        - Khởi tạo ma trận `w_proj` và `bias` cho forward pass.
+        - Tính mã checksum SHA-256 của trọng số phục vụ kiểm toán Proof of Inference.
+        """
+        from vietnamese_ai.export.gguf import XuatGGUF
+
+        loader = XuatGGUF()
+        tat_ca_tensors = loader.tai_tu_gguf(duong_dan_gguf)
+        self.duong_dan_gguf_shard = str(duong_dan_gguf)
+
+        tensors_thuoc_node: Dict[str, np.ndarray] = {}
+        for l_abs in range(self.dai_layer[0], self.dai_layer[1]):
+            tien_to = [f"blk.{l_abs}.", f"layers.{l_abs}.", f"transformer.h.{l_abs}."]
+            for ten_t, t_arr in tat_ca_tensors.items():
+                if any(ten_t.startswith(prefix) for prefix in tien_to):
+                    tensors_thuoc_node[ten_t] = t_arr
+
+        # Tính checksum SHA256 cho phân mảnh trọng số
+        h = hashlib.sha256()
+        for ten_t in sorted(tensors_thuoc_node.keys()):
+            h.update(ten_t.encode("utf-8"))
+            h.update(tensors_thuoc_node[ten_t].tobytes())
+        self.checksum_trong_so_sha256 = h.hexdigest()
+
+        # Ánh xạ vào w_proj nếu có tensor phù hợp
+        if tensors_thuoc_node:
+            for l_rel, l_abs in enumerate(range(self.dai_layer[0], self.dai_layer[1])):
+                if l_rel >= self.so_layer:
+                    break
+                candidates = [v for k, v in tensors_thuoc_node.items() if f".{l_abs}." in k and v.ndim == 2]
+                if candidates:
+                    cand = candidates[0]
+                    h_in, h_out = cand.shape
+                    if h_in >= self.d_model and h_out >= self.d_model:
+                        self.w_proj[l_rel] = cand[: self.d_model, : self.d_model].astype(np.float32)
+                    elif h_in == self.d_model:
+                        self.w_proj[l_rel, :, : min(self.d_model, h_out)] = cand[:, : min(self.d_model, h_out)]
+
+        return {
+            "node_id": self.node_id,
+            "dai_layer": self.dai_layer,
+            "so_tensors_nap": len(tensors_thuoc_node),
+            "checksum_sha256": self.checksum_trong_so_sha256,
+            "duong_dan_gguf": self.duong_dan_gguf_shard,
+        }
+
+    def xuat_phan_manh_gguf(self, duong_dan_xuat: str, quantization: str = "q8_0") -> str:
+        """Xuất riêng phân mảnh trọng số của nút này ra một tệp GGUF độc lập."""
+        from vietnamese_ai.export.gguf import XuatGGUF
+
+        dict_tensors: Dict[str, np.ndarray] = {}
+        for l_rel, l_abs in enumerate(range(self.dai_layer[0], self.dai_layer[1])):
+            if l_rel < self.so_layer:
+                dict_tensors[f"blk.{l_abs}.weight"] = self.w_proj[l_rel]
+
+        xuat = XuatGGUF()
+        return xuat.xuat_tu_numpy(
+            dict_tensors,
+            duong_dan_xuat,
+            quantization=quantization,
+            thong_tin={"name": f"SwarmShard_{self.node_id}", "layers": f"{self.dai_layer}"},
+        )
+
+    def khoi_dong_server_lan(self, host: str = "127.0.0.1", port: int = 8890) -> None:
+        """
+        Khởi động máy chủ TCP Socket lắng nghe suy luận phân tán trên máy vật lý LAN.
+        Hoạt động phi đồng bộ trong luồng ngầm (background thread).
+        """
+        if self._server_thread is not None and self._server_thread.is_alive():
+            return
+
+        def _run_server():
+            self._server_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._server_loop)
+
+            async def _handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+                try:
+                    while True:
+                        raw_header_len = await reader.read(4)
+                        if not raw_header_len or len(raw_header_len) < 4:
+                            break
+                        header_len = struct.unpack("!I", raw_header_len)[0]
+                        header_bytes = await reader.readexactly(header_len)
+                        req_meta = json.loads(header_bytes.decode("utf-8"))
+
+                        tensor_len = req_meta.get("tensor_bytes", 0)
+                        shape = tuple(req_meta.get("shape", [1, self.d_model]))
+                        raw_tensor = await reader.readexactly(tensor_len)
+                        input_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(shape)
+
+                        t_comp_start = time.perf_counter()
+                        tao_proof = req_meta.get("tao_proof", True)
+                        output_tensor, proof = self._tinh_toan_cuc_bo(input_tensor, tao_proof=tao_proof)
+                        t_comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
+
+                        out_bytes = output_tensor.astype(np.float32).tobytes()
+                        res_meta = {
+                            "trang_thai": "thanh_cong",
+                            "node_id": self.node_id,
+                            "thoi_gian_cpu_ms": round(t_comp_ms, 3),
+                            "shape": list(output_tensor.shape),
+                            "tensor_bytes": len(out_bytes),
+                            "proof": proof,
+                        }
+                        res_meta_bytes = json.dumps(res_meta, ensure_ascii=False).encode("utf-8")
+                        writer.write(struct.pack("!I", len(res_meta_bytes)) + res_meta_bytes + out_bytes)
+                        await writer.drain()
+                except (asyncio.IncompleteReadError, ConnectionResetError, BrokenPipeError, asyncio.CancelledError, GeneratorExit):
+                    pass
+                except Exception as e:
+                    logger.debug("Lỗi kết nối socket client: %s", e)
+                finally:
+                    try:
+                        if not writer.is_closing():
+                            writer.close()
+                    except Exception:
+                        pass
+
+            async def _start():
+                self._server_lan = await asyncio.start_server(_handle_client, host, port)
+
+            try:
+                self._server_loop.run_until_complete(_start())
+                self._server_loop.run_forever()
+            finally:
+                tasks = [t for t in asyncio.all_tasks(self._server_loop) if not t.done()]
+                if tasks:
+                    self._server_loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                self._server_loop.close()
+
+        self._server_thread = threading.Thread(target=_run_server, daemon=True)
+        self._server_thread.start()
+        time.sleep(0.05)
+
+    def dung_server_lan(self) -> None:
+        """Dừng máy chủ TCP Socket LAN."""
+        if self._server_loop is not None and self._server_loop.is_running():
+            def _stop():
+                if self._server_lan is not None:
+                    self._server_lan.close()
+                for task in asyncio.all_tasks(self._server_loop):
+                    if task is not asyncio.current_task(self._server_loop):
+                        task.cancel()
+                self._server_loop.stop()
+
+            self._server_loop.call_soon_threadsafe(_stop)
+        if self._server_thread is not None:
+            self._server_thread.join(timeout=1.0)
+            self._server_thread = None
+
+    def _truyen_tai_qua_socket_lan(
+        self,
+        hidden_states: np.ndarray,
+        tao_proof: bool = True,
+        timeout: float = 5.0,
+    ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
+        """Truyền tensor qua socket TCP tới máy tính vật lý trong mạng LAN."""
+        t_net_start = time.perf_counter()
+        endpoint = str(self.endpoint_url or "")
+        url = endpoint.replace("tcp://", "").replace("http://", "")
+        if ":" in url:
+            host, port_str = url.split(":", 1)
+            port = int(port_str)
+        else:
+            host, port = url, 8890
+
+        x_arr = np.asarray(hidden_states, dtype=np.float32)
+        raw_x = x_arr.tobytes()
+        req_meta = {
+            "loai": "forward",
+            "node_id": self.node_id,
+            "shape": list(x_arr.shape),
+            "tensor_bytes": len(raw_x),
+            "tao_proof": tao_proof,
+        }
+        meta_bytes = json.dumps(req_meta).encode("utf-8")
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            sock.connect((host, port))
+            sock.sendall(struct.pack("!I", len(meta_bytes)) + meta_bytes + raw_x)
+
+            raw_len = sock.recv(4)
+            if len(raw_len) < 4:
+                raise ConnectionError(f"Phản hồi từ {self.endpoint_url} không đầy đủ")
+            res_meta_len = struct.unpack("!I", raw_len)[0]
+            res_meta_bytes = b""
+            while len(res_meta_bytes) < res_meta_len:
+                chunk = sock.recv(res_meta_len - len(res_meta_bytes))
+                if not chunk:
+                    break
+                res_meta_bytes += chunk
+            res_meta = json.loads(res_meta_bytes.decode("utf-8"))
+
+            out_len = res_meta.get("tensor_bytes", 0)
+            shape = tuple(res_meta.get("shape", [1, self.d_model]))
+            out_raw = b""
+            while len(out_raw) < out_len:
+                chunk = sock.recv(out_len - len(out_raw))
+                if not chunk:
+                    break
+                out_raw += chunk
+            out_tensor = np.frombuffer(out_raw, dtype=np.float32).reshape(shape)
+
+        self.thoi_gian_mang_gan_nhat_ms = (time.perf_counter() - t_net_start) * 1000.0
+        self.thoi_gian_tinh_toan_gan_nhat_ms = float(res_meta.get("thoi_gian_cpu_ms", 0.0))
+        proof = res_meta.get("proof")
+        return out_tensor, proof
+
+    def _tinh_toan_cuc_bo(
         self,
         hidden_states: np.ndarray,
         tao_proof: bool = True,
     ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
-        """
-        Thực hiện tính toán chuyển tiếp (Forward Pass) qua các layer phụ trách trên CPU.
-        Trả về `(tensor_dau_ra, cryptographic_commitment)`.
-        Đồng thời ghi nhận riêng biệt thời gian tính toán CPU và thời gian trễ mạng.
-        """
+        """Thực thi forward pass cục bộ trên CPU."""
         t_start = time.perf_counter()
         x = hidden_states.copy()
         if x.ndim == 1:
             x = x.reshape(1, -1)
 
-        # Chạy qua từng block layer
         for l_idx in range(self.so_layer):
-            # Tuyến tính + hàm kích hoạt ReLU / GeLU xấp xỉ
             w = self.w_proj[l_idx]
             b = self.bias[l_idx]
             x_next = np.dot(x, w) + b
-            x = np.maximum(0.0, x + 0.1 * x_next)  # Residual connection nhẹ
+            x = np.maximum(0.0, x + 0.1 * x_next)
 
         self.thoi_gian_tinh_toan_gan_nhat_ms = (time.perf_counter() - t_start) * 1000.0
 
@@ -97,6 +319,29 @@ class NutSwarmCPU:
             )
 
         return x, proof
+
+    def thuc_thi_layer(
+        self,
+        hidden_states: np.ndarray,
+        tao_proof: bool = True,
+    ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
+        """
+        Thực hiện tính toán chuyển tiếp (Forward Pass) qua các layer phụ trách trên CPU:
+        - Nếu cấu hình là nút mạng LAN vật lý (`endpoint_url`), gửi tensor qua TCP socket thực tế.
+        - Nếu chạy cục bộ, tính toán trực tiếp trên CPU.
+        """
+        if self.endpoint_url is not None and self.che_do == "mang_vat_ly_lan":
+            try:
+                return self._truyen_tai_qua_socket_lan(hidden_states, tao_proof=tao_proof)
+            except Exception as e:
+                logger.warning(
+                    "Không thể kết nối nút LAN %s: %s. Chuyển sang tính toán dự phòng cục bộ.",
+                    self.endpoint_url,
+                    e,
+                )
+                return self._tinh_toan_cuc_bo(hidden_states, tao_proof=tao_proof)
+
+        return self._tinh_toan_cuc_bo(hidden_states, tao_proof=tao_proof)
 
     def lay_thong_tin_cau_hinh(self) -> Dict[str, Any]:
         """Trả về thông tin cấu hình phần cứng và dải layer của Node."""
@@ -356,6 +601,7 @@ class DieuPhoiSwarmCPU:
 
         cam_ket_cac_node: List[Dict[str, Any]] = []
         node_hop_le: List[str] = []
+        tong_xac_minh_ms = 0.0
 
         # 2. Pipeline Pass qua các Node CPU
         for node in self.danh_sach_node:
@@ -363,11 +609,13 @@ class DieuPhoiSwarmCPU:
 
             if xac_minh_proof and proof:
                 # Xác thực tính trung thực của Node
+                t_ver_start = time.perf_counter()
                 hop_le = XacThucSuyLuanMaoHiem.xac_minh_cam_ket(
                     cam_ket=proof,
                     tensor_dau_vao=h_state,
                     tensor_dau_ra=h_next,
                 )
+                tong_xac_minh_ms += (time.perf_counter() - t_ver_start) * 1000.0
                 if not hop_le:
                     raise PermissionError(f"Phát hiện Node gian lận Byzantine trong cụm Swarm: {node.node_id}")
                 cam_ket_cac_node.append(proof)
@@ -406,10 +654,32 @@ class DieuPhoiSwarmCPU:
                 "tong_thoi_gian_ms": round(dt * 1000.0, 2),
                 "tinh_toan_cpu_ms": round(tong_cpu_ms, 2),
                 "truyen_tai_mang_lan_ms": round(tong_mang_ms, 2),
+                "xac_minh_mat_ma_ms": round(tong_xac_minh_ms, 2),
             },
         }
         self.nhat_ky_kiem_toan.append(nhat_ky)
         return nhat_ky
+
+    def phan_manh_mo_hinh_gguf(self, duong_dan_gguf: str) -> Dict[str, Any]:
+        """
+        Tự động phân bổ các phân mảnh trọng số từ tệp GGUF tới toàn bộ các node CPU trong cụm.
+        """
+        from vietnamese_ai.export.gguf import XuatGGUF
+
+        loader = XuatGGUF()
+        meta = loader.doc_metadata(duong_dan_gguf)
+
+        ket_qua_phan_manh: List[Dict[str, Any]] = []
+        for node in self.danh_sach_node:
+            kq_node = node.nap_trong_so_gguf(duong_dan_gguf)
+            ket_qua_phan_manh.append(kq_node)
+
+        return {
+            "duong_dan_gguf": duong_dan_gguf,
+            "tong_so_tensors": meta["n_tensors"],
+            "danh_sach_node": ket_qua_phan_manh,
+            "trang_thai": "da_phan_manh_thanh_cong",
+        }
 
     def suy_luan_streaming(self, prompt: str, so_token: int = 12) -> Generator[str, None, None]:
         """Sinh tokens dạng streaming thời gian thực từ cụm Swarm."""
