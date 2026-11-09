@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Framework AI thuần tiếng Việt cho Python - Học máy đơn giản, API tiếng Việt, Production-ready">
+        <meta name="description" content="Framework AI thuần tiếng Việt cho Python - Micro-Core, Swarm CPU Sharding, Verifiable AI, Legal RAG">
       
       
       
@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -55,6 +55,8 @@
     
       <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -71,7 +73,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -92,7 +94,9 @@
     
       
 
-<header class="md-header" data-md-component="header">
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Đầu trang">
     <a href="../.." title="Vietnamese AI Framework" class="md-header__button md-logo" aria-label="Vietnamese AI Framework" data-md-component="logo">
       
@@ -127,7 +131,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Chế độ tối"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ tối"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Chế độ tối" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -137,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Chế độ sáng"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ sáng"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Chế độ sáng" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -209,14 +213,8 @@
     
   </nav>
   
-</header>
     
-    <div class="md-container" data-md-component="container">
       
-      
-        
-          
-            
 <nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
@@ -268,11 +266,31 @@
     
     
       <li class="md-tabs__item">
+        <a href="../../guides/swarm-cpu/" class="md-tabs__link">
+          
+  
+  
+  Trụ cột Chiến lược v31
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
         <a href="../../guides/classification/" class="md-tabs__link">
           
   
   
-  Hướng dẫn
+  Hướng dẫn Cốt lõi
 
         </a>
       </li>
@@ -307,6 +325,26 @@
   
   
   
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/v12-agents/" class="md-tabs__link">
+          
+  
+  
+  Lịch sử Phiên bản
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
     <li class="md-tabs__item">
       <a href="../../changelog/" class="md-tabs__link">
         
@@ -324,7 +362,13 @@
     </ul>
   </div>
 </nav>
-          
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
         
       
       <main class="md-main" data-md-component="main">
@@ -542,7 +586,7 @@
   <span class="md-ellipsis">
     
   
-    Hướng dẫn
+    Trụ cột Chiến lược v31
   
 
     
@@ -558,7 +602,264 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Hướng dẫn
+    Trụ cột Chiến lược v31
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/swarm-cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm CPU & LAN Parallelism
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/verifiable-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifiable AI (Proof of Inference)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/vietnamese-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pháp lý & Hành chính
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/data-defense/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phòng thủ Dữ liệu & Khiên Đa lớp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/state-graph-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tác tử StateGraph & MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/datalake-16-datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hồ Dữ liệu 16 Tập (DataLake)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/comparative-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bảng So sánh Thực nghiệm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hướng dẫn Cốt lõi
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hướng dẫn Cốt lõi
   
 
           </label>
@@ -1208,6 +1509,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/trang-thai-v30/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trạng thái v30
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1240,10 +1569,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -1261,8 +1590,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2259,6 +2588,347 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lịch sử Phiên bản
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Lịch sử Phiên bản
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/v12-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v12 Tác tử (Agents)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/v13-edge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v13 Biên mạng (Edge)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/v14-advanced-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v14 RAG Nâng cao
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/v17-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v17 An ninh (Security)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/v18-v20-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v18-v20 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/v21-v23-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v21-v23 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/v27-hardware-extreme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v27 Phần cứng Cực hạn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v28_spatial_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v28 Spatial AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v29_mobile_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v29 Mobile AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v30_mobile_sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v30 Mobile SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../changelog/" class="md-nav__link">
         
@@ -2640,12 +3310,12 @@
 <h1 id="prompts-api-reference">Prompts API Reference<a class="headerlink" href="#prompts-api-reference" title="Permanent link">&para;</a></h1>
 <h2 id="mauprompt">MauPrompt<a class="headerlink" href="#mauprompt" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">MauPrompt</span><span class="p">:</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Quản lý prompt templates với biến và conditional logic.&quot;&quot;&quot;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="sd">"""Quản lý prompt templates với biến và conditional logic."""</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="n">mau</span><span class="p">,</span>                           <span class="c1"># str - Template string (dùng {{bien}})</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="n">ten</span><span class="o">=</span><span class="s2">&quot;custom&quot;</span><span class="p">,</span>                  <span class="c1"># str - Tên template</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="n">mo_ta</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>                      <span class="c1"># str - Mô tả</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="n">ten</span><span class="o">=</span><span class="s2">"custom"</span><span class="p">,</span>                  <span class="c1"># str - Tên template</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="n">mo_ta</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span>                      <span class="c1"># str - Mô tả</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="n">bien_mac_dinh</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>            <span class="c1"># Dict[str, str] - Giá trị mặc định</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="p">)</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
@@ -2653,7 +3323,7 @@
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">danh_sach_bien</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">co_bien</span><span class="p">(</span><span class="n">ten_bien</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">them_bien_mac_dinh</span><span class="p">(</span><span class="n">ten</span><span class="p">,</span> <span class="n">gia_tri</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">from_template</span><span class="p">(</span><span class="n">ten</span><span class="p">,</span> <span class="n">mau</span><span class="p">,</span> <span class="n">mo_ta</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MauPrompt</span>   <span class="c1"># classmethod</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">from_template</span><span class="p">(</span><span class="n">ten</span><span class="p">,</span> <span class="n">mau</span><span class="p">,</span> <span class="n">mo_ta</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MauPrompt</span>   <span class="c1"># classmethod</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">lay_template</span><span class="p">(</span><span class="n">ten</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MauPrompt</span><span class="p">]</span>          <span class="c1"># classmethod</span>
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">danh_sach_template</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span>                       <span class="c1"># classmethod</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">danh_sach_mau_mac_dinh</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span>                   <span class="c1"># classmethod</span>
@@ -2696,15 +3366,15 @@
 </tbody>
 </table>
 <h3 id="template-syntax">Template Syntax<a class="headerlink" href="#template-syntax" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">mau</span> <span class="o">=</span> <span class="n">MauPrompt</span><span class="p">(</span><span class="s2">&quot;Tóm tắt văn bản: {{noi_dung}} trong {{so_cau}} câu&quot;</span><span class="p">)</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">prompt</span> <span class="o">=</span> <span class="n">mau</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">noi_dung</span><span class="o">=</span><span class="s2">&quot;Văn bản...&quot;</span><span class="p">,</span> <span class="n">so_cau</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">mau</span> <span class="o">=</span> <span class="n">MauPrompt</span><span class="p">(</span><span class="s2">"Tóm tắt văn bản: {{noi_dung}} trong {{so_cau}} câu"</span><span class="p">)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">prompt</span> <span class="o">=</span> <span class="n">mau</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">noi_dung</span><span class="o">=</span><span class="s2">"Văn bản..."</span><span class="p">,</span> <span class="n">so_cau</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="danh_sach_mau_mac_dinh-returns"><code>danh_sach_mau_mac_dinh</code> Returns<a class="headerlink" href="#danh_sach_mau_mac_dinh-returns" title="Permanent link">&para;</a></h3>
 <p>Tạo và trả về các template mặc định: <code>tom_tat</code>, <code>phan_tich</code>, <code>dich_thuat</code>, <code>hoi_dap</code>, <code>sinh_code</code>, <code>phan_biet</code>.</p>
 <hr />
 <h2 id="chuoiprompt">ChuoiPrompt<a class="headerlink" href="#chuoiprompt" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">ChuoiPrompt</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Chain prompt - kết hợp nhiều prompt thành pipeline.&quot;&quot;&quot;</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="sd">"""Chain prompt - kết hợp nhiều prompt thành pipeline."""</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>        <span class="n">ham_sinh_mac_dinh</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>        <span class="c1"># Callable[[str], str]</span>
@@ -2713,7 +3383,7 @@
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">them_buoc</span><span class="p">(</span><span class="n">ten</span><span class="p">,</span> <span class="n">mau</span><span class="p">,</span> <span class="n">dieu_kien</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ChuoiPrompt</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">them_few_shot</span><span class="p">(</span><span class="n">dau_vao</span><span class="p">,</span> <span class="n">dau_ra</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ChuoiPrompt</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">thuc_hien</span><span class="p">(</span><span class="n">ham_sinh</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bien</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">tao_cot_prompt</span><span class="p">(</span><span class="n">cau_hoi</span><span class="p">,</span> <span class="n">ngu_canh</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">tao_cot_prompt</span><span class="p">(</span><span class="n">cau_hoi</span><span class="p">,</span> <span class="n">ngu_canh</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
 <a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">tao_few_shot_prompt</span><span class="p">(</span><span class="n">cau_hoi</span><span class="p">,</span> <span class="n">vi_du</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
 <a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">lay_lich_su</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span>
 </code></pre></div>
@@ -2721,17 +3391,17 @@
 <h4 id="them_buocten-mau-dieu_kiennone-chuoiprompt"><code>them_buoc(ten, mau, dieu_kien=None) -&gt; ChuoiPrompt</code><a class="headerlink" href="#them_buocten-mau-dieu_kiennone-chuoiprompt" title="Permanent link">&para;</a></h4>
 <p>Thêm một bước vào chain. <code>dieu_kien</code> là callable nhận context dict, trả về <code>bool</code>.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">chain</span> <span class="o">=</span> <span class="n">ChuoiPrompt</span><span class="p">()</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">chain</span><span class="o">.</span><span class="n">them_buoc</span><span class="p">(</span><span class="s2">&quot;phan_tich&quot;</span><span class="p">,</span> <span class="n">mau_phan_tich</span><span class="p">)</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">chain</span><span class="o">.</span><span class="n">them_buoc</span><span class="p">(</span><span class="s2">&quot;tom_tat&quot;</span><span class="p">,</span> <span class="n">mau_tom_tat</span><span class="p">)</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">chain</span><span class="o">.</span><span class="n">them_buoc</span><span class="p">(</span><span class="s2">"phan_tich"</span><span class="p">,</span> <span class="n">mau_phan_tich</span><span class="p">)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">chain</span><span class="o">.</span><span class="n">them_buoc</span><span class="p">(</span><span class="s2">"tom_tat"</span><span class="p">,</span> <span class="n">mau_tom_tat</span><span class="p">)</span>
 </code></pre></div>
 <h4 id="them_few_shotdau_vao-dau_ra-chuoiprompt"><code>them_few_shot(dau_vao, dau_ra) -&gt; ChuoiPrompt</code><a class="headerlink" href="#them_few_shotdau_vao-dau_ra-chuoiprompt" title="Permanent link">&para;</a></h4>
 <p>Thêm một ví dụ few-shot vào chain.</p>
 <h4 id="thuc_hienham_sinhnone-biennone-dict"><code>thuc_hien(ham_sinh=None, bien=None) -&gt; dict</code><a class="headerlink" href="#thuc_hienham_sinhnone-biennone-dict" title="Permanent link">&para;</a></h4>
 <p>Thực hiện toàn bộ chain.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="s2">&quot;ket_qua&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>              <span class="c1"># Kết quả cuối cùng</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="s2">&quot;buoc_thuc_hien&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>      <span class="c1"># Danh sách bước đã thực hiện</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="s2">&quot;so_buoc&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>              <span class="c1"># Số bước đã chạy</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="s2">"ket_qua"</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>              <span class="c1"># Kết quả cuối cùng</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="s2">"buoc_thuc_hien"</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>      <span class="c1"># Danh sách bước đã thực hiện</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="s2">"so_buoc"</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>              <span class="c1"># Số bước đã chạy</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">}</span>
 </code></pre></div>
 <h4 id="tao_cot_promptcau_hoi-ngu_canh-str"><code>tao_cot_prompt(cau_hoi, ngu_canh="") -&gt; str</code><a class="headerlink" href="#tao_cot_promptcau_hoi-ngu_canh-str" title="Permanent link">&para;</a></h4>
@@ -2741,14 +3411,14 @@
 <hr />
 <h2 id="luongantoan">LuongAnToan<a class="headerlink" href="#luongantoan" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">LuongAnToan</span><span class="p">:</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Guardrails cho LLM output - kiểm tra an toàn và chất lượng.&quot;&quot;&quot;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="sd">"""Guardrails cho LLM output - kiểm tra an toàn và chất lượng."""</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">__init</span><span class="p">(</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>        <span class="n">tu_cam</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>                   <span class="c1"># List[str] - Từ cấm</span>
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="n">toi_da_do_dai</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>           <span class="c1"># Độ dài tối đa</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="n">toi_thieu_do_dai</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>            <span class="c1"># Độ dài tối thiểu</span>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>        <span class="n">chan_pii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>                <span class="c1"># Chặn thông tin cá nhân</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="n">dinh_dang_yeu_cau</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>        <span class="c1"># &quot;json&quot;, &quot;markdown&quot;, &quot;code&quot;, &quot;number&quot;</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="n">dinh_dang_yeu_cau</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>        <span class="c1"># "json", "markdown", "code", "number"</span>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="n">rules</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>                    <span class="c1"># List[Callable] - Custom rules</span>
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="p">)</span>
 <a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>
@@ -2810,12 +3480,12 @@
 </table>
 <h3 id="kiem_tranoi_dung-dict"><code>kiem_tra(noi_dung) -&gt; dict</code><a class="headerlink" href="#kiem_tranoi_dung-dict" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="s2">&quot;an_toan&quot;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>             <span class="c1"># True nếu không có lỗi</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="s2">&quot;loi&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>                 <span class="c1"># Danh sách lỗi</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="s2">&quot;canh_bao&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>            <span class="c1"># Cảnh báo (PII, ...)</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="s2">&quot;so_loi&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="s2">&quot;so_canh_bao&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="s2">&quot;do_dai&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="s2">"an_toan"</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>             <span class="c1"># True nếu không có lỗi</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="s2">"loi"</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>                 <span class="c1"># Danh sách lỗi</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="s2">"canh_bao"</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>            <span class="c1"># Cảnh báo (PII, ...)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="s2">"so_loi"</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="s2">"so_canh_bao"</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="s2">"do_dai"</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
 <a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="p">}</span>
 </code></pre></div>
 <h3 id="loc_piinoi_dung-tuple"><code>loc_pii(noi_dung) -&gt; tuple</code><a class="headerlink" href="#loc_piinoi_dung-tuple" title="Permanent link">&para;</a></h3>
@@ -2823,7 +3493,7 @@
 <p><strong>Returns:</strong> <code>(noi_dung_da_loc, dict_pii_phat_hien)</code></p>
 <h3 id="custom-rule-format">Custom Rule Format<a class="headerlink" href="#custom-rule-format" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">rule</span><span class="p">(</span><span class="n">noi_dung</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="c1"># Trả về (True, &quot;&quot;) nếu OK, (False, &quot;lý do&quot;) nếu vi phạm</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="c1"># Trả về (True, "") nếu OK, (False, "lý do") nếu vi phạm</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="k">pass</span>
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">guardrail</span><span class="o">.</span><span class="n">them_rule</span><span class="p">(</span><span class="n">rule</span><span class="p">)</span>
@@ -2831,7 +3501,7 @@
 <hr />
 <h2 id="phantichdaura">PhanTichDauRa<a class="headerlink" href="#phantichdaura" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">PhanTichDauRa</span><span class="p">:</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Phân tích đầu ra có cấu trúc từ LLM.&quot;&quot;&quot;</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="sd">"""Phân tích đầu ra có cấu trúc từ LLM."""</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">phan_tich_json</span><span class="p">(</span><span class="n">van_ban</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">phan_tich_bang</span><span class="p">(</span><span class="n">van_ban</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span>
@@ -2846,12 +3516,12 @@
 <p>Parse JSON từ text. Tự động tìm JSON trong code block, <code>{...}</code>, hoặc <code>[...]</code>.</p>
 <h4 id="phan_tich_bangvan_ban-list"><code>phan_tich_bang(van_ban) -&gt; list</code><a class="headerlink" href="#phan_tich_bangvan_ban-list" title="Permanent link">&para;</a></h4>
 <p>Parse markdown table.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">[{</span><span class="s2">&quot;cot1&quot;</span><span class="p">:</span> <span class="s2">&quot;giá trị&quot;</span><span class="p">,</span> <span class="s2">&quot;cot2&quot;</span><span class="p">:</span> <span class="s2">&quot;giá trị&quot;</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">[{</span><span class="s2">"cot1"</span><span class="p">:</span> <span class="s2">"giá trị"</span><span class="p">,</span> <span class="s2">"cot2"</span><span class="p">:</span> <span class="s2">"giá trị"</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
 </code></pre></div>
 <h4 id="phan_tich_danh_sachvan_ban-list"><code>phan_tich_danh_sach(van_ban) -&gt; list</code><a class="headerlink" href="#phan_tich_danh_sachvan_ban-list" title="Permanent link">&para;</a></h4>
 <p>Parse numbered hoặc bulleted list. Trả về <code>List[str]</code>.</p>
 <h4 id="phan_tich_code_blocksvan_ban-list"><code>phan_tich_code_blocks(van_ban) -&gt; list</code><a class="headerlink" href="#phan_tich_code_blocksvan_ban-list" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">[{</span><span class="s2">&quot;ngon_ngu&quot;</span><span class="p">:</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;code&quot;</span><span class="p">:</span> <span class="s2">&quot;print(&#39;hello&#39;)&quot;</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="p">[{</span><span class="s2">"ngon_ngu"</span><span class="p">:</span> <span class="s2">"python"</span><span class="p">,</span> <span class="s2">"code"</span><span class="p">:</span> <span class="s2">"print('hello')"</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span>
 </code></pre></div>
 <h4 id="phan_tich_key_valuevan_ban-dict"><code>phan_tich_key_value(van_ban) -&gt; dict</code><a class="headerlink" href="#phan_tich_key_valuevan_ban-dict" title="Permanent link">&para;</a></h4>
 <p>Parse key-value pairs (định dạng <code>key: value</code>).</p>
@@ -2914,10 +3584,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0110\u00e3 sao ch\u00e9p", "clipboard.copy": "Sao ch\u00e9p v\u00e0o b\u1ed9 nh\u1edb t\u1ea1m", "search.result.more.one": "1 t\u1eeb kh\u00e1c trong trang", "search.result.more.other": "# t\u1eeb kh\u00e1c trong trang", "search.result.none": "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan", "search.result.one": "1 t\u00e0i li\u1ec7u li\u00ean quan", "search.result.other": "# t\u00e0i li\u1ec7u li\u00ean quan", "search.result.placeholder": "Nh\u1eadp \u0111\u1ec3 b\u1eaft \u0111\u1ea7u t\u00ecm ki\u1ebfm", "search.result.term.missing": "Kh\u00f4ng", "select.version": "Ch\u1ecdn phi\u00ean b\u1ea3n"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "\u0110\u00e3 sao ch\u00e9p", "clipboard.copy": "Sao ch\u00e9p v\u00e0o b\u1ed9 nh\u1edb t\u1ea1m", "search.result.more.one": "1 t\u1eeb kh\u00e1c trong trang", "search.result.more.other": "# t\u1eeb kh\u00e1c trong trang", "search.result.none": "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan", "search.result.one": "1 t\u00e0i li\u1ec7u li\u00ean quan", "search.result.other": "# t\u00e0i li\u1ec7u li\u00ean quan", "search.result.placeholder": "Nh\u1eadp \u0111\u1ec3 b\u1eaft \u0111\u1ea7u t\u00ecm ki\u1ebfm", "search.result.term.missing": "Kh\u00f4ng", "select.version": "Ch\u1ecdn phi\u00ean b\u1ea3n"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>
