@@ -9,9 +9,25 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
+
+try:
+    import vietnamese_ai_rust as _rust_core  # type: ignore
+    _CO_RUST = True
+except ImportError:
+    try:
+        from vietnamese_ai import vietnamese_ai_rust as _rust_core  # type: ignore
+        _CO_RUST = True
+    except ImportError:
+        _rust_core = None
+        _CO_RUST = False
+
+
+def co_ho_tro_rust() -> bool:
+    """Kiểm tra xem hệ thống đã nạp và sẵn sàng mô-đun Rust Native Acceleration (Rayon multi-threading) hay chưa."""
+    return _CO_RUST and _rust_core is not None
 
 
 class BoTachTuTiengVietSieuToc:
@@ -86,6 +102,11 @@ class BoTachTuTiengVietSieuToc:
         """Chuẩn hóa văn bản sang dạng Unicode NFC và loại bỏ ký tự điều khiển ẩn."""
         if not van_ban:
             return ""
+        if _rust_core is not None:
+            try:
+                van_ban = _rust_core.fast_clean_spaces(van_ban)
+            except Exception:
+                pass
         vb = unicodedata.normalize("NFC", van_ban)
         vb = self._re_spaces.sub(" ", vb).strip()
         return vb
@@ -163,9 +184,34 @@ class BoTachTuTiengVietSieuToc:
 
         return ket_qua
 
-    def dem_so_tu(self, van_ban: str) -> int:
-        """Đếm số lượng từ/token tiếng Việt với tốc độ cao."""
-        return len(self.tach_tu(van_ban, noi_tu_ghep=True))
+    def dem_so_tu(self, van_ban: str, noi_tu_ghep: bool = True, su_dung_rust: bool = True) -> int:
+        """Đếm số lượng từ/token tiếng Việt với tốc độ cao (hỗ trợ tăng tốc Rayon đa luồng qua Rust Core khi đếm từ thô)."""
+        if not noi_tu_ghep and su_dung_rust and _rust_core is not None and len(van_ban) > 100:
+            try:
+                return int(_rust_core.fast_token_count(van_ban))
+            except Exception:
+                pass
+        return len(self.tach_tu(van_ban, noi_tu_ghep=noi_tu_ghep))
+
+    def tim_tu_khoa_nhanh(self, van_ban: str, tu_khoa: str) -> List[int]:
+        """Tìm nhanh tất cả vị trí byte xuất hiện của từ khóa bằng Rust SIMD hoặc thuật toán chuỗi Python."""
+        if not van_ban or not tu_khoa:
+            return []
+        if _rust_core is not None:
+            try:
+                return _rust_core.fast_keyword_search(van_ban, tu_khoa)
+            except Exception:
+                pass
+        # Fallback thuần Python
+        indices: List[int] = []
+        start = 0
+        while True:
+            idx = van_ban.find(tu_khoa, start)
+            if idx == -1:
+                break
+            indices.append(idx)
+            start = idx + len(tu_khoa)
+        return indices
 
 
 class BoNhungVanBanSieuToc:
@@ -227,8 +273,54 @@ class BoNhungVanBanSieuToc:
         v2 = self.nhung(vb2)
         return float(np.dot(v1, v2))
 
+    def tim_kiem_tuong_dong_hang_loat(
+        self,
+        query_vec: Union[np.ndarray, List[float]],
+        ma_tran_vectors: Union[np.ndarray, List[List[float]]],
+    ) -> np.ndarray:
+        """
+        Tính toán Cosine Similarity hàng loạt trên đa lõi CPU (Rust Rayon / NumPy SIMD).
+
+        Tham số:
+            query_vec: Vector truy vấn (1D).
+            ma_tran_vectors: Ma trận chứa tập hợp các vector cơ sở dữ liệu (2D).
+
+        Trả về:
+            Mảng 1D chứa điểm tương đồng cosine của từng vector.
+        """
+        if len(ma_tran_vectors) == 0:
+            return np.zeros(0, dtype=np.float32)
+
+        if _rust_core is not None:
+            try:
+                q_list = query_vec.tolist() if isinstance(query_vec, np.ndarray) else list(query_vec)
+                m_list = ma_tran_vectors.tolist() if isinstance(ma_tran_vectors, np.ndarray) else [list(v) for v in ma_tran_vectors]
+                res = _rust_core.fast_batch_cosine_similarity(q_list, m_list)
+                return np.array(res, dtype=np.float32)
+            except Exception:
+                pass
+
+        # Fallback thuần NumPy
+        q = np.asarray(query_vec, dtype=np.float32)
+        m = np.asarray(ma_tran_vectors, dtype=np.float32)
+        q_norm = np.linalg.norm(q)
+        m_norms = np.linalg.norm(m, axis=1)
+        dots = np.dot(m, q)
+        denom = q_norm * m_norms
+        denom = np.where(denom < 1e-9, 1.0, denom)
+        return np.asarray(dots / denom, dtype=np.float32)
+
 
 # Aliases tương thích quốc tế
 FastVietnameseTokenizer = BoTachTuTiengVietSieuToc
 NativeVietnameseTokenizer = BoTachTuTiengVietSieuToc
 FastVietnameseEmbedder = BoNhungVanBanSieuToc
+
+__all__ = [
+    "BoTachTuTiengVietSieuToc",
+    "FastVietnameseTokenizer",
+    "NativeVietnameseTokenizer",
+    "BoNhungVanBanSieuToc",
+    "FastVietnameseEmbedder",
+    "co_ho_tro_rust",
+]

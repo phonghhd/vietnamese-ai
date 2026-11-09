@@ -193,9 +193,13 @@ class BoToiUuNguCanhHanhChinh:
         cau_hoi: str,
         cac_chunks: List[Dict[str, Any]],
         top_k: int = 3,
+        trong_so_hybrid: float = 0.5,
     ) -> List[Dict[str, Any]]:
         """
         Tìm kiếm các đoạn văn bản pháp lý/hành chính có độ liên quan cao nhất kèm điểm tin cậy.
+
+        Sử dụng cơ chế Hybrid Retrieval: Kết hợp Dense Semantic Vector + Lexical BM25 Matching
+        giúp nhận diện chuẩn xác cả ngữ cảnh ngữ nghĩa lẫn từ khóa căn cứ (Điều, Khoản, thuật ngữ).
         """
         if not cac_chunks:
             return []
@@ -216,13 +220,41 @@ class BoToiUuNguCanhHanhChinh:
                 ]
 
         q_vec = self.embedder.nhung(cau_hoi)
+        q_tokens = [t.lower() for t in self.embedder.tokenizer.tach_tu(cau_hoi, noi_tu_ghep=True)]
         scored: List[Tuple[float, Dict[str, Any]]] = []
+
+        k1 = 1.5
+        b = 0.75
+        avgdl = 50.0
 
         for c in cac_chunks:
             vec = c.get("vector")
             if vec is None:
                 vec = self.embedder.nhung(c["ngu_canh_day_du"])
-            score = float(np.dot(q_vec, vec))
+            sem_score = float(np.dot(q_vec, vec))
+
+            if trong_so_hybrid > 0:
+                c_tokens = c.get("_tokens")
+                if c_tokens is None:
+                    c_text = c.get("ngu_canh_day_du") or c.get("noi_dung", "")
+                    c_tokens = [t.lower() for t in self.embedder.tokenizer.tach_tu(c_text, noi_tu_ghep=True)]
+                    c["_tokens"] = c_tokens
+
+                doc_len = len(c_tokens)
+                doc_counts: Dict[str, int] = {}
+                for t in c_tokens:
+                    doc_counts[t] = doc_counts.get(t, 0) + 1
+
+                bm25 = 0.0
+                for qt in q_tokens:
+                    if qt in doc_counts:
+                        tf = doc_counts[qt]
+                        bm25 += (tf * (k1 + 1.0)) / (tf + k1 * (1.0 - b + b * (doc_len / avgdl)))
+                bm25_norm = bm25 / (bm25 + 5.0)
+                score = (1.0 - trong_so_hybrid) * sem_score + trong_so_hybrid * bm25_norm
+            else:
+                score = sem_score
+
             scored.append((score, c))
 
         scored.sort(key=lambda x: x[0], reverse=True)

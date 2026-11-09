@@ -15,6 +15,7 @@ _LAZY = {
     "NativeVietnameseTokenizer": ("vietnamese_ai.nlp.native_tokenizer", "NativeVietnameseTokenizer"),
     "BoNhungVanBanSieuToc": ("vietnamese_ai.nlp.native_tokenizer", "BoNhungVanBanSieuToc"),
     "FastVietnameseEmbedder": ("vietnamese_ai.nlp.native_tokenizer", "FastVietnameseEmbedder"),
+    "co_ho_tro_rust": ("vietnamese_ai.nlp.native_tokenizer", "co_ho_tro_rust"),
 }
 
 __all__ = list(_LAZY.keys())
