@@ -11,6 +11,11 @@ from .native_inference import (
 )
 from .node_llama import NodeLlamaEngine
 from .p2p_network import P2PTracker, TokenLedger
+from .swarm_auth import (
+    XacThucCumSwarm,
+    phat_hien_ip_tailscale,
+    tao_ma_pin_ngau_nhien,
+)
 from .swarm_inference import (
     DieuPhoiSwarmCPU,
     NutSwarmCPU,
@@ -41,4 +46,7 @@ __all__ = [
     "SwarmCPUNode",
     "DieuPhoiSwarmCPU",
     "SwarmInferenceOrchestrator",
+    "XacThucCumSwarm",
+    "phat_hien_ip_tailscale",
+    "tao_ma_pin_ngau_nhien",
 ]

@@ -188,6 +188,11 @@ Ví dụ sử dụng:
     swarm_parser.add_argument("--tokens", type=int, default=16, help="Số token tối đa cần sinh")
     swarm_parser.add_argument("--verify", action="store_true", default=True, help="Bật xác thực mật mã học Merkle Tree & zkML")
     swarm_parser.add_argument("--bench", action="store_true", help="Hiển thị bảng đo lường hiệu năng Swarm")
+    swarm_parser.add_argument("--host", action="store_true", help="Khởi chạy máy chủ Master lắng nghe gia nhập cụm Swarm")
+    swarm_parser.add_argument("--join", default=None, help="Gia nhập cụm máy chủ qua địa chỉ IP:PORT")
+    swarm_parser.add_argument("--port", type=int, default=9999, help="Cổng TCP Socket lắng nghe (mặc định: 9999)")
+    swarm_parser.add_argument("--pin", default=None, help="Mã PIN bảo mật xác thực cụm Zero-Trust")
+    swarm_parser.add_argument("--tailscale", action="store_true", help="Tự động phát hiện và liên kết qua mạng Tailscale")
 
     # === VERIFY (VERIFIABLE INFERENCE AUDIT) ===
     verify_parser = subparsers.add_parser(
@@ -860,6 +865,72 @@ def cmd_swarm(args):
     """Xử lý lệnh `vai swarm` (Suy luận bầy đàn phân tán trên CPU văn phòng)."""
     import time
 
+    import numpy as np
+
+    # 1. Chế độ Máy Chủ Lắng Nghe (Host / Master Node)
+    if getattr(args, "host", False):
+        from vietnamese_ai.edge.swarm_auth import phat_hien_ip_tailscale, tao_ma_pin_ngau_nhien
+        from vietnamese_ai.edge.swarm_inference import NutSwarmCPU
+
+        ip_ts = phat_hien_ip_tailscale() if getattr(args, "tailscale", False) else None
+        host = "0.0.0.0"
+        port = getattr(args, "port", 9999)
+        pin = getattr(args, "pin", None) or tao_ma_pin_ngau_nhien(6)
+
+        print("======================================================================")
+        print("🌐 MÁY CHỦ CỤM SWARM CPU (MASTER NODE) ĐANG KHỞI ĐỘNG...")
+        print("======================================================================")
+        if ip_ts:
+            print(f"📍 IP Tailscale WireGuard: {ip_ts}:{port}")
+        else:
+            print(f"📍 Lắng nghe trên mọi mạng: 0.0.0.0:{port}")
+        print(f"🔑 Mã PIN bảo mật Zero-Trust: {pin}")
+        print("\n⚡ Đang chờ các máy worker gia nhập cụm...")
+        join_ip = ip_ts if ip_ts else "127.0.0.1"
+        print("👉 Trên máy worker, chỉ cần gõ:")
+        print(f"   vietnamese-ai swarm --join {join_ip}:{port} --pin {pin}\n")
+
+        server = NutSwarmCPU(node_id="master_server", dai_layer=(0, 4), ma_pin=pin)
+        server.khoi_dong_server_lan(host=host, port=port, ma_pin=pin)
+        try:
+            while True:
+                time.sleep(1.0)
+        except KeyboardInterrupt:
+            print("\nĐang dừng máy chủ Swarm...")
+            server.dung_server_lan()
+        return
+
+    # 2. Chế độ Máy Con Gia Nhập (Join / Worker Node)
+    endpoint = getattr(args, "join", None)
+    if endpoint:
+        from vietnamese_ai.edge.swarm_inference import NutSwarmCPU
+
+        pin = getattr(args, "pin", None)
+        if not pin:
+            print("⚠️ Cảnh báo: Bạn chưa chỉ định --pin. Bắt tay xác thực có thể bị máy chủ từ chối.")
+        print(f"🔍 Đang kiểm tra kết nối tới cụm Swarm tại {endpoint}...")
+        worker = NutSwarmCPU(
+            node_id="worker_cli",
+            dai_layer=(0, 4),
+            endpoint_url=endpoint,
+            che_do="mang_vat_ly_lan",
+            ma_pin=pin,
+        )
+        x_dummy = np.ones((1, 128), dtype=np.float32)
+        try:
+            x_out, proof = worker.thuc_thi_layer(x_dummy, tao_proof=True)
+            print("✅ Bắt tay xác thực và kết nối thành công tới cụm Swarm!")
+            print("  * Trạng thái xác thực: ĐÃ ĐƯỢC CẤP PHÉP")
+            if proof and "proof_zk" in proof:
+                print(f"  * Bằng chứng Verifiable AI: {proof['proof_zk'][:32]}...")
+            print(f"  * Độ trễ kết nối mạng: {worker.thoi_gian_mang_gan_nhat_ms:.2f}ms")
+        except PermissionError as e:
+            print(f"❌ Xác thực thất bại: {e}")
+        except Exception as e:
+            print(f"❌ Không thể kết nối tới {endpoint}: {e}")
+        return
+
+    # 3. Chế độ Giả Lập Cụm Tính Toán Mặc Định
     from vietnamese_ai.edge.swarm_inference import DieuPhoiSwarmCPU
 
     so_node = getattr(args, "nodes", 3)

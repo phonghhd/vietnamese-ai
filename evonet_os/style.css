@@ -418,3 +418,256 @@ body {
 .voice-controls button {
     flex: 1;
 }
+
+/* Swarm CPU & Tailscale Hub Styles */
+.swarm-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.swarm-network-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #10b981;
+}
+
+.dot-online {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #10b981;
+    animation: pulse 1.8s infinite;
+}
+
+.ip-badge {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #e2e8f0;
+}
+
+.swarm-pin-card {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.pin-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #818cf8;
+    margin-bottom: 6px;
+}
+
+.pin-display-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.pin-code {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    font-family: monospace;
+    color: #38bdf8;
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.pin-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+}
+
+.swarm-topology-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.swarm-node-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.swarm-node-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.swarm-node-card.master {
+    border-left: 3px solid #3b82f6;
+}
+
+.swarm-node-card.worker {
+    border-left: 3px solid #10b981;
+}
+
+.node-icon {
+    font-size: 18px;
+    color: #94a3b8;
+}
+
+.node-info {
+    flex: 1;
+}
+
+.node-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.node-meta {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.node-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    font-weight: 600;
+}
+
+.swarm-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.swarm-actions button {
+    flex: 1;
+}
+
+/* Modal Approval Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+.approval-modal-box {
+    width: 440px;
+    background: #0f172a;
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(234, 179, 8, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+    animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+    background: rgba(234, 179, 8, 0.15);
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #facc15;
+    border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.modal-body {
+    padding: 16px;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.device-card {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+}
+
+.device-name {
+    font-weight: 600;
+    color: #38bdf8;
+    margin-bottom: 4px;
+}
+
+.device-ip, .device-specs {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.device-auth {
+    font-size: 11px;
+    color: #10b981;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.text-hint {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 8px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(15, 23, 42, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.os-btn.danger {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.os-btn.danger:hover {
+    background: #dc2626;
+}

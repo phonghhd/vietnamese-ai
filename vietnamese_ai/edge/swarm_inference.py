@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import json
 import logging
 import socket
@@ -19,6 +20,11 @@ from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import numpy as np
 
+from vietnamese_ai.edge.swarm_auth import (
+    XacThucCumSwarm,
+    phat_hien_ip_tailscale,
+    tao_ma_pin_ngau_nhien,
+)
 from vietnamese_ai.nlp.native_tokenizer import BoNhungVanBanSieuToc, BoTachTuTiengVietSieuToc
 from vietnamese_ai.security.verifiable_inference import XacThucSuyLuanMaoHiem
 
@@ -43,6 +49,8 @@ class NutSwarmCPU:
         endpoint_url: Optional[str] = None,
         che_do: str = "gia_lap_cuc_bo",
         do_tre_mang_co_dinh_ms: float = 0.0,
+        ma_pin: Optional[str] = None,
+        yeu_cau_phe_duyet: bool = False,
     ):
         self.node_id = node_id
         self.dai_layer = dai_layer  # (start_layer, end_layer)
@@ -57,6 +65,13 @@ class NutSwarmCPU:
         self.thoi_gian_mang_gan_nhat_ms: float = 0.0
         self.duong_dan_gguf_shard: Optional[str] = None
         self.checksum_trong_so_sha256: str = ""
+        self.ma_pin = ma_pin
+        self.yeu_cau_phe_duyet = yeu_cau_phe_duyet
+        self.xac_thuc: Optional[XacThucCumSwarm] = (
+            XacThucCumSwarm(ma_pin=ma_pin, yeu_cau_phe_duyet=yeu_cau_phe_duyet)
+            if ma_pin is not None
+            else None
+        )
 
         # Quản lý Socket Server LAN cục bộ nếu nút này là máy chủ vật lý
         self._server_lan: Optional[asyncio.Server] = None
@@ -138,19 +153,48 @@ class NutSwarmCPU:
             thong_tin={"name": f"SwarmShard_{self.node_id}", "layers": f"{self.dai_layer}"},
         )
 
-    def khoi_dong_server_lan(self, host: str = "127.0.0.1", port: int = 8890) -> None:
+    def khoi_dong_server_lan(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8890,
+        ma_pin: Optional[str] = None,
+        yeu_cau_phe_duyet: Optional[bool] = None,
+    ) -> None:
         """
-        Khởi động máy chủ TCP Socket lắng nghe suy luận phân tán trên máy vật lý LAN.
-        Hoạt động phi đồng bộ trong luồng ngầm (background thread).
+        Khởi động máy chủ TCP Socket lắng nghe suy luận phân tán trên máy vật lý LAN/Tailscale.
+        Hoạt động phi đồng bộ trong luồng ngầm (background thread) kèm xác thực Zero-Trust.
         """
         if self._server_thread is not None and self._server_thread.is_alive():
             return
+
+        if ma_pin is not None:
+            self.ma_pin = ma_pin
+            self.xac_thuc = XacThucCumSwarm(
+                ma_pin=ma_pin,
+                yeu_cau_phe_duyet=self.yeu_cau_phe_duyet if yeu_cau_phe_duyet is None else yeu_cau_phe_duyet,
+            )
+        elif yeu_cau_phe_duyet is not None and self.xac_thuc is not None:
+            self.xac_thuc.yeu_cau_phe_duyet = yeu_cau_phe_duyet
 
         def _run_server():
             self._server_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._server_loop)
 
             async def _handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+                client_peer = writer.get_extra_info("peername")
+                client_ip = client_peer[0] if client_peer else "127.0.0.1"
+
+                # Chống tấn công vét cạn brute-force: kiểm tra nếu IP bị tạm khóa
+                if self.xac_thuc and self.xac_thuc.kiem_tra_ip_bi_khoa(client_ip):
+                    err_res = {"trang_thai": "bi_khoa", "ly_do": "IP bị tạm khóa do thử sai mã PIN quá nhiều lần"}
+                    err_bytes = json.dumps(err_res).encode("utf-8")
+                    writer.write(struct.pack("!I", len(err_bytes)) + err_bytes)
+                    await writer.drain()
+                    writer.close()
+                    return
+
+                client_authenticated = (self.xac_thuc is None)
+
                 try:
                     while True:
                         raw_header_len = await reader.read(4)
@@ -159,6 +203,79 @@ class NutSwarmCPU:
                         header_len = struct.unpack("!I", raw_header_len)[0]
                         header_bytes = await reader.readexactly(header_len)
                         req_meta = json.loads(header_bytes.decode("utf-8"))
+
+                        loai_req = req_meta.get("loai")
+
+                        if loai_req == "auth_challenge_req":
+                            if self.xac_thuc is None:
+                                res_meta = {"trang_thai": "thanh_cong", "token": "no_auth_required"}
+                            else:
+                                nonce = self.xac_thuc.tao_thach_thuc()
+                                res_meta = {"trang_thai": "challenge", "nonce": nonce}
+                            res_bytes = json.dumps(res_meta, ensure_ascii=False).encode("utf-8")
+                            writer.write(struct.pack("!I", len(res_bytes)) + res_bytes)
+                            await writer.drain()
+                            continue
+
+                        elif loai_req == "auth_response":
+                            if self.xac_thuc is None:
+                                client_authenticated = True
+                                res_meta = {"trang_thai": "thanh_cong", "token": "no_auth_required"}
+                            else:
+                                nonce = req_meta.get("nonce", "")
+                                chu_ky = req_meta.get("chu_ky", "")
+                                node_id_client = req_meta.get("node_id", "khach")
+
+                                hop_le = self.xac_thuc.xac_minh_thach_thuc(nonce, chu_ky)
+                                if not hop_le:
+                                    da_khoa = self.xac_thuc.ghi_nhan_that_bai(client_ip)
+                                    res_meta = {
+                                        "trang_thai": "that_bai",
+                                        "ly_do": "Mã PIN xác thực không chính xác" + (" (IP đã bị tạm khóa)" if da_khoa else ""),
+                                    }
+                                    res_bytes = json.dumps(res_meta, ensure_ascii=False).encode("utf-8")
+                                    writer.write(struct.pack("!I", len(res_bytes)) + res_bytes)
+                                    await writer.drain()
+                                    writer.close()
+                                    return
+
+                                self.xac_thuc.xoa_lich_su_that_bai(client_ip)
+
+                                if self.xac_thuc.yeu_cau_phe_duyet:
+                                    thong_tin_nut = req_meta.get("thong_tin", {})
+                                    fut = self.xac_thuc.dang_ky_cho_duyet(node_id_client, client_ip, thong_tin_nut, loop=self._server_loop)
+                                    try:
+                                        duoc_duyet = await asyncio.wait_for(fut, timeout=10.0)
+                                    except asyncio.TimeoutError:
+                                        duoc_duyet = False
+
+                                    if not duoc_duyet:
+                                        res_meta = {"trang_thai": "that_bai", "ly_do": "Chủ máy chủ đã từ chối yêu cầu gia nhập cụm"}
+                                        res_bytes = json.dumps(res_meta, ensure_ascii=False).encode("utf-8")
+                                        writer.write(struct.pack("!I", len(res_bytes)) + res_bytes)
+                                        await writer.drain()
+                                        writer.close()
+                                        return
+
+                                token = self.xac_thuc.tao_session_token(node_id_client, client_ip)
+                                client_authenticated = True
+                                res_meta = {"trang_thai": "thanh_cong", "token": token}
+
+                            res_bytes = json.dumps(res_meta, ensure_ascii=False).encode("utf-8")
+                            writer.write(struct.pack("!I", len(res_bytes)) + res_bytes)
+                            await writer.drain()
+                            continue
+
+                        # Đối với yêu cầu tính toán tensor ("forward")
+                        if self.xac_thuc is not None:
+                            token = req_meta.get("token")
+                            if not client_authenticated and not (token and self.xac_thuc.xac_minh_session_token(token)):
+                                res_meta = {"trang_thai": "that_bai", "ly_do": "Chưa được xác thực (Unauthorized)"}
+                                res_bytes = json.dumps(res_meta, ensure_ascii=False).encode("utf-8")
+                                writer.write(struct.pack("!I", len(res_bytes)) + res_bytes)
+                                await writer.drain()
+                                writer.close()
+                                return
 
                         tensor_len = req_meta.get("tensor_bytes", 0)
                         shape = tuple(req_meta.get("shape", [1, self.d_model]))
@@ -225,13 +342,19 @@ class NutSwarmCPU:
             self._server_thread.join(timeout=1.0)
             self._server_thread = None
 
+    def phe_duyet_nut(self, nut_id: str, cho_phep: bool = True) -> bool:
+        """Phê duyệt hoặc từ chối thiết bị đang chờ gia nhập cụm (One-Click Approval)."""
+        if self.xac_thuc is not None:
+            return self.xac_thuc.phe_duyet_nut(nut_id, cho_phep)
+        return False
+
     def _truyen_tai_qua_socket_lan(
         self,
         hidden_states: np.ndarray,
         tao_proof: bool = True,
         timeout: float = 5.0,
     ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
-        """Truyền tensor qua socket TCP tới máy tính vật lý trong mạng LAN."""
+        """Truyền tensor qua socket TCP tới máy tính vật lý trong mạng LAN/Tailscale."""
         t_net_start = time.perf_counter()
         endpoint = str(self.endpoint_url or "")
         url = endpoint.replace("tcp://", "").replace("http://", "")
@@ -241,23 +364,88 @@ class NutSwarmCPU:
         else:
             host, port = url, 8890
 
-        x_arr = np.asarray(hidden_states, dtype=np.float32)
-        raw_x = x_arr.tobytes()
-        req_meta = {
-            "loai": "forward",
-            "node_id": self.node_id,
-            "shape": list(x_arr.shape),
-            "tensor_bytes": len(raw_x),
-            "tao_proof": tao_proof,
-        }
-        meta_bytes = json.dumps(req_meta).encode("utf-8")
-
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.settimeout(timeout)
             sock.connect((host, port))
+
+            session_token: Optional[str] = None
+
+            # Bắt tay xác thực HMAC nếu nút này hoặc cụm được cấu hình mã PIN
+            if self.ma_pin is not None:
+                # 1. Yêu cầu Challenge
+                auth_req = {"loai": "auth_challenge_req"}
+                auth_req_b = json.dumps(auth_req).encode("utf-8")
+                sock.sendall(struct.pack("!I", len(auth_req_b)) + auth_req_b)
+
+                raw_len = sock.recv(4)
+                if not raw_len or len(raw_len) < 4:
+                    raise ConnectionResetError("Máy chủ ngắt kết nối khi đang bắt tay xác thực")
+                h_len = struct.unpack("!I", raw_len)[0]
+                ch_meta = json.loads(sock.recv(h_len).decode("utf-8"))
+
+                if ch_meta.get("trang_thai") == "challenge":
+                    nonce = ch_meta["nonce"]
+                    # Tính chữ ký HMAC với mã PIN
+                    key = str(self.ma_pin).encode("utf-8")
+                    msg = nonce.encode("utf-8")
+                    chu_ky = hmac.new(key, msg, hashlib.sha256).hexdigest()
+
+                    resp_req = {
+                        "loai": "auth_response",
+                        "node_id": self.node_id,
+                        "nonce": nonce,
+                        "chu_ky": chu_ky,
+                        "thong_tin": {"so_core_cpu": self.so_core_cpu, "ram_mb": self.ram_mb},
+                    }
+                    resp_req_b = json.dumps(resp_req).encode("utf-8")
+                    sock.sendall(struct.pack("!I", len(resp_req_b)) + resp_req_b)
+
+                    raw_len = sock.recv(4)
+                    if not raw_len or len(raw_len) < 4:
+                        raise ConnectionResetError("Máy chủ từ chối phản hồi xác thực")
+                    h_len = struct.unpack("!I", raw_len)[0]
+                    res_auth = json.loads(sock.recv(h_len).decode("utf-8"))
+
+                    if res_auth.get("trang_thai") != "thanh_cong":
+                        raise PermissionError(f"Xác thực cụm Swarm thất bại: {res_auth.get('ly_do')}")
+                    session_token = res_auth.get("token")
+
+            x_arr = np.asarray(hidden_states, dtype=np.float32)
+            raw_x = x_arr.tobytes()
+            req_meta = {
+                "loai": "forward",
+                "node_id": self.node_id,
+                "shape": list(x_arr.shape),
+                "tensor_bytes": len(raw_x),
+                "tao_proof": tao_proof,
+                "token": session_token,
+            }
+            meta_bytes = json.dumps(req_meta).encode("utf-8")
             sock.sendall(struct.pack("!I", len(meta_bytes)) + meta_bytes + raw_x)
 
             raw_len = sock.recv(4)
+            if not raw_len or len(raw_len) < 4:
+                raise ConnectionResetError(f"Máy chủ {host}:{port} ngắt kết nối khi đang nhận phản hồi")
+            resp_header_len = struct.unpack("!I", raw_len)[0]
+            resp_meta_bytes = sock.recv(resp_header_len)
+            resp_meta = json.loads(resp_meta_bytes.decode("utf-8"))
+
+            if resp_meta.get("trang_thai") != "thanh_cong":
+                raise RuntimeError(f"Lỗi suy luận từ node vật lý {self.node_id}: {resp_meta.get('ly_do', 'Không xác định')}")
+
+            tensor_len = resp_meta.get("tensor_bytes", 0)
+            tensor_shape = tuple(resp_meta.get("shape", list(x_arr.shape)))
+            raw_tensor = bytearray()
+            while len(raw_tensor) < tensor_len:
+                chunk = sock.recv(min(65536, tensor_len - len(raw_tensor)))
+                if not chunk:
+                    break
+                raw_tensor.extend(chunk)
+
+            out_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(tensor_shape)
+            self.thoi_gian_tinh_toan_gan_nhat_ms = float(resp_meta.get("thoi_gian_cpu_ms", 0.0))
+            self.thoi_gian_mang_gan_nhat_ms = (time.perf_counter() - t_net_start) * 1000.0 - self.thoi_gian_tinh_toan_gan_nhat_ms
+            return out_tensor, resp_meta.get("proof")
             if len(raw_len) < 4:
                 raise ConnectionError(f"Phản hồi từ {self.endpoint_url} không đầy đủ")
             res_meta_len = struct.unpack("!I", raw_len)[0]
@@ -333,6 +521,8 @@ class NutSwarmCPU:
         if self.endpoint_url is not None and self.che_do == "mang_vat_ly_lan":
             try:
                 return self._truyen_tai_qua_socket_lan(hidden_states, tao_proof=tao_proof)
+            except PermissionError:
+                raise
             except Exception as e:
                 logger.warning(
                     "Không thể kết nối nút LAN %s: %s. Chuyển sang tính toán dự phòng cục bộ.",
@@ -385,11 +575,22 @@ class DieuPhoiSwarmCPU:
         tong_so_layer: int = 12,
         bat_xac_thuc_mat_ma: bool = True,
         bat_tuong_lua: bool = True,
+        ma_pin: Optional[str] = None,
+        yeu_cau_phe_duyet: bool = False,
     ):
         self.d_model = d_model
         self.tong_so_layer = tong_so_layer
         self.bat_xac_thuc_mat_ma = bat_xac_thuc_mat_ma
         self.bat_tuong_lua = bat_tuong_lua
+        self.ma_pin = ma_pin
+        self.yeu_cau_phe_duyet = yeu_cau_phe_duyet
+        self.xac_thuc: Optional[XacThucCumSwarm] = (
+            XacThucCumSwarm(ma_pin=ma_pin, yeu_cau_phe_duyet=yeu_cau_phe_duyet)
+            if ma_pin is not None
+            else None
+        )
+        self.ip_tailscale: Optional[str] = None
+        self.port_tailscale: int = 9999
         self.danh_sach_node: List[NutSwarmCPU] = []
         self.tokenizer = BoTachTuTiengVietSieuToc()
         self.embedder = BoNhungVanBanSieuToc(so_chieu=d_model, tokenizer=self.tokenizer)
@@ -401,6 +602,48 @@ class DieuPhoiSwarmCPU:
             self.tuong_lua: Optional[TuongLuaBaoVeFramework] = TuongLuaBaoVeFramework(chan_khi_vi_pham=False)
         else:
             self.tuong_lua = None
+
+    @classmethod
+    def khoi_tao_qua_tailscale(
+        cls,
+        port: int = 9999,
+        ma_pin: Optional[str] = None,
+        yeu_cau_phe_duyet: bool = False,
+        d_model: int = 128,
+        tong_so_layer: int = 12,
+        bat_xac_thuc_mat_ma: bool = True,
+        bat_tuong_lua: bool = True,
+    ) -> DieuPhoiSwarmCPU:
+        """
+        Khởi tạo Bộ điều phối Swarm tự động liên kết mạng Tailscale:
+        - Tự động phát hiện IP Tailscale của máy chủ (dải 100.64.0.0/10).
+        - Tự động sinh mã PIN bảo mật 6 số nếu chưa được chỉ định.
+        """
+        ip_ts = phat_hien_ip_tailscale()
+        pin = ma_pin or tao_ma_pin_ngau_nhien(6)
+        instance = cls(
+            d_model=d_model,
+            tong_so_layer=tong_so_layer,
+            bat_xac_thuc_mat_ma=bat_xac_thuc_mat_ma,
+            bat_tuong_lua=bat_tuong_lua,
+            ma_pin=pin,
+            yeu_cau_phe_duyet=yeu_cau_phe_duyet,
+        )
+        instance.ip_tailscale = ip_ts
+        instance.port_tailscale = port
+        return instance
+
+    def phe_duyet_nut(self, nut_id: str, cho_phep: bool = True) -> bool:
+        """Phê duyệt hoặc từ chối thiết bị xin gia nhập cụm (One-Click Approval)."""
+        if self.xac_thuc is not None:
+            return self.xac_thuc.phe_duyet_nut(nut_id, cho_phep)
+        return False
+
+    def lay_danh_sach_cho_duyet(self) -> List[Dict[str, Any]]:
+        """Lấy danh sách các thiết bị đang đợi phê duyệt tham gia cụm Swarm."""
+        if self.xac_thuc is not None:
+            return self.xac_thuc.lay_danh_sach_cho_duyet()
+        return []
 
     @property
     def cac_node(self) -> List[NutSwarmCPU]:
@@ -442,10 +685,11 @@ class DieuPhoiSwarmCPU:
         ram_mb: float = 4096.0,
         private_key: Optional[str] = None,
         do_tre_mang_co_dinh_ms: float = 1.5,
+        ma_pin: Optional[str] = None,
     ) -> NutSwarmCPU:
         """
-        Đăng ký một nút mạng vật lý thực tế qua mạng LAN/WAN (Physical LAN Network Node):
-        - Hỗ trợ endpoint HTTP / WebSocket / Socket RPC thực tế.
+        Đăng ký một nút mạng vật lý thực tế qua mạng LAN/Tailscale (Physical LAN/Tailscale Node):
+        - Hỗ trợ endpoint TCP Socket nhị phân tốc độ cao kèm xác thực HMAC Zero-Trust.
         - Tách biệt rõ độ trễ truyền tải mạng vật lý (network transfer latency)
           với thời gian tính toán nội tại trên CPU (compute latency) để đảm bảo tính
           minh bạch và tái lập thực nghiệm khoa học chuẩn IEEE / Elsevier.
@@ -455,6 +699,7 @@ class DieuPhoiSwarmCPU:
             phan_doan = max(1, (self.tong_so_layer - hien_tai))
             dai_layer = (hien_tai, min(self.tong_so_layer, hien_tai + phan_doan))
 
+        pin_dung = ma_pin if ma_pin is not None else self.ma_pin
         node = NutSwarmCPU(
             node_id=node_id,
             dai_layer=dai_layer,
@@ -464,6 +709,7 @@ class DieuPhoiSwarmCPU:
             endpoint_url=endpoint_url,
             che_do="mang_vat_ly_lan",
             do_tre_mang_co_dinh_ms=do_tre_mang_co_dinh_ms,
+            ma_pin=pin_dung,
         )
         self.danh_sach_node.append(node)
         return node

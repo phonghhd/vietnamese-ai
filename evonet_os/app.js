@@ -548,3 +548,74 @@ function testAIVoice() {
 window.addEventListener('DOMContentLoaded', () => {
     initWaveformVisualizer();
 });
+
+// ==========================================
+// Cụm Swarm CPU & Tailscale Hub Handlers
+// ==========================================
+
+function copySwarmJoinCommand() {
+    const pin = document.getElementById('swarm-pin-display')?.innerText.replace(/\s+/g, '') || "829410";
+    const ip = document.getElementById('ts-ip-badge')?.innerText || "100.85.12.1:9999";
+    const cmd = `vietnamese-ai swarm join ${ip} --pin ${pin}`;
+    
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(cmd);
+        appendLog(`📋 [Swarm Hub] Đã sao chép lệnh gia nhập: "${cmd}"`, "success");
+        alert(`Đã sao chép lệnh gia nhập cụm:\n\n${cmd}\n\nHãy dán lệnh này vào Terminal của máy con để tự động ghép cụm.`);
+    } else {
+        prompt("Sao chép lệnh gia nhập cụm:", cmd);
+    }
+}
+
+function simulateNewDeviceRequest() {
+    const modal = document.getElementById('swarm-approval-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        appendLog("🔔 [Swarm Zero-Trust] Phát hiện thiết bị mới 'Mini-PC-Office' yêu cầu ghép cụm...", "warning");
+    }
+}
+
+function resolveDeviceApproval(allowed) {
+    const modal = document.getElementById('swarm-approval-modal');
+    if (modal) modal.classList.add('hidden');
+
+    if (allowed) {
+        appendLog("✅ [Swarm Zero-Trust] Đã phê duyệt 'Mini-PC-Office' gia nhập cụm. Cấp Session Token thành công!", "success");
+        const list = document.getElementById('swarm-node-list');
+        const count = document.getElementById('swarm-node-count');
+        if (list) {
+            const newCard = document.createElement('div');
+            newCard.className = 'swarm-node-card worker';
+            newCard.innerHTML = `
+                <div class="node-icon"><i class="fas fa-microchip"></i></div>
+                <div class="node-info">
+                    <div class="node-name">💻 Mini-PC-Office (Worker / Đã duyệt)</div>
+                    <div class="node-meta">IP: 100.85.12.8 • Shard 2 (Lớp 24 - 31) • 4 Core CPU • Ping: 15ms</div>
+                </div>
+                <div class="node-status active">Đã xác thực</div>
+            `;
+            list.appendChild(newCard);
+        }
+        if (count) count.innerText = "3 Máy";
+    } else {
+        appendLog("⛔ [Swarm Zero-Trust] Đã từ chối thiết bị 'Mini-PC-Office'. Đóng socket và chặn IP.", "error");
+    }
+}
+
+let funnelEnabled = false;
+function toggleTailscaleFunnel() {
+    funnelEnabled = !funnelEnabled;
+    const badge = document.getElementById('ts-ip-badge');
+    const label = document.getElementById('ts-status-label');
+    
+    if (funnelEnabled) {
+        if (badge) badge.innerText = "https://evonet-ai.ts.net";
+        if (label) label.innerText = "Tailscale Funnel: Public HTTPS";
+        appendLog("🌐 [Tailscale Funnel] Đã kích hoạt đường hầm Public Web: https://evonet-ai.ts.net", "success");
+        alert("🎉 Đã bật Tailscale Funnel!\n\nWebsite EvoNet OS và Voice AI hiện đã mở công khai tại:\nhttps://evonet-ai.ts.net\n\nBạn có thể mở link này trên điện thoại để trải nghiệm trực tiếp.");
+    } else {
+        if (badge) badge.innerText = "100.85.12.1:9999";
+        if (label) label.innerText = "Tailscale: Đang hoạt động";
+        appendLog("🔒 [Tailscale Funnel] Đã đóng đường hầm Public Web về mạng nội bộ Tailnet.", "info");
+    }
+}

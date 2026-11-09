@@ -362,6 +362,9 @@ _LAZY_IMPORTS = {
         "SwarmCPUNode": ("vietnamese_ai.edge.swarm_inference", "SwarmCPUNode"),
         "DieuPhoiSwarmCPU": ("vietnamese_ai.edge.swarm_inference", "DieuPhoiSwarmCPU"),
         "SwarmInferenceOrchestrator": ("vietnamese_ai.edge.swarm_inference", "SwarmInferenceOrchestrator"),
+        "XacThucCumSwarm": ("vietnamese_ai.edge.swarm_auth", "XacThucCumSwarm"),
+        "phat_hien_ip_tailscale": ("vietnamese_ai.edge.swarm_auth", "phat_hien_ip_tailscale"),
+        "tao_ma_pin_ngau_nhien": ("vietnamese_ai.edge.swarm_auth", "tao_ma_pin_ngau_nhien"),
 }
 
 
@@ -650,4 +653,7 @@ __all__ = [
     "SwarmCPUNode",
     "DieuPhoiSwarmCPU",
     "SwarmInferenceOrchestrator",
+    "XacThucCumSwarm",
+    "phat_hien_ip_tailscale",
+    "tao_ma_pin_ngau_nhien",
 ]

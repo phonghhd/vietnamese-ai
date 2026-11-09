@@ -73,6 +73,9 @@
             <div class="dock-item" title="Trợ Lý Thoại Real-time (WebRTC / Voice AI)" onclick="toggleWindow('voice-window')">
                 <i class="fas fa-microphone"></i>
             </div>
+            <div class="dock-item" title="Cụm Swarm CPU & Tailscale (Zero-Trust)" onclick="toggleWindow('swarm-window')">
+                <i class="fas fa-network-wired"></i>
+            </div>
             <div class="dock-separator"></div>
             <div class="dock-item" title="Cài Đặt Hệ Thống" onclick="toggleWindow('settings-window')">
                 <i class="fas fa-cog"></i>
@@ -152,6 +155,97 @@
                 </button>
                 <button class="os-btn" id="btn-test-tts" onclick="testAIVoice()">
                     <i class="fas fa-volume-up"></i> Thử Giọng Nói TTS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Swarm CPU & Tailscale Hub Window -->
+    <div class="os-window draggable hidden" id="swarm-window" style="top: 12%; left: 28%; width: 480px;">
+        <div class="window-header">
+            <span class="window-title"><i class="fas fa-network-wired"></i> Cụm Swarm CPU & Tailscale (Zero-Trust)</span>
+            <div class="window-controls">
+                <div class="control-btn close" onclick="toggleWindow('swarm-window')"></div>
+            </div>
+        </div>
+        <div class="window-content swarm-content">
+            <div class="swarm-network-status">
+                <div class="status-indicator">
+                    <span class="dot-online"></span>
+                    <strong id="ts-status-label">Tailscale: Đang hoạt động</strong>
+                </div>
+                <div class="ip-badge" id="ts-ip-badge">100.85.12.1:9999</div>
+            </div>
+
+            <!-- PIN Card -->
+            <div class="swarm-pin-card">
+                <div class="pin-title"><i class="fas fa-key"></i> Mã PIN Ghép Cụm An Toàn:</div>
+                <div class="pin-display-row">
+                    <span class="pin-code" id="swarm-pin-display">829 410</span>
+                    <button class="os-btn small primary" onclick="copySwarmJoinCommand()">
+                        <i class="fas fa-copy"></i> Sao Chép Lệnh Gia Nhập
+                    </button>
+                </div>
+                <div class="pin-hint">Chỉ các máy có mã PIN này mới được bắt tay và nhận shard GGUF.</div>
+            </div>
+
+            <!-- Visual Node Topology -->
+            <div class="swarm-topology-header">
+                <span><i class="fas fa-cubes"></i> Các máy trong cụm (Pipeline Shards):</span>
+                <span class="badge" id="swarm-node-count">2 Máy</span>
+            </div>
+            <div class="swarm-node-list" id="swarm-node-list">
+                <div class="swarm-node-card master">
+                    <div class="node-icon"><i class="fas fa-laptop"></i></div>
+                    <div class="node-info">
+                        <div class="node-name">💻 Máy Chủ (Master / Laptop)</div>
+                        <div class="node-meta">IP: 100.85.12.1 • Shard 0 (Lớp 0 - 11) • 4 Core CPU • Ping: 0ms</div>
+                    </div>
+                    <div class="node-status active">Chính</div>
+                </div>
+                <div class="swarm-node-card worker">
+                    <div class="node-icon"><i class="fas fa-desktop"></i></div>
+                    <div class="node-info">
+                        <div class="node-name">🖥️ PC-Gaming (Worker / Hà Nội)</div>
+                        <div class="node-meta">IP: 100.85.12.2 • Shard 1 (Lớp 12 - 23) • 8 Core CPU • Ping: 12ms</div>
+                    </div>
+                    <div class="node-status active">Đã xác thực</div>
+                </div>
+            </div>
+
+            <div class="swarm-actions">
+                <button class="os-btn primary" onclick="simulateNewDeviceRequest()">
+                    <i class="fas fa-user-plus"></i> Mô phỏng Yêu Cầu Ghép Máy Mới
+                </button>
+                <button class="os-btn" onclick="toggleTailscaleFunnel()">
+                    <i class="fas fa-globe"></i> Bật Public Web (Funnel)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Phê duyệt 1 chạm cho thiết bị mới -->
+    <div class="modal-overlay hidden" id="swarm-approval-modal">
+        <div class="approval-modal-box">
+            <div class="modal-header">
+                <i class="fas fa-shield-alt text-warning"></i> Yêu Cầu Ghép Cụm Thiết Bị Mới
+            </div>
+            <div class="modal-body">
+                <p>Một thiết bị trong mạng Tailscale vừa gửi yêu cầu gia nhập cụm Swarm:</p>
+                <div class="device-card">
+                    <div class="device-name" id="modal-device-name">💻 Mini-PC-Office (Worker)</div>
+                    <div class="device-ip" id="modal-device-ip">IP Tailscale: 100.85.12.8:9999</div>
+                    <div class="device-specs" id="modal-device-specs">Cấu hình: 4 Cores CPU | 8 GB RAM</div>
+                    <div class="device-auth">Trạng thái: Đã khớp mã PIN xác thực HMAC-SHA256</div>
+                </div>
+                <p class="text-hint">Bạn có muốn cho phép thiết bị này nhận phân mảnh mô hình và cùng tính toán?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="os-btn danger" onclick="resolveDeviceApproval(false)">
+                    <i class="fas fa-ban"></i> Từ Chối & Chặn
+                </button>
+                <button class="os-btn primary" onclick="resolveDeviceApproval(true)">
+                    <i class="fas fa-check"></i> Cho Phép Gia Nhập
                 </button>
             </div>
         </div>
