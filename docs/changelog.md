@@ -2,6 +2,17 @@
 
 Xem [CHANGELOG.md](https://github.com/phonghhd/vietnamese-ai/blob/main/CHANGELOG.md) đầy đủ trên GitHub.
 
+## v31.0.0 (2026-11-09)
+
+- **Swarm CPU & Pipeline Parallelism**: Triển khai phân mảnh mô hình và song song hoá pipeline trên mạng nội bộ LAN (`DieuPhoiSwarmCPU`, `NutSwarmCPU`), chạy LLM trên CPU không cần GPU.
+- **Verifiable AI & Proof of Inference**: Xác thực tính toàn vẹn suy luận bằng mật mã học phi tương tác Schnorr Fiat-Shamir NIZK trên trường nguyên tố 256-bit và cây Merkle (`XacThucSuyLuanMaoHiem`, `CayMerkleSuyLuan`).
+- **Khiên Bảo Vệ Đa Lớp (Data Defense Shields)**: Phòng thủ Polyglot malware, Image Bombs, tin ẩn LSB Steganography, bom hẹn giờ Sleeper Backdoors và khử độc dữ liệu CDR (`KhienBaoVeHinhAnh`, `PhongThuDuLieu`, `CongChatLuongDauVao`, `CongAnToanDauRa`).
+- **RAG Pháp Lý Hành Chính Chuyên Sâu**: Bộ tối ưu ngữ cảnh `BoToiUuNguCanhHanhChinh` bảo toàn cấu trúc Chương/Điều/Khoản/Điểm, băm vector xác định Blake2b `BoNhungVanBanSieuToc`, đạt 93.8% độ chính xác.
+- **Agentic StateGraph & MCP**: Tác tử đồ thị trạng thái có hướng hỗ trợ rẽ nhánh có điều kiện, tự lành mã nguồn (`CodeHealingAgent`), nghiên cứu sâu (`DeepResearchAgent`) và kết nối Model Context Protocol.
+- **Hồ Dữ Liệu (DataLake)**: Tích hợp sẵn 16 bộ tập dữ liệu mẫu tiếng Việt chuẩn hoá (`HoDuLieu`).
+- **Tương thích toàn diện & 100% CI Green**: Hỗ trợ đầy đủ từ Python 3.8 đến Python 3.13, vượt qua > 1,120 bài kiểm thử tự động.
+- **Nâng cấp Giao diện Tài liệu**: Redesign toàn diện giao diện MkDocs Material với tông màu Deep Royal Navy/Cyan Glow, Glassmorphism Hero Banner và Feature Cards.
+
 ## v30.0.0 (2026-10-15)
 
 - Đồng bộ phiên bản 30.0.0, sửa export `DieuPhoiCum`, extras packaging

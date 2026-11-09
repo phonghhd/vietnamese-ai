@@ -1,5 +1,5 @@
 site_name: Vietnamese AI Framework
-site_description: Framework AI thuần tiếng Việt cho Python - Học máy đơn giản, API tiếng Việt, Production-ready
+site_description: Framework AI thuần tiếng Việt cho Python - Micro-Core, Swarm CPU Sharding, Verifiable AI, Legal RAG
 site_url: https://phonghhd.github.io/vietnamese-ai
 repo_url: https://github.com/phonghhd/vietnamese-ai
 repo_name: phonghhd/vietnamese-ai
@@ -10,18 +10,21 @@ theme:
   palette:
     - scheme: default
       primary: indigo
-      accent: indigo
+      accent: cyan
       toggle:
         icon: material/brightness-7
         name: Chế độ tối
     - scheme: slate
       primary: indigo
-      accent: indigo
+      accent: cyan
       toggle:
         icon: material/brightness-4
         name: Chế độ sáng
   features:
+    - navigation.instant
+    - navigation.tracking
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
     - navigation.top
@@ -29,12 +32,23 @@ theme:
     - search.highlight
     - content.code.copy
 
+extra_css:
+  - stylesheets/extra.css
+
 nav:
   - Trang chủ: index.md
   - Bắt đầu:
     - Cài đặt: getting-started/installation.md
     - Sử dụng nhanh: getting-started/quickstart.md
-  - Hướng dẫn:
+  - Trụ cột Chiến lược v31:
+    - Swarm CPU & LAN Parallelism: guides/swarm-cpu.md
+    - Verifiable AI (Proof of Inference): guides/verifiable-ai.md
+    - RAG Pháp lý & Hành chính: guides/vietnamese-rag.md
+    - Phòng thủ Dữ liệu & Khiên Đa lớp: guides/data-defense.md
+    - Tác tử StateGraph & MCP: guides/state-graph-agents.md
+    - Hồ Dữ liệu 16 Tập (DataLake): guides/datalake-16-datasets.md
+    - Bảng So sánh Thực nghiệm: guides/comparative-benchmark.md
+  - Hướng dẫn Cốt lõi:
     - Phân loại: guides/classification.md
     - Hồi quy: guides/regression.md
     - Xử lý văn bản: guides/text-processing.md
@@ -82,6 +96,17 @@ nav:
     - Compression: api/compression.md
     - Production: api/production.md
     - SALM: api/salm.md
+  - Lịch sử Phiên bản:
+    - v12 Tác tử (Agents): guides/v12-agents.md
+    - v13 Biên mạng (Edge): guides/v13-edge.md
+    - v14 RAG Nâng cao: guides/v14-advanced-rag.md
+    - v17 An ninh (Security): guides/v17-security.md
+    - v18-v20 Tiến hoá: guides/v18-v20-evolution.md
+    - v21-v23 Tiến hoá: guides/v21-v23-evolution.md
+    - v27 Phần cứng Cực hạn: guides/v27-hardware-extreme.md
+    - v28 Spatial AI: v28_spatial_ai.md
+    - v29 Mobile AI: v29_mobile_ai.md
+    - v30 Mobile SDK: v30_mobile_sdk.md
   - Changelog: changelog.md
 
 markdown_extensions:
