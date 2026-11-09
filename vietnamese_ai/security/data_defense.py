@@ -570,13 +570,15 @@ class BoGiamSatTichTuDuLieu:
                         }
                     )
 
-        triggers_phat_hien.sort(key=lambda d: (-d["he_so_lift"], -d["so_mau_nhiem"]))
+        triggers_phat_hien.sort(
+            key=lambda d: (-d["he_so_lift"], -d["so_mau_nhiem"], -len(d["trigger"]), d["trigger"])
+        )
         co_bom = len(triggers_phat_hien) > 0 or len(self.vi_tri_split_payload) > 0
         return {
             "tong_so_mau_da_duyet": self.tong_so_mau,
             "phat_hien_bom_hen_gio": co_bom,
             "so_trigger_ngam": len(triggers_phat_hien),
-            "danh_sach_trigger_nghi_ngo": triggers_phat_hien[:10],
+            "danh_sach_trigger_nghi_ngo": triggers_phat_hien[:20],
             "so_mau_split_payload": len(self.vi_tri_split_payload),
             "chi_so_mau_bi_cach_ly": sorted(vi_tri_nghi_ngo),
         }
