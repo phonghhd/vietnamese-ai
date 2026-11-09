@@ -70,6 +70,9 @@
             <div class="dock-item" title="Thêm Blue Team Security" draggable="true" ondragstart="drag(event, 'security')">
                 <i class="fas fa-shield-alt"></i>
             </div>
+            <div class="dock-item" title="Trợ Lý Thoại Real-time (WebRTC / Voice AI)" onclick="toggleWindow('voice-window')">
+                <i class="fas fa-microphone"></i>
+            </div>
             <div class="dock-separator"></div>
             <div class="dock-item" title="Cài Đặt Hệ Thống" onclick="toggleWindow('settings-window')">
                 <i class="fas fa-cog"></i>
@@ -112,6 +115,45 @@
         <div class="window-content terminal-content" id="terminal-output">
             <div class="log-line system">EvoNet OS v26.0 - Tác Tử Swarm Sẵn Sàng.</div>
             <div class="log-line system">Đang chờ lệnh Khởi động Swarm...</div>
+        </div>
+    </div>
+
+    <!-- Voice AI Assistant Window -->
+    <div class="os-window draggable hidden" id="voice-window" style="top: 15%; left: 25%; width: 440px;">
+        <div class="window-header">
+            <span class="window-title"><i class="fas fa-microphone-alt"></i> Trợ Lý Thoại Real-time (WebRTC / Voice AI)</span>
+            <div class="window-controls">
+                <div class="control-btn close" onclick="toggleWindow('voice-window')"></div>
+            </div>
+        </div>
+        <div class="window-content voice-content">
+            <div class="voice-status-box">
+                <div class="voice-pulse-ring" id="voice-ring"></div>
+                <div class="voice-status-text" id="voice-status">Trạng thái: Sẵn sàng kết nối</div>
+            </div>
+            
+            <div class="waveform-container">
+                <canvas id="voice-waveform" width="380" height="60"></canvas>
+            </div>
+
+            <div class="voice-transcription-box">
+                <div class="transcription-label"><i class="fas fa-comment-dots"></i> Bạn nói (ASR):</div>
+                <div class="transcription-text" id="user-transcript">...</div>
+            </div>
+
+            <div class="voice-response-box">
+                <div class="response-label"><i class="fas fa-robot"></i> Trợ lý AI (TTS 6 thanh điệu):</div>
+                <div class="response-text" id="ai-response">Sẵn sàng đàm thoại giọng nói thời gian thực.</div>
+            </div>
+
+            <div class="voice-controls">
+                <button class="os-btn primary" id="btn-toggle-mic" onclick="toggleVoiceRecording()">
+                    <i class="fas fa-microphone"></i> Bật Microphone
+                </button>
+                <button class="os-btn" id="btn-test-tts" onclick="testAIVoice()">
+                    <i class="fas fa-volume-up"></i> Thử Giọng Nói TTS
+                </button>
+            </div>
         </div>
     </div>
 
