@@ -76,6 +76,14 @@ class BoToiUuNguCanhHanhChinh:
 
             # Kiểm tra Chương
             if self.RE_CHUONG.match(dong_clean):
+                if dieu_hien_tai and noi_dung_dieu:
+                    danh_sach_dieu.append({
+                        "chuong": chuong_hien_tai,
+                        "tieu_de_dieu": dieu_hien_tai,
+                        "noi_dung": "\n".join(noi_dung_dieu),
+                    })
+                    dieu_hien_tai = ""
+                    noi_dung_dieu = []
                 chuong_hien_tai = dong_clean
                 continue
 

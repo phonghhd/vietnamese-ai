@@ -6,6 +6,7 @@ Cung cấp khả năng tăng tốc native C/Rust và fallback Python/NumPy siêu
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from typing import Dict, List, Optional, Set
@@ -180,6 +181,11 @@ class BoNhungVanBanSieuToc:
         self.so_chieu = so_chieu
         self.tokenizer = tokenizer or BoTachTuTiengVietSieuToc()
 
+    @staticmethod
+    def _bam_chuoi(chuoi: str) -> int:
+        """Hàm băm xác định siêu tốc độc lập với PYTHONHASHSEED."""
+        return int.from_bytes(hashlib.blake2b(chuoi.encode("utf-8"), digest_size=4).digest(), "little")
+
     def nhung(self, van_ban: str) -> np.ndarray:
         """Chuyển đổi văn bản thành vector đặc trưng chuẩn hóa L2."""
         if not van_ban or not van_ban.strip():
@@ -190,8 +196,8 @@ class BoNhungVanBanSieuToc:
 
         for idx, token in enumerate(tokens):
             t = token.lower()
-            # Băm từ đơn / từ ghép
-            h1 = hash(t) % self.so_chieu
+            # Băm từ đơn / từ ghép xác định
+            h1 = self._bam_chuoi(t) % self.so_chieu
             # Trọng số vị trí nhẹ
             weight = 1.0 / (1.0 + 0.01 * idx)
             vec[h1] += weight
@@ -200,7 +206,7 @@ class BoNhungVanBanSieuToc:
             if len(t) >= 4:
                 for j in range(len(t) - 2):
                     sub = t[j : j + 3]
-                    h_sub = hash(sub) % self.so_chieu
+                    h_sub = self._bam_chuoi(sub) % self.so_chieu
                     vec[h_sub] += 0.3 * weight
 
         # Chuẩn hóa L2 norm
