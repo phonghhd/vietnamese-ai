@@ -96,16 +96,18 @@ class NutSwarmCPU:
         """
         from vietnamese_ai.export.gguf import XuatGGUF
 
+        tien_to = []
+        for l_abs in range(self.dai_layer[0], self.dai_layer[1]):
+            tien_to.extend([f"blk.{l_abs}.", f"layers.{l_abs}.", f"transformer.h.{l_abs}."])
+
         loader = XuatGGUF()
-        tat_ca_tensors = loader.tai_tu_gguf(duong_dan_gguf)
+        tat_ca_tensors = loader.tai_tu_gguf(duong_dan_gguf, loc_tien_to=tien_to)
         self.duong_dan_gguf_shard = str(duong_dan_gguf)
 
         tensors_thuoc_node: Dict[str, np.ndarray] = {}
-        for l_abs in range(self.dai_layer[0], self.dai_layer[1]):
-            tien_to = [f"blk.{l_abs}.", f"layers.{l_abs}.", f"transformer.h.{l_abs}."]
-            for ten_t, t_arr in tat_ca_tensors.items():
-                if any(ten_t.startswith(prefix) for prefix in tien_to):
-                    tensors_thuoc_node[ten_t] = t_arr
+        for ten_t, t_arr in tat_ca_tensors.items():
+            if any(ten_t.startswith(prefix) for prefix in tien_to):
+                tensors_thuoc_node[ten_t] = t_arr
 
         # Tính checksum SHA256 cho phân mảnh trọng số
         h = hashlib.sha256()
@@ -124,9 +126,20 @@ class NutSwarmCPU:
                     cand = candidates[0]
                     h_in, h_out = cand.shape
                     if h_in >= self.d_model and h_out >= self.d_model:
-                        self.w_proj[l_rel] = cand[: self.d_model, : self.d_model].astype(np.float32)
+                        w_sub = cand[: self.d_model, : self.d_model].astype(np.float32)
                     elif h_in == self.d_model:
-                        self.w_proj[l_rel, :, : min(self.d_model, h_out)] = cand[:, : min(self.d_model, h_out)]
+                        w_sub = cand[:, : min(self.d_model, h_out)].astype(np.float32)
+                    else:
+                        w_sub = cand.astype(np.float32)
+
+                    w_std = float(np.std(w_sub))
+                    if w_std > 1e-6:
+                        w_norm = (w_sub - float(np.mean(w_sub))) / w_std * (1.0 / np.sqrt(self.d_model))
+                    else:
+                        w_norm = w_sub * 0.01
+
+                    r_in, r_out = min(self.d_model, w_norm.shape[0]), min(self.d_model, w_norm.shape[1])
+                    self.w_proj[l_rel, :r_in, :r_out] = w_norm[:r_in, :r_out]
 
         return {
             "node_id": self.node_id,
@@ -487,7 +500,8 @@ class NutSwarmCPU:
             w = self.w_proj[l_idx]
             b = self.bias[l_idx]
             x_next = np.dot(x, w) + b
-            x = np.maximum(0.0, x + 0.1 * x_next)
+            x_next = np.clip(x_next, -50.0, 50.0)
+            x = np.clip(x + 0.1 * x_next, -100.0, 100.0)
 
         self.thoi_gian_tinh_toan_gan_nhat_ms = (time.perf_counter() - t_start) * 1000.0
 
@@ -874,7 +888,8 @@ class DieuPhoiSwarmCPU:
         # 3. Giải mã tokens đầu ra
         ket_qua_sinh: List[str] = []
         for i in range(so_token_sinh):
-            idx_tu = (int(np.sum(np.abs(h_state))) + i * 7) % len(self.tokenizer.TU_DIEN_TU_GHEP_MAC_DINH)
+            val_sum = float(np.sum(np.nan_to_num(np.abs(h_state), nan=0.0)))
+            idx_tu = (int(val_sum) + i * 7) % len(self.tokenizer.TU_DIEN_TU_GHEP_MAC_DINH)
             tu = list(self.tokenizer.TU_DIEN_TU_GHEP_MAC_DINH)[idx_tu]
             ket_qua_sinh.append(tu)
 

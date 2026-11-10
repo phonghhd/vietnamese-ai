@@ -39,6 +39,18 @@ QUANTIZATION_METHODS = {
 }
 
 
+_GGUF_READER_CACHE: Dict[str, Any] = {}
+
+
+def _lay_gguf_reader(duong_dan: str) -> Any:
+    import gguf
+
+    duong_dan_str = str(duong_dan)
+    if duong_dan_str not in _GGUF_READER_CACHE:
+        _GGUF_READER_CACHE[duong_dan_str] = gguf.GGUFReader(duong_dan_str)
+    return _GGUF_READER_CACHE[duong_dan_str]
+
+
 class XuatGGUF:
     """
     Xuất mô hình sang GGUF format (llama.cpp compatible).
@@ -291,6 +303,30 @@ class XuatGGUF:
         if not duong_dan_path.exists():
             raise FileNotFoundError(f"Không tìm thấy: {duong_dan}")
 
+        try:
+            reader = _lay_gguf_reader(duong_dan)
+            meta: Dict[str, Any] = {}
+            for k, field in reader.fields.items():
+                try:
+                    if len(field.parts) > 0:
+                        val = field.parts[-1]
+                        if isinstance(val, (bytes, memoryview)):
+                            meta[k] = bytes(val).decode("utf-8", errors="ignore")
+                        else:
+                            meta[k] = val.tolist() if hasattr(val, "tolist") else val
+                except Exception:
+                    pass
+            return {
+                "magic": "GGUF",
+                "version": 3,
+                "n_metadata": len(reader.fields),
+                "n_tensors": len(reader.tensors),
+                "metadata": meta,
+                "kich_thuoc_file": duong_dan_path.stat().st_size,
+            }
+        except Exception:
+            pass
+
         with open(duong_dan_path, "rb") as f:
             magic = f.read(4)
             if magic != GGUF_MAGIC:
@@ -332,11 +368,24 @@ class XuatGGUF:
             "kich_thuoc_file": duong_dan_path.stat().st_size,
         }
 
-    def tai_tu_gguf(self, duong_dan: str) -> Dict[str, np.ndarray]:
+    def tai_tu_gguf(self, duong_dan: str, loc_tien_to: Optional[list] = None) -> Dict[str, np.ndarray]:
         """Đọc và giải lượng tử hóa (dequantize) toàn bộ tensors từ file GGUF."""
         duong_dan_path = Path(duong_dan)
         if not duong_dan_path.exists():
             raise FileNotFoundError(f"Không tìm thấy: {duong_dan}")
+
+        try:
+            reader = _lay_gguf_reader(duong_dan)
+            tensors_gguf: Dict[str, np.ndarray] = {}
+            for tensor in reader.tensors:
+                ten = tensor.name
+                if loc_tien_to and not any(ten.startswith(p) for p in loc_tien_to):
+                    continue
+                tensors_gguf[ten] = np.asarray(tensor.data)
+            if tensors_gguf:
+                return tensors_gguf
+        except Exception:
+            pass
 
         with open(duong_dan_path, "rb") as f:
             magic = f.read(4)
