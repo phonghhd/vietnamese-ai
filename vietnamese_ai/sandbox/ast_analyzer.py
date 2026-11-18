@@ -71,16 +71,20 @@ class ASTKhachViengTham(ast.NodeVisitor):
             if node.func.id in self.HAM_CAM:
                 raise LoiAnNinh(f"Cấm sử dụng hàm nguy hiểm: '{node.func.id}()'")
 
-        # Ngăn chặn sử dụng thuộc tính dunder như __class__, __subclasses__
+        # Ngăn chặn sử dụng thuộc tính dunder như __class__, __subclasses__ (cho phép __init__ cho super().__init__)
         if isinstance(node.func, ast.Attribute):
-            if node.func.attr.startswith("__") and node.func.attr.endswith("__"):
+            if (
+                node.func.attr.startswith("__")
+                and node.func.attr.endswith("__")
+                and node.func.attr != "__init__"
+            ):
                 raise LoiAnNinh(f"Cấm truy cập thuộc tính dunder: '{node.func.attr}'")
 
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
-        """Chặn truy cập vào các dunder attributes để leo thang đặc quyền."""
-        if node.attr.startswith("__") and node.attr.endswith("__"):
+        """Chặn truy cập vào các dunder attributes để leo thang đặc quyền (cho phép __init__)."""
+        if node.attr.startswith("__") and node.attr.endswith("__") and node.attr != "__init__":
             raise LoiAnNinh(f"Cấm truy cập thuộc tính hệ thống: '{node.attr}'")
         self.generic_visit(node)
 

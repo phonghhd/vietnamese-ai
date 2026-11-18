@@ -119,6 +119,42 @@
             "file": "datasets/vi_phap_luat.jsonl",
             "tin_nhan": "Import từ danh sách bộ nhớ",
             "thoi_gian": 1794053600.6842918
+        },
+        {
+            "hash": "057c1e455b198cd1d6af0e06362c6246d77d5b31bf84f1c1ea38025b84c63b64",
+            "file": "datasets/vi_reasoning_cot.jsonl",
+            "tin_nhan": "Import từ danh sách bộ nhớ",
+            "thoi_gian": 1794337150.824482
+        },
+        {
+            "hash": "e143b619b5dc28aa9d71692d3c9dfbe277708f5bb64ecc775a01fb4215ab58ee",
+            "file": "datasets/vi_phap_luat.jsonl",
+            "tin_nhan": "Import từ danh sách bộ nhớ",
+            "thoi_gian": 1794337153.8273864
+        },
+        {
+            "hash": "057c1e455b198cd1d6af0e06362c6246d77d5b31bf84f1c1ea38025b84c63b64",
+            "file": "datasets/vi_reasoning_cot.jsonl",
+            "tin_nhan": "Import từ danh sách bộ nhớ",
+            "thoi_gian": 1795016615.9717524
+        },
+        {
+            "hash": "e143b619b5dc28aa9d71692d3c9dfbe277708f5bb64ecc775a01fb4215ab58ee",
+            "file": "datasets/vi_phap_luat.jsonl",
+            "tin_nhan": "Import từ danh sách bộ nhớ",
+            "thoi_gian": 1795016616.9435277
+        },
+        {
+            "hash": "057c1e455b198cd1d6af0e06362c6246d77d5b31bf84f1c1ea38025b84c63b64",
+            "file": "datasets/vi_reasoning_cot.jsonl",
+            "tin_nhan": "Import từ danh sách bộ nhớ",
+            "thoi_gian": 1795019752.0694454
+        },
+        {
+            "hash": "e143b619b5dc28aa9d71692d3c9dfbe277708f5bb64ecc775a01fb4215ab58ee",
+            "file": "datasets/vi_phap_luat.jsonl",
+            "tin_nhan": "Import từ danh sách bộ nhớ",
+            "thoi_gian": 1795019754.8529687
         }
     ]
 }

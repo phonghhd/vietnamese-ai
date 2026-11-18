@@ -9,6 +9,8 @@ __all__ = [
     "SmartExtractor",
     "TongDaiCSKH",
     "CustomerSupportBot",
+    "VoicebotCSKH",
+    "GiaiPhapVoicebotCSKH",
 ]
 
 __getattr__ = tao_lazy_getattr(
@@ -20,6 +22,8 @@ __getattr__ = tao_lazy_getattr(
         "SmartExtractor": ("vietnamese_ai.solutions.trich_xuat", "SmartExtractor"),
         "TongDaiCSKH": ("vietnamese_ai.solutions.cskh", "TongDaiCSKH"),
         "CustomerSupportBot": ("vietnamese_ai.solutions.cskh", "CustomerSupportBot"),
+        "VoicebotCSKH": ("vietnamese_ai.solutions.cskh", "VoicebotCSKH"),
+        "GiaiPhapVoicebotCSKH": ("vietnamese_ai.solutions.cskh", "GiaiPhapVoicebotCSKH"),
     },
     globals(),
 )

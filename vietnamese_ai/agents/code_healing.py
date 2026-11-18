@@ -74,11 +74,15 @@ class TacTuLapTrinhTuSua:
         max_retries: Optional[int] = None,
         llm_sinh_code: Optional[Callable[[str], str]] = None,
         sinh_ma_fn: Optional[Callable[[str], str]] = None,
+        dung_self_refine: bool = False,
+        so_vong_refine: int = 2,
     ):
         self.max_retries = max_retries if max_retries is not None else so_lan_thu_lai_toi_da
         self.so_lan_thu_lai_toi_da = self.max_retries
         self.sinh_ma_fn = sinh_ma_fn or llm_sinh_code
         self.llm_sinh_code = self.sinh_ma_fn
+        self.dung_self_refine = dung_self_refine
+        self.so_vong_refine = so_vong_refine
         self.sandbox = MoiTruongCachLy()
         self.tuong_lua = TuongLuaBaoVeFramework(chan_khi_vi_pham=False)
         self.ast_checker = _KiemTraASTAnToan()
@@ -328,6 +332,19 @@ class TacTuLapTrinhTuSua:
                 )
             elif "IndexError" in loi:
                 ma_nguon_sua = ma_nguon_cu.replace("range(len(x))", "range(min(len(x), len(y)))")
+
+        if self.dung_self_refine and (self.sinh_ma_fn or self.llm_sinh_code):
+            from vietnamese_ai.salm.self_refine import SelfRefine
+
+            refiner = SelfRefine(
+                ham_sinh=self.sinh_ma_fn or self.llm_sinh_code,
+                so_vong_toi_da=self.so_vong_refine,
+            )
+            kq_rf = refiner.chay(
+                prompt=f"Tối ưu và sửa lỗi mã nguồn Python cho yêu cầu '{yeu_cau}':\n{loi}",
+                output_ban_dau=ma_nguon_sua,
+            )
+            ma_nguon_sua = str(kq_rf.get("output_cuoi", ma_nguon_sua))
 
         return {
             "ma_nguon": ma_nguon_sua,

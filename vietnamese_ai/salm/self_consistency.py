@@ -101,6 +101,14 @@ class SelfConsistency:
             dap_an_tot_nhat = cac_paths[0]["dap_an"]
             ty_le_dong_nhat = 1.0 / len(cac_paths)
 
+        output_tot_nhat = ""
+        for p in cac_paths:
+            if p["dap_an"] == dap_an_tot_nhat:
+                output_tot_nhat = p["output_day_du"]
+                break
+        if not output_tot_nhat and cac_paths:
+            output_tot_nhat = cac_paths[0]["output_day_du"]
+
         # Nếu có evaluation function, score từng answer
         diem = ty_le_dong_nhat
         if self.ham_danh_gia and dap_an_tot_nhat:
@@ -118,6 +126,7 @@ class SelfConsistency:
 
         ket_qua = {
             "dap_an": dap_an_tot_nhat,
+            "output_tot_nhat": output_tot_nhat,
             "so_luong_paths": len(cac_paths),
             "ty_le_dong_nhat": round(ty_le_dong_nhat, 3),
             "cac_paths": cac_paths,

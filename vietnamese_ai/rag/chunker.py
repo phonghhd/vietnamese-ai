@@ -25,9 +25,10 @@ class CatVanBan:
         chien_luoc: str = "tu",
         toi_thieu_kich_thuoc: int = 20,
         bo_qua_khoang_trang: bool = True,
+        bo_tach_tu: Optional[Any] = None,
     ):
-        if chien_luoc not in ("cau", "doan", "tu", "ky_tu"):
-            raise ValueError("chien_luoc phải là: cau, doan, tu, ky_tu")
+        if chien_luoc not in ("cau", "doan", "tu", "ky_tu", "tu_tieng_viet"):
+            raise ValueError("chien_luoc phải là: cau, doan, tu, ky_tu, tu_tieng_viet")
         if chong_chong >= kich_thuoc:
             raise ValueError("chong_chong phải nhỏ hơn kich_thuoc")
 
@@ -36,6 +37,7 @@ class CatVanBan:
         self.chien_luoc = chien_luoc
         self.toi_thieu_kich_thuoc = toi_thieu_kich_thuoc
         self.bo_qua_khoang_trang = bo_qua_khoang_trang
+        self.bo_tach_tu = bo_tach_tu
 
     def chia(
         self,
@@ -63,6 +65,8 @@ class CatVanBan:
             return self._chia_theo_doan(van_ban, metadata)
         elif self.chien_luoc == "tu":
             return self._chia_theo_tu(van_ban, metadata)
+        elif self.chien_luoc == "tu_tieng_viet":
+            return self._chia_theo_tu_tieng_viet(van_ban, metadata)
         else:
             return self._chia_theo_ky_tu(van_ban, metadata)
 
@@ -157,6 +161,64 @@ class CatVanBan:
                         "vi_tri_bat_dau": bat_dau,
                         "vi_tri_ket_thuc": bat_dau + len(noi_dung),
                         "metadata": {**metadata, "loai": "tu", "so_tu": len(chunk_tu)},
+                    }
+                )
+
+            if ket_thuc >= len(cac_tu):
+                break
+            i += buoc
+
+        return ket_qua
+
+    def _chia_theo_tu_tieng_viet(
+        self,
+        van_ban: str,
+        metadata: Dict[str, Any],
+        bat_dau_offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        """Chia theo từ tiếng Việt bảo tồn từ ghép (Compound words)."""
+        tokenizer = self.bo_tach_tu
+        if tokenizer is None:
+            try:
+                from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+                tokenizer = BoTachTuTiengVietSieuToc()
+            except ImportError:
+                return self._chia_theo_tu(van_ban, metadata, bat_dau_offset=bat_dau_offset)
+
+        if hasattr(tokenizer, "tach_tu"):
+            cac_tu = tokenizer.tach_tu(van_ban)
+        elif callable(tokenizer):
+            cac_tu = tokenizer(van_ban)
+        else:
+            cac_tu = van_ban.split()
+
+        if not cac_tu:
+            return []
+
+        ket_qua = []
+        buoc = self.kich_thuoc - self.chong_chong
+        i = 0
+
+        while i < len(cac_tu):
+            ket_thuc = min(i + self.kich_thuoc, len(cac_tu))
+            chunk_tu = cac_tu[i:ket_thuc]
+            noi_dung = " ".join(chunk_tu)
+
+            if len(chunk_tu) >= self.toi_thieu_kich_thuoc or len(cac_tu) < self.kich_thuoc:
+                truoc = " ".join(cac_tu[:i])
+                bat_dau = bat_dau_offset + len(truoc) + (1 if truoc else 0)
+
+                ket_qua.append(
+                    {
+                        "noi_dung": noi_dung,
+                        "vi_tri_bat_dau": bat_dau,
+                        "vi_tri_ket_thuc": bat_dau + len(noi_dung),
+                        "metadata": {
+                            **metadata,
+                            "loai": "tu_tieng_viet",
+                            "so_tu": len(chunk_tu),
+                        },
                     }
                 )
 

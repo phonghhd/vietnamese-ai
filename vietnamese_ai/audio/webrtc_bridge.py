@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import inspect
 import json
 import logging
 import struct
@@ -91,7 +92,10 @@ class MayChuWebRTCVoice:
         self,
         host: str = "127.0.0.1",
         port: int = 8765,
-        ham_tra_loi: Optional[Callable[[str], str]] = None,
+        ham_tra_loi: Optional[Callable[[str], Any]] = None,
+        mo_hinh: Optional[Any] = None,
+        rag: Optional[Any] = None,
+        cskh: Optional[Any] = None,
         tan_so_lay_mau: int = 16000,
         bo_nhan_dien: Optional[NhanDienGiongNoi] = None,
         bo_tong_hop: Optional[TongHopGiongNoi] = None,
@@ -102,7 +106,10 @@ class MayChuWebRTCVoice:
         Args:
             host: Địa chỉ IP lắng nghe (mặc định 127.0.0.1).
             port: Cổng mạng WebSocket (mặc định 8765).
-            ham_tra_loi: Hàm xử lý câu hỏi người dùng thành câu trả lời văn bản.
+            ham_tra_loi: Hàm xử lý câu hỏi người dùng thành câu trả lời văn bản (hỗ trợ sync & async).
+            mo_hinh: Thể hiện mô hình ngôn ngữ (VietnameseLLM / GPTModel / BaseModel) tự động sinh trả lời.
+            rag: Thể hiện đường ống truy vấn RAG (RAGPipeline / Admin RAG) tự động trả lời theo tri thức.
+            cskh: Thể hiện giải pháp Tổng đài CSKH (TongDaiCSKH) tự động xử lý nghiệp vụ đơn hàng & chăm sóc.
             tan_so_lay_mau: Tần số âm thanh trao đổi (mặc định 16000 Hz).
             bo_nhan_dien: Thể hiện ASR `NhanDienGiongNoi`.
             bo_tong_hop: Thể hiện TTS `TongHopGiongNoi`.
@@ -114,14 +121,75 @@ class MayChuWebRTCVoice:
         self.tts = bo_tong_hop or TongHopGiongNoi(tan_so_lay_mau=tan_so_lay_mau)
         self.webrtc_signaling = CauNoiWebRTC()
 
-        # Mặc định hàm phản hồi hội thoại nếu người dùng không truyền vào
-        self.ham_tra_loi = ham_tra_loi or self._phan_hoi_mac_dinh
+        # Xác định bộ xử lý câu trả lời theo thứ tự ưu tiên
+        if ham_tra_loi is not None:
+            self.ham_tra_loi = ham_tra_loi
+        elif cskh is not None:
+            self.ham_tra_loi = self._tao_ham_phan_hoi_cskh(cskh)
+        elif mo_hinh is not None:
+            self.ham_tra_loi = self._tao_ham_phan_hoi_mo_hinh(mo_hinh)
+        elif rag is not None:
+            self.ham_tra_loi = self._tao_ham_phan_hoi_rag(rag)
+        else:
+            self.ham_tra_loi = self._phan_hoi_mac_dinh
 
         self._server: Optional[asyncio.Server] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         self._dang_chay = False
         self._cac_ket_noi: Set[Tuple[asyncio.StreamReader, asyncio.StreamWriter]] = set()
+
+    @staticmethod
+    def _tao_ham_phan_hoi_mo_hinh(mo_hinh: Any) -> Callable[[str], str]:
+        """Tự động đóng gói mô hình AI (LLM / Tác tử) thành hàm xử lý đối thoại giọng nói."""
+        def _phan_hoi(cau_hoi: str) -> str:
+            if hasattr(mo_hinh, "sinh_van_ban"):
+                try:
+                    return str(mo_hinh.sinh_van_ban(cau_hoi, do_dai_toi_da=64))
+                except TypeError:
+                    return str(mo_hinh.sinh_van_ban(cau_hoi))
+            elif hasattr(mo_hinh, "generate"):
+                try:
+                    return str(mo_hinh.generate(cau_hoi, max_tokens=64))
+                except TypeError:
+                    return str(mo_hinh.generate(cau_hoi))
+            elif hasattr(mo_hinh, "chat"):
+                return str(mo_hinh.chat(cau_hoi))
+            elif callable(mo_hinh):
+                return str(mo_hinh(cau_hoi))
+            return f"Phản hồi từ mô hình cho: {cau_hoi}"
+        return _phan_hoi
+
+    @staticmethod
+    def _tao_ham_phan_hoi_rag(rag: Any) -> Callable[[str], str]:
+        """Tự động đóng gói RAG Pipeline thành hàm tra cứu tri thức giọng nói."""
+        def _phan_hoi(cau_hoi: str) -> str:
+            if hasattr(rag, "truy_van"):
+                kq = rag.truy_van(cau_hoi)
+                if isinstance(kq, dict):
+                    return str(kq.get("tra_loi") or kq.get("cau_tra_loi") or kq)
+                return str(kq)
+            elif hasattr(rag, "query"):
+                kq = rag.query(cau_hoi)
+                if isinstance(kq, dict):
+                    return str(kq.get("answer") or kq)
+                return str(kq)
+            return f"Tra cứu RAG cho: {cau_hoi}"
+        return _phan_hoi
+
+    @staticmethod
+    def _tao_ham_phan_hoi_cskh(cskh: Any) -> Callable[[str], Dict[str, Any]]:
+        """Tự động đóng gói Tổng đài CSKH (TongDaiCSKH) thành hàm phản hồi thoại thời gian thực."""
+        def _phan_hoi(cau_hoi: str) -> Dict[str, Any]:
+            if hasattr(cskh, "xu_ly_yeu_cau"):
+                return cskh.xu_ly_yeu_cau(cau_hoi)
+            elif callable(cskh):
+                res = cskh(cau_hoi)
+                if isinstance(res, dict):
+                    return res
+                return {"tra_loi": str(res), "y_dinh": "HOI_DAP"}
+            return {"tra_loi": f"Dạ tổng đài đã ghi nhận yêu cầu: {cau_hoi}", "y_dinh": "MAC_DINH"}
+        return _phan_hoi
 
     @staticmethod
     def _phan_hoi_mac_dinh(cau_hoi: str) -> str:
@@ -374,24 +442,48 @@ class MayChuWebRTCVoice:
 
     async def _phan_hoi_giong_noi(self, writer: asyncio.StreamWriter, cau_hoi: str) -> None:
         """Tạo câu trả lời và tổng hợp giọng nói 6 thanh điệu truyền ngược lại cho client."""
-        # 1. Sinh câu trả lời qua hàm xử lý
-        cau_tra_loi = self.ham_tra_loi(cau_hoi)
+        # 1. Sinh câu trả lời qua hàm xử lý (hỗ trợ cả async và sync callable)
+        try:
+            if inspect.iscoroutinefunction(self.ham_tra_loi):
+                cau_tra_loi = await self.ham_tra_loi(cau_hoi)
+            else:
+                cau_tra_loi = self.ham_tra_loi(cau_hoi)
+                if inspect.isawaitable(cau_tra_loi):
+                    cau_tra_loi = await cau_tra_loi
+        except Exception as e:
+            logger.error("Lỗi khi thực thi hàm phản hồi hội thoại: %s", e)
+            cau_tra_loi = f"Tôi đã nhận được câu hỏi '{cau_hoi}' và sẵn sàng hỗ trợ bạn."
 
-        # 2. Gửi văn bản phản hồi
+        # 2. Xử lý định dạng văn bản phản hồi & siêu dữ liệu (nếu từ CSKH/RAG)
+        metadata_phan_hoi: Dict[str, Any] = {}
+        if isinstance(cau_tra_loi, dict):
+            metadata_phan_hoi = cau_tra_loi
+            van_ban_tra_loi = str(
+                cau_tra_loi.get("tra_loi")
+                or cau_tra_loi.get("cau_tra_loi")
+                or cau_tra_loi.get("van_ban")
+                or str(cau_tra_loi)
+            )
+        else:
+            van_ban_tra_loi = str(cau_tra_loi)
+
+        thong_tin_gui: Dict[str, Any] = {
+            "loai": "phan_hoi_van_ban",
+            "cau_hoi": cau_hoi,
+            "cau_tra_loi": van_ban_tra_loi,
+        }
+        if metadata_phan_hoi:
+            for k in ("y_dinh", "thong_tin_nghiep_vu", "an_toan"):
+                if k in metadata_phan_hoi:
+                    thong_tin_gui[k] = metadata_phan_hoi[k]
+
         await self._gui_frame(
             writer,
-            json.dumps(
-                {
-                    "loai": "phan_hoi_van_ban",
-                    "cau_hoi": cau_hoi,
-                    "cau_tra_loi": cau_tra_loi,
-                },
-                ensure_ascii=False,
-            ),
+            json.dumps(thong_tin_gui, ensure_ascii=False),
         )
 
         # 3. Tổng hợp giọng nói TTS thuần tiếng Việt
-        ket_qua_tts = self.tts.tong_hop(cau_tra_loi)
+        ket_qua_tts = self.tts.tong_hop(van_ban_tra_loi)
         tin_hieu_f32 = ket_qua_tts["tin_hieu"]
         pcm16_bytes = LuongAmThanhThoiGianThuc.float32_sang_pcm16(tin_hieu_f32)
 
@@ -458,19 +550,27 @@ class MayChuWebRTCVoice:
         if self._thread is not None and self._thread.is_alive():
             return
 
+        ready_evt = threading.Event()
+
         def _worker():
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
             self._loop.run_until_complete(self.khoi_dong_async())
+            ready_evt.set()
             self._loop.run_forever()
 
         self._thread = threading.Thread(target=_worker, daemon=True)
         self._thread.start()
+        ready_evt.wait(timeout=3.0)
 
     def dung_lai(self) -> None:
         """Dừng máy chủ chạy ngầm đồng bộ."""
         if self._loop is not None and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(self.dung_lai_async(), self._loop)
+            future = asyncio.run_coroutine_threadsafe(self.dung_lai_async(), self._loop)
+            try:
+                future.result(timeout=2.0)
+            except Exception:
+                pass
             self._loop.call_soon_threadsafe(self._loop.stop)
         if self._thread is not None:
             self._thread.join(timeout=2.0)

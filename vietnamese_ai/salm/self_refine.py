@@ -47,6 +47,7 @@ class SelfRefine:
         self,
         prompt: str,
         nhiet_do: float = 0.7,
+        output_ban_dau: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Chạy self-refinement loop.
@@ -54,6 +55,7 @@ class SelfRefine:
         Args:
             prompt: Prompt đầu vào
             nhiet_do: Nhiệt độ sinh (cho đa dạng)
+            output_ban_dau: Output ban đầu (tùy chọn). Nếu có, bỏ qua bước sinh ban đầu.
 
         Returns:
             {output_cuoi, lich_su_vong, diem_cuoi, so_vong, tong_thoi_gian}
@@ -61,7 +63,10 @@ class SelfRefine:
         bat_dau = time.time()
         lich_su_vong = []
 
-        output_hien_tai = self._sinh_ban_dau(prompt)
+        if output_ban_dau is not None:
+            output_hien_tai = str(output_ban_dau)
+        else:
+            output_hien_tai = self._sinh_ban_dau(prompt)
         diem_hien_tai = 0.0
 
         for vong in range(self.so_vong_toi_da):

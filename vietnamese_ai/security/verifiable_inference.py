@@ -349,11 +349,20 @@ class XacThucSuyLuanMaoHiem:
 
         # 1. Kiểm tra đối chiếu tensor thực tế nếu cung cấp
         if tensor_dau_vao is not None:
-            if hashlib.sha256(tensor_dau_vao.tobytes()).hexdigest() != h_in:
-                return False
+            hash_vao = hashlib.sha256(tensor_dau_vao.tobytes()).hexdigest()
+            if hash_vao != h_in:
+                # Hỗ trợ truyền tải nén Float16 qua mạng vật lý LAN
+                h_in_fp16 = hashlib.sha256(tensor_dau_vao.astype(np.float16).astype(np.float32).tobytes()).hexdigest()
+                h_in_raw16 = hashlib.sha256(tensor_dau_vao.astype(np.float16).tobytes()).hexdigest()
+                if h_in_fp16 != h_in and h_in_raw16 != h_in:
+                    return False
         if tensor_dau_ra is not None:
-            if hashlib.sha256(tensor_dau_ra.tobytes()).hexdigest() != h_out:
-                return False
+            hash_ra = hashlib.sha256(tensor_dau_ra.tobytes()).hexdigest()
+            if hash_ra != h_out:
+                h_out_fp16 = hashlib.sha256(tensor_dau_ra.astype(np.float16).astype(np.float32).tobytes()).hexdigest()
+                h_out_raw16 = hashlib.sha256(tensor_dau_ra.astype(np.float16).tobytes()).hexdigest()
+                if h_out_fp16 != h_out and h_out_raw16 != h_out:
+                    return False
 
         # 2. Xác minh chữ ký mật mã ZKP
         if not proof.startswith("zkml1:"):

@@ -147,6 +147,11 @@ class LuongAnToan:
 
         return ket_qua, pii_phat_hien
 
+    def kiem_tra_va_sua(self, noi_dung: str) -> str:
+        """Kiểm tra và tự động khử các thông tin nhạy cảm PII trong nội dung."""
+        noi_dung_sach, _ = self.loc_pii(noi_dung)
+        return noi_dung_sach
+
     def _kiem_tra_pii(self, noi_dung: str) -> Dict[str, List[str]]:
         """Kiểm tra PII trong nội dung."""
         ket_qua = {}

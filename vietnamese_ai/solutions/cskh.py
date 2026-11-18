@@ -58,8 +58,14 @@ class TongDaiCSKH:
         self.asr = asr or NhanDienGiongNoi()
         self.tts = tts or TongHopGiongNoi()
 
-    def _chuan_hoa_dau_vao(self, yeu_cau: Union[str, Path, np.ndarray]) -> Tuple[str, bool]:
-        """Chuẩn hóa yêu cầu đầu vào từ text hoặc giọng nói."""
+    def _chuan_hoa_dau_vao(self, yeu_cau: Union[str, Path, np.ndarray, bytes]) -> Tuple[str, bool]:
+        """Chuẩn hóa yêu cầu đầu vào từ text, file wav, numpy array hoặc binary PCM."""
+        if isinstance(yeu_cau, bytes):
+            from vietnamese_ai.audio.stream_processor import LuongAmThanhThoiGianThuc
+
+            arr_f32 = LuongAmThanhThoiGianThuc.pcm16_sang_float32(yeu_cau)
+            res_asr = self.asr.nhan_dien(arr_f32)
+            return res_asr.get("van_ban", ""), True
         if isinstance(yeu_cau, (str, Path)) and Path(str(yeu_cau)).is_file():
             p = Path(str(yeu_cau))
             if p.suffix.lower() == ".wav":
@@ -79,7 +85,7 @@ class TongDaiCSKH:
 
     def xu_ly_yeu_cau(
         self,
-        yeu_cau: Union[str, Path, np.ndarray],
+        yeu_cau: Union[str, Path, np.ndarray, bytes],
         co_tra_ve_am_thanh: bool = False,
         duong_dan_luu_am_thanh: Optional[Union[str, Path]] = None,
     ) -> Dict[str, Any]:
@@ -164,6 +170,43 @@ class TongDaiCSKH:
             "an_toan": kt_dau_ra["an_toan"],
         }
 
+    def khoi_dong_may_chu_thoai(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8765,
+        tan_so_lay_mau: int = 16000,
+        nen_chay_ngam: bool = True,
+    ) -> Any:
+        """
+        Khởi động máy chủ WebRTC/WebSocket Voice AI phục vụ tổng đài CSKH thoại thời gian thực.
 
-# English alias
+        Args:
+            host: Địa chỉ IP lắng nghe (mặc định: 127.0.0.1).
+            port: Cổng mạng WebSocket (mặc định: 8765).
+            tan_so_lay_mau: Tần số lấy mẫu âm thanh (mặc định: 16000 Hz).
+            nen_chay_ngam: True để chạy nền trong luồng riêng biệt, False để chạy đồng bộ.
+
+        Returns:
+            Thể hiện MayChuWebRTCVoice đang hoạt động.
+        """
+        from vietnamese_ai.audio.webrtc_bridge import MayChuWebRTCVoice
+
+        server = MayChuWebRTCVoice(
+            host=host,
+            port=port,
+            tan_so_lay_mau=tan_so_lay_mau,
+            cskh=self,
+            bo_nhan_dien=self.asr,
+            bo_tong_hop=self.tts,
+        )
+        if nen_chay_ngam:
+            server.khoi_dong_chay_ngam()
+        else:
+            server.khoi_dong()
+        return server
+
+
+# Aliases
 CustomerSupportBot = TongDaiCSKH
+GiaiPhapVoicebotCSKH = TongDaiCSKH
+VoicebotCSKH = TongDaiCSKH

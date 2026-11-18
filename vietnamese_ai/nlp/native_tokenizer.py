@@ -62,7 +62,7 @@ class BoTachTuTiengVietSieuToc:
         "căn cước công dân", "chứng minh nhân dân", "hộ khẩu", "giấy khai sinh",
         "doanh nghiệp", "công ty", "kinh doanh", "đầu tư", "phá sản", "giải thể",
         # Khoa học công nghệ & Trí tuệ nhân tạo
-        "trí tuệ nhân tạo", "học máy", "học sâu", "mạng nơ-ron", "xử lý ngôn ngữ tự nhiên",
+        "trí tuệ nhân tạo", "học máy", "học sâu", "mạng nơ-ron", "xử lý", "ngôn ngữ", "tự nhiên",
         "chuyển đổi số", "dữ liệu lớn", "điện toán đám mây", "an toàn thông tin",
         "chuỗi khối", "tác tử", "mô hình ngôn ngữ", "đồ thị trạng thái", "suy luận",
         "học liên kết", "lượng tử hóa", "đóng gói", "bảo mật dữ liệu",
@@ -73,6 +73,14 @@ class BoTachTuTiengVietSieuToc:
         "việt nam", "hà nội", "hồ chí minh", "đà nẵng", "hải phòng", "cần thơ",
         "khách hàng", "nhân viên", "dịch vụ", "sản phẩm", "chất lượng", "uy tín",
         "thời gian", "kết quả", "báo cáo", "nghiên cứu", "thực hiện", "hoàn thành",
+    }
+
+    SPECIAL_TOKENS: Dict[str, int] = {
+        "[PAD]": 0,
+        "[UNK]": 1,
+        "[CLS]": 2,
+        "[SEP]": 3,
+        "[MASK]": 4,
     }
 
     def __init__(self, tu_dien_bo_sung: Optional[Set[str]] = None):
@@ -87,6 +95,14 @@ class BoTachTuTiengVietSieuToc:
         # Tiền biên dịch Regex chuẩn hóa khoảng trắng và dấu câu
         self._re_spaces = re.compile(r"[\s\u200b\ufeff]+")
         self._re_punct = re.compile(r"([.,!?;:\"'()\[\]{}–—…/])")
+
+        # Bảng từ vựng xác định
+        self._vocab: Dict[str, int] = dict(self.SPECIAL_TOKENS)
+        self._id_to_vocab: Dict[int, str] = {v: k for k, v in self.SPECIAL_TOKENS.items()}
+        for idx, tu in enumerate(sorted(self._tu_dien), start=len(self.SPECIAL_TOKENS)):
+            self._vocab[tu] = idx
+            self._vocab[tu.replace(" ", "_")] = idx
+            self._id_to_vocab[idx] = tu
 
     def them_tu_dien(self, ds_tu: List[str]) -> None:
         """Bổ sung thêm danh sách từ ghép vào từ điển."""
@@ -212,6 +228,102 @@ class BoTachTuTiengVietSieuToc:
             indices.append(idx)
             start = idx + len(tu_khoa)
         return indices
+
+    dem_token = dem_so_tu
+
+    @property
+    def vocab_size(self) -> int:
+        """Kích thước từ vựng hiện tại."""
+        return len(self._id_to_vocab)
+
+    def __len__(self) -> int:
+        return len(self._id_to_vocab)
+
+    @property
+    def tu_vung(self) -> Dict[str, int]:
+        """Bảng từ điển ánh xạ từ token sang ID."""
+        return dict(self._vocab)
+
+    def ma_hoa(
+        self,
+        van_ban: str,
+        them_cls_sep: bool = False,
+        do_dai_toi_da: Optional[int] = None,
+    ) -> List[int]:
+        """
+        Mã hóa văn bản tiếng Việt thành chuỗi token IDs (Native Tokenizer Encoding).
+
+        Args:
+            van_ban: Chuỗi văn bản tiếng Việt cần mã hóa.
+            them_cls_sep: Nếu True, tự động gắn token [CLS] ở đầu và [SEP] ở cuối.
+            do_dai_toi_da: Giới hạn độ dài token tối đa (cắt bớt nếu vượt quá).
+
+        Returns:
+            Danh sách các token IDs số nguyên.
+        """
+        if not van_ban:
+            return []
+
+        tokens = self.tach_tu(van_ban, noi_tu_ghep=True)
+        ids: List[int] = []
+
+        if them_cls_sep:
+            ids.append(self.SPECIAL_TOKENS["[CLS]"])
+
+        for tok in tokens:
+            t_lower = tok.lower()
+            if t_lower in self._vocab:
+                ids.append(self._vocab[t_lower])
+            else:
+                h_id = 10000 + (BoNhungVanBanSieuToc._bam_chuoi(t_lower) % 20000)
+                self._vocab[t_lower] = h_id
+                self._id_to_vocab[h_id] = tok
+                ids.append(h_id)
+
+        if them_cls_sep:
+            ids.append(self.SPECIAL_TOKENS["[SEP]"])
+
+        if do_dai_toi_da is not None and do_dai_toi_da > 0:
+            ids = ids[:do_dai_toi_da]
+
+        return ids
+
+    encode = ma_hoa
+
+    def giai_ma(self, ids: List[int], bo_special: bool = True) -> str:
+        """
+        Giải mã danh sách token IDs ngược về văn bản tiếng Việt (Native Tokenizer Decoding).
+
+        Args:
+            ids: Danh sách các token ID số nguyên.
+            bo_special: Nếu True, loại bỏ các token đặc biệt ([CLS], [SEP], [PAD], [UNK], [MASK]).
+
+        Returns:
+            Chuỗi văn bản tiếng Việt tương ứng.
+        """
+        if not ids:
+            return ""
+
+        special_ids = {0, 1, 2, 3, 4}
+        cac_tu: List[str] = []
+
+        for i in ids:
+            if bo_special and i in special_ids:
+                continue
+            if i in self._id_to_vocab:
+                cac_tu.append(self._id_to_vocab[i].replace("_", " "))
+            else:
+                cac_tu.append(f"<tok_{i}>")
+
+        return " ".join(cac_tu)
+
+    decode = giai_ma
+
+    def pad(self, ids: List[int], do_dai: int, gia_tri_pad: int = 0) -> List[int]:
+        """Padding hoặc cắt bớt danh sách IDs token đến độ dài cố định."""
+        if len(ids) >= do_dai:
+            return ids[:do_dai]
+        return ids + [gia_tri_pad] * (do_dai - len(ids))
 
 
 class BoNhungVanBanSieuToc:

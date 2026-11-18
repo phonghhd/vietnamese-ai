@@ -105,6 +105,59 @@ class TrichXuat:
 
         return len(chunks)
 
+    def them_chunks(
+        self,
+        ma: str,
+        chunks: List[Dict[str, Any]],
+        van_ban_goc: Optional[str] = None,
+    ) -> int:
+        """
+        Thêm các chunk đã được phân đoạn sẵn (bảo toàn cấu trúc hành chính/pháp lý) vào retriever.
+
+        Args:
+            ma: ID tài liệu gốc
+            chunks: Danh sách chunk [{"noi_dung": ..., "metadata": ...}, ...]
+            van_ban_goc: Nội dung văn bản gốc đầy đủ
+
+        Returns:
+            Số chunks đã thêm
+        """
+        if van_ban_goc is not None:
+            self._van_ban_goc[ma] = van_ban_goc
+
+        for i, chunk in enumerate(chunks):
+            chunk_id = chunk.get("id") or f"{ma}_chunk_{i}"
+            nd = chunk.get("ngu_canh_day_du") or chunk.get("noi_dung") or ""
+            meta = chunk.get("metadata", {})
+            chunk_meta = {"noi_dung": nd, **meta, "tai_lieu_goc": ma}
+
+            # BM25 indexing
+            tu_list = nd.lower().split()
+            self._tu_dien[chunk_id] = {}
+            for tu in tu_list:
+                self._tu_dien[chunk_id][tu] = self._tu_dien[chunk_id].get(tu, 0) + 1
+
+            for tu in set(tu_list):
+                self._df[tu] = self._df.get(tu, 0) + 1
+
+            self._tong_tai_lieu += 1
+
+            # Vector embedding
+            if self.ham_embed is not None:
+                vector = self.ham_embed(nd)
+            elif (
+                "vector" in chunk
+                and isinstance(chunk["vector"], np.ndarray)
+                and len(chunk["vector"]) == getattr(self.csdl_vector, "kich_thuoc", len(chunk["vector"]))
+            ):
+                vector = chunk["vector"]
+            else:
+                vector = self._tao_vector_don_gian(nd)
+
+            self.csdl_vector.chen(chunk_id, vector, chunk_meta)
+
+        return len(chunks)
+
     def them_nhieu_tai_lieu(
         self,
         tai_lieu: List[Dict[str, Any]],

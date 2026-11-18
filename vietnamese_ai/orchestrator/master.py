@@ -38,22 +38,34 @@ class MasterHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(du_lieu, ensure_ascii=False).encode("utf-8"))
 
     def do_GET(self):
-        """Xử lý Health Check."""
+        """Xử lý Health Check và Swarm Status."""
         if self.path == "/health":
             status = {
                 "trang_thai": "hoat_dong",
                 "so_worker_dang_chay": len(self.master.danh_sach_active),
                 "workers": self.master.danh_sach_active,
+                "so_worker_swarm": len(self.master.danh_sach_swarm_active),
+                "workers_swarm": self.master.danh_sach_swarm_active,
                 "bao_mat_tuong_lua": self.master.bat_tuong_lua,
             }
             self._tra_json(200, status)
+        elif self.path in ("/swarm/status", "/swarm"):
+            self._tra_json(
+                200,
+                {
+                    "trang_thai": "hoat_dong",
+                    "so_worker_swarm": len(self.master.danh_sach_swarm_active),
+                    "workers_swarm": self.master.danh_sach_swarm_active,
+                    "thong_tin_swarm": self.master.lay_thong_tin_tat_ca_swarm(),
+                },
+            )
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_POST(self):
-        """Kiểm duyệt bảo mật và chuyển tiếp yêu cầu (Proxy/Route) đến Worker."""
-        if self.path == "/predict":
+        """Kiểm duyệt bảo mật và chuyển tiếp yêu cầu (Proxy/Route) đến Worker hoặc Swarm."""
+        if self.path in ("/predict", "/swarm/predict"):
             hop_le_auth, ly_do_auth = self.master.kiem_tra_xac_thuc_header(
                 self.headers.get("Authorization", ""),
                 self.headers.get("X-Cluster-Token", ""),
@@ -77,7 +89,28 @@ class MasterHandler(BaseHTTPRequestHandler):
                 self._tra_json(403, {"loi": f"Tường lửa AI chặn yêu cầu: {ly_do_fw}"})
                 return
 
-            worker_id = self.master.can_bang_tai.chon_worker(self.master.danh_sach_active)
+            # Kiểm tra yêu cầu định tuyến Swarm
+            la_yeu_cau_swarm = (
+                self.path == "/swarm/predict"
+                or self.headers.get("X-Route", "").strip().lower() == "swarm"
+            )
+            if not la_yeu_cau_swarm and post_data:
+                try:
+                    payload_check = json.loads(post_data.decode("utf-8"))
+                    if payload_check.get("che_do") == "swarm":
+                        la_yeu_cau_swarm = True
+                except Exception:
+                    pass
+
+            if la_yeu_cau_swarm:
+                danh_sach_swarm = self.master.danh_sach_swarm_active
+                if not danh_sach_swarm:
+                    self._tra_json(503, {"loi": "Không có Nút Swarm nào đang hoạt động trong cụm"})
+                    return
+                worker_id = self.master.can_bang_tai.chon_worker(danh_sach_swarm)
+            else:
+                worker_id = self.master.can_bang_tai.chon_worker(self.master.danh_sach_active)
+
             if not worker_id:
                 self._tra_json(503, {"loi": "Không có Worker nào đang hoạt động"})
                 return
@@ -203,11 +236,104 @@ class NutChinh:
             "host": host,
             "port": port,
             "process": None,
+            "loai": "standard",
         }
 
+    def them_nut_swarm(
+        self,
+        port: int,
+        swarm: Optional[Any] = None,
+        host: str = "127.0.0.1",
+        trong_so_canary: Optional[float] = None,
+        chay_ngam: bool = True,
+    ) -> str:
+        """
+        Đăng ký một Cụm Swarm P2P (Distributed CPU Swarm) làm Worker trong cụm NutChinh.
+        Tự động tạo Cầu nối NutCauNoiSwarm (HTTP -> TCP Swarm Pipeline).
+        """
+        from .swarm_bridge import NutCauNoiSwarm
+
+        bridge = NutCauNoiSwarm(
+            swarm=swarm,
+            host=host,
+            port=port,
+            ma_bi_mat_cum=self.ma_bi_mat_cum,
+        )
+        worker_id = f"{host}:{port}"
+        self.workers_config[worker_id] = {
+            "bo_xu_ly": bridge.xu_ly_payload,
+            "host": host,
+            "port": port,
+            "process": None,
+            "loai": "swarm",
+            "bridge": bridge,
+        }
+        if trong_so_canary is not None and self.can_bang_tai.chien_luoc == "canary":
+            moi = dict(self.can_bang_tai.trong_so_canary)
+            moi[worker_id] = float(trong_so_canary)
+            self.can_bang_tai.cap_nhat_trong_so(moi)
+
+        if chay_ngam:
+            bridge.khoi_dong_ngam()
+            if worker_id not in self.danh_sach_active:
+                self.danh_sach_active.append(worker_id)
+
+        logger.info(f"[NutChinh] Đã liên kết Swarm Worker {worker_id} (loại: P2P Pipeline)")
+        return worker_id
+
+    @property
+    def danh_sach_swarm_active(self) -> List[str]:
+        """Danh sách các Worker Swarm đang hoạt động."""
+        return [
+            w_id
+            for w_id in self.danh_sach_active
+            if self.workers_config.get(w_id, {}).get("loai") == "swarm"
+        ]
+
+    def lay_thong_tin_tat_ca_swarm(self) -> Dict[str, Any]:
+        """Thu thập trạng thái toàn bộ cụm Swarm kết nối vào NutChinh."""
+        res: Dict[str, Any] = {}
+        for w_id in self.danh_sach_swarm_active:
+            cfg = self.workers_config.get(w_id, {})
+            bridge = cfg.get("bridge")
+            if bridge and hasattr(bridge, "swarm"):
+                res[w_id] = (
+                    bridge.swarm.lay_trang_thai_cum()
+                    if hasattr(bridge.swarm, "lay_trang_thai_cum")
+                    else {}
+                )
+        return res
+
+    def dieu_huong_suy_luan_swarm(
+        self,
+        prompt: str,
+        so_token_sinh: int = 16,
+        xac_minh_proof: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Thực thi suy luận phân tán Swarm trực tiếp thông qua NutChinh (In-memory Direct Call).
+        """
+        for w_id in self.danh_sach_swarm_active:
+            cfg = self.workers_config.get(w_id, {})
+            bridge = cfg.get("bridge")
+            if bridge and hasattr(bridge, "swarm"):
+                return bridge.swarm.suy_luan_swarm(
+                    prompt=prompt,
+                    so_token_sinh=so_token_sinh,
+                    xac_minh_proof=xac_minh_proof,
+                )
+        raise RuntimeError("Không có Worker Swarm nào đang kết nối trong NutChinh")
+
     def _khoi_dong_worker(self, worker_id: str):
-        """Khởi động process cho worker."""
+        """Khởi động process hoặc thread cho worker."""
         config = self.workers_config[worker_id]
+        if config.get("loai") == "swarm":
+            bridge = config.get("bridge")
+            if bridge is not None:
+                if not bridge.dang_chay:
+                    bridge.khoi_dong_ngam()
+                return
+
         if config["process"] is not None and config["process"].is_alive():
             return
 
@@ -228,13 +354,22 @@ class NutChinh:
             active_hien_tai = []
 
             for worker_id, config in self.workers_config.items():
-                p = config["process"]
-                if p is None or not p.is_alive():
-                    logger.warning(
-                        f"[NutChinh] Worker {worker_id} đã chết process. Đang khởi động lại (Auto-healing)..."
-                    )
-                    self._khoi_dong_worker(worker_id)
-                    continue
+                if config.get("loai") == "swarm":
+                    bridge = config.get("bridge")
+                    if bridge is not None and not bridge.dang_chay:
+                        logger.warning(
+                            f"[NutChinh] Swarm Worker {worker_id} đã tắt. Đang khởi động lại (Auto-healing)..."
+                        )
+                        self._khoi_dong_worker(worker_id)
+                        continue
+                else:
+                    p = config.get("process")
+                    if p is None or not p.is_alive():
+                        logger.warning(
+                            f"[NutChinh] Worker {worker_id} đã chết process. Đang khởi động lại (Auto-healing)..."
+                        )
+                        self._khoi_dong_worker(worker_id)
+                        continue
 
                 try:
                     req = urllib.request.Request(f"http://{worker_id}/health")
@@ -279,7 +414,12 @@ class NutChinh:
             self.server.server_close()
 
         for worker_id, config in self.workers_config.items():
-            p = config["process"]
+            if config.get("loai") == "swarm" and config.get("bridge"):
+                try:
+                    config["bridge"].dung()
+                except Exception:
+                    pass
+            p = config.get("process")
             if p and p.is_alive():
                 p.terminate()
                 p.join(timeout=1)

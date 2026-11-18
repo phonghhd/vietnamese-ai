@@ -238,8 +238,12 @@ class CSDLVector:
         else:
             scores = self._vectors @ query
 
-        # Sắp xếp giảm dần
-        chi_so = np.argsort(scores)[::-1]
+        # Sắp xếp giảm dần (tối ưu hóa top-k bằng argpartition khi không có bộ lọc)
+        if bo_loc is None and len(scores) > top_k * 2:
+            partition_idx = np.argpartition(scores, -top_k)[-top_k:]
+            chi_so = partition_idx[np.argsort(scores[partition_idx])[::-1]]
+        else:
+            chi_so = np.argsort(scores)[::-1]
 
         ket_qua = []
         for idx in chi_so:

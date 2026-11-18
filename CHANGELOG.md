@@ -2,6 +2,27 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v31.0.2 (2026-11-18)
+
+### 🌟 Hệ Sinh Thái Khép Kín 5 Bước Tự Tối Ưu Hóa & Tự Chữa Lành (Closed-Loop Autonomous AI Ecosystem)
+- **1. Bánh Đà Dữ Liệu Khép Kín (Continuous Data Flywheel & DPO Loop)**:
+  - Tự động đóng gói mọi tương tác suy luận, phản hồi người dùng hoặc đánh giá từ Tác tử Tự sửa (`Self-Refine`) thành cặp cấu trúc `(prompt, chosen, rejected)` vào `HoDuLieu` (DataLake DVC) kèm mã băm SHA-256.
+  - `DPOTrainer` tự động đọc dữ liệu và tối ưu hóa trọng số mô hình, đăng ký và thăng hạng trực tiếp lên `QuanLyMoHinh` (`production`).
+- **2. Vận Hành Tự Phục Hồi & Auto-Rollback (Self-Healing Ops Loop)**:
+  - `MachCat` (Circuit Breaker) và `KiemTraSucKhoe` (Health Checker) liên kết trực tiếp với Model Registry.
+  - Tự động kích hoạt quy trình rollback về phiên bản ổn định gần nhất kèm xác thực chữ ký số HMAC-SHA256 chống giả mạo khi phát hiện sự cố dồn dập hoặc suy thoái chất lượng.
+- **3. Đóng Gói Biên 1-Click & Phân Phối Swarm CPU (Edge Packaging & Verifiable Swarm)**:
+  - Tự động chuyển đổi mô hình sang GGUF lượng tử hóa (`XuatGGUF`), phân mảnh layer song song (Pipeline Parallelism) tới cụm máy tính văn phòng / Mini PC (`DieuPhoiSwarmCPU`).
+  - Tự động sinh chữ ký chứng thực mật mã học Verifiable AI Merkle Audit Path $O(\log N)$ kết hợp Schnorr zkML.
+- **4. Vòng Lặp Đồng Tiến Hóa Đối Kháng (Adversarial Co-Evolution Loop)**:
+  - Tác tử `RedTeamSimulator` tự động tập kích các cuộc tấn công jailbreak, Prompt Injection tiếng Việt, System Prompt leak và Payload ẩn.
+  - Tường lửa AI đa tầng (`TuongLuaBaoVeFramework`) và Luồng An toàn (`LuongAnToan`) ngăn chặn, tự động sinh tập dữ liệu đối kháng DPO và tôi luyện trực tiếp các trọng số mô hình chống lại các cuộc tấn công (`hardened`).
+- **5. Hợp Nhất Đồ Thị Trạng Thái Phân Tán (Distributed StateGraph Unification)**:
+  - Đồ thị trạng thái DAG (`DoThiTrangThai` / `StateGraph`) hợp nhất toàn diện mọi mắt xích: Kiểm duyệt an ninh $\rightarrow$ Truy xuất tri thức RAG $\rightarrow$ Suy luận mô hình / Swarm CPU $\rightarrow$ Tự sửa chất lượng Self-Refine $\rightarrow$ Khử độc DLP đầu ra.
+  - Bổ sung các phương thức: `them_nut_tac_tu`, `them_nut_swarm`, `them_nut_cum` cùng bộ alias chuẩn LangGraph: `add_node`, `add_edge`, `add_conditional_edges`, `add_agent_node`, `add_swarm_node`, `add_cluster_node`, `compile`.
+- **Cầu Nối Thống Nhất `QuyTrinhDauCuoi` (`HeSinhThaiAI` / `EndToEndWorkflow`)**:
+  - Hợp nhất toàn diện 5 mắt xích khép kín vào một điểm vào (Single Entrypoint) duy nhất cho toàn bộ framework.
+
 ## v31.0.0 (2026-11-08)
 
 ### 🌟 DePIN Swarm CPU Inference & Verifiable AI (Merkle & zkML)

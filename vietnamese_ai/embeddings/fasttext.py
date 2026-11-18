@@ -34,6 +34,7 @@ class FastTextTiengViet(Word2VecTiengViet):
         so_am: int = 5,
         ngram_min: int = 3,
         ngram_max: int = 6,
+        dung_tach_tu_tieng_viet: bool = False,
     ):
         super().__init__(
             kich_thuoc=kich_thuoc,
@@ -42,6 +43,7 @@ class FastTextTiengViet(Word2VecTiengViet):
             toc_do_hoc=toc_do_hoc,
             toi_thieu_dem=toi_thieu_dem,
             so_am=so_am,
+            dung_tach_tu_tieng_viet=dung_tach_tu_tieng_viet,
         )
         self.ngram_min = ngram_min
         self.ngram_max = ngram_max

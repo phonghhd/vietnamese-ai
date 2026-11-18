@@ -32,6 +32,7 @@ class Word2VecTiengViet:
         toc_do_hoc: float = 0.025,
         toi_thieu_dem: int = 2,
         so_am: int = 5,
+        dung_tach_tu_tieng_viet: bool = False,
     ):
         self.kich_thuoc = kich_thuoc
         self.cua_so = cua_so
@@ -39,6 +40,7 @@ class Word2VecTiengViet:
         self.toc_do_hoc = toc_do_hoc
         self.toi_thieu_dem = toi_thieu_dem
         self.so_am = so_am
+        self.dung_tach_tu_tieng_viet = dung_tach_tu_tieng_viet
         self.logger = Logger("Word2Vec")
 
         self._tu_dien: Dict[str, int] = {}
@@ -49,11 +51,24 @@ class Word2VecTiengViet:
         self._da_huan_luyen = False
         self._xl = XuLyVanBan()
 
+    def _tach_tu(self, text: str) -> List[str]:
+        """Tách từ hỗ trợ giữ nguyên từ ghép tiếng Việt nếu được cấu hình."""
+        if getattr(self, "dung_tach_tu_tieng_viet", False):
+            try:
+                from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+                if not hasattr(self, "_native_tok"):
+                    self._native_tok = BoTachTuTiengVietSieuToc()
+                return self._native_tok.tach_tu(text, noi_tu_ghep=True)
+            except ImportError:
+                pass
+        return self._xl.tach_tu(text)
+
     def _tao_tu_dien(self, cac_van_ban: List[str]) -> None:
         """Tạo từ điển từ corpus."""
         self._dem_tu = {}
         for vb in cac_van_ban:
-            for tu in self._xl.tach_tu(vb):
+            for tu in self._tach_tu(vb):
                 self._dem_tu[tu] = self._dem_tu.get(tu, 0) + 1
 
         tu_hop_le = {tu: dem for tu, dem in self._dem_tu.items() if dem >= self.toi_thieu_dem}
@@ -75,7 +90,7 @@ class Word2VecTiengViet:
         """Tạo các cặp (từ_trung_tâm, từ_ngữ_cảnh) cho Skip-gram."""
         cap = []
         for vb in cac_van_ban:
-            cac_tu = self._xl.tach_tu(vb)
+            cac_tu = self._tach_tu(vb)
             chi_so = [self._tu_dien[t] for t in cac_tu if t in self._tu_dien]
 
             for i, tam in enumerate(chi_so):
@@ -152,7 +167,7 @@ class Word2VecTiengViet:
         if not self._da_huan_luyen:
             raise RuntimeError("Chưa huấn luyện.")
 
-        cac_tu = self._xl.tach_tu(text)
+        cac_tu = self._tach_tu(text)
         vectors = []
         for tu in cac_tu:
             v = self.lay_vector(tu)

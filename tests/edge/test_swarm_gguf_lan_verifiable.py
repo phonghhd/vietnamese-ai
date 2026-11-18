@@ -200,3 +200,97 @@ def test_byzantine_fault_detection_verifiable_ai():
 
     finally:
         node_rogue.dung_server_lan()
+
+
+def test_nut_swarm_nen_fp16_lan_socket():
+    """Kiểm tra nén trạng thái ẩn FP16 qua TCP Socket giúp giảm 50% băng thông mạng LAN."""
+    port = _tim_port_trong()
+    node_server = NutSwarmCPU(
+        node_id="fp16_cpu_server",
+        dai_layer=(0, 2),
+        so_core_cpu=4,
+        ram_mb=4096.0,
+    )
+    node_server.khoi_dong_server_lan(host="127.0.0.1", port=port)
+
+    try:
+        # Nút client cấu hình nén FP16
+        node_client = NutSwarmCPU(
+            node_id="fp16_cpu_client",
+            dai_layer=(0, 2),
+            endpoint_url=f"tcp://127.0.0.1:{port}",
+            che_do="mang_vat_ly_lan",
+            nen_fp16=True,
+        )
+
+        assert node_client.nen_fp16 is True
+        info = node_client.lay_thong_tin_cau_hinh()
+        assert info["nen_fp16"] is True
+
+        x_in = np.ones((1, 128), dtype=np.float32) * 0.25
+        x_out, proof = node_client.thuc_thi_layer(x_in, tao_proof=True)
+
+        assert x_out.shape == (1, 128)
+        assert proof is not None
+        assert "proof_zk" in proof
+
+        # Kiểm tra tính toàn vẹn xác thực ZKP với tensor FP16
+        hop_le = XacThucSuyLuanMaoHiem.xac_minh_cam_ket(
+            cam_ket=proof,
+            tensor_dau_vao=x_in,
+            tensor_dau_ra=x_out,
+        )
+        assert hop_le is True
+
+        # Kiểm tra DieuPhoiSwarmCPU tích hợp nén FP16
+        orchestrator = DieuPhoiSwarmCPU(tong_so_layer=4, bat_tuong_lua=False, nen_fp16=True)
+        assert orchestrator.nen_fp16 is True
+        trang_thai = orchestrator.lay_trang_thai_cum()
+        assert trang_thai["nen_fp16"] is True
+
+        kq = orchestrator.suy_luan_swarm("Kiểm tra nén dữ liệu truyền tải Swarm", so_token_sinh=2)
+        assert kq["nen_fp16"] is True
+    finally:
+        node_server.dung_server_lan()
+
+
+def test_swarm_tampering_phat_hien_byzantine_qua_tcp():
+    """Kiểm tra phát hiện nút giả mạo tensor gian lận kết quả truyền tải qua mạng TCP Socket."""
+    port = _tim_port_trong()
+
+    class RogueNutSwarmCPU(NutSwarmCPU):
+        def _tinh_toan_cuc_bo(self, hidden_states, tao_proof=True, nen_fp16=False):
+            out_tensor, proof = super()._tinh_toan_cuc_bo(hidden_states, tao_proof=tao_proof, nen_fp16=nen_fp16)
+            # Gian lận: làm giả dữ liệu tensor đầu ra sau khi cam kết mật mã học đã sinh
+            tampered_tensor = out_tensor.copy()
+            tampered_tensor[0, 0] += 999.0
+            return tampered_tensor, proof
+
+    server_rogue = RogueNutSwarmCPU(
+        node_id="nut_gian_lan_tcp",
+        dai_layer=(0, 2),
+        so_core_cpu=4,
+        ram_mb=4096.0,
+    )
+    server_rogue.khoi_dong_server_lan(host="127.0.0.1", port=port)
+
+    try:
+        orchestrator = DieuPhoiSwarmCPU(
+            tong_so_layer=2,
+            bat_tuong_lua=False,
+            bat_xac_thuc_mat_ma=True,
+        )
+        orchestrator.them_node_mang_vat_ly(
+            node_id="nut_gian_lan_tcp",
+            endpoint_url=f"tcp://127.0.0.1:{port}",
+            dai_layer=(0, 2),
+        )
+
+        h_in = np.ones((1, 128), dtype=np.float32)
+
+        # Bộ điều phối Swarm phải ném lỗi Byzantine khi nhận tensor bị giả mạo qua mạng TCP
+        with pytest.raises(ValueError, match="Byzantine"):
+            orchestrator.lan_truyen_pipeline(h_in, tao_proof=True)
+
+    finally:
+        server_rogue.dung_server_lan()

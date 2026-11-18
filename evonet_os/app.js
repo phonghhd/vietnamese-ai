@@ -427,6 +427,9 @@ function connectVoiceWebSocket() {
     };
 }
 
+// Quản lý hàng đợi và thời điểm phát âm thanh khử giật (Jitter Buffer Scheduling)
+let nextAudioPlaybackTime = 0;
+
 // Xử lý thông điệp JSON từ Server
 function handleVoiceServerMessage(data) {
     const userTranscriptElem = document.getElementById('user-transcript');
@@ -443,9 +446,16 @@ function handleVoiceServerMessage(data) {
             if (statusText) statusText.innerText = `Trạng thái: Đã nhận diện (Độ tin cậy: ${Math.round((data.do_tin_cay || 0.9) * 100)}%)`;
             break;
         case 'phan_hoi_van_ban':
-            if (aiResponseElem) aiResponseElem.innerText = data.cau_tra_loi || '';
+            if (aiResponseElem) {
+                let text = data.cau_tra_loi || '';
+                if (data.y_dinh) {
+                    text += `\n[Ý định: ${data.y_dinh}]`;
+                }
+                aiResponseElem.innerText = text;
+            }
             break;
         case 'bat_dau_phat_am_thanh':
+            nextAudioPlaybackTime = 0;
             if (statusText) statusText.innerText = 'Trạng thái: AI đang trả lời bằng giọng nói 6 thanh điệu...';
             if (pulseRing) pulseRing.className = 'voice-pulse-ring speaking';
             break;
@@ -458,13 +468,18 @@ function handleVoiceServerMessage(data) {
     }
 }
 
-// Phát mẩu âm thanh PCM 16-bit nhận từ TTS
+// Phát mẩu âm thanh PCM 16-bit nhận từ TTS với bộ đệm khử giật và lên lịch liên tục
 function playPcmAudioChunk(arrayBuffer) {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
     }
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
 
     const int16Array = new Int16Array(arrayBuffer);
+    if (int16Array.length === 0) return;
+
     const float32Array = new Float32Array(int16Array.length);
     for (let i = 0; i < int16Array.length; i++) {
         float32Array[i] = int16Array[i] / 32768.0;
@@ -476,7 +491,13 @@ function playPcmAudioChunk(arrayBuffer) {
     const source = audioContext.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(audioContext.destination);
-    source.start();
+
+    const now = audioContext.currentTime;
+    if (nextAudioPlaybackTime < now) {
+        nextAudioPlaybackTime = now + 0.04;
+    }
+    source.start(nextAudioPlaybackTime);
+    nextAudioPlaybackTime += audioBuffer.duration;
 }
 
 // Vẽ dao động sóng âm thời gian thực trên Canvas

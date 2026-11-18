@@ -114,6 +114,30 @@ class HoDuLieu:
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
         return self.dvc.commit(duong_dan_dich, tin_nhan_commit)
 
+    def them_ban_ghi(
+        self,
+        ban_ghi: Dict[str, Any],
+        ten_dataset: str = "feedback_dpo.jsonl",
+        tu_dong_commit: bool = True,
+        tin_nhan_commit: str = "Ghi nhận phản hồi feedback DPO",
+    ) -> str:
+        """
+        Ghi nối tiếp (Append) một bản ghi mới (ví dụ phản hồi DPO/RLHF) vào dataset trong DataLake
+        và tự động commit phiên bản mới vào DVC.
+        """
+        import json
+
+        if not ten_dataset.endswith((".jsonl", ".json")):
+            ten_dataset = f"{ten_dataset}.jsonl"
+        duong_dan_dich = os.path.join(self.thu_muc_datasets, ten_dataset)
+
+        with open(duong_dan_dich, "a", encoding="utf-8") as f:
+            f.write(json.dumps(ban_ghi, ensure_ascii=False) + "\n")
+
+        if tu_dong_commit:
+            return self.dvc.commit(duong_dan_dich, tin_nhan_commit)
+        return ""
+
     def quet_phong_thu_dataset(
         self,
         ten_dataset: str,

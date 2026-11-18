@@ -51,6 +51,7 @@ class NutSwarmCPU:
         do_tre_mang_co_dinh_ms: float = 0.0,
         ma_pin: Optional[str] = None,
         yeu_cau_phe_duyet: bool = False,
+        nen_fp16: bool = False,
     ):
         self.node_id = node_id
         self.dai_layer = dai_layer  # (start_layer, end_layer)
@@ -67,6 +68,7 @@ class NutSwarmCPU:
         self.checksum_trong_so_sha256: str = ""
         self.ma_pin = ma_pin
         self.yeu_cau_phe_duyet = yeu_cau_phe_duyet
+        self.nen_fp16 = nen_fp16
         self.xac_thuc: Optional[XacThucCumSwarm] = (
             XacThucCumSwarm(ma_pin=ma_pin, yeu_cau_phe_duyet=yeu_cau_phe_duyet)
             if ma_pin is not None
@@ -292,21 +294,34 @@ class NutSwarmCPU:
 
                         tensor_len = req_meta.get("tensor_bytes", 0)
                         shape = tuple(req_meta.get("shape", [1, self.d_model]))
+                        dtype_str = req_meta.get("dtype", "float32")
                         raw_tensor = await reader.readexactly(tensor_len)
-                        input_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(shape)
+
+                        if dtype_str == "float16":
+                            input_tensor = np.frombuffer(raw_tensor, dtype=np.float16).astype(np.float32).reshape(shape)
+                        else:
+                            input_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(shape)
 
                         t_comp_start = time.perf_counter()
                         tao_proof = req_meta.get("tao_proof", True)
-                        output_tensor, proof = self._tinh_toan_cuc_bo(input_tensor, tao_proof=tao_proof)
+                        tra_ve_fp16 = req_meta.get("nen_fp16", False) or (dtype_str == "float16") or self.nen_fp16
+                        output_tensor, proof = self._tinh_toan_cuc_bo(input_tensor, tao_proof=tao_proof, nen_fp16=tra_ve_fp16)
                         t_comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
 
-                        out_bytes = output_tensor.astype(np.float32).tobytes()
+                        if tra_ve_fp16:
+                            out_bytes = output_tensor.astype(np.float16).tobytes()
+                            out_dtype = "float16"
+                        else:
+                            out_bytes = output_tensor.astype(np.float32).tobytes()
+                            out_dtype = "float32"
+
                         res_meta = {
                             "trang_thai": "thanh_cong",
                             "node_id": self.node_id,
                             "thoi_gian_cpu_ms": round(t_comp_ms, 3),
                             "shape": list(output_tensor.shape),
                             "tensor_bytes": len(out_bytes),
+                            "dtype": out_dtype,
                             "proof": proof,
                         }
                         res_meta_bytes = json.dumps(res_meta, ensure_ascii=False).encode("utf-8")
@@ -423,13 +438,22 @@ class NutSwarmCPU:
                         raise PermissionError(f"Xác thực cụm Swarm thất bại: {res_auth.get('ly_do')}")
                     session_token = res_auth.get("token")
 
-            x_arr = np.asarray(hidden_states, dtype=np.float32)
-            raw_x = x_arr.tobytes()
+            if self.nen_fp16:
+                x_arr = np.asarray(hidden_states, dtype=np.float16)
+                raw_x = x_arr.tobytes()
+                dtype_str = "float16"
+            else:
+                x_arr = np.asarray(hidden_states, dtype=np.float32)
+                raw_x = x_arr.tobytes()
+                dtype_str = "float32"
+
             req_meta = {
                 "loai": "forward",
                 "node_id": self.node_id,
                 "shape": list(x_arr.shape),
                 "tensor_bytes": len(raw_x),
+                "dtype": dtype_str,
+                "nen_fp16": self.nen_fp16,
                 "tao_proof": tao_proof,
                 "token": session_token,
             }
@@ -455,43 +479,25 @@ class NutSwarmCPU:
                     break
                 raw_tensor.extend(chunk)
 
-            out_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(tensor_shape)
+            resp_dtype = resp_meta.get("dtype", "float32")
+            if resp_dtype == "float16":
+                out_tensor = np.frombuffer(raw_tensor, dtype=np.float16).astype(np.float32).reshape(tensor_shape)
+            else:
+                out_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(tensor_shape)
+
             self.thoi_gian_tinh_toan_gan_nhat_ms = float(resp_meta.get("thoi_gian_cpu_ms", 0.0))
             self.thoi_gian_mang_gan_nhat_ms = (time.perf_counter() - t_net_start) * 1000.0 - self.thoi_gian_tinh_toan_gan_nhat_ms
             return out_tensor, resp_meta.get("proof")
-            if len(raw_len) < 4:
-                raise ConnectionError(f"Phản hồi từ {self.endpoint_url} không đầy đủ")
-            res_meta_len = struct.unpack("!I", raw_len)[0]
-            res_meta_bytes = b""
-            while len(res_meta_bytes) < res_meta_len:
-                chunk = sock.recv(res_meta_len - len(res_meta_bytes))
-                if not chunk:
-                    break
-                res_meta_bytes += chunk
-            res_meta = json.loads(res_meta_bytes.decode("utf-8"))
-
-            out_len = res_meta.get("tensor_bytes", 0)
-            shape = tuple(res_meta.get("shape", [1, self.d_model]))
-            out_raw = b""
-            while len(out_raw) < out_len:
-                chunk = sock.recv(out_len - len(out_raw))
-                if not chunk:
-                    break
-                out_raw += chunk
-            out_tensor = np.frombuffer(out_raw, dtype=np.float32).reshape(shape)
-
-        self.thoi_gian_mang_gan_nhat_ms = (time.perf_counter() - t_net_start) * 1000.0
-        self.thoi_gian_tinh_toan_gan_nhat_ms = float(res_meta.get("thoi_gian_cpu_ms", 0.0))
-        proof = res_meta.get("proof")
-        return out_tensor, proof
 
     def _tinh_toan_cuc_bo(
         self,
         hidden_states: np.ndarray,
         tao_proof: bool = True,
+        nen_fp16: Optional[bool] = None,
     ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
         """Thực thi forward pass cục bộ trên CPU."""
         t_start = time.perf_counter()
+        ap_dung_fp16 = self.nen_fp16 if nen_fp16 is None else nen_fp16
         x = hidden_states.copy()
         if x.ndim == 1:
             x = x.reshape(1, -1)
@@ -502,6 +508,9 @@ class NutSwarmCPU:
             x_next = np.dot(x, w) + b
             x_next = np.clip(x_next, -50.0, 50.0)
             x = np.clip(x + 0.1 * x_next, -100.0, 100.0)
+
+        if ap_dung_fp16:
+            x = x.astype(np.float16).astype(np.float32)
 
         self.thoi_gian_tinh_toan_gan_nhat_ms = (time.perf_counter() - t_start) * 1000.0
 
@@ -555,6 +564,7 @@ class NutSwarmCPU:
             "so_core_cpu": self.so_core_cpu,
             "ram_mb": self.ram_mb,
             "so_layer": self.so_layer,
+            "nen_fp16": self.nen_fp16,
             "public_key": self.verifier.public_key,
             "endpoint_url": self.endpoint_url,
             "che_do": self.che_do,
@@ -591,6 +601,7 @@ class DieuPhoiSwarmCPU:
         bat_tuong_lua: bool = True,
         ma_pin: Optional[str] = None,
         yeu_cau_phe_duyet: bool = False,
+        nen_fp16: bool = False,
     ):
         self.d_model = d_model
         self.tong_so_layer = tong_so_layer
@@ -598,6 +609,7 @@ class DieuPhoiSwarmCPU:
         self.bat_tuong_lua = bat_tuong_lua
         self.ma_pin = ma_pin
         self.yeu_cau_phe_duyet = yeu_cau_phe_duyet
+        self.nen_fp16 = nen_fp16
         self.xac_thuc: Optional[XacThucCumSwarm] = (
             XacThucCumSwarm(ma_pin=ma_pin, yeu_cau_phe_duyet=yeu_cau_phe_duyet)
             if ma_pin is not None
@@ -671,6 +683,7 @@ class DieuPhoiSwarmCPU:
         so_core_cpu: int = 4,
         ram_mb: float = 4096.0,
         private_key: Optional[str] = None,
+        nen_fp16: Optional[bool] = None,
     ) -> NutSwarmCPU:
         """Thêm một máy tính CPU văn phòng vào cụm Swarm (chế độ cục bộ / đa tiến trình)."""
         if dai_layer is None:
@@ -686,6 +699,7 @@ class DieuPhoiSwarmCPU:
             ram_mb=ram_mb,
             private_key=private_key,
             che_do="gia_lap_cuc_bo",
+            nen_fp16=self.nen_fp16 if nen_fp16 is None else nen_fp16,
         )
         self.danh_sach_node.append(node)
         return node
@@ -700,6 +714,7 @@ class DieuPhoiSwarmCPU:
         private_key: Optional[str] = None,
         do_tre_mang_co_dinh_ms: float = 1.5,
         ma_pin: Optional[str] = None,
+        nen_fp16: Optional[bool] = None,
     ) -> NutSwarmCPU:
         """
         Đăng ký một nút mạng vật lý thực tế qua mạng LAN/Tailscale (Physical LAN/Tailscale Node):
@@ -724,6 +739,7 @@ class DieuPhoiSwarmCPU:
             che_do="mang_vat_ly_lan",
             do_tre_mang_co_dinh_ms=do_tre_mang_co_dinh_ms,
             ma_pin=pin_dung,
+            nen_fp16=self.nen_fp16 if nen_fp16 is None else nen_fp16,
         )
         self.danh_sach_node.append(node)
         return node
@@ -750,6 +766,7 @@ class DieuPhoiSwarmCPU:
                 dai_layer=(curr, end_layer),
                 so_core_cpu=so_core_cpu,
                 ram_mb=ram_mb,
+                nen_fp16=self.nen_fp16,
             )
             self.danh_sach_node.append(node)
             curr = end_layer
@@ -776,6 +793,7 @@ class DieuPhoiSwarmCPU:
             "tong_so_core_cpu": tong_core,
             "tong_ram_mb": tong_ram,
             "tong_so_layer": self.tong_so_layer,
+            "nen_fp16": self.nen_fp16,
             "xac_thuc_mat_ma": self.bat_xac_thuc_mat_ma,
             "danh_sach_node": [n.lay_thong_tin_cau_hinh() for n in self.danh_sach_node],
         }
@@ -906,6 +924,7 @@ class DieuPhoiSwarmCPU:
             "cau_tra_loi": cau_tra_loi,
             "danh_sach_node": node_hop_le,
             "tong_so_layer": self.tong_so_layer,
+            "nen_fp16": self.nen_fp16,
             "thoi_gian_xu_ly_ms": round(dt * 1000.0, 2),
             "tokens_moi_giay": round(tps, 2),
             "so_proof_da_xac_minh": len(cam_ket_cac_node),
@@ -962,6 +981,42 @@ class DieuPhoiSwarmCPU:
     def sinh_stream(self, prompt: str, do_dai_toi_da: int = 16) -> Generator[str, None, None]:
         """Sinh tokens dạng streaming (alias tương thích)."""
         yield from self.suy_luan_streaming(prompt, so_token=do_dai_toi_da)
+
+    def tao_cau_noi_orchestrator(
+        self,
+        port_http: int = 8085,
+        host: str = "127.0.0.1",
+        ma_bi_mat_cum: Optional[str] = None,
+    ) -> Any:
+        """
+        Tạo Cầu nối HTTP Worker để liên kết cụm Swarm vào NutChinh (Cluster Orchestrator).
+        """
+        from vietnamese_ai.orchestrator.swarm_bridge import NutCauNoiSwarm
+
+        return NutCauNoiSwarm(
+            swarm=self,
+            host=host,
+            port=port_http,
+            ma_bi_mat_cum=ma_bi_mat_cum,
+        )
+
+    def dang_ky_vao_nut_chinh(
+        self,
+        nut_chinh: Any,
+        port_http: int = 8085,
+        host: str = "127.0.0.1",
+        trong_so_canary: Optional[float] = None,
+    ) -> str:
+        """
+        Đăng ký trực tiếp cụm Swarm này vào Master Node (NutChinh / DieuPhoiCum).
+        """
+        return nut_chinh.them_nut_swarm(
+            port=port_http,
+            swarm=self,
+            host=host,
+            trong_so_canary=trong_so_canary,
+            chay_ngam=True,
+        )
 
 
 # Aliases

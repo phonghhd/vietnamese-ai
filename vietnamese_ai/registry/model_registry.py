@@ -4,7 +4,7 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from vietnamese_ai.utils.io_utils import LuuTai, tai_an_toan
 from vietnamese_ai.utils.logger import Logger
@@ -194,6 +194,64 @@ class QuanLyMoHinh:
         self._metadata[ten]["aliases"][alias] = version
         self._luu_metadata()
         self.logger.info(f"Promote: {ten} v{version} -> {alias}")
+
+    def rollback(
+        self,
+        ten: str,
+        target_version: Optional[str] = None,
+        alias_muc_tieu: str = "production",
+    ) -> Tuple[str, Any]:
+        """
+        Khôi phục (rollback) mô hình về phiên bản trước đó hoặc một phiên bản cụ thể
+        và tự động cập nhật lại alias (mặc định 'production').
+
+        Args:
+            ten: Tên mô hình trong registry
+            target_version: Phiên bản đích muốn rollback về (None = phiên bản trước bản hiện tại của alias)
+            alias_muc_tieu: Alias cần cập nhật sau khi rollback (mặc định 'production')
+
+        Returns:
+            Tuple[str, Any]: (version_moi_rollback, doi_tuong_mo_hinh_da_tai)
+        """
+        if ten not in self._metadata:
+            raise KeyError(f"Không tìm thấy mô hình: {ten}")
+
+        versions = list(self._metadata[ten]["versions"].keys())
+        if not versions:
+            raise ValueError(f"Mô hình '{ten}' chưa có phiên bản nào trong registry.")
+
+        if target_version is not None:
+            if target_version not in self._metadata[ten]["versions"]:
+                raise KeyError(f"Không tìm thấy version mục tiêu '{target_version}' cho mô hình '{ten}'")
+            version_rollback = target_version
+        else:
+            current_version = self._metadata[ten].get("aliases", {}).get(alias_muc_tieu)
+            if current_version is None:
+                current_version = versions[-1]
+
+            if current_version in versions:
+                idx = versions.index(current_version)
+                if idx > 0:
+                    version_rollback = versions[idx - 1]
+                else:
+                    if len(versions) > 1 and current_version == versions[-1]:
+                        version_rollback = versions[-2]
+                    else:
+                        raise ValueError(
+                            f"Không có phiên bản trước đó để rollback cho mô hình '{ten}' (hiện đang ở '{current_version}')"
+                        )
+            else:
+                if len(versions) >= 2:
+                    version_rollback = versions[-2]
+                else:
+                    raise ValueError(f"Không đủ phiên bản để rollback cho mô hình '{ten}'")
+
+        self.promote(ten, version_rollback, alias=alias_muc_tieu)
+        mo_hinh_tai = self.tai(ten, version=version_rollback)
+        self.logger.warning(
+            f"Tự phục hồi / Rollback thành công: {ten} rollback về v{version_rollback} cho alias '{alias_muc_tieu}'"
+        )
+        return version_rollback, mo_hinh_tai
 
     def danh_sach(self, ten: Optional[str] = None) -> List[Dict]:
         """Liệt kê tất cả mô hình hoặc các version của một mô hình."""

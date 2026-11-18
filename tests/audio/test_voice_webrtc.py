@@ -246,3 +246,146 @@ async def test_may_chu_webrtc_voice_full_dialogue():
 
     finally:
         await server.dung_lai_async()
+
+
+def test_cli_vai_voice_va_swarm_fp16():
+    """Kiểm tra cấu hình lệnh CLI cho vai voice và cờ nén vai swarm --fp16."""
+    from vietnamese_ai.cli.main import _tao_parser
+
+    parser = _tao_parser()
+
+    # 1. Kiểm tra parser lệnh vai voice
+    args_voice = parser.parse_args([
+        "voice",
+        "--host", "0.0.0.0",
+        "--port", "8888",
+        "--sample-rate", "16000",
+        "--llm",
+        "--model", "mo_hinh_test.bin",
+        "--rag", "tri_thuc_test.db",
+    ])
+    assert args_voice.command == "voice"
+    assert args_voice.host == "0.0.0.0"
+    assert args_voice.port == 8888
+    assert args_voice.sample_rate == 16000
+    assert args_voice.llm is True
+    assert args_voice.model == "mo_hinh_test.bin"
+    assert args_voice.rag == "tri_thuc_test.db"
+    assert args_voice.open_browser is False
+
+    # 2. Kiểm tra cờ --fp16 của lệnh vai swarm
+    args_swarm = parser.parse_args(["swarm", "--fp16", "--nodes", "4"])
+    assert args_swarm.command == "swarm"
+    assert args_swarm.fp16 is True
+    assert args_swarm.nodes == 4
+
+
+@pytest.mark.asyncio
+async def test_may_chu_webrtc_voice_async_va_mo_hinh_rag_hook():
+    """Kiểm tra MayChuWebRTCVoice với hàm bất đồng bộ async, đối tượng mô hình LLM và RAG."""
+    # 1. Test async ham_tra_loi
+    async def ham_async(cau_hoi: str) -> str:
+        await asyncio.sleep(0.01)
+        return f"Async: {cau_hoi}"
+
+    port1 = _tim_port_trong()
+    server_async = MayChuWebRTCVoice(host="127.0.0.1", port=port1, ham_tra_loi=ham_async)
+    assert server_async.ham_tra_loi == ham_async
+
+    # 2. Test mo_hinh adapter (sinh_van_ban)
+    class MockLLM:
+        def sinh_van_ban(self, prompt: str, max_tokens: int = 50) -> str:
+            return f"LLM trả lời: {prompt}"
+
+    server_llm = MayChuWebRTCVoice(host="127.0.0.1", port=port1, mo_hinh=MockLLM())
+    tra_loi_llm = server_llm.ham_tra_loi("Thời tiết hôm nay")
+    assert "LLM trả lời: Thời tiết hôm nay" in tra_loi_llm
+
+    # 3. Test rag adapter (truy_van)
+    class MockRAG:
+        def truy_van(self, query: str) -> dict:
+            return {"cau_tra_loi": f"RAG tra cứu: {query}"}
+
+    server_rag = MayChuWebRTCVoice(host="127.0.0.1", port=port1, rag=MockRAG())
+    tra_loi_rag = server_rag.ham_tra_loi("Lịch sử Việt Nam")
+    assert "RAG tra cứu: Lịch sử Việt Nam" in tra_loi_rag
+
+
+@pytest.mark.asyncio
+async def test_may_chu_webrtc_voice_stress_dong_thoi():
+    """Kiểm tra áp lực (Stress Test) đa kết nối đồng thời trên MayChuWebRTCVoice."""
+    port = _tim_port_trong()
+
+    def ham_xu_ly_dong_thoi(cau_hoi: str) -> str:
+        return f"Phản hồi đồng thời: {cau_hoi}"
+
+    server = MayChuWebRTCVoice(
+        host="127.0.0.1",
+        port=port,
+        ham_tra_loi=ham_xu_ly_dong_thoi,
+        tan_so_lay_mau=16000,
+    )
+    await server.khoi_dong_async()
+
+    so_client = 6
+
+    async def _mo_phong_client(client_idx: int) -> None:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        try:
+            # 1. Bắt tay WebSocket
+            sec_key = "dGhlIHNhbXBsZSBub25jZQ=="
+            req = (
+                f"GET /voice HTTP/1.1\r\n"
+                f"Host: 127.0.0.1:{port}\r\n"
+                f"Upgrade: websocket\r\n"
+                f"Connection: Upgrade\r\n"
+                f"Sec-WebSocket-Key: {sec_key}\r\n"
+                f"Sec-WebSocket-Version: 13\r\n\r\n"
+            ).encode("utf-8")
+            writer.write(req)
+            await writer.drain()
+
+            resp_hs = await reader.readuntil(b"\r\n\r\n")
+            assert b"101 Switching Protocols" in resp_hs
+
+            # 2. Đọc tin nhắn chào mừng
+            op_chao, pay_chao = await server._doc_frame(reader)
+            msg_chao = json.loads(pay_chao.decode("utf-8"))
+            assert msg_chao["loai"] == "ket_noi_thanh_cong"
+
+            # 3. Gửi câu hỏi đồng thời
+            noi_dung = f"Khách hàng số {client_idx} hỏi AI"
+            req_body = json.dumps({"loai": "cau_hoi_text", "noi_dung": noi_dung}, ensure_ascii=False).encode("utf-8")
+            mask = b"\xaa\xbb\xcc\xdd"
+            masked = bytearray(len(req_body))
+            for i in range(len(req_body)):
+                masked[i] = req_body[i] ^ mask[i % 4]
+
+            frame = bytearray([0x81, 0x80 | len(req_body)])
+            frame.extend(mask)
+            frame.extend(masked)
+            writer.write(bytes(frame))
+            await writer.drain()
+
+            # 4. Nhận phản hồi văn bản
+            op_t, pay_t = await server._doc_frame(reader)
+            data_t = json.loads(pay_t.decode("utf-8"))
+            assert data_t["loai"] == "phan_hoi_van_ban"
+            assert noi_dung in data_t["cau_tra_loi"]
+
+            # 5. Nhận thông báo phát âm thanh và ít nhất một audio chunk
+            op_meta, pay_meta = await server._doc_frame(reader)
+            assert json.loads(pay_meta.decode("utf-8"))["loai"] == "bat_dau_phat_am_thanh"
+
+            op_pcm, pay_pcm = await server._doc_frame(reader)
+            assert op_pcm == 0x02
+            assert len(pay_pcm) > 0
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    try:
+        tasks = [_mo_phong_client(i) for i in range(so_client)]
+        await asyncio.gather(*tasks)
+    finally:
+        await server.dung_lai_async()

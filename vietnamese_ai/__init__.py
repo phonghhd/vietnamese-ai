@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import List
 
-__version__ = "31.0.0"
+__version__ = "31.0.2"
 __author__ = "EvoNet AI Team"
 
 
@@ -270,11 +270,17 @@ _LAZY_IMPORTS = {
         "DieuPhoiCum": ("vietnamese_ai.orchestrator.cluster_manager", "DieuPhoiCum"),
         "NutChinh": ("vietnamese_ai.orchestrator.master", "NutChinh"),
         "NutPhu": ("vietnamese_ai.orchestrator.worker", "NutPhu"),
+        "NutCauNoiSwarm": ("vietnamese_ai.orchestrator.swarm_bridge", "NutCauNoiSwarm"),
+        "SwarmBridgeWorker": ("vietnamese_ai.orchestrator.swarm_bridge", "SwarmBridgeWorker"),
         "MayTinhTien": ("vietnamese_ai.monitor.cost_engine", "MayTinhTien"),
         "HoDuLieu": ("vietnamese_ai.datalake.dataset_manager", "HoDuLieu"),
         "ThucThiDocLap": ("vietnamese_ai.sandbox.executor", "ThucThiDocLap"),
         "DongChayDAG": ("vietnamese_ai.workflow.dag_engine", "DongChayDAG"),
         "QuanLyPlugin": ("vietnamese_ai.plugin.plugin_manager", "QuanLyPlugin"),
+        "PluginCoSo": ("vietnamese_ai.plugin.plugin_base", "PluginCoSo"),
+        "PluginCongCu": ("vietnamese_ai.plugin.plugin_base", "PluginCongCu"),
+        "PluginTriThuc": ("vietnamese_ai.plugin.plugin_base", "PluginTriThuc"),
+        "PluginGiaiPhap": ("vietnamese_ai.plugin.plugin_base", "PluginGiaiPhap"),
         # === Ultra-Lightweight SDK & Ecosystem Closure ===
         "QuanLyPhuThuoc": ("vietnamese_ai.utils.lazy_loader", "QuanLyPhuThuoc"),
         "DependencyManager": ("vietnamese_ai.utils.lazy_loader", "DependencyManager"),
@@ -306,6 +312,8 @@ _LAZY_IMPORTS = {
             "vietnamese_ai.security.data_defense",
             "OutputSafetyQualityGate",
         ),
+        "RedTeamSimulator": ("vietnamese_ai.security.red_team", "RedTeamSimulator"),
+        "BlueTeamAgent": ("vietnamese_ai.security.blue_team", "BlueTeamAgent"),
         # === Web Studio Dashboard & Solutions (Phase 15) ===
         "StudioDashboard": ("vietnamese_ai.ui.studio_dashboard", "StudioDashboard"),
         "MayChuStudioDashboard": (
@@ -318,6 +326,8 @@ _LAZY_IMPORTS = {
         "SmartExtractor": ("vietnamese_ai.solutions.trich_xuat", "SmartExtractor"),
         "TongDaiCSKH": ("vietnamese_ai.solutions.cskh", "TongDaiCSKH"),
         "CustomerSupportBot": ("vietnamese_ai.solutions.cskh", "CustomerSupportBot"),
+        "VoicebotCSKH": ("vietnamese_ai.solutions.cskh", "VoicebotCSKH"),
+        "GiaiPhapVoicebotCSKH": ("vietnamese_ai.solutions.cskh", "GiaiPhapVoicebotCSKH"),
         # === StateGraph, Deep Research & Code Healing (Phase 16) ===
         "DoThiTrangThai": ("vietnamese_ai.agents.state_graph", "DoThiTrangThai"),
         "StateGraph": ("vietnamese_ai.agents.state_graph", "StateGraph"),
@@ -529,6 +539,10 @@ __all__ = [
     "ThucThiDocLap",
     "DongChayDAG",
     "QuanLyPlugin",
+    "PluginCoSo",
+    "PluginCongCu",
+    "PluginTriThuc",
+    "PluginGiaiPhap",
     # v30.0+: Multimodal, Local LLM, OpenAI API, MCP & RAGAS
     "OllamaWrapper",
     "VLLMWrapper",
@@ -581,6 +595,8 @@ __all__ = [
     "BieuDo",
     "NutChinh",
     "NutPhu",
+    "NutCauNoiSwarm",
+    "SwarmBridgeWorker",
     "QuanLyPhuThuoc",
     "DependencyManager",
     "ContinuousBatcher",
@@ -601,6 +617,8 @@ __all__ = [
     "InputQualityGate",
     "CongAnToanDauRa",
     "OutputSafetyQualityGate",
+    "RedTeamSimulator",
+    "BlueTeamAgent",
     "StudioDashboard",
     "MayChuStudioDashboard",
     "TroLyPhapLy",
@@ -609,6 +627,8 @@ __all__ = [
     "SmartExtractor",
     "TongDaiCSKH",
     "CustomerSupportBot",
+    "VoicebotCSKH",
+    "GiaiPhapVoicebotCSKH",
     # Phase 16: StateGraph, Deep Research & Code Healing
     "DoThiTrangThai",
     "StateGraph",

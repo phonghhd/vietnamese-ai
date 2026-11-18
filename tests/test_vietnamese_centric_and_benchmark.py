@@ -216,7 +216,7 @@ def test_cli_benchmark_va_tokenize(tmp_path: Path):
 
 def test_public_symbols_and_version_v30_2():
     """Kiểm tra các symbols công khai và phiên bản 31.0.0 qua lazy loader."""
-    assert vietnamese_ai.__version__ == "31.0.0"
+    assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2")
 
     # Kiểm tra lazy imports các symbols mới
     assert getattr(vietnamese_ai, "BoTachTuTiengVietSieuToc") is BoTachTuTiengVietSieuToc

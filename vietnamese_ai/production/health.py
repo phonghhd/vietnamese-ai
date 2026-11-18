@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
@@ -31,14 +31,22 @@ class KiemTraSucKhoe:
         self,
         timeout: float = 5.0,
         mau_lich_su: int = 100,
+        on_unhealthy: Optional[Callable[["KiemTraSucKhoe", Dict[str, Any]], Any]] = None,
     ):
         self.timeout = timeout
         self.mau_lich_su = mau_lich_su
+        self.on_unhealthy = on_unhealthy
         self.logger = Logger("KiemTraSucKhoe")
 
         self._checks: Dict[str, Dict[str, Any]] = {}
         self._lich_su: List[Dict[str, Any]] = []
         self._bat_dau = time.time()
+
+    def dang_ky_on_unhealthy(
+        self, fn: Callable[["KiemTraSucKhoe", Dict[str, Any]], Any]
+    ) -> None:
+        """Đăng ký hook xử lý tự phục hồi khi hệ thống rơi vào trạng thái unhealthy."""
+        self.on_unhealthy = fn
 
     def dang_ky_check(
         self,
@@ -131,6 +139,12 @@ class KiemTraSucKhoe:
         if len(self._lich_su) > self.mau_lich_su:
             self._lich_su = self._lich_su[-self.mau_lich_su :]
 
+        if trang_thai == "unhealthy" and self.on_unhealthy is not None:
+            try:
+                self.on_unhealthy(self, ket_qua)
+            except Exception:
+                pass
+
         return ket_qua
 
     def ready(self) -> bool:
@@ -198,7 +212,7 @@ class KiemTraSucKhoe:
 
         return info
 
-    def dang_ky_checks_mac_dinh(self, model: Any = None) -> None:
+    def dang_ky_checks_mac_dinh(self, model: Any = None, mach_cat: Any = None) -> None:
         """Đăng ký các health checks mặc định."""
         if model is not None:
             self.dang_ky_check(
@@ -224,6 +238,14 @@ class KiemTraSucKhoe:
                     "Kiểm tra model có thể dự đoán",
                     quan_trong=True,
                 )
+
+        if mach_cat is not None:
+            self.dang_ky_check(
+                "circuit_breaker",
+                lambda: getattr(mach_cat, "trang_thai", "dong") != "mo",
+                "Kiểm tra Circuit Breaker hoạt động bình thường (không bị ngắt mạch)",
+                quan_trong=True,
+            )
 
         # Disk space check
         def check_disk():

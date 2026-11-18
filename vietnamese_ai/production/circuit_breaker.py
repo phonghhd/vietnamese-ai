@@ -38,19 +38,21 @@ class MachCat:
         cua_so_thoi_gian: float = 60.0,
         ham_fallback: Optional[Callable] = None,
         ten: str = "default",
+        on_circuit_open: Optional[Callable[["MachCat"], Any]] = None,
     ):
         self.so_loi_toi_da = so_loi_toi_da
         self.timeout_phuc_hoi = timeout_phuc_hoi
         self.cua_so_thoi_gian = cua_so_thoi_gian
         self.ham_fallback = ham_fallback
         self.ten = ten
+        self.on_circuit_open = on_circuit_open
 
         self._trang_thai = TrangThaiMach.DONG
         self._so_loi = 0
         self._so_thanh_cong = 0
         self._lan_loi_cuoi = 0.0
         self._lan_trang_thai_cuoi = time.time()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
         self._thong_ke = {
             "tong_request": 0,
@@ -115,6 +117,8 @@ class MachCat:
             elif self._trang_thai == TrangThaiMach.NUA_MO:
                 self._chuyen_trang_thai(TrangThaiMach.MO)
 
+    ghi_nhan_that_bai = ghi_nhan_loi
+
     def thuc_hien(self, ham: Callable, *args: Any, **kwargs: Any) -> Any:
         """
         Thực hiện hàm với circuit breaker protection.
@@ -145,6 +149,10 @@ class MachCat:
                 return self.ham_fallback(*args, **kwargs)
             raise
 
+    def dang_ky_on_open(self, fn: Callable[["MachCat"], Any]) -> None:
+        """Đăng ký callback tự phục hồi khi mạch mở."""
+        self.on_circuit_open = fn
+
     def _chuyen_trang_thai(self, trang_thai_moi: TrangThaiMach) -> None:
         """Chuyển trạng thái."""
         cu = self._trang_thai
@@ -159,6 +167,12 @@ class MachCat:
                 "thoi_gian": time.time(),
             }
         )
+
+        if trang_thai_moi == TrangThaiMach.MO and self.on_circuit_open is not None:
+            try:
+                self.on_circuit_open(self)
+            except Exception:
+                pass
 
     def reset(self) -> None:
         """Reset circuit breaker về trạng thái đóng."""

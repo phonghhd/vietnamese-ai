@@ -3,7 +3,7 @@
 import re
 import unicodedata
 from collections import Counter
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -140,39 +140,68 @@ class XuLyVanBan:
         text = text.replace("đ", "d").replace("Đ", "D")
         return "".join(c for c in text if unicodedata.category(c) != "Mn")
 
-    def __init__(self, tu_dung: Optional[set] = None, su_dung_underthesea: bool = True):
+    def __init__(
+        self,
+        tu_dung: Optional[set] = None,
+        su_dung_underthesea: bool = True,
+        dung_native_tokenizer: bool = False,
+    ):
         self.tu_dung = tu_dung or self.TU_DUNG_TIENG_VIET
         self._tu_dien: Dict[str, int] = {}
         self._idf: Optional[np.ndarray] = None
         self._su_dung_underthesea = su_dung_underthesea and _CO_UNDERTHESEA
+        self.dung_native_tokenizer = dung_native_tokenizer
+        if self.dung_native_tokenizer:
+            from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+            self._native_tokenizer: Optional[BoTachTuTiengVietSieuToc] = BoTachTuTiengVietSieuToc()
+        else:
+            self._native_tokenizer = None
+
+    @property
+    def tokenizer(self) -> Optional[Any]:
+        """Bộ tách từ Native Fast Tokenizer bên dưới (nếu được kích hoạt)."""
+        return self._native_tokenizer
 
     @property
     def co_underthesea(self) -> bool:
         """Kiểm tra underthesea có sẵn không."""
         return _CO_UNDERTHESEA
 
-    def chuan_hoa(self, text: str) -> str:
+    def chuan_hoa(self, text: str, chuan_hoa_dau: bool = True) -> str:
         """
         Chuẩn hóa văn bản tiếng Việt.
 
         - Chuyển về chữ thường
         - Chuẩn hóa Unicode NFC
+        - Chuẩn hóa vị trí dấu thanh (kiểu mới)
         - Loại bỏ ký tự đặc biệt
         - Loại bỏ khoảng trắng thừa
         """
+        if not text:
+            return ""
+        if chuan_hoa_dau and self._native_tokenizer is not None:
+            text = self._native_tokenizer.chuan_hoa_dau_thanh(text)
+        else:
+            text = unicodedata.normalize("NFC", text)
         text = text.lower().strip()
-        text = unicodedata.normalize("NFC", text)
         text = re.sub(
             r"[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệđìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ]", " ", text
         )
         text = re.sub(r"\s+", " ", text).strip()
         return text
 
+    def xoa_dau(self, text: str) -> str:
+        """Loại bỏ dấu tiếng Việt, chuyển về không dấu."""
+        if self._native_tokenizer is not None:
+            return self._native_tokenizer.xoa_dau_tieng_viet(text)
+        return self._loai_dau(text)
+
     def tach_tu(self, text: str, format_output: str = "list") -> List[str]:
         """
-        Tách từ tiếng Việt.
+        Tách từ tiếng Việt chuyên sâu.
 
-        Sử dụng underthesea nếu có, nếu không dùng split cơ bản.
+        Sử dụng underthesea nếu có, nếu không tự động dùng BoTachTuTiengVietSieuToc (Native Fast Tokenizer).
 
         Args:
             text: Văn bản đầu vào
@@ -181,24 +210,34 @@ class XuLyVanBan:
         Returns:
             Danh sách từ đã tách
         """
+        if not text:
+            return []
         text = self.chuan_hoa(text)
 
         if self._su_dung_underthesea:
             try:
                 tu_list = word_tokenize(text, format="list")
+                if format_output == "text":
+                    return [w.replace(" ", "_") for w in tu_list]
                 return tu_list
             except Exception:
                 pass
 
+        if self._native_tokenizer is not None:
+            noi = format_output == "text"
+            return self._native_tokenizer.tach_tu(text, noi_tu_ghep=noi)
+
         return text.split()
 
-    def tach_tu_chuoi(self, text: str) -> str:
+    def tach_tu_chuoi(self, text: str, noi_tu_ghep: bool = True) -> str:
         """
-        Tách từ và trả về chuỗi (từ nối bằng khoảng trắng).
+        Tách từ và trả về chuỗi văn bản (các từ ghép nối bằng dấu gạch dưới `_`).
 
-        Hữu ích cho pipeline preprocessing.
+        Hữu ích cho pipeline preprocessing và huấn luyện mô hình.
         """
-        return " ".join(self.tach_tu(text))
+        fmt = "text" if noi_tu_ghep else "list"
+        tokens = self.tach_tu(text, format_output=fmt)
+        return " ".join(tokens)
 
     def gan_nhan_tu_loai(self, text: str) -> List[tuple]:
         """

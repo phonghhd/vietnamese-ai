@@ -6,6 +6,7 @@ Hỗ trợ Auto-healing, Load Balancing (RoundRobin, Canary).
 from .balancer import CanBangTai
 from .cluster_manager import DieuPhoiCum
 from .master import NutChinh
+from .swarm_bridge import NutCauNoiSwarm, SwarmBridgeWorker
 from .worker import NutPhu
 
-__all__ = ["CanBangTai", "NutPhu", "NutChinh", "DieuPhoiCum"]
+__all__ = ["CanBangTai", "NutPhu", "NutChinh", "DieuPhoiCum", "NutCauNoiSwarm", "SwarmBridgeWorker"]

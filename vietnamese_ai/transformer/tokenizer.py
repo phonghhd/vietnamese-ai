@@ -41,6 +41,7 @@ class VietnameseTokenizer:
         che_do: str = "bpe",
         kich_thuoc_vocab: int = 5000,
         do_dai_toi_da: int = 512,
+        dung_tach_tu_tieng_viet: bool = False,
     ):
         if che_do not in ("bpe", "wordpiece"):
             raise ValueError(f"che_do phải là 'bpe' hoặc 'wordpiece', nhận: '{che_do}'")
@@ -50,6 +51,7 @@ class VietnameseTokenizer:
         self.che_do = che_do
         self.kich_thuoc_vocab = kich_thuoc_vocab
         self.do_dai_toi_da = do_dai_toi_da
+        self.dung_tach_tu_tieng_viet = dung_tach_tu_tieng_viet
         self.logger = Logger("VietnameseTokenizer")
 
         self._vocab: Dict[str, int] = dict(self.SPECIAL_TOKENS)
@@ -58,8 +60,14 @@ class VietnameseTokenizer:
         self._da_huan_luyen = False
 
     def _tach_tu_co_ban(self, text: str) -> List[str]:
-        """Tách văn bản thành các từ/tokens cơ bản."""
+        """Tách văn bản thành các từ/tokens cơ bản (có hỗ trợ tiền tách từ ghép tiếng Việt)."""
         text = text.lower().strip()
+        if getattr(self, "dung_tach_tu_tieng_viet", False):
+            from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+            tok = BoTachTuTiengVietSieuToc()
+            return tok.tach_tu(text, noi_tu_ghep=True)
+
         text = re.sub(r"([.,!?;:(){}[\]])", r" \1 ", text)
         text = re.sub(r"\s+", " ", text)
         return text.split()
@@ -201,6 +209,8 @@ class VietnameseTokenizer:
         ids = ids[: self.do_dai_toi_da]
         return ids
 
+    encode = ma_hoa
+
     def _bpe_encode_tu(self, tu: str) -> List[int]:
         """BPE encode một từ."""
         tokens = self._tach_ky_tu(tu)
@@ -236,6 +246,37 @@ class VietnameseTokenizer:
                     continue
                 tu_list.append(token.replace("</w>", ""))
         return " ".join(tu_list)
+
+    decode = giai_ma
+
+    def tach_tu(self, text: str) -> List[str]:
+        """Tách văn bản thành danh sách subword tokens."""
+        if not self._da_huan_luyen:
+            return self._tach_tu_co_ban(text)
+        tu_list = self._tach_tu_co_ban(text)
+        tokens: List[str] = []
+        for tu in tu_list:
+            if tu in self._vocab:
+                tokens.append(tu)
+            elif self.che_do == "bpe":
+                for tid in self._bpe_encode_tu(tu):
+                    tokens.append(self._vocab_nguoc.get(tid, "[UNK]"))
+            else:
+                for tid in self._wordpiece_encode_tu(tu):
+                    tokens.append(self._vocab_nguoc.get(tid, "[UNK]"))
+        return tokens
+
+    def dem_so_tu(self, text: str) -> int:
+        """Đếm số lượng tokens sau khi mã hóa."""
+        return len(self.tach_tu(text))
+
+    @property
+    def vocab_size(self) -> int:
+        """Kích thước từ vựng."""
+        return len(self._vocab)
+
+    def __len__(self) -> int:
+        return len(self._vocab)
 
     def pad(self, ids: List[int], do_dai: Optional[int] = None) -> List[int]:
         """Padding hoặc truncate đến độ dài cố định."""

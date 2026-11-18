@@ -43,6 +43,14 @@ class TacTu:
         so_tay_kinh_nghiem: Optional[SoTayKinhNghiem] = None,
         graph_memory: Optional[GraphMemory] = None,
         bat_tuong_lua: bool = True,
+        loc_thong_tin_nhay_cam: bool = False,
+        dung_self_refine: bool = False,
+        bo_refine: Optional[Any] = None,
+        so_vong_refine: int = 2,
+        nguong_chat_luong_refine: float = 0.8,
+        dung_self_consistency: bool = False,
+        bo_consistency: Optional[Any] = None,
+        so_paths_consistency: int = 3,
     ):
         """
         Khởi tạo Tác tử (mặc định tích hợp khiên Tường lửa AI Đa tầng).
@@ -53,7 +61,16 @@ class TacTu:
             max_iterations: Số vòng lặp suy luận tối đa để tránh bị kẹt.
             ham_xac_nhan: Hàm callback cho Human-in-the-Loop, trả về True/False.
             so_tay_kinh_nghiem: Sổ tay ghi nhận bài học trong quá khứ.
+            graph_memory: Bộ nhớ đồ thị (tùy chọn).
             bat_tuong_lua: Bật kiểm duyệt Prompt Injection, SSRF/Path Traversal trên tool và DLP đầu ra.
+            loc_thong_tin_nhay_cam: Khử và ẩn danh hóa thông tin định danh cá nhân (PII) trong truy vấn đầu vào.
+            dung_self_refine: Kích hoạt chu trình tự đánh giá và tinh chỉnh câu trả lời bằng SelfRefine.
+            bo_refine: Đối tượng SelfRefine tùy chỉnh (nếu có).
+            so_vong_refine: Số vòng tinh chỉnh tối đa khi dùng SelfRefine.
+            nguong_chat_luong_refine: Điểm ngưỡng chất lượng dừng sớm trong SelfRefine.
+            dung_self_consistency: Kích hoạt cơ chế lấy mẫu đa luồng và biểu quyết đa số (SelfConsistency).
+            bo_consistency: Đối tượng SelfConsistency tùy chỉnh (nếu có).
+            so_paths_consistency: Số lượng luồng suy luận đồng thời trong SelfConsistency.
         """
         from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework
 
@@ -67,7 +84,53 @@ class TacTu:
         self.tuong_lua = (
             TuongLuaBaoVeFramework(gioi_han_req_moi_phut=10000) if bat_tuong_lua else None
         )
+        self.loc_thong_tin_nhay_cam = loc_thong_tin_nhay_cam
+        if loc_thong_tin_nhay_cam:
+            from vietnamese_ai.security.data_sanitizer import DataSanitizer
 
+            self.sanitizer = DataSanitizer
+        else:
+            self.sanitizer = None
+
+        self.dung_self_refine = dung_self_refine
+        self.so_vong_refine = so_vong_refine
+        self.nguong_chat_luong_refine = nguong_chat_luong_refine
+        self.dung_self_consistency = dung_self_consistency
+        self.so_paths_consistency = so_paths_consistency
+
+        self.lich_su_refine: List[Dict[str, Any]] = []
+        self.lich_su_consistency: List[Dict[str, Any]] = []
+
+        if bo_consistency is not None:
+            self.bo_consistency = bo_consistency
+        elif self.dung_self_consistency:
+            from vietnamese_ai.salm.self_consistency import SelfConsistency
+
+            self.bo_consistency = SelfConsistency(
+                ham_sinh=self._goi_llm_don,
+                so_luong=self.so_paths_consistency,
+                ham_trich_xuat=self._trich_xuat_dap_an_consistency,
+            )
+        else:
+            self.bo_consistency = None
+
+        if bo_refine is not None:
+            self.bo_refine = bo_refine
+        elif self.dung_self_refine:
+            from vietnamese_ai.salm.self_refine import SelfRefine
+
+            self.bo_refine = SelfRefine(
+                ham_sinh=self._goi_llm_don,
+                so_vong_toi_da=self.so_vong_refine,
+                nguong_chat_luong=self.nguong_chat_luong_refine,
+            )
+        else:
+            self.bo_refine = None
+
+        self._lam_moi_system_prompt()
+
+    def _lam_moi_system_prompt(self) -> None:
+        """Cập nhật lại System Prompt với danh sách công cụ mới nhất."""
         tools_desc = ""
         for name, cc in self.cong_cu.items():
             tools_desc += (
@@ -75,21 +138,98 @@ class TacTu:
             )
 
         system_prompt = REACT_SYSTEM_PROMPT.format(tools_desc=tools_desc)
-        self.bo_nho = BoNhoTacTu(system_prompt=system_prompt)
+        if not hasattr(self, "bo_nho") or self.bo_nho is None:
+            self.bo_nho = BoNhoTacTu(system_prompt=system_prompt)
+        else:
+            self.bo_nho.system_prompt = system_prompt
 
-    def _goi_llm(self, prompt: str) -> str:
-        """Hàm bọc gọi LLM. Tùy biến theo LLM cụ thể."""
+    def them_cong_cu(self, cong_cu_item: CongCu) -> None:
+        """Thêm một công cụ vào danh sách công cụ của Tác tử và làm mới System Prompt."""
+        self.cong_cu[cong_cu_item.ten] = cong_cu_item
+        self._lam_moi_system_prompt()
+
+    def nap_plugin(self, plugin: Any) -> int:
+        """
+        Nạp công cụ từ Plugin (PluginCongCu hoặc QuanLyPlugin) vào Tác tử.
+
+        Args:
+            plugin: Đối tượng PluginCongCu hoặc QuanLyPlugin.
+
+        Returns:
+            Số lượng công cụ mới được nạp.
+        """
+        from vietnamese_ai.agents.tools import CongCu
+        from vietnamese_ai.plugin.plugin_base import PluginCongCu
+        from vietnamese_ai.plugin.plugin_manager import QuanLyPlugin
+
+        dem = 0
+        if isinstance(plugin, PluginCongCu):
+            for cc in plugin.dang_ky_cong_cu():
+                ten = cc.get("ten")
+                mo_ta = cc.get("mo_ta", "")
+                ham = cc.get("ham")
+                xac_nhan = cc.get("yeu_cau_xac_nhan", False)
+                if ten and callable(ham):
+                    self.cong_cu[ten] = CongCu(
+                        ten=ten,
+                        mo_ta=mo_ta,
+                        ham_thuc_thi=ham,
+                        yeu_cau_xac_nhan=xac_nhan,
+                    )
+                    dem += 1
+            self._lam_moi_system_prompt()
+
+        elif isinstance(plugin, QuanLyPlugin):
+            for p_item in plugin.cac_plugin_cong_cu.values():
+                dem += self.nap_plugin(p_item)
+
+        return dem
+
+    def nap_plugin_cong_cu(self, plugin: Any) -> int:
+        """Alias cho nap_plugin."""
+        return self.nap_plugin(plugin)
+
+    def _goi_llm_don(self, prompt: str) -> str:
+        """Hàm bọc gọi LLM đơn lẻ trực tiếp."""
         if hasattr(self.llm, "sinh_van_ban"):
-            # Sử dụng VietnameseLLM
-            # Tránh lặp vô hạn bằng stop_words nếu LLM hỗ trợ, ở đây ta giả sử nó trả về str
             res = self.llm.sinh_van_ban(prompt, do_dai=256)
-            return res
+            return str(res)
         elif callable(self.llm):
-            return self.llm(prompt)
+            return str(self.llm(prompt))
         else:
             raise ValueError(
                 "LLM không được hỗ trợ. Cần có hàm sinh_van_ban(prompt) hoặc là một callable."
             )
+
+    def _trich_xuat_dap_an_consistency(self, output: str) -> str:
+        """Trích xuất câu trả lời hoặc hành động để biểu quyết trong SelfConsistency."""
+        pt = self._phan_tich_phan_hoi(output)
+        if pt.get("tra_loi"):
+            return f"TRA_LOI: {pt['tra_loi']}"
+        elif pt.get("hanh_dong"):
+            param_key = (
+                json.dumps(pt.get("tham_so", {}), sort_keys=True, ensure_ascii=False)
+                if pt.get("tham_so")
+                else ""
+            )
+            return f"HANH_DONG: {pt['hanh_dong']} - {param_key}"
+        lines = output.strip().split("\n")
+        return lines[-1].strip() if lines else output.strip()
+
+    def _goi_llm(self, prompt: str) -> str:
+        """Hàm bọc gọi LLM có hỗ trợ SelfConsistency nếu được bật."""
+        if self.dung_self_consistency and self.bo_consistency is not None:
+            kq_sc = self.bo_consistency.chay(prompt)
+            self.lich_su_consistency.append(kq_sc)
+            out_best = kq_sc.get("output_tot_nhat")
+            if out_best:
+                return str(out_best)
+            winning_ans = kq_sc.get("dap_an")
+            for p in kq_sc.get("cac_paths", []):
+                if p.get("dap_an") == winning_ans:
+                    return str(p.get("output_day_du", winning_ans))
+            return str(winning_ans or self._goi_llm_don(prompt))
+        return self._goi_llm_don(prompt)
 
     def _phan_tich_phan_hoi(self, response_text: str) -> Dict[str, Any]:
         """Phân tích văn bản phản hồi từ LLM để lấy Action và Action Input."""
@@ -157,6 +297,9 @@ class TacTu:
         """
         Thực thi vòng lặp tác tử để trả lời truy vấn.
         """
+        if self.sanitizer is not None:
+            truy_van = self.sanitizer.lam_sach(str(truy_van))
+
         if self.tuong_lua is not None:
             kq_in = self.tuong_lua.kiem_tra_dau_vao(str(truy_van))
             if not kq_in["an_toan"]:
@@ -190,6 +333,13 @@ class TacTu:
             # Đã có câu trả lời cuối cùng
             if phan_tich["tra_loi"]:
                 tra_loi_cuoi = phan_tich["tra_loi"]
+                if self.dung_self_refine and self.bo_refine is not None:
+                    kq_refine = self.bo_refine.chay(
+                        prompt=f"Câu hỏi: {truy_van}",
+                        output_ban_dau=tra_loi_cuoi,
+                    )
+                    self.lich_su_refine.append(kq_refine)
+                    tra_loi_cuoi = str(kq_refine.get("output_cuoi", tra_loi_cuoi))
                 if self.tuong_lua is not None:
                     tra_loi_cuoi = self.tuong_lua.loc_dau_ra(str(tra_loi_cuoi))
                 return tra_loi_cuoi
@@ -235,3 +385,27 @@ class TacTu:
                 )
 
         return "Lỗi: Tác tử đã đạt đến số vòng lặp tối đa mà không tìm được câu trả lời."
+
+    def tinh_chinh_cau_tra_loi(self, cau_tra_loi: str, yeu_cau: Optional[str] = None) -> str:
+        """
+        Sử dụng SelfRefine để đánh giá và tinh chỉnh câu trả lời.
+
+        Args:
+            cau_tra_loi: Câu trả lời dự thảo cần tinh chỉnh.
+            yeu_cau: Yêu cầu hoặc truy vấn gốc (tùy chọn).
+
+        Returns:
+            Câu trả lời sau khi được tinh chỉnh và nâng cao chất lượng.
+        """
+        if not self.bo_refine:
+            from vietnamese_ai.salm.self_refine import SelfRefine
+
+            self.bo_refine = SelfRefine(
+                ham_sinh=self._goi_llm_don,
+                so_vong_toi_da=self.so_vong_refine,
+                nguong_chat_luong=self.nguong_chat_luong_refine,
+            )
+        prompt = f"Yêu cầu: {yeu_cau}" if yeu_cau else "Hãy đánh giá và tinh chỉnh câu trả lời:"
+        kq = self.bo_refine.chay(prompt=prompt, output_ban_dau=cau_tra_loi)
+        self.lich_su_refine.append(kq)
+        return str(kq.get("output_cuoi", cau_tra_loi))

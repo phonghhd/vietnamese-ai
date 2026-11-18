@@ -37,6 +37,7 @@ _LAZY = {
     "DevOpsAgent": ("vietnamese_ai.agents.devops", "DevOpsAgent"),
     "P2PSwarmOrchestrator": ("vietnamese_ai.agents.decentralized_swarm", "P2PSwarmOrchestrator"),
     "SelfHealingAgent": ("vietnamese_ai.agents.self_healing", "SelfHealingAgent"),
+    "TacTuTuChuaLanh": ("vietnamese_ai.agents.self_healing", "TacTuTuChuaLanh"),
     # === StateGraph, Deep Research & Code Healing (Phase 16) ===
     "DoThiTrangThai": ("vietnamese_ai.agents.state_graph", "DoThiTrangThai"),
     "StateGraph": ("vietnamese_ai.agents.state_graph", "StateGraph"),

@@ -97,20 +97,28 @@ class TroLyPhapLy:
     ]
 
     def __init__(self, bo_du_lieu_luat: Optional[List[Dict[str, str]]] = None):
+        from vietnamese_ai.rag.vietnamese_context import BoToiUuNguCanhHanhChinh
+
         self.tuong_lua = TuongLuaBaoVeFramework(chan_khi_vi_pham=False)
-        self.rag = RAGPipeline(nguong_diem=0.05, top_k=3)
+        self.bo_toi_uu = BoToiUuNguCanhHanhChinh(bat_tuong_lua=False)
+        self.rag = RAGPipeline(
+            nguong_diem=0.05,
+            top_k=3,
+            che_do_hanh_chinh=True,
+            bo_toi_uu_hanh_chinh=self.bo_toi_uu,
+        )
         self.kho_tai_lieu = list(bo_du_lieu_luat or self.DU_LIEU_LUAT_MAC_DINH)
         self._nap_du_lieu_luat()
 
     def _nap_du_lieu_luat(self) -> None:
-        """Nạp các tài liệu luật vào RAG pipeline."""
+        """Nạp các tài liệu luật vào RAG pipeline với cấu trúc Điều/Khoản bảo toàn."""
         for item in self.kho_tai_lieu:
             ma = item.get("ma", f"doc_{len(self.kho_tai_lieu)}")
             tieu_de = item.get("tieu_de", "")
             dieu = item.get("dieu", "")
             van_ban = item.get("van_ban", "")
             noi_dung = item.get("noi_dung", "")
-            noi_dung_day_du = f"[{van_ban}] {dieu}: {tieu_de}\n{noi_dung}"
+            noi_dung_day_du = f"[{van_ban}]\n{dieu}: {tieu_de}\n{noi_dung}"
             self.rag.them_tai_lieu(
                 ma,
                 noi_dung_day_du,
@@ -119,14 +127,20 @@ class TroLyPhapLy:
                     "dieu": dieu,
                     "tieu_de": tieu_de,
                 },
+                che_do_hanh_chinh=True,
             )
 
     def them_dieu_khoan(self, ma: str, van_ban: str, dieu: str, tieu_de: str, noi_dung: str) -> None:
         """Thêm văn bản luật mới vào cơ sở tri thức."""
         item = {"ma": ma, "van_ban": van_ban, "dieu": dieu, "tieu_de": tieu_de, "noi_dung": noi_dung}
         self.kho_tai_lieu.append(item)
-        full_text = f"[{van_ban}] {dieu}: {tieu_de}\n{noi_dung}"
-        self.rag.them_tai_lieu(ma, full_text, metadata={"van_ban": van_ban, "dieu": dieu, "tieu_de": tieu_de})
+        full_text = f"[{van_ban}]\n{dieu}: {tieu_de}\n{noi_dung}"
+        self.rag.them_tai_lieu(
+            ma,
+            full_text,
+            metadata={"van_ban": van_ban, "dieu": dieu, "tieu_de": tieu_de},
+            che_do_hanh_chinh=True,
+        )
 
     def tra_cuu(self, cau_hoi: str, trich_dan_chi_tiet: bool = True) -> Dict[str, Any]:
         """
@@ -171,6 +185,12 @@ class TroLyPhapLy:
                 }
             )
 
+        trich_dan_phap_ly = ket_qua_rag.get("trich_dan_phap_ly")
+        if trich_dan_phap_ly:
+            for dk in trich_dan_phap_ly.get("dieu_khoan", []):
+                if dk and dk not in can_cu:
+                    can_cu.append(dk)
+
         tra_loi_goc = ket_qua_rag.get("tra_loi", "")
         # Nếu chưa có câu trả lời rõ ràng từ RAG đơn giản, định dạng văn phong chuẩn pháp lý
         if trich_dan and ("Không tìm thấy" in tra_loi_goc or len(tra_loi_goc.strip()) < 20):
@@ -194,6 +214,7 @@ class TroLyPhapLy:
             "tra_loi": tra_loi_sach,
             "can_cu_phap_ly": can_cu,
             "trich_dan": trich_dan,
+            "trich_dan_phap_ly": trich_dan_phap_ly,
             "diem_bam_sat_nguon": kt_dau_ra.get("diem_bam_sat_nguon", 1.0),
             "nghi_ngo_ao_giac": kt_dau_ra.get("nghi_ngo_ao_giac", False),
             "an_toan": kt_dau_ra["an_toan"],

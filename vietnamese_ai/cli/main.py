@@ -90,6 +90,12 @@ Ví dụ sử dụng:
     rag_parser = subparsers.add_parser("rag", help="Truy vấn cơ sở tri thức RAG (có khử độc tài liệu & Tường lửa)")
     rag_parser.add_argument("--docs", required=True, help="Đường dẫn file văn bản hoặc JSONL")
     rag_parser.add_argument("--query", required=True, help="Câu hỏi cần truy vấn")
+    rag_parser.add_argument(
+        "--admin",
+        "--hanh-chinh",
+        action="store_true",
+        help="Kích hoạt chế độ tối ưu hóa văn bản hành chính & quy phạm pháp luật Việt Nam",
+    )
 
     # === CHAT ===
     chat_parser = subparsers.add_parser("chat", help="Trò chuyện trực tiếp với mô hình kèm Tường lửa AI")
@@ -113,6 +119,7 @@ Ví dụ sử dụng:
     tok_parser.add_argument("text", nargs="?", default="Trí tuệ nhân tạo và chuyển đổi số tại Việt Nam", help="Văn bản tiếng Việt cần phân tích")
     tok_parser.add_argument("--no-compound", action="store_true", help="Không nối từ ghép bằng dấu gạch dưới")
     tok_parser.add_argument("--unaccent", action="store_true", help="Loại bỏ dấu tiếng Việt (unaccented / slugify)")
+    tok_parser.add_argument("--encode", action="store_true", help="Mã hóa văn bản thành chuỗi Token IDs số nguyên")
 
     # === SCAN ===
     scan_parser = subparsers.add_parser(
@@ -144,6 +151,7 @@ Ví dụ sử dụng:
     sol_parser.add_argument("--query", "-q", default=None, help="Câu hỏi hoặc yêu cầu xử lý")
     sol_parser.add_argument("--input", "-i", default=None, help="Đường dẫn tệp ảnh hoặc nội dung văn bản đầu vào")
     sol_parser.add_argument("--type", default="cccd", choices=["cccd", "hoa_don"], help="Loại giấy tờ cho trich-xuat")
+    sol_parser.add_argument("--voice", action="store_true", help="Khởi động máy chủ WebRTC Voicebot thời gian thực cho CSKH")
 
     # === AGENT (DEEP RESEARCH & CODE HEALING) ===
     agent_parser = subparsers.add_parser("agent", help="Tác tử tự hành cao cấp (Nghiên cứu sâu & Tự sửa mã nguồn)")
@@ -192,7 +200,35 @@ Ví dụ sử dụng:
     swarm_parser.add_argument("--join", default=None, help="Gia nhập cụm máy chủ qua địa chỉ IP:PORT")
     swarm_parser.add_argument("--port", type=int, default=9999, help="Cổng TCP Socket lắng nghe (mặc định: 9999)")
     swarm_parser.add_argument("--pin", default=None, help="Mã PIN bảo mật xác thực cụm Zero-Trust")
+    swarm_parser.add_argument("--fp16", action="store_true", help="Bật nén tensor Float16 giảm 50%% băng thông mạng LAN")
     swarm_parser.add_argument("--tailscale", action="store_true", help="Tự động phát hiện và liên kết qua mạng Tailscale")
+    swarm_parser.add_argument(
+        "--model",
+        "--gguf",
+        default=None,
+        dest="gguf",
+        help="Đường dẫn file GGUF để tự động phân mảnh trọng số vào các Node CPU",
+    )
+    swarm_parser.add_argument(
+        "--orchestrator-port",
+        type=int,
+        default=None,
+        help="Khởi động Cầu nối HTTP Orchestrator Master (NutCauNoiSwarm) trên cổng chỉ định (ví dụ: 8085)",
+    )
+
+    # === VOICE (REAL-TIME VOICE AI & WEBRTC WEBSOCKET) ===
+    voice_parser = subparsers.add_parser(
+        "voice",
+        help="Khởi động máy chủ Voice AI thời gian thực (WebRTC / WebSocket & VAD thuần Việt)",
+    )
+    voice_parser.add_argument("--host", default="127.0.0.1", help="Địa chỉ IP lắng nghe (mặc định: 127.0.0.1)")
+    voice_parser.add_argument("--port", type=int, default=8765, help="Cổng mạng WebSocket (mặc định: 8765)")
+    voice_parser.add_argument("--sample-rate", type=int, default=16000, help="Tần số lấy mẫu âm thanh Hz (mặc định: 16000)")
+    voice_parser.add_argument("--llm", action="store_true", help="Kích hoạt mô hình ngôn ngữ VietnameseLLM để phản hồi thoại")
+    voice_parser.add_argument("--model", default="vgpt2", help="Tên hoặc đường dẫn mô hình LLM (mặc định: vgpt2)")
+    voice_parser.add_argument("--rag", default=None, help="Đường dẫn tệp tài liệu tri thức (văn bản/JSONL) cho RAG Voice")
+    voice_parser.add_argument("--cskh", action="store_true", help="Kích hoạt chế độ Tổng đài CSKH thoại tự động (tra cứu đơn hàng, đổi trả, bảo hành)")
+    voice_parser.add_argument("--open-browser", action="store_true", help="Tự động mở giao diện EvoNet OS Voice trong trình duyệt")
 
     # === VERIFY (VERIFIABLE INFERENCE AUDIT) ===
     verify_parser = subparsers.add_parser(
@@ -201,6 +237,15 @@ Ví dụ sử dụng:
     verify_parser.add_argument("--proof", default=None, help="Chuỗi cam kết zkML (zkml1:...) hoặc mã hash cần xác thực")
     verify_parser.add_argument("--text", "-t", default=None, help="Văn bản cần kiểm tra tính toàn vẹn Merkle Tree")
     verify_parser.add_argument("--tamper-check", action="store_true", help="Chạy thử nghiệm phát hiện Byzantine can thiệp dữ liệu")
+
+    # === PLUGIN (V-PLUGIN 2.0 DOMAIN EXTENSION ECOSYSTEM) ===
+    plugin_parser = subparsers.add_parser(
+        "plugin", help="Quản lý và thực thi hệ sinh thái Plugin chuyên ngành (V-Plugin 2.0)"
+    )
+    plugin_parser.add_argument("action", choices=["list", "verify", "info", "run"], default="list", nargs="?", help="Hành động: list, verify, info, run")
+    plugin_parser.add_argument("target", default=None, nargs="?", help="Đường dẫn file .py hoặc tên Plugin")
+    plugin_parser.add_argument("--tool", default=None, help="Tên công cụ muốn thực thi trong Plugin")
+    plugin_parser.add_argument("--params", default="{}", help="Tham số thực thi dạng JSON (ví dụ: '{\"thu_nhap_thang\": 25000000}')")
 
     return parser
 
@@ -496,10 +541,17 @@ def cmd_rag(args):
         print(f"Lỗi: Không tìm thấy tài liệu '{args.docs}'")
         sys.exit(1)
 
-    rag = RAGPipeline()
-    rag.them_tai_lieu(doc_path.name, doc_path.read_text(encoding="utf-8"))
+    che_do_hc = getattr(args, "admin", False)
+    rag = RAGPipeline(che_do_hanh_chinh=che_do_hc)
+    rag.them_tai_lieu(doc_path.name, doc_path.read_text(encoding="utf-8"), che_do_hanh_chinh=che_do_hc)
     kq = rag.hoi(args.query)
     print(f"Trả lời: {kq.get('tra_loi', '')}")
+    if che_do_hc and kq.get("trich_dan_phap_ly"):
+        td = kq["trich_dan_phap_ly"]
+        if td.get("dieu_khoan"):
+            print(f"Điều khoản căn cứ: {', '.join(td['dieu_khoan'])}")
+        if td.get("so_hieu_van_ban"):
+            print(f"Số hiệu văn bản: {', '.join(td['so_hieu_van_ban'])}")
 
 
 def cmd_chat(args):
@@ -607,6 +659,12 @@ def cmd_tokenize(args):
     tokens = tok.tach_tu(text, noi_tu_ghep=noi_tu)
     print(f"Số lượng tokens: {len(tokens)}")
     print(f"Tokens kết quả : {tokens}")
+
+    if getattr(args, "encode", False):
+        token_ids = tok.ma_hoa(text)
+        print(f"Token IDs      : {token_ids}")
+        return token_ids
+
     return tokens
 
 
@@ -722,6 +780,19 @@ def cmd_solution(args):
         from vietnamese_ai.solutions.cskh import TongDaiCSKH
 
         bot = TongDaiCSKH()
+        if getattr(args, "voice", False):
+            host = "127.0.0.1"
+            port = 8765
+            print("======================================================================")
+            print("🎙️ TỔNG ĐÀI CSKH THOẠI THỜI GIAN THỰC (VOICEBOT WEBRTC) ĐANG CHẠY...")
+            print("======================================================================")
+            print(f"📍 WebSocket Voice Endpoint: ws://{host}:{port}")
+            print("🎧 Đã nạp cơ sở dữ liệu đơn hàng & chính sách chăm sóc khách hàng")
+            print("⚡ Hỗ trợ đàm thoại 2 chiều full-duplex, VAD ngắt câu & TTS tiếng Việt 6 thanh điệu")
+            srv = bot.khoi_dong_may_chu_thoai(host=host, port=port, nen_chay_ngam=True)
+            print(f"✅ Voicebot CSKH đang lắng nghe tại ws://{host}:{port}")
+            return {"trang_thai": "dang_chay", "endpoint": f"ws://{host}:{port}", "server": srv}
+
         q = args.query or args.input or "Kiểm tra giúp tôi đơn hàng DH1001"
         print(f"=== TỔNG ĐÀI CSKH TỰ ĐỘNG ===\nKhách hàng: {q}\n")
         kq = bot.xu_ly_yeu_cau(q)
@@ -861,6 +932,88 @@ def cmd_pack(args):
     return res
 
 
+def cmd_voice(args):
+    """Khởi động máy chủ Voice AI thời gian thực (WebRTC / WebSocket RFC 6455)."""
+    import time
+    import webbrowser
+
+    from vietnamese_ai.audio.webrtc_bridge import MayChuWebRTCVoice
+
+    host = getattr(args, "host", "127.0.0.1")
+    port = getattr(args, "port", 8765)
+    sample_rate = getattr(args, "sample_rate", 16000)
+    open_browser = getattr(args, "open_browser", False)
+
+    ham_tra_loi = None
+    cskh_obj = None
+    che_do_str = "Trợ lý Thoại Mặc định (Rule-based Assistant)"
+
+    if getattr(args, "cskh", False):
+        from vietnamese_ai.solutions.cskh import TongDaiCSKH
+
+        print("🎧 Khởi tạo Tổng đài CSKH Đa phương thức...")
+        cskh_obj = TongDaiCSKH()
+        che_do_str = "Tổng đài CSKH Tự động (TongDaiCSKH Voicebot)"
+    elif getattr(args, "rag", None):
+        from vietnamese_ai.rag.rag_pipeline import RAGPipeline
+
+        print(f"📚 Nạp cơ sở tri thức RAG từ: {args.rag}")
+        rag = RAGPipeline()
+        rag.nap_tai_lieu(args.rag)
+
+        def _voice_rag_reply(q: str) -> str:
+            res = rag.truy_van(q)
+            return res.get("tra_loi", res.get("cau_tra_loi", "Tôi đã tra cứu nhưng không tìm thấy thông tin phù hợp."))
+
+        ham_tra_loi = _voice_rag_reply
+        che_do_str = f"RAG Tri Thức ({Path(args.rag).name})"
+    elif getattr(args, "llm", False):
+        from vietnamese_ai.llm.vietnamese_llm import VietnameseLLM
+
+        model_name = getattr(args, "model", "vgpt2")
+        print(f"🧠 Khởi tạo mô hình ngôn ngữ: {model_name}")
+        llm = VietnameseLLM(model_name=model_name)
+
+        def _voice_llm_reply(q: str) -> str:
+            return llm.sinh_van_ban(q, do_dai_toi_da=64)
+
+        ham_tra_loi = _voice_llm_reply
+        che_do_str = f"Generative AI ({model_name})"
+
+    print("======================================================================")
+    print("🎙️ MÁY CHỦ VOICE AI THỜI GIAN THỰC (v31.0) ĐANG KHỞI ĐỘNG...")
+    print("======================================================================")
+    print(f"📍 WebSocket Endpoint: ws://{host}:{port}")
+    print(f"🎧 Tần số âm thanh: {sample_rate} Hz (PCM 16-bit Mono)")
+    print(f"🤖 Chế độ đối thoại: {che_do_str}")
+    print("⚡ Bắt tay chuẩn WebSocket RFC 6455 & VAD 6 thanh điệu (Zero-Dependency)")
+
+    server = MayChuWebRTCVoice(
+        host=host,
+        port=port,
+        tan_so_lay_mau=sample_rate,
+        ham_tra_loi=ham_tra_loi,
+        cskh=cskh_obj,
+    )
+    server.khoi_dong_chay_ngam()
+    print(f"✅ Máy chủ Voice AI đang lắng nghe tại ws://{host}:{port}")
+
+    if open_browser:
+        ui_path = Path(__file__).resolve().parent.parent.parent / "evonet_os" / "index.html"
+        if ui_path.is_file():
+            print(f"🌐 Đang mở giao diện EvoNet OS: {ui_path.as_uri()}")
+            webbrowser.open(ui_path.as_uri())
+
+    print("\nNhấn Ctrl+C để dừng máy chủ Voice AI.")
+    try:
+        while True:
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        print("\nĐang dừng máy chủ Voice AI...")
+        server.dung_lai()
+        print("Đã dừng máy chủ Voice AI thành công.")
+
+
 def cmd_swarm(args):
     """Xử lý lệnh `vai swarm` (Suy luận bầy đàn phân tán trên CPU văn phòng)."""
     import time
@@ -915,12 +1068,15 @@ def cmd_swarm(args):
             endpoint_url=endpoint,
             che_do="mang_vat_ly_lan",
             ma_pin=pin,
+            nen_fp16=getattr(args, "fp16", False),
         )
         x_dummy = np.ones((1, 128), dtype=np.float32)
         try:
             x_out, proof = worker.thuc_thi_layer(x_dummy, tao_proof=True)
             print("✅ Bắt tay xác thực và kết nối thành công tới cụm Swarm!")
             print("  * Trạng thái xác thực: ĐÃ ĐƯỢC CẤP PHÉP")
+            if getattr(args, "fp16", False):
+                print("  * Nén tensor FP16: BẬT (Tiết kiệm 50% băng thông)")
             if proof and "proof_zk" in proof:
                 print(f"  * Bằng chứng Verifiable AI: {proof['proof_zk'][:32]}...")
             print(f"  * Độ trễ kết nối mạng: {worker.thoi_gian_mang_gan_nhat_ms:.2f}ms")
@@ -939,15 +1095,27 @@ def cmd_swarm(args):
     so_token = getattr(args, "tokens", 16)
     xac_thuc = getattr(args, "verify", True)
     bench = getattr(args, "bench", False)
+    nen_fp16 = getattr(args, "fp16", False)
 
     print("=== SUY LUẬN BẦY ĐÀN PHÂN TÁN TRÊN CPU (SWARM PIPELINE PARALLELISM) ===")
     print(f"  * Số node CPU tham gia: {so_node}")
     print(f"  * Tổng số layer:       {tong_so_layer}")
+    print(f"  * Nén tensor FP16:     {'BẬT (Float16)' if nen_fp16 else 'TẮT (Float32)'}")
     print(f"  * Xác thực Verifiable: {'BẬT (Merkle Tree & zkML)' if xac_thuc else 'TẮT'}")
     print(f"  * Prompt:              \"{prompt}\"\n")
 
-    orchestrator = DieuPhoiSwarmCPU(tong_so_layer=tong_so_layer, bat_xac_thuc_mat_ma=xac_thuc)
+    orchestrator = DieuPhoiSwarmCPU(
+        tong_so_layer=tong_so_layer,
+        bat_xac_thuc_mat_ma=xac_thuc,
+        nen_fp16=nen_fp16,
+    )
     orchestrator.khoi_tao_cum_gia_lap(so_node=so_node, so_core_moi_node=4)
+
+    gguf_path = getattr(args, "gguf", None)
+    if gguf_path:
+        print(f"📦 Đang nạp và phân mảnh mô hình GGUF từ '{gguf_path}'...")
+        kq_pm = orchestrator.phan_manh_mo_hinh_gguf(gguf_path)
+        print(f"✅ Đã phân mảnh thành công {kq_pm.get('tong_so_tensors', 0)} tensors vào {len(orchestrator.danh_sach_node)} nodes.")
 
     thong_tin_cum = orchestrator.lay_trang_thai_cum()
     print("Phân bổ Layer trên các Node CPU:")
@@ -976,6 +1144,24 @@ def cmd_swarm(args):
         print(f"│ Tốc độ trung bình    │ {toc_do:>6.2f} tokens/giây             │")
         print(f"│ Bảo vệ Byzantine     │ {'ĐÃ XÁC THỰC MẬT MÃ' if xac_thuc else 'CHƯA BẬT':>20s}      │")
         print("└──────────────────────┴─────────────────────────────────┘")
+
+    orch_port = getattr(args, "orchestrator_port", None)
+    if orch_port:
+        from vietnamese_ai.orchestrator.swarm_bridge import NutCauNoiSwarm
+
+        bridge = NutCauNoiSwarm(swarm=orchestrator, port=orch_port)
+        print("======================================================================")
+        print(f"🚀 CẦU NỐI HTTP ORCHESTRATOR ĐANG CHẠY TẠI http://127.0.0.1:{orch_port}")
+        print(f"👉 Điểm cuối Health:  http://127.0.0.1:{orch_port}/health")
+        print(f"👉 Điểm cuối Predict: http://127.0.0.1:{orch_port}/predict")
+        print(f"👉 Kết nối vào NutChinh: nut_chinh.them_nut_swarm(port={orch_port})")
+        print("======================================================================")
+        try:
+            bridge.chay()
+        except KeyboardInterrupt:
+            print("\nĐang tắt Cầu nối HTTP Orchestrator...")
+            bridge.dung()
+        return {"van_ban": van_ban, "so_token": len(tokens), "so_node": so_node, "bridge_port": orch_port}
 
     return {"van_ban": van_ban, "so_token": len(tokens), "so_node": so_node}
 
@@ -1025,6 +1211,136 @@ def cmd_verify(args):
         return {"hop_le": ok}
 
 
+def cmd_plugin(args):
+    """Xử lý lệnh `vai plugin` (Quản trị và thực thi V-Plugin 2.0)."""
+    import json
+    import os
+    from pathlib import Path
+
+    from vietnamese_ai.plugin.plugin_manager import QuanLyPlugin
+
+    ql = QuanLyPlugin()
+    action = getattr(args, "action", "list") or "list"
+    target = getattr(args, "target", None)
+
+    # 1. Action: list
+    if action == "list":
+        plugins_dir = Path("plugins")
+        if plugins_dir.exists():
+            for f in sorted(plugins_dir.glob("*.py")):
+                if not f.name.startswith("__"):
+                    try:
+                        ql.nap_plugin(str(f))
+                    except Exception:
+                        pass
+
+        print("=== DANH SÁCH V-PLUGIN 2.0 ĐANG HOẠT ĐỘNG ===")
+        ds = ql.danh_sach_plugin()
+        if not ds:
+            print("  (Chưa có plugin nào được cài đặt hoặc đang hoạt động)")
+            return {"so_luong": 0, "plugins": []}
+
+        print(f"Tổng số: {len(ds)} plugin\n")
+        for p in ds:
+            print(f"  * [{p['id']}] {p['ten']} (v{p['phien_ban']}) - Loại: {p['loai'].upper()}")
+            print(f"    Mô tả: {p['mo_ta']}")
+            print(f"    Trạng thái: {p['trang_thai']}")
+            print()
+        return {"so_luong": len(ds), "plugins": ds}
+
+    # 2. Action: verify
+    elif action == "verify":
+        if not target:
+            print("❌ Vui lòng chỉ định đường dẫn tệp plugin cần kiểm tra (VD: vai plugin verify ./plugins/plugin_taichinh.py)")
+            return {"hop_le": False, "ly_do": "Thiếu đường dẫn tệp"}
+
+        print(f"🔍 Đang kiểm tra an ninh AST Sandbox cho: {target}...")
+        hop_le, ly_do = ql.kiem_tra_an_ninh(target)
+        if hop_le:
+            print(f"✅ AN TOÀN: Tệp plugin '{target}' vượt qua kiểm duyệt AST Sandbox!")
+        else:
+            print(f"❌ NGUY HIỂM / KHÔNG HỢP LỆ: {ly_do}")
+        return {"hop_le": hop_le, "ly_do": ly_do}
+
+    # 3. Action: info
+    elif action == "info":
+        if not target:
+            print("❌ Vui lòng chỉ định tên hoặc đường dẫn tệp plugin (VD: vai plugin info ./plugins/plugin_taichinh.py)")
+            return {"tim_thay": False}
+
+        p_obj = None
+        if os.path.exists(target):
+            p_obj = ql.nap_plugin(target)
+        else:
+            p_obj = ql.lay_plugin(target)
+
+        if not p_obj:
+            print(f"❌ Không tìm thấy hoặc không thể nạp plugin: {target}")
+            return {"tim_thay": False}
+
+        print("=== THÔNG TIN CHI TIẾT PLUGIN ===")
+        print(f"  * Tên:       {p_obj.ten}")
+        print(f"  * Phiên bản: {p_obj.phien_ban}")
+        print(f"  * Loại:      {getattr(p_obj, 'loai', 'co_so').upper()}")
+        print(f"  * Mô tả:     {p_obj.mo_ta}")
+
+        if hasattr(p_obj, "dang_ky_cong_cu"):
+            tools = p_obj.dang_ky_cong_cu()
+            print(f"\n  🛠️ Danh sách Công cụ ({len(tools)} tools):")
+            for t in tools:
+                print(f"    - {t.get('ten')}: {t.get('mo_ta')}")
+
+        if hasattr(p_obj, "nap_nguon_tri_thuc"):
+            docs = p_obj.nap_nguon_tri_thuc()
+            print(f"\n  📚 Nguồn Tri thức ({len(docs)} tài liệu):")
+            for d in docs:
+                print(f"    - [{d.get('tieu_de')}] (Nguồn: {d.get('nguon', 'N/A')})")
+
+        return {"tim_thay": True, "ten": p_obj.ten, "loai": getattr(p_obj, "loai", "co_so")}
+
+    # 4. Action: run
+    elif action == "run":
+        if not target:
+            print("❌ Vui lòng chỉ định đường dẫn tệp hoặc tên plugin cần chạy.")
+            return {"thanh_cong": False}
+
+        p_obj = None
+        if os.path.exists(target):
+            p_obj = ql.nap_plugin(target)
+        else:
+            p_obj = ql.lay_plugin(target)
+
+        if not p_obj:
+            print(f"❌ Không tìm thấy plugin: {target}")
+            return {"thanh_cong": False}
+
+        tool_name = getattr(args, "tool", None)
+        raw_params = getattr(args, "params", "{}") or "{}"
+        try:
+            params = json.loads(raw_params)
+        except Exception:
+            params = {}
+
+        if tool_name and hasattr(p_obj, "thuc_thi_cong_cu"):
+            print(f"⚡ Đang thực thi công cụ '{tool_name}' trên plugin '{p_obj.ten}'...")
+            try:
+                kq = p_obj.thuc_thi_cong_cu(tool_name, **params)
+                print(f"✅ Kết quả: {json.dumps(kq, ensure_ascii=False, indent=2) if isinstance(kq, (dict, list)) else kq}")
+                return {"thanh_cong": True, "ket_qua": kq}
+            except Exception as e:
+                print(f"❌ Lỗi thực thi công cụ: {e}")
+                return {"thanh_cong": False, "loi": str(e)}
+        else:
+            print(f"⚡ Đang thực thi plugin '{p_obj.ten}'...")
+            try:
+                kq = p_obj.thuc_thi(**params)
+                print(f"✅ Kết quả: {json.dumps(kq, ensure_ascii=False, indent=2) if isinstance(kq, (dict, list)) else kq}")
+                return {"thanh_cong": True, "ket_qua": kq}
+            except Exception as e:
+                print(f"❌ Lỗi thực thi plugin: {e}")
+                return {"thanh_cong": False, "loi": str(e)}
+
+
 def main():
     """Entry point cho CLI."""
     parser = _tao_parser()
@@ -1056,7 +1372,9 @@ def main():
         "run": lambda: cmd_run(args),
         "pack": lambda: cmd_pack(args),
         "swarm": lambda: cmd_swarm(args),
+        "voice": lambda: cmd_voice(args),
         "verify": lambda: cmd_verify(args),
+        "plugin": lambda: cmd_plugin(args),
     }
     ham = bang_lenh.get(args.command)
     if ham is not None:

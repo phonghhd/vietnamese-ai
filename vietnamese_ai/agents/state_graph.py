@@ -353,6 +353,71 @@ class DoThiTrangThai:
         self.cac_nut[ten] = ham_thuc_thi
         return self
 
+    def them_nut_tac_tu(
+        self,
+        ten: str,
+        tac_tu: Any,
+        khoa_input: str = "cau_hoi",
+        khoa_output: str = "tra_loi",
+    ) -> DoThiTrangThai:
+        """Thêm một nút Tác tử (TacTu) vào Đồ thị trạng thái."""
+        def _node(state: Dict[str, Any]) -> Dict[str, Any]:
+            prompt = str(state.get(khoa_input, ""))
+            if hasattr(tac_tu, "chay"):
+                res = tac_tu.chay(prompt)
+            elif hasattr(tac_tu, "hoi"):
+                res = tac_tu.hoi(prompt)
+            elif callable(tac_tu):
+                res = tac_tu(prompt)
+            else:
+                res = str(tac_tu)
+            return {khoa_output: res, f"{ten}_hoan_tat": True}
+
+        return self.them_nut(ten, _node)
+
+    def them_nut_swarm(
+        self,
+        ten: str,
+        dieu_phoi_swarm: Any,
+        khoa_input: str = "cau_hoi",
+        khoa_output: str = "tra_loi_swarm",
+        so_token: int = 16,
+    ) -> DoThiTrangThai:
+        """Thêm một nút suy luận phân tán Edge CPU Swarm vào Đồ thị trạng thái."""
+        def _node(state: Dict[str, Any]) -> Dict[str, Any]:
+            prompt = str(state.get(khoa_input, ""))
+            kq = dieu_phoi_swarm.suy_luan_swarm(prompt, so_token_sinh=so_token)
+            proof = kq.get("proof") or kq.get("cam_ket_chi_tiet")
+            return {
+                khoa_output: kq.get("cau_tra_loi", ""),
+                "swarm_proof": proof,
+                "so_node_swarm": len(kq.get("danh_sach_node", kq.get("chi_tiet_node", []))),
+                f"{ten}_hoan_tat": True,
+            }
+
+        return self.them_nut(ten, _node)
+
+    def them_nut_cum(
+        self,
+        ten: str,
+        nut_chinh: Any,
+        khoa_input: str = "cau_hoi",
+        khoa_output: str = "tra_loi_cum",
+    ) -> DoThiTrangThai:
+        """Thêm một nút điều phối Cụm (NutChinh / V-Orchestrator) vào Đồ thị trạng thái."""
+        def _node(state: Dict[str, Any]) -> Dict[str, Any]:
+            payload = state.get(khoa_input, "")
+            task_id = f"task_{uuid.uuid4().hex[:6]}"
+            if hasattr(nut_chinh, "dieu_phoi_nhiem_vu"):
+                kq = nut_chinh.dieu_phoi_nhiem_vu({"id": task_id, "data": payload})
+            elif hasattr(nut_chinh, "gui_nhiem_vu"):
+                kq = nut_chinh.gui_nhiem_vu(task_id, payload)
+            else:
+                kq = {"task_id": task_id, "data": payload}
+            return {khoa_output: kq, f"{ten}_hoan_tat": True}
+
+        return self.them_nut(ten, _node)
+
     def them_canh(self, nut_nguon: str, nut_dich: str) -> DoThiTrangThai:
         """Thêm một cạnh trực tiếp giữa hai nút."""
         if nut_nguon == START:
@@ -401,6 +466,16 @@ class DoThiTrangThai:
             interrupt_before=interrupt_before,
             interrupt_after=interrupt_after,
         )
+
+    # LangGraph & English method aliases
+    add_node = them_nut
+    add_edge = them_canh
+    add_conditional_edges = them_canh_dieu_kien
+    set_entry_point = dat_diem_bat_dau
+    compile = bien_dich
+    add_agent_node = them_nut_tac_tu
+    add_swarm_node = them_nut_swarm
+    add_cluster_node = them_nut_cum
 
 
 # Các hàm Reducer chuẩn

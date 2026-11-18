@@ -31,7 +31,7 @@ class BoToiUuNguCanhHanhChinh:
     RE_DIEM = re.compile(r"^\s*([a-zđ]\)\s+[^\n]*)", re.MULTILINE | re.IGNORECASE)
     RE_CAN_CU = re.compile(r"^\s*(Căn cứ\s+[^\n;.]+)", re.MULTILINE | re.IGNORECASE)
     RE_SO_HIEU = re.compile(
-        r"((?:Luật|Bộ\s+luật|Nghị\s+định|Thông\s+tư|Quyết\s+định)(?:\s+[^\n,;.]+?)?\s+số\s+[\d/]+[A-Z\d\-]+|[\d/]+/[A-Z\d\-]+)",
+        r"((?:Luật|Bộ\s+luật|Nghị\s+định|Thông\s+tư|Quyết\s+định)(?:\s+[^\n,;.]+?)?\s+số\s+[\d/]+[A-Za-z0-9Đđ\-/]+|[\d/]+/[A-Za-z0-9Đđ\-/]+)",
         re.IGNORECASE,
     )
 

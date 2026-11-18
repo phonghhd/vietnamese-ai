@@ -257,21 +257,29 @@ class TuongLuaBaoVeFramework:
     def lam_sach_tai_lieu_rag(self, van_ban: str) -> Dict[str, Any]:
         """
         Lớp 2: Quét và khử độc các câu chứa Indirect Prompt Injection ẩn trong tài liệu RAG,
-        đồng thời ẩn PII/Secrets trước khi lưu vào Vector Store.
+        đồng thời ẩn PII/Secrets trước khi lưu vào Vector Store và bảo toàn cấu trúc dòng văn bản.
         """
-        cac_cau = re.split(r"(?<=[.!?\n])\s+", van_ban)
-        cau_an_toan: List[str] = []
+        dong_list = van_ban.split("\n")
+        dong_an_toan: List[str] = []
         so_cau_bi_loai = 0
 
-        for cau in cac_cau:
-            ok, ly_do = self.tuong_lua_prompt.kiem_tra_prompt(cau)
-            if ok:
-                cau_an_toan.append(cau)
-            else:
-                so_cau_bi_loai += 1
-                self._ghi_nhat_ky("rag_indirect_injection", "HIGH", ly_do, cau)
+        for dong in dong_list:
+            if not dong.strip():
+                dong_an_toan.append(dong)
+                continue
+            cac_cau = re.split(r"(?<=[.!?])\s+", dong)
+            cau_sach_trong_dong = []
+            for cau in cac_cau:
+                ok, ly_do = self.tuong_lua_prompt.kiem_tra_prompt(cau)
+                if ok:
+                    cau_sach_trong_dong.append(cau)
+                else:
+                    so_cau_bi_loai += 1
+                    self._ghi_nhat_ky("rag_indirect_injection", "HIGH", ly_do, cau)
+            if cau_sach_trong_dong:
+                dong_an_toan.append(" ".join(cau_sach_trong_dong))
 
-        van_ban_sach = " ".join(cau_an_toan)
+        van_ban_sach = "\n".join(dong_an_toan)
         if self.tu_dong_an_pii_dau_ra:
             van_ban_sach = DataSanitizer.lam_sach(van_ban_sach, loc_bi_mat=True)
 

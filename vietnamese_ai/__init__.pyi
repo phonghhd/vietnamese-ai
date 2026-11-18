@@ -45,6 +45,16 @@ from vietnamese_ai.api.server import OpenAICompatibleServer as OpenAICompatibleS
 from vietnamese_ai.api.server import ServerDonGian as ServerDonGian
 from vietnamese_ai.audio.speech import NhanDienGiongNoi as NhanDienGiongNoi
 from vietnamese_ai.audio.speech import TongHopGiongNoi as TongHopGiongNoi
+from vietnamese_ai.audio.stream_processor import (
+    LuongAmThanhThoiGianThuc as LuongAmThanhThoiGianThuc,
+)
+from vietnamese_ai.audio.vad import PhatHienGiongNoiVAD as PhatHienGiongNoiVAD
+from vietnamese_ai.audio.webrtc_bridge import (
+    CauNoiWebRTC as CauNoiWebRTC,
+)
+from vietnamese_ai.audio.webrtc_bridge import (
+    MayChuWebRTCVoice as MayChuWebRTCVoice,
+)
 from vietnamese_ai.automl.auto_ml import AutoML as AutoML
 from vietnamese_ai.automl.nas import TimKiemKienTruc as TimKiemKienTruc
 from vietnamese_ai.benchmark.comparative_benchmark import BoDoLuongDoiDau as BoDoLuongDoiDau
@@ -76,6 +86,15 @@ from vietnamese_ai.edge.native_inference import EdgeInferenceEngine as EdgeInfer
 from vietnamese_ai.edge.native_inference import GGUFMemoryMappedStreamer as GGUFMemoryMappedStreamer
 from vietnamese_ai.edge.native_inference import ZeroGPUInferenceEngine as ZeroGPUInferenceEngine
 from vietnamese_ai.edge.node_llama import NodeLlamaEngine as NodeLlamaEngine
+from vietnamese_ai.edge.swarm_auth import (
+    XacThucCumSwarm as XacThucCumSwarm,
+)
+from vietnamese_ai.edge.swarm_auth import (
+    phat_hien_ip_tailscale as phat_hien_ip_tailscale,
+)
+from vietnamese_ai.edge.swarm_auth import (
+    tao_ma_pin_ngau_nhien as tao_ma_pin_ngau_nhien,
+)
 from vietnamese_ai.edge.swarm_inference import (
     DieuPhoiSwarmCPU as DieuPhoiSwarmCPU,
 )
@@ -157,6 +176,9 @@ from vietnamese_ai.nlp.native_tokenizer import FastVietnameseTokenizer as FastVi
 from vietnamese_ai.nlp.native_tokenizer import (
     NativeVietnameseTokenizer as NativeVietnameseTokenizer,
 )
+from vietnamese_ai.nlp.native_tokenizer import (
+    co_ho_tro_rust as co_ho_tro_rust,
+)
 from vietnamese_ai.nlp.ner import NhanDienThucThe as NhanDienThucThe
 from vietnamese_ai.nlp.pretrained.phobert import PhoBERTWrapper as PhoBERTWrapper
 from vietnamese_ai.nlp.qa import HoiDapTiengViet as HoiDapTiengViet
@@ -166,8 +188,22 @@ from vietnamese_ai.nlp.summarization import TomTatVanBan as TomTatVanBan
 from vietnamese_ai.nlp.translation import DichThuat as DichThuat
 from vietnamese_ai.orchestrator.cluster_manager import DieuPhoiCum as DieuPhoiCum
 from vietnamese_ai.orchestrator.master import NutChinh as NutChinh
+from vietnamese_ai.orchestrator.swarm_bridge import NutCauNoiSwarm as NutCauNoiSwarm
+from vietnamese_ai.orchestrator.swarm_bridge import SwarmBridgeWorker as SwarmBridgeWorker
 from vietnamese_ai.orchestrator.worker import NutPhu as NutPhu
 from vietnamese_ai.plugin.legacy_manager import PluginManager as PluginManager
+from vietnamese_ai.plugin.plugin_base import (
+    PluginCongCu as PluginCongCu,
+)
+from vietnamese_ai.plugin.plugin_base import (
+    PluginCoSo as PluginCoSo,
+)
+from vietnamese_ai.plugin.plugin_base import (
+    PluginGiaiPhap as PluginGiaiPhap,
+)
+from vietnamese_ai.plugin.plugin_base import (
+    PluginTriThuc as PluginTriThuc,
+)
 from vietnamese_ai.plugin.plugin_manager import QuanLyPlugin as QuanLyPlugin
 from vietnamese_ai.portable.desktop_packager import DesktopPackager as DesktopPackager
 from vietnamese_ai.portable.desktop_packager import GoiDocLapDesktop as GoiDocLapDesktop
@@ -216,6 +252,7 @@ from vietnamese_ai.salm.self_refine import SelfRefine as SelfRefine
 from vietnamese_ai.salm.test_time_training import TestTimeTraining as TestTimeTraining
 from vietnamese_ai.sandbox.executor import ThucThiDocLap as ThucThiDocLap
 from vietnamese_ai.security.agent_sandbox import MoiTruongCachLy as MoiTruongCachLy
+from vietnamese_ai.security.blue_team import BlueTeamAgent as BlueTeamAgent
 from vietnamese_ai.security.data_defense import BoGiamSatTichTuDuLieu as BoGiamSatTichTuDuLieu
 from vietnamese_ai.security.data_defense import CongAnToanDauRa as CongAnToanDauRa
 from vietnamese_ai.security.data_defense import CongChatLuongDauVao as CongChatLuongDauVao
@@ -233,6 +270,7 @@ from vietnamese_ai.security.llm_firewall import AIFirewallShield as AIFirewallSh
 from vietnamese_ai.security.llm_firewall import KhienBaoVeAI as KhienBaoVeAI
 from vietnamese_ai.security.llm_firewall import TuongLuaAI as TuongLuaAI
 from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework as TuongLuaBaoVeFramework
+from vietnamese_ai.security.red_team import RedTeamSimulator as RedTeamSimulator
 from vietnamese_ai.security.verifiable_inference import (
     CayMerkleSuyLuan as CayMerkleSuyLuan,
 )
@@ -256,7 +294,9 @@ from vietnamese_ai.serving.rate_limiter import BoGioiHanTocDo as BoGioiHanTocDo
 from vietnamese_ai.serving.speculative import SpeculativeEngine as SpeculativeEngine
 from vietnamese_ai.serving.streaming import MayChuStream as MayChuStream
 from vietnamese_ai.solutions.cskh import CustomerSupportBot as CustomerSupportBot
+from vietnamese_ai.solutions.cskh import GiaiPhapVoicebotCSKH as GiaiPhapVoicebotCSKH
 from vietnamese_ai.solutions.cskh import TongDaiCSKH as TongDaiCSKH
+from vietnamese_ai.solutions.cskh import VoicebotCSKH as VoicebotCSKH
 from vietnamese_ai.solutions.phap_ly import LegalAssistant as LegalAssistant
 from vietnamese_ai.solutions.phap_ly import TroLyPhapLy as TroLyPhapLy
 from vietnamese_ai.solutions.trich_xuat import SmartExtractor as SmartExtractor
