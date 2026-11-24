@@ -19,10 +19,9 @@ class ChromaVectorStore:
         ten_collection: str = "vietnamese_ai",
         khoang_cach: str = "cosine",
     ):
-        try:
-            import chromadb
-        except ImportError:
-            raise ImportError("Vui lòng cài đặt chromadb: pip install chromadb")
+        from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+
+        chromadb = QuanLyPhuThuoc.yeu_cau("chromadb", nhom_extra="rag", tinh_nang="ChromaVectorStore")
 
         # Map distance metric string to ChromaDB expected string
         # Chroma supports 'l2', 'ip' (inner product), 'cosine'
@@ -111,7 +110,7 @@ class ChromaVectorStore:
             include=["metadatas", "distances"],
         )
 
-        ket_qua = []
+        ket_qua: List[Dict[str, Any]] = []
         if not results["ids"] or not results["ids"][0]:
             return ket_qua
 

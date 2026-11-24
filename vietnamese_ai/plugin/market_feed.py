@@ -158,6 +158,7 @@ class BoPhatGiaGiaLap:
             "khoi_luong": khoi_luong,
             "thoi_gian": int(time.time()),
             "nguon": "synthetic_mock",
+            "la_du_lieu_gia_lap": True,
         }
 
     def sinh_du_lieu_nen(
@@ -387,12 +388,12 @@ class BoDieuPhoiThiTruong:
     nguồn cấp dữ liệu (Live Real-time -> Failover -> Deterministic Mock Feed).
     """
 
-    def __init__(self, dung_gia_lap_khi_loi: bool = True):
+    def __init__(self, dung_gia_lap_khi_loi: bool = True, bao_loi_khi_mat_ket_noi: bool = False) -> None:
         self.dung_gia_lap_khi_loi = dung_gia_lap_khi_loi
+        self.bao_loi_khi_mat_ket_noi = bao_loi_khi_mat_ket_noi
         self.crypto_engine = BoThuThapCrypto()
         self.stock_engine = BoThuThapGiaChungKhoan()
         self.mock_engine = BoPhatGiaGiaLap()
-        # Ring buffer lưu trữ 200 tick gần nhất cho mỗi mã: { symbol: deque }
         self._ring_buffer: Dict[str, collections.deque] = {}
 
     def _cap_nhat_buffer(self, ma: str, du_lieu: Dict[str, Any]) -> None:
@@ -403,10 +404,7 @@ class BoDieuPhoiThiTruong:
     def lay_gia_hien_tai(
         self, ma: str, loai_tai_san: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Lấy giá real-time mới nhất. Tự động chuyển nguồn thông minh.
-        Đảm bảo luôn trả về kết quả hợp lệ, không bao giờ ngắt quãng hệ thống.
-        """
+        """Lấy giá thực tế mới nhất và đánh dấu minh bạch cờ `la_du_lieu_gia_lap` khi buộc phải fallback."""
         ma_chuan, loai_phat_hien = chuan_hoa_ma(ma)
         loai = loai_tai_san or loai_phat_hien
 
@@ -416,15 +414,20 @@ class BoDieuPhoiThiTruong:
         else:
             kq = self.stock_engine.lay_gia_tcbs(ma_chuan)
 
-        # Nếu gọi thật thất bại và cho phép fallback giả lập
-        if kq is None and self.dung_gia_lap_khi_loi:
-            kq = self.mock_engine.sinh_gia_hien_tai(ma_chuan)
-
         if kq is not None:
+            kq["la_du_lieu_gia_lap"] = False
             self._cap_nhat_buffer(ma_chuan, kq)
             return kq
 
-        # Trường hợp xấu nhất: trả về fallback an toàn
+        if self.dung_gia_lap_khi_loi:
+            kq = self.mock_engine.sinh_gia_hien_tai(ma_chuan)
+            kq["la_du_lieu_gia_lap"] = True
+            self._cap_nhat_buffer(ma_chuan, kq)
+            return kq
+
+        if self.bao_loi_khi_mat_ket_noi:
+            raise ConnectionError(f"Không thể kết nối nguồn giá thực tế cho mã '{ma_chuan}'")
+
         return {
             "ma": ma_chuan,
             "loai": loai,
@@ -434,6 +437,7 @@ class BoDieuPhoiThiTruong:
             "khoi_luong": 0,
             "thoi_gian": int(time.time()),
             "nguon": "loi_mat_ket_noi",
+            "la_du_lieu_gia_lap": False,
         }
 
     def lay_du_lieu_nen(
@@ -442,9 +446,7 @@ class BoDieuPhoiThiTruong:
         khung_thoi_gian: str = "1D",
         so_nen: int = 60,
     ) -> List[Dict[str, Any]]:
-        """
-        Lấy chuỗi nến OHLCV phục vụ phân tích kỹ thuật và tính chỉ báo.
-        """
+        """Lấy chuỗi nến OHLCV thực tế và đánh dấu rõ `la_du_lieu_gia_lap` cho từng bản ghi."""
         ma_chuan, loai = chuan_hoa_ma(ma)
         ket_qua_nen = None
 
@@ -455,9 +457,20 @@ class BoDieuPhoiThiTruong:
         else:
             ket_qua_nen = self.stock_engine.lay_nen_vndirect(ma_chuan, limit=so_nen)
 
-        if (not ket_qua_nen) and self.dung_gia_lap_khi_loi:
+        if ket_qua_nen:
+            for nen in ket_qua_nen:
+                nen["la_du_lieu_gia_lap"] = False
+            return ket_qua_nen
+
+        if self.dung_gia_lap_khi_loi:
             ket_qua_nen = self.mock_engine.sinh_du_lieu_nen(
                 ma_chuan, khung_thoi_gian=khung_thoi_gian, so_nen=so_nen
             )
+            for nen in ket_qua_nen:
+                nen["la_du_lieu_gia_lap"] = True
+            return ket_qua_nen
 
-        return ket_qua_nen or []
+        if self.bao_loi_khi_mat_ket_noi:
+            raise ConnectionError(f"Không thể kết nối nguồn nến OHLCV thực tế cho mã '{ma_chuan}'")
+
+        return []

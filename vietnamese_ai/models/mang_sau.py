@@ -1,6 +1,6 @@
 """MangSau - Mạng nơ-ron sâu với PyTorch backend (optional)."""
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 
@@ -61,10 +61,10 @@ class MangSau(BaseModel):
             self.thiet_bi = thiet_bi
 
         self._backend = "pytorch" if _CO_PYTORCH else "numpy"
-        self._model = None
+        self._model: Optional[Any] = None
         self._loss_history: List[float] = []
 
-    def _tao_model_pytorch(self, kich_thuoc_dau_vao: int, so_lop: int):
+    def _tao_model_pytorch(self, kich_thuoc_dau_vao: int, so_lop: int) -> Any:
         """Tạo mô hình PyTorch."""
         layers = []
         prev_size = kich_thuoc_dau_vao
@@ -88,7 +88,8 @@ class MangSau(BaseModel):
     def _huan_luyen_pytorch(self, X: np.ndarray, y: np.ndarray) -> None:
         """Huấn luyện với PyTorch backend."""
         so_lop = int(y.max()) + 1
-        self._model = self._tao_model_pytorch(X.shape[1], so_lop)
+        model = self._tao_model_pytorch(X.shape[1], so_lop)
+        self._model = model
 
         X_tensor = torch.FloatTensor(X).to(self.thiet_bi)
         y_tensor = torch.LongTensor(y.astype(int)).to(self.thiet_bi)
@@ -96,16 +97,16 @@ class MangSau(BaseModel):
         loader = DataLoader(dataset, batch_size=self.kich_thuoc_batch, shuffle=True)
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(self._model.parameters(), lr=self.toc_do_hoc)
+        optimizer = optim.Adam(model.parameters(), lr=self.toc_do_hoc)
 
-        self._model.train()
+        model.train()
         self._loss_history = []
 
         for vong in range(self.so_vong):
             tong_loss = 0.0
             for X_batch, y_batch in loader:
                 optimizer.zero_grad()
-                output = self._model(X_batch)
+                output = model(X_batch)
                 loss = criterion(output, y_batch)
                 loss.backward()
                 optimizer.step()
@@ -119,6 +120,8 @@ class MangSau(BaseModel):
 
     def _du_doan_pytorch(self, X: np.ndarray) -> np.ndarray:
         """Dự đoán với PyTorch."""
+        if self._model is None:
+            raise RuntimeError("Chưa huấn luyện.")
         self._model.eval()
         with torch.no_grad():
             X_tensor = torch.FloatTensor(X).to(self.thiet_bi)
@@ -157,7 +160,7 @@ class MangSau(BaseModel):
         self.logger.info("Huấn luyện hoàn tất")
 
     def du_doan(self, X: np.ndarray) -> np.ndarray:
-        if not self.da_huan_luyen:
+        if not self.da_huan_luyen or self._model is None:
             raise RuntimeError("Chưa huấn luyện.")
         X = np.asarray(X, dtype=float)
         if self._backend == "pytorch":

@@ -1,11 +1,13 @@
 """PhanLoaiHinhAnh - Phân loại hình ảnh (CNN với PyTorch hoặc feature extraction)."""
 
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
 from vietnamese_ai.models.base import BaseModel
 from vietnamese_ai.utils.logger import Logger
+
+_CNNModel: Optional[Any] = None
 
 try:
     import torch
@@ -15,7 +17,7 @@ try:
 
     _CO_PYTORCH = True
 
-    class _CNNModel(nn.Module):
+    class _TorchCNNModel(nn.Module):
         """Mạng CNN đơn giản cho phân loại hình ảnh."""
 
         def __init__(self, kenh_dau_vao: int, so_lop: int, kich_thuoc: Tuple[int, int] = (32, 32)):
@@ -42,9 +44,10 @@ try:
         def forward(self, x):
             return self.fc(self.conv(x))
 
+    _CNNModel = _TorchCNNModel
+
 except ImportError:
     _CO_PYTORCH = False
-    _CNNModel = None
 
 
 class PhanLoaiHinhAnh(BaseModel):
@@ -81,8 +84,8 @@ class PhanLoaiHinhAnh(BaseModel):
         self.logger = Logger("PhanLoaiHinhAnh")
 
         self._backend = "pytorch" if _CO_PYTORCH else "numpy"
-        self._model = None
-        self._ml_model = None
+        self._model: Any = None
+        self._ml_model: Optional[BaseModel] = None
 
     def _chuan_hoa_du_lieu(self, X: np.ndarray) -> np.ndarray:
         X = np.asarray(X, dtype=np.float32)
@@ -110,22 +113,25 @@ class PhanLoaiHinhAnh(BaseModel):
         self.logger.info("Huấn luyện hoàn tất")
 
     def _huan_luyen_pytorch(self, X: np.ndarray, y: np.ndarray) -> None:
+        if _CNNModel is None:
+            raise RuntimeError("PyTorch chưa được cài đặt.")
         thiet_bi = "cuda" if torch.cuda.is_available() else "cpu"
-        self._model = _CNNModel(X.shape[1], self.so_lop).to(thiet_bi)
+        model = _CNNModel(X.shape[1], self.so_lop).to(thiet_bi)
+        self._model = model
 
         X_t = torch.FloatTensor(X).to(thiet_bi)
         y_t = torch.LongTensor(y).to(thiet_bi)
         loader = DataLoader(TensorDataset(X_t, y_t), batch_size=self.kich_thuoc_batch, shuffle=True)
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(self._model.parameters(), lr=self.toc_do_hoc)
+        optimizer = optim.Adam(model.parameters(), lr=self.toc_do_hoc)
 
-        self._model.train()
+        model.train()
         for vong in range(self.so_vong):
             tong_loss = 0.0
             for X_b, y_b in loader:
                 optimizer.zero_grad()
-                loss = criterion(self._model(X_b), y_b)
+                loss = criterion(model(X_b), y_b)
                 loss.backward()
                 optimizer.step()
                 tong_loss += loss.item()
@@ -139,8 +145,9 @@ class PhanLoaiHinhAnh(BaseModel):
         from vietnamese_ai.models.classifier import PhanLoai
 
         X_flat = X.reshape(X.shape[0], -1)
-        self._ml_model = PhanLoai(thuat_toan="rung_ngau_nhien", n_estimators=100)
-        self._ml_model.huan_luyen(X_flat, y)
+        ml_model = PhanLoai(thuat_toan="rung_ngau_nhien", n_estimators=100)
+        ml_model.huan_luyen(X_flat, y)
+        self._ml_model = ml_model
 
     def du_doan(self, X: np.ndarray) -> np.ndarray:
         if not self.da_huan_luyen:
@@ -154,6 +161,8 @@ class PhanLoaiHinhAnh(BaseModel):
                 X_t = torch.FloatTensor(X).to(thiet_bi)
                 return self._model(X_t).argmax(dim=1).cpu().numpy()
         else:
+            if self._ml_model is None:
+                raise RuntimeError("Chưa huấn luyện.")
             X_flat = X.reshape(X.shape[0], -1)
             return self._ml_model.du_doan(X_flat)
 

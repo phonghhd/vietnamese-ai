@@ -1,12 +1,16 @@
-"""FastAPIServer - API Server tương thích chuẩn OpenAI."""
+"""FastAPIServer - API Server tương thích chuẩn OpenAI (SSE Streaming, Tool Calling, OpenTelemetry & Prometheus)."""
 
+import json
+import threading
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from contextlib import nullcontext
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 try:
     from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import PlainTextResponse, StreamingResponse
     from pydantic import BaseModel
 
     _CO_FASTAPI = True
@@ -17,6 +21,8 @@ except ImportError:
     WebSocket = Any  # type: ignore
     WebSocketDisconnect = Exception  # type: ignore
     CORSMiddleware = None  # type: ignore
+    PlainTextResponse = None  # type: ignore
+    StreamingResponse = None  # type: ignore
 
     class BaseModel:  # type: ignore
         def __init__(self, **kwargs):
@@ -27,10 +33,91 @@ except ImportError:
 from vietnamese_ai.utils.logger import Logger
 
 
+class BoThuThapTelemetryAPI:
+    """Bộ thu thập số liệu Prometheus & OpenTelemetry Tracing cho API Production (không bắt buộc cài thư viện ngoài)."""
+
+    def __init__(self, ten_dich_vu: str = "vietnamese-ai-api") -> None:
+        self.ten_dich_vu = ten_dich_vu
+        self._lock = threading.Lock()
+        self.tong_request: int = 0
+        self.tong_loi: int = 0
+        self.tong_stream: int = 0
+        self.tong_tool_calls: int = 0
+        self.tong_prompt_tokens: int = 0
+        self.tong_completion_tokens: int = 0
+        self.tong_do_tre_giay: float = 0.0
+        self._tracer: Any = None
+        try:
+            from opentelemetry import trace  # type: ignore
+
+            self._tracer = trace.get_tracer(ten_dich_vu)
+        except Exception:
+            self._tracer = None
+
+    def bat_dau_span(self, ten_span: str) -> Any:
+        """Tạo OpenTelemetry span nếu có cài `opentelemetry`, ngược lại trả context rỗng không tốn chi phí."""
+        if self._tracer is not None:
+            return self._tracer.start_as_current_span(ten_span)
+        return nullcontext()
+
+    def ghi_nhan(
+        self,
+        do_tre_giay: float,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        la_stream: bool = False,
+        co_tool_call: bool = False,
+        co_loi: bool = False,
+    ) -> None:
+        """Ghi nhận số liệu an toàn đa luồng cho mỗi request API."""
+        with self._lock:
+            self.tong_request += 1
+            self.tong_do_tre_giay += max(0.0, float(do_tre_giay))
+            self.tong_prompt_tokens += max(0, int(prompt_tokens))
+            self.tong_completion_tokens += max(0, int(completion_tokens))
+            if la_stream:
+                self.tong_stream += 1
+            if co_tool_call:
+                self.tong_tool_calls += 1
+            if co_loi:
+                self.tong_loi += 1
+
+    def xuat_prometheus(self) -> str:
+        """Xuất số liệu chuẩn Prometheus Text Exposition Format 0.0.4."""
+        with self._lock:
+            trung_binh = self.tong_do_tre_giay / self.tong_request if self.tong_request else 0.0
+            lines = [
+                "# HELP vai_api_requests_total Tong so yeu cau API",
+                "# TYPE vai_api_requests_total counter",
+                f'vai_api_requests_total{{service="{self.ten_dich_vu}"}} {self.tong_request}',
+                "# HELP vai_api_errors_total Tong so yeu cau loi",
+                "# TYPE vai_api_errors_total counter",
+                f'vai_api_errors_total{{service="{self.ten_dich_vu}"}} {self.tong_loi}',
+                "# HELP vai_api_stream_requests_total Tong so yeu cau SSE streaming",
+                "# TYPE vai_api_stream_requests_total counter",
+                f'vai_api_stream_requests_total{{service="{self.ten_dich_vu}"}} {self.tong_stream}',
+                "# HELP vai_api_tool_calls_total Tong so luot goi cong cu OpenAI Tool Calling",
+                "# TYPE vai_api_tool_calls_total counter",
+                f'vai_api_tool_calls_total{{service="{self.ten_dich_vu}"}} {self.tong_tool_calls}',
+                "# HELP vai_api_tokens_total Tong so token xu ly theo loai",
+                "# TYPE vai_api_tokens_total counter",
+                f'vai_api_tokens_total{{service="{self.ten_dich_vu}",kind="prompt"}} {self.tong_prompt_tokens}',
+                f'vai_api_tokens_total{{service="{self.ten_dich_vu}",kind="completion"}} {self.tong_completion_tokens}',
+                "# HELP vai_api_latency_seconds_sum Tong do tre xu ly (giay)",
+                "# TYPE vai_api_latency_seconds_sum counter",
+                f'vai_api_latency_seconds_sum{{service="{self.ten_dich_vu}"}} {self.tong_do_tre_giay:.6f}',
+                "# HELP vai_api_latency_seconds_avg Do tre trung binh (giay)",
+                "# TYPE vai_api_latency_seconds_avg gauge",
+                f'vai_api_latency_seconds_avg{{service="{self.ten_dich_vu}"}} {trung_binh:.6f}',
+            ]
+        return "\n".join(lines) + "\n"
+
+
 # --- Pydantic Models ---
 class ChatMessage(BaseModel):
     role: str = ""
-    content: str = ""
+    content: Optional[str] = ""
+    tool_calls: Optional[List[Dict[str, Any]]] = None
 
 
 class ChatCompletionRequest(BaseModel):
@@ -39,6 +126,9 @@ class ChatCompletionRequest(BaseModel):
     temperature: float = 0.7
     max_tokens: int = 1024
     stream: bool = False
+    tools: Optional[List[Dict[str, Any]]] = None
+    tool_choice: Optional[Any] = None
+    auto_execute_tools: bool = False
 
 
 class ChatCompletionResponseChoice(BaseModel):
@@ -91,13 +181,15 @@ class FastAPIServer:
         ho_du_lieu: Optional[Any] = None,
         mach_cat: Optional[Any] = None,
         suc_khoe: Optional[Any] = None,
+        quan_ly_plugin: Optional[Any] = None,
+        thuc_thi_tool_tu_dong: bool = False,
     ):
         """
         Khởi tạo Server.
 
         Args:
-            bo_xu_ly: Có thể là một đối tượng `HeThongDaTacTu` hoặc LLM Wrapper
-                      (có hàm `chay(truy_van)` hoặc `sinh_van_ban(prompt)`).
+            bo_xu_ly: Có thể là một đối tượng `HeThongDaTacTu`, `TacTu`, `DongCoSuyLuanEdge`,
+                      `QuyTrinhDauCuoi` hoặc LLM Wrapper (`chay`, `sinh_van_ban`, `sinh_stream`, `hoi`).
             ten: Tên định danh của server.
             enable_watermark: Tự động nhúng thủy ấn số vào câu trả lời sinh ra.
             enable_sanitizer: Tự động làm sạch và ẩn danh hóa dữ liệu PII trong câu hỏi.
@@ -106,11 +198,47 @@ class FastAPIServer:
             ho_du_lieu: Đối tượng HoDuLieu (hoặc đường dẫn) để thu thập feedback DPO khép kín.
             mach_cat: Đối tượng MachCat bảo vệ circuit breaker cho các requests.
             suc_khoe: Đối tượng KiemTraSucKhoe giám sát trạng thái hệ thống.
+            quan_ly_plugin: Đối tượng `QuanLyPlugin` tùy chọn để tự động khám phá công cụ OpenAI Tool Calling.
+            thuc_thi_tool_tu_dong: Tự động thực thi công cụ đã đăng ký khi khớp `tool_calls`.
         """
+        global _CO_FASTAPI
+
         if not _CO_FASTAPI:
-            raise ImportError(
-                "Cần cài đặt fastapi để dùng FastAPIServer: pip install fastapi uvicorn pydantic"
+            from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+
+            QuanLyPhuThuoc.yeu_cau("fastapi", nhom_extra="api", tinh_nang="FastAPIServer")
+            from fastapi import (
+                FastAPI as _FastAPI,
             )
+            from fastapi import (
+                HTTPException as _HTTPException,
+            )
+            from fastapi import (
+                WebSocket as _WebSocket,
+            )
+            from fastapi import (
+                WebSocketDisconnect as _WebSocketDisconnect,
+            )
+            from fastapi.middleware.cors import CORSMiddleware as _CORSMiddleware
+            from fastapi.responses import (
+                PlainTextResponse as _PlainTextResponse,
+            )
+            from fastapi.responses import (
+                StreamingResponse as _StreamingResponse,
+            )
+
+            globals().update(
+                {
+                    "FastAPI": _FastAPI,
+                    "HTTPException": _HTTPException,
+                    "WebSocket": _WebSocket,
+                    "WebSocketDisconnect": _WebSocketDisconnect,
+                    "CORSMiddleware": _CORSMiddleware,
+                    "PlainTextResponse": _PlainTextResponse,
+                    "StreamingResponse": _StreamingResponse,
+                }
+            )
+            _CO_FASTAPI = True
 
         self.bo_xu_ly = bo_xu_ly
         self.ten = ten
@@ -119,8 +247,12 @@ class FastAPIServer:
         self.enable_semantic_cache = enable_semantic_cache
         self.mach_cat = mach_cat or getattr(bo_xu_ly, "mach_cat", None)
         self.suc_khoe = suc_khoe or getattr(bo_xu_ly, "suc_khoe", None)
+        self.quan_ly_plugin = quan_ly_plugin
+        self.thuc_thi_tool_tu_dong = thuc_thi_tool_tu_dong
+        self.telemetry = BoThuThapTelemetryAPI(ten_dich_vu=ten)
         self.logger = Logger(ten)
 
+        self.ho_du_lieu: Optional[Any] = None
         if ho_du_lieu is not None:
             if isinstance(ho_du_lieu, str):
                 from vietnamese_ai.datalake.dataset_manager import HoDuLieu
@@ -128,9 +260,8 @@ class FastAPIServer:
                 self.ho_du_lieu = HoDuLieu(duong_dan_luu_tru=ho_du_lieu)
             else:
                 self.ho_du_lieu = ho_du_lieu
-        else:
-            self.ho_du_lieu = None
 
+        self.semantic_cache: Optional[Any] = None
         if enable_semantic_cache:
             try:
                 from vietnamese_ai.rag.context_optimization import BoNhoDemNguNghia
@@ -138,9 +269,8 @@ class FastAPIServer:
                 self.semantic_cache = BoNhoDemNguNghia(nguong_tuong_dong=semantic_cache_threshold)
             except ImportError:
                 self.semantic_cache = None
-        else:
-            self.semantic_cache = None
 
+        self.sanitizer: Optional[Any] = None
         if enable_sanitizer:
             try:
                 from vietnamese_ai.security.data_sanitizer import DataSanitizer
@@ -148,8 +278,6 @@ class FastAPIServer:
                 self.sanitizer = DataSanitizer
             except ImportError:
                 self.sanitizer = None
-        else:
-            self.sanitizer = None
 
         self.app = FastAPI(title=ten, description="Vietnamese AI Framework API")
 
@@ -198,6 +326,22 @@ class FastAPIServer:
         if hasattr(self.bo_xu_ly, "chay"):
             truy_van = request.messages[-1].content
             return self.bo_xu_ly.chay(truy_van)
+        elif hasattr(self.bo_xu_ly, "tra_cuu"):
+            truy_van = request.messages[-1].content
+            kq = self.bo_xu_ly.tra_cuu(truy_van)
+            return str(kq.get("tra_loi", kq) if isinstance(kq, dict) else kq)
+        elif hasattr(self.bo_xu_ly, "xu_ly_yeu_cau"):
+            truy_van = request.messages[-1].content
+            kq = self.bo_xu_ly.xu_ly_yeu_cau(truy_van)
+            return str(kq.get("tra_loi", kq) if isinstance(kq, dict) else kq)
+        elif hasattr(self.bo_xu_ly, "sinh_kem_thong_ke"):
+            truy_van = request.messages[-1].content
+            kq = self.bo_xu_ly.sinh_kem_thong_ke(
+                truy_van,
+                do_dai_toi_da=request.max_tokens,
+                nhiet_do=request.temperature,
+            )
+            return str(kq.get("van_ban", kq) if isinstance(kq, dict) else kq)
         elif hasattr(self.bo_xu_ly, "sinh_van_ban"):
             prompt = self._chuyen_doi_messages(request.messages)
             return self.bo_xu_ly.sinh_van_ban(
@@ -208,17 +352,318 @@ class FastAPIServer:
             kq = self.bo_xu_ly.hoi(truy_van)
             return str(kq.get("tra_loi", kq))
         else:
-            raise ValueError("Bộ xử lý không hợp lệ. Cần hỗ trợ hàm `chay`, `sinh_van_ban` hoặc `hoi`.")
+            raise ValueError(
+                "Bộ xử lý không hợp lệ. Cần hỗ trợ một trong các hàm: "
+                "`chay`, `tra_cuu`, `xu_ly_yeu_cau`, `sinh_kem_thong_ke`, `sinh_van_ban` hoặc `hoi`."
+            )
 
     def _xu_ly_logic(self, request: ChatCompletionRequest) -> str:
         if self.mach_cat is not None:
             return self.mach_cat.thuc_hien(self._xu_ly_logic_truc_tiep, request)
         return self._xu_ly_logic_truc_tiep(request)
 
+    def _trich_xuat_tools_tu_he_thong(self) -> Tuple[List[Dict[str, Any]], Dict[str, Callable[..., Any]]]:
+        """Khám phá tự động danh sách công cụ từ `TacTu`, `QuyTrinhDauCuoi` và `QuanLyPlugin` sang lược đồ OpenAI JSON Schema."""
+        schemas: List[Dict[str, Any]] = []
+        executors: Dict[str, Callable[..., Any]] = {}
+        seen: set[str] = set()
+
+        cac_nguon_cong_cu: List[Dict[str, Any]] = []
+        if isinstance(getattr(self.bo_xu_ly, "cong_cu", None), dict):
+            cac_nguon_cong_cu.append(self.bo_xu_ly.cong_cu)
+        tac_tu = getattr(self.bo_xu_ly, "tac_tu", None)
+        if tac_tu is not None and isinstance(getattr(tac_tu, "cong_cu", None), dict):
+            cac_nguon_cong_cu.append(tac_tu.cong_cu)
+
+        for nguon in cac_nguon_cong_cu:
+            for ten_cc, cc_obj in nguon.items():
+                if ten_cc in seen:
+                    continue
+                seen.add(ten_cc)
+                tham_so_raw = getattr(cc_obj, "tham_so", {}) or {}
+                props: Dict[str, Any] = {}
+                required: List[str] = []
+                for p_name, p_info in tham_so_raw.items():
+                    kieu = str(p_info.get("kieu", "string")).lower() if isinstance(p_info, dict) else "string"
+                    json_type = "integer" if "int" in kieu else ("number" if "float" in kieu else ("boolean" if "bool" in kieu else "string"))
+                    props[p_name] = {"type": json_type}
+                    if isinstance(p_info, dict) and p_info.get("bat_buoc"):
+                        required.append(p_name)
+                if not props:
+                    props = {"truy_van": {"type": "string"}}
+                schemas.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": ten_cc,
+                            "description": str(getattr(cc_obj, "mo_ta", "")),
+                            "parameters": {
+                                "type": "object",
+                                "properties": props,
+                                "required": required,
+                            },
+                        },
+                    }
+                )
+                executors[ten_cc] = lambda _obj=cc_obj, **kw: _obj.chay(**kw)
+
+        ql_plugin = self.quan_ly_plugin or getattr(self.bo_xu_ly, "quan_ly_plugin", None)
+        if ql_plugin is not None:
+            plugins_cong_cu = getattr(ql_plugin, "cac_plugin_cong_cu", None)
+            if isinstance(plugins_cong_cu, dict):
+                for plugin in plugins_cong_cu.values():
+                    if not hasattr(plugin, "dang_ky_cong_cu"):
+                        continue
+                    for t_info in plugin.dang_ky_cong_cu():
+                        if not isinstance(t_info, dict) or not t_info.get("ten"):
+                            continue
+                        t_name = str(t_info["ten"])
+                        if t_name in seen:
+                            continue
+                        seen.add(t_name)
+                        t_params = t_info.get("tham_so")
+                        props_p: Dict[str, Any] = {}
+                        if isinstance(t_params, dict):
+                            for k_p, v_p in t_params.items():
+                                props_p[str(k_p)] = {"type": "string", "description": str(v_p)}
+                        if not props_p:
+                            props_p = {"input": {"type": "string"}}
+                        schemas.append(
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": t_name,
+                                    "description": str(t_info.get("mo_ta", "")),
+                                    "parameters": {
+                                        "type": "object",
+                                        "properties": props_p,
+                                    },
+                                },
+                            }
+                        )
+                        executors[t_name] = lambda _pl=plugin, _tn=t_name, **kw: _pl.thuc_thi_cong_cu(_tn, **kw)
+
+        return schemas, executors
+
+    def _lay_luong_stream_truc_tiep(self, request: ChatCompletionRequest) -> Optional[Iterator[str]]:
+        """Lấy bộ sinh token thời gian thực (`sinh_stream`) từ bộ xử lý/Edge/Swarm nếu hỗ trợ để truyền SSE không chờ đệm."""
+        truy_van = (request.messages[-1].content or "") if request.messages else ""
+        prompt = self._chuyen_doi_messages(request.messages)
+        muc_tieu: Any = None
+        dau_vao = prompt
+
+        if getattr(request, "model", "") in ("swarm", "edge"):
+            if hasattr(self.bo_xu_ly, "dong_co_edge") and getattr(self.bo_xu_ly, "dong_co_edge") is not None:
+                muc_tieu = self.bo_xu_ly.dong_co_edge
+                dau_vao = truy_van
+            elif hasattr(self.bo_xu_ly, "dieu_phoi_swarm") and getattr(self.bo_xu_ly, "dieu_phoi_swarm") is not None:
+                muc_tieu = self.bo_xu_ly.dieu_phoi_swarm
+                dau_vao = truy_van
+
+        if muc_tieu is None and hasattr(self.bo_xu_ly, "sinh_stream"):
+            muc_tieu = self.bo_xu_ly
+            dau_vao = truy_van or prompt
+
+        if muc_tieu is None or not hasattr(muc_tieu, "sinh_stream"):
+            return None
+
+        try:
+            return iter(
+                muc_tieu.sinh_stream(
+                    dau_vao,
+                    do_dai_toi_da=request.max_tokens,
+                    nhiet_do=request.temperature,
+                )
+            )
+        except TypeError:
+            try:
+                return iter(muc_tieu.sinh_stream(dau_vao, do_dai_toi_da=request.max_tokens))
+            except TypeError:
+                return iter(muc_tieu.sinh_stream(dau_vao))
+
+    def _chon_tool_calls_openai(
+        self,
+        request: ChatCompletionRequest,
+        query: str,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Khớp lược đồ OpenAI Function/Tool Calling (`tools` & `tool_choice`) hoặc công cụ tự động từ `TacTu`/`QuanLyPlugin`."""
+        tools = getattr(request, "tools", None)
+        if request.tool_choice == "none":
+            return None
+        if not tools and request.tool_choice is not None:
+            tools, _ = self._trich_xuat_tools_tu_he_thong()
+        if not tools:
+            return None
+
+        ten_ep: Optional[str] = None
+        if isinstance(request.tool_choice, dict):
+            fn_obj = request.tool_choice.get("function")
+            if isinstance(fn_obj, dict) and fn_obj.get("name"):
+                ten_ep = str(fn_obj["name"])
+
+        q_lower = query.lower()
+        chon_fn: Optional[Dict[str, Any]] = None
+        best_score = 0
+        for item in tools:
+            if not isinstance(item, dict):
+                continue
+            fn = item.get("function") if item.get("type") == "function" else item
+            if not isinstance(fn, dict) or not fn.get("name"):
+                continue
+            name = str(fn["name"])
+            if ten_ep is not None:
+                if name == ten_ep:
+                    chon_fn = fn
+                    break
+                continue
+            desc = str(fn.get("description", "")).lower()
+            score = sum(1 for w in name.lower().replace("_", " ").split() if len(w) > 1 and w in q_lower)
+            score += sum(1 for w in desc.split() if len(w) > 3 and w in q_lower)
+            if score > best_score:
+                best_score = score
+                chon_fn = fn
+
+        if chon_fn is None and request.tool_choice == "required":
+            first = tools[0]
+            if isinstance(first, dict):
+                chon_fn = first.get("function") if first.get("type") == "function" else first
+
+        if chon_fn is None:
+            return None
+
+        params_schema = chon_fn.get("parameters") or {}
+        props = params_schema.get("properties") if isinstance(params_schema, dict) else {}
+        args_dict: Dict[str, Any] = {}
+        if isinstance(props, dict) and props:
+            first_key = next(iter(props.keys()))
+            args_dict[first_key] = query
+        else:
+            args_dict["input"] = query
+
+        return [
+            {
+                "id": f"call_{uuid.uuid4().hex[:12]}",
+                "type": "function",
+                "function": {
+                    "name": str(chon_fn["name"]),
+                    "arguments": json.dumps(args_dict, ensure_ascii=False),
+                },
+            }
+        ]
+
+    def _tao_luong_sse_truc_tiep(
+        self,
+        response_id: str,
+        model_name: str,
+        luong_token: Iterator[str],
+        input_tokens: int,
+        bat_dau: float,
+        query: str = "",
+    ) -> Iterator[str]:
+        """Truyền từng token thực tế từ `sinh_stream` ngay lập tức ra luồng SSE OpenAI không cần gom đệm toàn câu."""
+        created = int(time.time())
+        head_chunk = {
+            "id": response_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model_name,
+            "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
+        }
+        yield f"data: {json.dumps(head_chunk, ensure_ascii=False)}\n\n"
+
+        cac_phan: List[str] = []
+        try:
+            for piece in luong_token:
+                text_piece = str(piece)
+                if not text_piece:
+                    continue
+                cac_phan.append(text_piece)
+                body_chunk = {
+                    "id": response_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": model_name,
+                    "choices": [{"index": 0, "delta": {"content": text_piece}, "finish_reason": None}],
+                }
+                yield f"data: {json.dumps(body_chunk, ensure_ascii=False)}\n\n"
+        finally:
+            toan_van = "".join(cac_phan)
+            if self.semantic_cache is not None and query and toan_van:
+                self.semantic_cache.luu(query, {"noi_dung": toan_van})
+            self.telemetry.ghi_nhan(
+                do_tre_giay=time.time() - bat_dau,
+                prompt_tokens=input_tokens,
+                completion_tokens=max(len(cac_phan), len(toan_van.split())),
+                la_stream=True,
+            )
+
+        end_chunk = {
+            "id": response_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model_name,
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+        }
+        yield f"data: {json.dumps(end_chunk, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    @staticmethod
+    def _tao_luong_sse_openai(
+        response_id: str,
+        model_name: str,
+        noi_dung: str,
+    ) -> Iterator[str]:
+        """Sinh luồng sự kiện Server-Sent Events (SSE) chuẩn OpenAI `chat.completion.chunk`."""
+        created = int(time.time())
+        head_chunk = {
+            "id": response_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model_name,
+            "choices": [{"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}],
+        }
+        yield f"data: {json.dumps(head_chunk, ensure_ascii=False)}\n\n"
+
+        cac_tu = noi_dung.split(" ") if noi_dung else [""]
+        for idx, tu in enumerate(cac_tu):
+            piece = tu + (" " if idx < len(cac_tu) - 1 else "")
+            body_chunk = {
+                "id": response_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model_name,
+                "choices": [{"index": 0, "delta": {"content": piece}, "finish_reason": None}],
+            }
+            yield f"data: {json.dumps(body_chunk, ensure_ascii=False)}\n\n"
+
+        end_chunk = {
+            "id": response_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model_name,
+            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+        }
+        yield f"data: {json.dumps(end_chunk, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
     def _setup_routes(self):
         @self.app.get("/")
         async def root():
             return {"status": "hoat_dong", "ten": self.ten}
+
+        @self.app.get("/metrics")
+        async def metrics():
+            """Xuất chỉ số vận hành chuẩn Prometheus Text Exposition Format."""
+            body = self.telemetry.xuat_prometheus()
+            if PlainTextResponse is not None:
+                return PlainTextResponse(body, media_type="text/plain; version=0.0.4")
+            return body
+
+        @self.app.get("/v1/tools")
+        async def list_tools():
+            """Trả về danh sách công cụ OpenAI JSON Schema khám phá tự động từ `TacTu` và `QuanLyPlugin`."""
+            schemas, _ = self._trich_xuat_tools_tu_he_thong()
+            return {"object": "list", "so_luong": len(schemas), "data": schemas}
 
         @self.app.get("/suc_khoe")
         async def health():
@@ -264,7 +709,7 @@ class FastAPIServer:
             elif hasattr(self.bo_xu_ly, "suy_luan_swarm"):
                 kq = self.bo_xu_ly.suy_luan_swarm(truy_van)
                 return {"status": "success", "loai": "edge_swarm", "ket_qua": kq}
-            if HTTPException:
+            if HTTPException is not None:
                 raise HTTPException(status_code=501, detail="Bộ xử lý không hỗ trợ suy luận Edge Swarm.")
             return {"status": "error", "message": "Không hỗ trợ Edge Swarm"}
 
@@ -292,98 +737,168 @@ class FastAPIServer:
                 "message": "Đã nhận phản hồi (DataLake chưa được cấu hình)",
             }
 
-        @self.app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
+        @self.app.post("/v1/chat/completions")
         async def chat_completions(request: ChatCompletionRequest):
             self.logger.info(f"Nhận request chat completion (model: {request.model})")
+            bat_dau = time.time()
 
-            try:
-                bat_dau = time.time()
+            with self.telemetry.bat_dau_span("v1.chat.completions"):
+                try:
+                    if self.sanitizer is not None:
+                        for m in request.messages:
+                            if m.role == "user" and m.content:
+                                m.content = self.sanitizer.lam_sach(m.content)
 
-                # 1. Khử PII nếu được bật
-                if self.sanitizer is not None:
-                    for m in request.messages:
-                        if m.role == "user":
-                            m.content = self.sanitizer.lam_sach(m.content)
+                    query = ""
+                    for m in reversed(request.messages):
+                        if m.role == "user" and m.content:
+                            query = m.content
+                            break
 
-                # 2. Kiểm tra Semantic Cache nếu được bật
-                query = ""
-                for m in reversed(request.messages):
-                    if m.role == "user":
-                        query = m.content
-                        break
+                    input_tokens = sum(len((m.content or "").split()) for m in request.messages)
+                    response_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
 
-                ket_qua = None
-                if self.semantic_cache is not None and query:
-                    cache_hit = self.semantic_cache.tra_cuu(query)
-                    if cache_hit is not None and "noi_dung" in cache_hit:
-                        ket_qua = cache_hit["noi_dung"]
+                    tool_calls = self._chon_tool_calls_openai(request, query)
+                    if tool_calls is not None:
+                        noi_dung_tool: Optional[str] = None
+                        ly_do_ket_thuc = "tool_calls"
+                        if self.thuc_thi_tool_tu_dong or getattr(request, "auto_execute_tools", False):
+                            _, executors = self._trich_xuat_tools_tu_he_thong()
+                            ket_qua_tools: List[str] = []
+                            for tc in tool_calls:
+                                fn_block = tc.get("function") or {}
+                                fn_name = str(fn_block.get("name", ""))
+                                executor = executors.get(fn_name)
+                                if executor is not None:
+                                    try:
+                                        args_parsed = json.loads(str(fn_block.get("arguments", "{}")))
+                                    except Exception:
+                                        args_parsed = {}
+                                    kq_exec = executor(**args_parsed) if isinstance(args_parsed, dict) else executor(args_parsed)
+                                    ket_qua_tools.append(str(kq_exec))
+                            if ket_qua_tools:
+                                noi_dung_tool = "\n".join(ket_qua_tools)
+                                ly_do_ket_thuc = "stop"
 
-                # 3. Nếu trượt cache, gọi core AI xử lý
-                if ket_qua is None:
-                    ket_qua = self._xu_ly_logic(request)
-
-                    # Lưu vào cache nếu bật
-                    if self.semantic_cache is not None and query:
-                        self.semantic_cache.luu(query, {"noi_dung": ket_qua})
-
-                # Nhúng Watermark nếu được cấu hình
-                if self.enable_watermark:
-                    try:
-                        from vietnamese_ai.security.watermark import TextWatermarker
-
-                        ket_qua = TextWatermarker.nhung_thuy_an(ket_qua, "EVONETAI_API")
-                    except ImportError:
-                        pass
-
-                # Tạo response
-                response_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-
-                # Ước lượng token (đơn giản 1 từ = 1 token cho testing)
-                input_tokens = sum(len(m.content.split()) for m in request.messages)
-                output_tokens = len(ket_qua.split())
-
-                resp = ChatCompletionResponse(
-                    id=response_id,
-                    created=int(time.time()),
-                    model=request.model,
-                    choices=[
-                        ChatCompletionResponseChoice(
-                            index=0, message=ChatMessage(role="assistant", content=ket_qua)
+                        self.telemetry.ghi_nhan(
+                            do_tre_giay=time.time() - bat_dau,
+                            prompt_tokens=input_tokens,
+                            completion_tokens=len(tool_calls),
+                            co_tool_call=True,
                         )
-                    ],
-                    usage=Usage(
+                        return ChatCompletionResponse(
+                            id=response_id,
+                            created=int(time.time()),
+                            model=request.model,
+                            choices=[
+                                ChatCompletionResponseChoice(
+                                    index=0,
+                                    message=ChatMessage(
+                                        role="assistant",
+                                        content=noi_dung_tool,
+                                        tool_calls=tool_calls,
+                                    ),
+                                    finish_reason=ly_do_ket_thuc,
+                                )
+                            ],
+                            usage=Usage(
+                                prompt_tokens=input_tokens,
+                                completion_tokens=len(tool_calls),
+                                total_tokens=input_tokens + len(tool_calls),
+                            ),
+                        )
+
+                    ket_qua = None
+                    if self.semantic_cache is not None and query:
+                        cache_hit = self.semantic_cache.tra_cuu(query)
+                        if cache_hit is not None and "noi_dung" in cache_hit:
+                            ket_qua = cache_hit["noi_dung"]
+
+                    if ket_qua is None and request.stream and StreamingResponse is not None:
+                        luong_truc_tiep = self._lay_luong_stream_truc_tiep(request)
+                        if luong_truc_tiep is not None:
+                            return StreamingResponse(
+                                self._tao_luong_sse_truc_tiep(
+                                    response_id=response_id,
+                                    model_name=request.model,
+                                    luong_token=luong_truc_tiep,
+                                    input_tokens=input_tokens,
+                                    bat_dau=bat_dau,
+                                    query=query,
+                                ),
+                                media_type="text/event-stream",
+                            )
+
+                    if ket_qua is None:
+                        ket_qua = self._xu_ly_logic(request)
+                        if self.semantic_cache is not None and query:
+                            self.semantic_cache.luu(query, {"noi_dung": ket_qua})
+
+                    if self.enable_watermark:
+                        try:
+                            from vietnamese_ai.security.watermark import TextWatermarker
+
+                            ket_qua = TextWatermarker.nhung_thuy_an(ket_qua, "EVONETAI_API")
+                        except ImportError:
+                            pass
+
+                    output_tokens = len(ket_qua.split())
+                    if request.stream and StreamingResponse is not None:
+                        self.telemetry.ghi_nhan(
+                            do_tre_giay=time.time() - bat_dau,
+                            prompt_tokens=input_tokens,
+                            completion_tokens=output_tokens,
+                            la_stream=True,
+                        )
+                        return StreamingResponse(
+                            self._tao_luong_sse_openai(response_id, request.model, ket_qua),
+                            media_type="text/event-stream",
+                        )
+
+                    resp = ChatCompletionResponse(
+                        id=response_id,
+                        created=int(time.time()),
+                        model=request.model,
+                        choices=[
+                            ChatCompletionResponseChoice(
+                                index=0, message=ChatMessage(role="assistant", content=ket_qua)
+                            )
+                        ],
+                        usage=Usage(
+                            prompt_tokens=input_tokens,
+                            completion_tokens=output_tokens,
+                            total_tokens=input_tokens + output_tokens,
+                        ),
+                    )
+                    self.telemetry.ghi_nhan(
+                        do_tre_giay=time.time() - bat_dau,
                         prompt_tokens=input_tokens,
                         completion_tokens=output_tokens,
-                        total_tokens=input_tokens + output_tokens,
-                    ),
-                )
+                    )
+                    self.logger.info(f"Hoàn thành trong {time.time() - bat_dau:.2f}s")
+                    return resp
 
-                self.logger.info(f"Hoàn thành trong {time.time() - bat_dau:.2f}s")
-                return resp
-
-            except Exception as e:
-                self.logger.error(f"Lỗi xử lý request: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                except Exception as e:
+                    self.telemetry.ghi_nhan(do_tre_giay=time.time() - bat_dau, co_loi=True)
+                    self.logger.error(f"Lỗi xử lý request: {str(e)}")
+                    raise HTTPException(status_code=500, detail=str(e))
 
         @self.app.websocket("/v1/chat/stream")
         async def websocket_endpoint(websocket: WebSocket):
             """Giao thức WebSocket (v27.0.1) thay thế cho HTTP Chunking để giảm tối đa độ trễ."""
             await websocket.accept()
             try:
-                import asyncio
-                import json
                 while True:
                     data = await websocket.receive_text()
                     request_data = json.loads(data)
                     req = ChatCompletionRequest(**request_data)
 
-                    # Quét Tường lửa AI cho cả giao thức WebSocket
                     from vietnamese_ai.security.llm_firewall import TuongLuaBaoVeFramework
 
                     fw = TuongLuaBaoVeFramework()
                     bi_chan = False
                     for m in req.messages:
-                        if m.role == "user":
+                        if m.role == "user" and m.content:
                             kq_in = fw.kiem_tra_dau_vao(m.content)
                             if not kq_in["an_toan"]:
                                 await websocket.send_text(
@@ -400,12 +915,14 @@ class FastAPIServer:
                         continue
 
                     self.logger.info(f"Nhận WebSocket stream request (model: {req.model})")
-                    ket_qua = fw.loc_dau_ra(self._xu_ly_logic(req))
-
-                    # Giả lập streaming từng từ (chunking) qua WebSocket
-                    for tu in ket_qua.split():
-                        await websocket.send_text(json.dumps({"chunk": tu + " "}))
-                        await asyncio.sleep(0.01) # Độ trễ giả lập 10ms
+                    luong_ws = self._lay_luong_stream_truc_tiep(req)
+                    if luong_ws is not None:
+                        for piece in luong_ws:
+                            await websocket.send_text(json.dumps({"chunk": fw.loc_dau_ra(str(piece))}))
+                    else:
+                        ket_qua = fw.loc_dau_ra(self._xu_ly_logic(req))
+                        for tu in ket_qua.split():
+                            await websocket.send_text(json.dumps({"chunk": tu + " "}))
 
                     await websocket.send_text(json.dumps({"done": True}))
             except WebSocketDisconnect:

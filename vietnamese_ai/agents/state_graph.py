@@ -17,7 +17,7 @@ class BoLuuDiemKiemTra:
     - Hỗ trợ quay ngược thời gian (Time-Travel Debugging) hoặc rẽ nhánh thực thi từ điểm bất kỳ.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cac_snapshot: Dict[str, List[Dict[str, Any]]] = {}
 
     def luu_snapshot(self, session_id: str, buoc: int, nut: str, state: Dict[str, Any]) -> str:

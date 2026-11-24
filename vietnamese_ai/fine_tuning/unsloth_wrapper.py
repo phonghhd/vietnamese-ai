@@ -59,10 +59,10 @@ class UnslothWrapper:
         "phi4": "unsloth/phi-4-bnb-4bit",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = Logger("UnslothWrapper")
-        self._model = None
-        self._tokenizer = None
+        self._model: Any = None
+        self._tokenizer: Any = None
         self._lora_config: Dict[str, Any] = {}
         self._co_unsloth = False
         self._da_tai = False

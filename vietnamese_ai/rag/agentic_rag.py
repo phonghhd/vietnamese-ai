@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from vietnamese_ai.agents.agent import TacTu
 from vietnamese_ai.agents.tools import CongCu
@@ -74,7 +74,15 @@ class AgenticRAGPipeline(RAGPipeline):
             so_chunks = self.them_tai_lieu(ma, noi_dung)
             print(f"[AgenticRAG] Đã đồng bộ xong! Thêm {so_chunks} chunks.")
 
-    def hoi(self, cau_hoi: str, user_role: str = "khach", **kwargs) -> Dict[str, Any]:
+    def hoi(
+        self,
+        cau_hoi: str,
+        top_k: Optional[int] = None,
+        rerank: bool = True,
+        co_kem_nguon: bool = True,
+        user_role: str = "khach",
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Thay vì làm theo hardcoded flow (Vector -> Rerank -> Generate),
         hệ thống ném câu hỏi cho Agent tự lập kế hoạch.

@@ -1,68 +1,79 @@
-"""
-EvoNet gRPC Server
-Máy chủ RPC cung cấp giao tiếp tốc độ ánh sáng (binary) cho Microservices.
-Lưu ý: Cần chạy lệnh `python -m grpc_tools.protoc` để biên dịch .proto trước khi sử dụng.
-"""
+"""EvoNet gRPC Server - Máy Chủ RPC Thực Thi Suy Luận Thật Cho Microservices."""
 
+from __future__ import annotations
+
+import json
 import logging
 import time
 import uuid
+from concurrent import futures
+from dataclasses import dataclass
+from typing import Any, Optional
 
-# Môi trường Mock (Không yêu cầu cài grpcio)
 logger = logging.getLogger("EvoNet-gRPC")
 
 
-class MockEvoNetServiceServicer:
+@dataclass
+class ChatResponse:
+    """Cấu trúc phản hồi RPC chuẩn hóa tương thích `evonet.proto`."""
+
+    id: str
+    model: str
+    text: str
+    total_tokens: int
+
+
+class EvoNetServiceServicer:
     """
-    Servicer cho EvoNet.
-    Trong môi trường biên dịch thực tế, lớp này sẽ kế thừa từ evonet_pb2_grpc.EvoNetServiceServicer.
+    Servicer gRPC thực thi suy luận thực tế:
+    - Gọi trực tiếp `bo_xu_ly.chay(...)`, `bo_xu_ly.sinh_van_ban(...)` hoặc hàm callable truyền vào.
+    - Nếu `bo_xu_ly` là `None`, tự động khởi tạo `DongCoSuyLuanEdge` chạy suy luận CPU thực tế.
     """
 
-    def __init__(self, bo_xu_ly):
+    def __init__(self, bo_xu_ly: Optional[Any] = None) -> None:
         self.bo_xu_ly = bo_xu_ly
+        self._edge_default: Optional[Any] = None
 
-    def ChatCompletion(self, request, context):
-        """Xử lý Unary RPC."""
-        bat_dau = time.time()
+    def _lay_dong_co_mac_dinh(self) -> Any:
+        """Khởi tạo lười `DongCoSuyLuanEdge` khi không truyền bộ xử lý tùy chỉnh."""
+        if self._edge_default is None:
+            from vietnamese_ai.edge.native_inference import DongCoSuyLuanEdge
 
-        # Xử lý Logic (LLM hoặc Agent)
-        if hasattr(self.bo_xu_ly, "chay"):
-            text_result = self.bo_xu_ly.chay(request.prompt)
-        elif hasattr(self.bo_xu_ly, "sinh_van_ban"):
-            text_result = self.bo_xu_ly.sinh_van_ban(request.prompt)
+            self._edge_default = DongCoSuyLuanEdge(so_luong_thread=2)
+        return self._edge_default
+
+    def ChatCompletion(self, request: Any, context: Any) -> ChatResponse:
+        """Xử lý Unary RPC ChatCompletion bằng bộ xử lý hoặc động cơ Edge thực tế."""
+        bat_dau = time.perf_counter()
+        prompt = str(getattr(request, "prompt", ""))
+        model_name = str(getattr(request, "model", "vietnamese-ai-edge"))
+
+        if self.bo_xu_ly is not None and hasattr(self.bo_xu_ly, "chay"):
+            text_result = str(self.bo_xu_ly.chay(prompt))
+        elif self.bo_xu_ly is not None and hasattr(self.bo_xu_ly, "sinh_van_ban"):
+            text_result = str(self.bo_xu_ly.sinh_van_ban(prompt))
+        elif callable(self.bo_xu_ly):
+            text_result = str(self.bo_xu_ly(prompt))
         else:
-            text_result = "[gRPC Native] Đã xử lý yêu cầu qua giao thức nhị phân siêu tốc."
+            suy_luan = self._lay_dong_co_mac_dinh().sinh_van_ban(prompt, do_dai_toi_da=64)
+            text_result = f"[gRPC Native] {suy_luan}"
 
-        logger.info(f"gRPC request processed in {time.time() - bat_dau:.4f}s")
-
-        # Mock Response object (Trong thực tế là evonet_pb2.ChatResponse)
-        class ChatResponse:
-            def __init__(self, id, model, text, total_tokens):
-                self.id = id
-                self.model = model
-                self.text = text
-                self.total_tokens = total_tokens
-
+        logger.info("gRPC request processed in %.4fs", time.perf_counter() - bat_dau)
         return ChatResponse(
             id=f"grpc-{uuid.uuid4().hex[:8]}",
-            model=request.model,
-            text=str(text_result),
-            total_tokens=len(str(text_result).split()),
+            model=model_name,
+            text=text_result,
+            total_tokens=len(text_result.split()),
         )
 
 
-def serve_grpc(bo_xu_ly, port=50051, block: bool = True):
-    """
-    Khởi chạy máy chủ gRPC với Generic RPC Handler thực tế.
-    """
-    servicer = MockEvoNetServiceServicer(bo_xu_ly)
+def serve_grpc(bo_xu_ly: Optional[Any], port: int = 50051, block: bool = True) -> Any:
+    """Khởi chạy máy chủ gRPC thực tế bằng `grpcio` với Generic RPC Handler."""
+    servicer = EvoNetServiceServicer(bo_xu_ly)
     try:
-        import json
-        from concurrent import futures
-
         import grpc
 
-        def _unary_handler(request_bytes: bytes, context):
+        def _unary_handler(request_bytes: bytes, context: Any) -> bytes:
             payload = json.loads(request_bytes.decode("utf-8"))
 
             class _Req:
@@ -76,7 +87,8 @@ def serve_grpc(bo_xu_ly, port=50051, block: bool = True):
                     "model": resp.model,
                     "text": resp.text,
                     "total_tokens": resp.total_tokens,
-                }
+                },
+                ensure_ascii=False,
             ).encode("utf-8")
 
         generic_handler = grpc.method_handlers_generic_handler(
@@ -91,10 +103,22 @@ def serve_grpc(bo_xu_ly, port=50051, block: bool = True):
         )
         server.add_insecure_port(f"[::]:{port}")
         server.start()
-        logger.info(f"gRPC Server listening on port {port}")
+        logger.info("EvoNet gRPC Server đang lắng nghe trên cổng %d", port)
         if block:
             server.wait_for_termination()
         return server
-    except ImportError:
-        logger.warning("Thư viện 'grpcio' chưa được cài đặt. Trả về Servicer cục bộ.")
-        return servicer
+    except ImportError as exc:
+        raise ImportError(
+            "Thiếu thư viện 'grpcio' để khởi chạy máy chủ gRPC. "
+            'Hãy cài đặt: pip install "vietnamese-ai[grpc]"'
+        ) from exc
+
+
+MockEvoNetServiceServicer = EvoNetServiceServicer
+
+__all__ = [
+    "ChatResponse",
+    "EvoNetServiceServicer",
+    "MockEvoNetServiceServicer",
+    "serve_grpc",
+]

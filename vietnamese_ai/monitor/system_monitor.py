@@ -13,7 +13,7 @@ logger = logging.getLogger("V-Monitor")
 class TheoDoiHeThong:
     """Theo dõi thông số CPU và RAM (Chỉ hoạt động trên Linux)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._ho_tro_proc = os.path.exists("/proc/stat") and os.path.exists("/proc/meminfo")
         if not self._ho_tro_proc:
             logger.warning(

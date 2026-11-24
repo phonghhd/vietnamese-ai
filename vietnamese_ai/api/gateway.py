@@ -32,7 +32,7 @@ class EvoNetGateway(FastAPIServer):
             return self.app.openapi()
 
         @self.app.get("/sdk/version", summary="Phiên bản API")
-        async def get_api_version() -> Dict[str, str]:
+        async def get_api_version() -> Dict[str, Any]:
             """
             Dùng để SDK kiểm tra tính tương thích phiên bản.
             """

@@ -35,7 +35,7 @@ class CauNoiWebRTC:
 
     def tao_phien(self, id_phien: str) -> Dict[str, Any]:
         """Tạo một phiên kết nối WebRTC mới."""
-        phien = {
+        phien: Dict[str, Any] = {
             "id_phien": id_phien,
             "trang_thai": "khoi_tao",
             "offer": None,
@@ -46,7 +46,10 @@ class CauNoiWebRTC:
         return phien
 
     def xu_ly_offer(self, id_phien: str, sdp_offer: str) -> Dict[str, Any]:
-        """Xử lý SDP Offer từ trình duyệt và tạo SDP Answer tương thích."""
+        """Phân tích động SDP Offer (codec, payload type, DTLS setup, ICE) và thương lượng SDP Answer RFC 4566/8829."""
+        import secrets
+        import time
+
         if id_phien not in self._phien_webrtc:
             self.tao_phien(id_phien)
 
@@ -54,20 +57,43 @@ class CauNoiWebRTC:
         phien["offer"] = sdp_offer
         phien["trang_thai"] = "da_nhan_offer"
 
-        # Sinh Answer tương thích âm thanh Opus / PCM 16kHz
+        payload_type = "111"
+        rtpmap_line = "a=rtpmap:111 opus/48000/2"
+        dtls_setup = "active"
+        for dong in sdp_offer.replace("\r\n", "\n").splitlines():
+            d = dong.strip()
+            if d.startswith("a=rtpmap:") and "opus" in d.lower():
+                rtpmap_line = d
+                payload_type = d.split(":", 1)[1].split(" ", 1)[0]
+            elif d.startswith("a=setup:"):
+                role_offer = d.split(":", 1)[1].strip().lower()
+                dtls_setup = "passive" if role_offer == "active" else "active"
+
+        session_id = str(int(time.time() * 1000))
+        ice_ufrag = secrets.token_hex(4)
+        ice_pwd = secrets.token_hex(12)
         sdp_answer = (
             "v=0\r\n"
-            "o=VietnameseAI 20261109 2 IN IP4 127.0.0.1\r\n"
-            "s=Vietnamese AI WebRTC Voice Session\r\n"
+            f"o=VietnameseAI {session_id} 2 IN IP4 127.0.0.1\r\n"
+            f"s=Vietnamese AI WebRTC Session {id_phien}\r\n"
             "t=0 0\r\n"
-            "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
-            "c=IN IP4 0.0.0.0\r\n"
-            "a=rtpmap:111 opus/48000/2\r\n"
+            f"m=audio 9 UDP/TLS/RTP/SAVPF {payload_type}\r\n"
+            "c=IN IP4 127.0.0.1\r\n"
+            f"a=ice-ufrag:{ice_ufrag}\r\n"
+            f"a=ice-pwd:{ice_pwd}\r\n"
+            f"a=setup:{dtls_setup}\r\n"
+            f"{rtpmap_line}\r\n"
             "a=sendrecv\r\n"
         )
         phien["answer"] = sdp_answer
         phien["trang_thai"] = "da_tao_answer"
-        return {"loai": "webrtc_answer", "id_phien": id_phien, "sdp": sdp_answer}
+        return {
+            "loai": "webrtc_answer",
+            "id_phien": id_phien,
+            "sdp": sdp_answer,
+            "codec_da_thuong_luong": rtpmap_line,
+            "dtls_setup": dtls_setup,
+        }
 
     def them_candidate(self, id_phien: str, candidate: Dict[str, Any]) -> None:
         """Lưu trữ ICE Candidate nhận được từ client."""

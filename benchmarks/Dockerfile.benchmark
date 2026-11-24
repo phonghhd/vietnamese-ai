@@ -1,0 +1,33 @@
+FROM rust:1.83-slim AS rust-builder
+
+WORKDIR /build
+COPY rust_core/ ./rust_core/
+ENV PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
+RUN cargo build --release --manifest-path rust_core/Cargo.toml || true
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    OMP_NUM_THREADS=4 \
+    MKL_NUM_THREADS=4
+
+WORKDIR /workspace
+
+COPY pyproject.toml setup.py README.md requirements.txt ./
+COPY vietnamese_ai/ ./vietnamese_ai/
+COPY benchmarks/ ./benchmarks/
+COPY --from=rust-builder /build/rust_core/target/release/ /tmp/rust_release/
+
+RUN if [ -f /tmp/rust_release/libvietnamese_ai_rust.so ]; then \
+        cp /tmp/rust_release/libvietnamese_ai_rust.so /workspace/vietnamese_ai/vietnamese_ai_rust.so; \
+    fi && rm -rf /tmp/rust_release
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir --no-deps .
+
+RUN mkdir -p /results
+
+ENTRYPOINT ["python", "benchmarks/run_benchmarks.py"]
+CMD ["--suite", "extended", "--seed", "42", "--output", "/results/benchmark.json", "--markdown", "/results/benchmark.md"]

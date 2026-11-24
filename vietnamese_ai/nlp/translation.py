@@ -165,6 +165,10 @@ class DichThuat:
             f"Text: {van_ban}\n\nTranslation:"
         )
 
+        if self.ham_sinh is None:
+            key = f"{nguon}_{dich}"
+            return self._dich_tu_dien(van_ban, key)
+
         try:
             return self.ham_sinh(prompt)
         except Exception as e:

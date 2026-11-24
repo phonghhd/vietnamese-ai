@@ -2,7 +2,7 @@
 
 import itertools
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
 
@@ -314,6 +314,7 @@ class TimKiemKienTruc:
         X, y = np.asarray(X, dtype=float), np.asarray(y)
         la_phan_loai = Validator.kiem_tra_nhiem_vu(y) == "phan_loai"
 
+        lop_mo_hinh: Union[Type[PhanLoai], Type[HoiQuy]]
         if la_phan_loai:
             cac_thuat_toan = ["logistic", "knn", "rung_ngau_nhien", "gradient_boosting"]
             lop_mo_hinh = PhanLoai

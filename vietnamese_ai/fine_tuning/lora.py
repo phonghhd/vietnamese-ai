@@ -53,9 +53,9 @@ class LoRALayer:
         self.A = np.random.randn(dau_vao, rank) * (1.0 / math.sqrt(rank))
         self.B = np.zeros((rank, dau_ra))
 
-        self._input_cache = None
-        self._grad_A = None
-        self._grad_B = None
+        self._input_cache: Optional[np.ndarray] = None
+        self._grad_A: Optional[np.ndarray] = None
+        self._grad_B: Optional[np.ndarray] = None
 
     def tien(self, X: np.ndarray) -> np.ndarray:
         """Forward: scaling * X @ A @ B"""
@@ -64,14 +64,18 @@ class LoRALayer:
 
     def ve(self, grad: np.ndarray, toc_do_hoc: float = 0.001) -> np.ndarray:
         """Backward + update."""
+        if self._input_cache is None:
+            raise RuntimeError("Cần gọi tien() trước ve().")
         batch = len(self._input_cache)
         grad_scaled = grad * self.scaling
 
-        self._grad_A = self._input_cache.T @ (grad_scaled @ self.B.T) / batch
-        self._grad_B = (self._input_cache @ self.A).T @ grad_scaled / batch
+        grad_A = self._input_cache.T @ (grad_scaled @ self.B.T) / batch
+        grad_B = (self._input_cache @ self.A).T @ grad_scaled / batch
+        self._grad_A = grad_A
+        self._grad_B = grad_B
 
-        self.A -= toc_do_hoc * self._grad_A
-        self.B -= toc_do_hoc * self._grad_B
+        self.A -= toc_do_hoc * grad_A
+        self.B -= toc_do_hoc * grad_B
 
         return grad_scaled @ (self.A @ self.B).T
 
@@ -176,19 +180,20 @@ class LoRAAdapter:
         import json
         from pathlib import Path
 
-        data = {
-            "rank": self.rank,
-            "alpha": self.alpha,
-            "dropout": self.dropout,
-            "layers": {},
-        }
+        layers_data: Dict[str, Any] = {}
         for ten, layer in self._layers.items():
-            data["layers"][ten] = {
+            layers_data[ten] = {
                 "dau_vao": layer.dau_vao,
                 "dau_ra": layer.dau_ra,
                 "A": layer.A.tolist(),
                 "B": layer.B.tolist(),
             }
+        data: Dict[str, Any] = {
+            "rank": self.rank,
+            "alpha": self.alpha,
+            "dropout": self.dropout,
+            "layers": layers_data,
+        }
 
         duong_dan_path = Path(duong_dan)
         duong_dan_path.parent.mkdir(parents=True, exist_ok=True)

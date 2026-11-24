@@ -2,6 +2,21 @@
 
 Xem [CHANGELOG.md](https://github.com/phonghhd/vietnamese-ai/blob/main/CHANGELOG.md) đầy đủ trên GitHub.
 
+## v31.0.3 (2026-11-24 — Open-Source Production Release)
+
+- **Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Luật**: `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 + Float32 Vector + đồng bộ thư mục SHA-256 `dong_bo_thu_muc`), `RAGPipeline.luu/tai("*.vaidb")`, `BoNhungONNXTiengViet` (`onnx_viet`), `BoTheoDoiHieuLucPhapLy`, `DoThiThamChieuPhapLy` (`vai legal-graph`), và **100 điều khoản pháp luật Việt Nam + 35 QA chuẩn** đóng gói trực tiếp trong wheel (`vietnamese_ai/rag/legal/data/`).
+- **Bàn Làm Việc Hợp Đồng, Chat Workspace Phòng Ban, MCP IDE & Zalo/Telegram**:
+  - `BoSoSanhRaSoatHopDong` (`vai contract-review`) xuất báo cáo Redline Markdown & Word `.docx`.
+  - `QuanLyPhienChatWorkspace` + `StudioDashboard` 6 tab (`vai studio --vaidb ... --workspace-dir ... --auth`) hỗ trợ cách ly `.vaidb` theo phòng ban, kéo-thả tệp vào Workspace, RBAC/Audit, đánh giá Thumbs Up/Down + `cau_tra_loi_sua` gom tập DPO.
+  - `MayChuMCPThucTe` (`vai mcp-server --transport stdio|sse --plugin-dir ...`) cắm vào Cursor, VS Code & Claude Desktop, tự phơi bày V-Plugin 2.0 (`gan_quan_ly_plugin`).
+  - `KetNoiZaloOA` & `KetNoiTelegram` (`vai connector --workspace-dir ...`) lưu bền vững hội thoại SQLite Workspace, hỗ trợ `/hieuluc`, `/luat`, `/hopdong`.
+- **Zero-GPU Edge CPU & Remote GPU Flywheel + Cổng Kiểm Định 4 Trục**:
+  - `QuanLyMoHinhEdge` & `DongCoSuyLuanEdge` (`vai pull` / `vai run --rag .vaidb --admin`) cho 8 mô hình GGUF tiếng Việt.
+  - `BoDieuPhoiTinhChinhXa` (`vai train-cloud --from-workspace ... --eval-4-axis`) kết nối Modal / SSH / Local và `CongKiemDinhMoHinh` (`vai eval-gate`) chấm hồi quy 4 trục trước khi promote Production.
+- **Bảo mật, Kiến trúc & Phát hành Mở**:
+  - Vá lỗ hổng Prompt Injection tiếng Việt trên `TuongLuaAI`, sửa chấm điểm bám sát nguồn `CongAnToanDauRa.kiem_tra_ao_giac`, mở rộng `FastAPIServer` & `QuyTrinhDauCuoi`, thêm `vai demo`, `vai status-map`, `vai release-check`, `benchmarks/Dockerfile.benchmark`, và CI/CD TestPyPI/PyPI OIDC Trusted Publishing.
+  - **316/316** public API stubs `.pyi`, **1,265 passed / 32 skipped / 0 failed**, **0 lỗi `mypy`** (327 tệp), **0 lỗi `ruff`**, `mkdocs build --strict` exit 0.
+
 ## v31.0.0 (2026-11-09)
 
 - **Swarm CPU & Pipeline Parallelism**: Triển khai phân mảnh mô hình và song song hoá pipeline trên mạng nội bộ LAN (`DieuPhoiSwarmCPU`, `NutSwarmCPU`), chạy LLM trên CPU không cần GPU.

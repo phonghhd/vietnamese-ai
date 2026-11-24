@@ -1,7 +1,8 @@
 """HocLienKet - Federated Learning (Học liên kết phân tán)."""
 
+import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set, Union
 
 import numpy as np
 
@@ -128,7 +129,7 @@ class HocLienKet:
         self.ty_le_client = ty_le_client
         self.rieng_tu_differntial = rieng_tu_differntial
         self.seed = seed
-        self.logger = Logger("HocLienKet")
+        self.logger: Union[Logger, logging.Logger] = Logger("HocLienKet")
 
         self._clients: List[ClientLienKet] = []
         self._trong_so_toan_cuc: Dict[str, Any] = {}
@@ -158,7 +159,7 @@ class HocLienKet:
         """Tính trung bình có trọng số của trọng số (FedAvg)."""
         ket_qua: Dict[str, Any] = {}
 
-        cac_key = set()
+        cac_key: Set[str] = set()
         for ts in cac_trong_so:
             cac_key.update(k for k in ts if k != "so_mau")
 

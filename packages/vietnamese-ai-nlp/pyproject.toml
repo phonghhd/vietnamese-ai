@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vietnamese-ai-nlp"
+version = "31.0.3"
+description = "Lõi NLP tiếng Việt: BoTachTuTiengVietSieuToc, BoNhungVanBanSieuToc, GanNhanTuLoai, NER & PhoBERT"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+vietnamese-nlp = [
+    "underthesea>=6.0",
+]
+phobert = [
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["../.."]
+include = ["vietnamese_ai.nlp*", "vietnamese_ai.preprocessing.text*"]

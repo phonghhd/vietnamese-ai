@@ -85,6 +85,7 @@ class TacTu:
             TuongLuaBaoVeFramework(gioi_han_req_moi_phut=10000) if bat_tuong_lua else None
         )
         self.loc_thong_tin_nhay_cam = loc_thong_tin_nhay_cam
+        self.sanitizer: Optional[Any]
         if loc_thong_tin_nhay_cam:
             from vietnamese_ai.security.data_sanitizer import DataSanitizer
 
@@ -127,7 +128,17 @@ class TacTu:
         else:
             self.bo_refine = None
 
+        self.bo_nho: BoNhoTacTu = BoNhoTacTu()
         self._lam_moi_system_prompt()
+
+    @property
+    def mo_hinh(self) -> Any:
+        """Alias cho thuộc tính llm của Tác tử."""
+        return self.llm
+
+    @mo_hinh.setter
+    def mo_hinh(self, gia_tri: Any) -> None:
+        self.llm = gia_tri
 
     def _lam_moi_system_prompt(self) -> None:
         """Cập nhật lại System Prompt với danh sách công cụ mới nhất."""
@@ -233,7 +244,12 @@ class TacTu:
 
     def _phan_tich_phan_hoi(self, response_text: str) -> Dict[str, Any]:
         """Phân tích văn bản phản hồi từ LLM để lấy Action và Action Input."""
-        ket_qua = {"suy_nghi": "", "hanh_dong": None, "tham_so": None, "tra_loi": None}
+        ket_qua: Dict[str, Any] = {
+            "suy_nghi": "",
+            "hanh_dong": None,
+            "tham_so": None,
+            "tra_loi": None,
+        }
 
         # Tìm Suy nghĩ
         match_thought = re.search(
@@ -308,7 +324,7 @@ class TacTu:
         self.bo_nho.them_tin_nhan("user", truy_van)
 
         # Tiêm kiến thức từ GraphMemory
-        if getattr(self, "graph_memory", None):
+        if self.graph_memory is not None:
             self.graph_memory.them("user", truy_van)
             ngu_canh_do_thi = self.graph_memory.lay_ngu_canh(truy_van)
             if ngu_canh_do_thi:

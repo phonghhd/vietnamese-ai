@@ -16,24 +16,30 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate   # Windows
 
-# 4. Cài đặt dependencies
+# 4. Cài đặt môi trường phát triển & tài liệu
+pip install -e ".[dev,docs]"
+# hoặc cài thêm các gói mở rộng tiêu chuẩn:
 pip install -e ".[all]"
+pip install -r requirements-dev.txt
 
 # 5. Tạo branch mới
 git checkout -b feature/ten-tinh-nang
 
-# 6. Chạy test để đảm bảo mọi thứ hoạt động
-pytest tests/ -v
+# 6. Chạy kiểm thử & kiểm định chất lượng
+pytest tests/ -q --tb=short
+ruff check vietnamese_ai/ tests/ benchmarks/
+mypy vietnamese_ai/ --ignore-missing-imports
+vai release-check
 ```
 
 ## Quy trình đóng góp
 
 1. **Fork** repository
 2. **Tạo branch** mới: `git checkout -b feature/ten-tinh-nang`
-3. **Phát triển** tính năng mới
-4. **Viết test** cho tính năng mới
-5. **Chạy test**: `pytest tests/ -v`
-6. **Chạy lint**: `ruff check vietnamese_ai/ tests/`
+3. **Phát triển** tính năng mới (nếu thêm biểu tượng công khai vào `vietnamese_ai/__init__.py`, cập nhật đồng bộ `vietnamese_ai/__init__.pyi`)
+4. **Viết test** thực thi thật (không mock logic lõi) trong `tests/`
+5. **Chạy kiểm định**: `pytest tests/ -q --tb=short`, `ruff check vietnamese_ai/ tests/ benchmarks/`, `mypy vietnamese_ai/ --ignore-missing-imports`
+6. **Kiểm tra tài liệu & phát hành**: `mkdocs build --strict` và `vai release-check`
 7. **Commit**: `git commit -m "feat: mo ta tinh nang"`
 8. **Push**: `git push origin feature/ten-tinh-nang`
 9. **Tạo Pull Request** trên GitHub
@@ -164,12 +170,12 @@ Trước khi tạo PR, đảm bảo:
 
 - [ ] Code tuân thủ quy chuẩn đặt tên (tiếng Việt)
 - [ ] Có docstring cho class/method mới
-- [ ] Có type hints
-- [ ] Có test cho tính năng mới
-- [ ] `pytest tests/ -v` pass tất cả
-- [ ] `ruff check vietnamese_ai/ tests/` không có lỗi
-- [ ] Cập nhật README.md nếu thêm tính năng mới
-- [ ] Cập nhật CHANGELOG.md
+- [ ] Có type hints (tương thích Python 3.8+, 0 lỗi `mypy`)
+- [ ] Đồng bộ `vietnamese_ai/__init__.pyi` nếu thêm public export (`vai release-check` đạt 100%)
+- [ ] Có test cho tính năng mới (`pytest tests/ -q --tb=short` pass 100%, 0 failed)
+- [ ] `ruff check vietnamese_ai/ tests/ benchmarks/` không có lỗi
+- [ ] `mkdocs build --strict` không có cảnh báo
+- [ ] Cập nhật `README.md`, `docs/` và `CHANGELOG.md` nếu thêm tính năng mới
 
 ## Liên hệ
 

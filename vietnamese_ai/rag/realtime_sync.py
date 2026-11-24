@@ -1,7 +1,7 @@
 import os
 import threading
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Set
 
 
 class RAGEventBus:
@@ -10,12 +10,14 @@ class RAGEventBus:
     dữ liệu RAG theo thời gian thực (Real-time).
     """
 
-    _instance = None
+    _instance: Optional["RAGEventBus"] = None
+    subscribers: Dict[str, List[Callable[[Any], None]]]
+    lock: threading.Lock
 
-    def __new__(cls):
+    def __new__(cls) -> "RAGEventBus":
         if cls._instance is None:
             cls._instance = super(RAGEventBus, cls).__new__(cls)
-            cls._instance.subscribers: Dict[str, List[Callable]] = {}
+            cls._instance.subscribers = {}
             cls._instance.lock = threading.Lock()
         return cls._instance
 
@@ -50,7 +52,7 @@ class DocumentWatcher:
     def __init__(self, thu_muc: str):
         self.thu_muc = thu_muc
         self.event_bus = RAGEventBus()
-        self.da_xu_ly = set()
+        self.da_xu_ly: Set[str] = set()
         self._mtime_map: Dict[str, float] = {}
         self._running = False
         self._watch_thread: Optional[threading.Thread] = None

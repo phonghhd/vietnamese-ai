@@ -92,9 +92,9 @@ class LapKeHoachMCTS:
         """Mô phỏng (Rollout) từ nút hiện tại để lấy điểm đánh giá."""
         return self._danh_gia_trang_thai(nut.trang_thai)
 
-    def _cap_nhat_nguoc(self, nut: MCTSNode, diem: float):
+    def _cap_nhat_nguoc(self, nut: MCTSNode, diem: float) -> None:
         """Cập nhật điểm lên gốc."""
-        nut_hien_tai = nut
+        nut_hien_tai: Optional[MCTSNode] = nut
         while nut_hien_tai is not None:
             nut_hien_tai.so_lan_tham += 1
             nut_hien_tai.tong_diem += diem

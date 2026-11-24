@@ -2,7 +2,7 @@
 
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import numpy as np
 
@@ -104,7 +104,7 @@ class NenNguCanh:
         ]
         diem_cau_sorted = sorted(diem_cau, key=lambda x: x[2], reverse=True)
 
-        chon_idx = set()
+        chon_idx: Set[int] = set()
         dem_tu = 0
         for idx, cau, _ in diem_cau_sorted:
             so_tu_cau = len(cau.split())
@@ -120,7 +120,7 @@ class NenNguCanh:
         # Nếu vẫn dài hơn mục tiêu, lọc tiếp các từ đệm không mang thông tin số/thực thể
         tu_so_bo = van_ban_so_bo.split()
         if len(tu_so_bo) > muc_tieu_so_tu:
-            tu_giu_lai = []
+            tu_giu_lai: List[str] = []
             for tu in tu_so_bo:
                 clean_tu = tu.lower().strip(".,;:!?")
                 if clean_tu in self.TU_DEM_TIENG_VIET and len(tu_giu_lai) + (len(tu_so_bo) - len(tu_giu_lai)) > muc_tieu_so_tu:

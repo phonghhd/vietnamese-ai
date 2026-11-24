@@ -4,6 +4,7 @@ from typing import Any, List
 from vietnamese_ai.agents.agent import TacTu
 from vietnamese_ai.agents.tools import CongCu
 from vietnamese_ai.security.agent_sandbox import MoiTruongCachLy
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
 
 def cap_nhat_sandbox(module_cam_moi: List[str] = None, ham_cam_moi: List[str] = None) -> str:
@@ -33,10 +34,18 @@ cong_cu_cap_nhat_sandbox = CongCu(
 )
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta="Khung tác tử điều phối Blue Team phụ thuộc vào LLM do người dùng cung cấp.",
+    phu_thuoc_ngoai=["LLM provider / model do người dùng cung cấp"],
+    nhom_extra="llm",
+)
 class BlueTeamAgent(TacTu):
     """
-    Tác tử chuyên dụng cho phòng thủ tự động (Blue Teaming & Self-Healing).
-    Phân tích báo cáo tấn công từ Red Team và tự động tiêm luật vá lỗi vào Sandbox.
+    Tác tử chuyên dụng cho phòng thủ tự động (Blue Teaming & Self-Healing) — Thử nghiệm.
+
+    Bản chất: Khung điều phối tác tử dựa trên `llm` để đề xuất cập nhật danh sách cấm AST
+    trong `sandbox_rules.json`; không thay thế quy trình vá lỗi và cách ly cấp hệ điều hành.
     """
 
     def __init__(self, llm: Any, max_iterations: int = 5):

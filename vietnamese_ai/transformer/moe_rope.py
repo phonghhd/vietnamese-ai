@@ -201,13 +201,12 @@ class SparseMoELayer:
                 }
             )
 
+        self.chuyen_gia_chung: Optional[Dict[str, np.ndarray]] = None
         if co_chuyen_gia_chung:
             self.chuyen_gia_chung = {
                 "W1": rng.normal(0, scale, (d_model, d_ff)).astype(np.float32),
                 "W2": rng.normal(0, scale, (d_ff, d_model)).astype(np.float32),
             }
-        else:
-            self.chuyen_gia_chung = None
 
     @staticmethod
     def _silu(z: np.ndarray) -> np.ndarray:

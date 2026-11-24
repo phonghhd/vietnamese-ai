@@ -100,9 +100,9 @@ class HuanLuyenPyTorch:
         self.logger = Logger("HuanLuyenPyTorch")
 
         self._model: Optional[nn.Module] = None
-        self._optimizer = None
-        self._scheduler = None
-        self._scaler = None
+        self._optimizer: Optional[Any] = None
+        self._scheduler: Optional[Any] = None
+        self._scaler: Optional[Any] = None
         self._history: Dict[str, List[float]] = {
             "train_loss": [],
             "val_loss": [],
@@ -111,7 +111,7 @@ class HuanLuyenPyTorch:
             "lr": [],
         }
         self._best_val_loss = float("inf")
-        self._best_model_state = None
+        self._best_model_state: Optional[Dict[str, Any]] = None
         self._patience_counter = 0
 
         torch.manual_seed(seed)
@@ -197,6 +197,9 @@ class HuanLuyenPyTorch:
                 self._model = model
         self._tao_optimizer(model)
         self._tao_scaler()
+        if self._optimizer is None:
+            raise RuntimeError("Optimizer chưa được khởi tạo.")
+        optimizer = self._optimizer
 
         train_loader = self._chuan_bi_du_lieu(X_train, y_train)
         val_loader = self._chuan_bi_du_lieu(X_val, y_val) if X_val is not None else None
@@ -220,13 +223,13 @@ class HuanLuyenPyTorch:
             tong_loss = 0.0
             dung = 0
             tong = 0
-            self._optimizer.zero_grad()
+            optimizer.zero_grad()
 
             for step, batch in enumerate(train_loader):
                 X_batch = batch[0].to(self.thiet_bi)
                 y_batch = batch[1].to(self.thiet_bi)
 
-                if self.hon_lep and self.thiet_bi == "cuda":
+                if self.hon_lep and self.thiet_bi == "cuda" and self._scaler is not None:
                     with torch.amp.autocast("cuda"):
                         output = self._model(X_batch)
                         loss = criterion(output, y_batch) / self.gradient_accumulation
@@ -241,16 +244,16 @@ class HuanLuyenPyTorch:
                 if (step + 1) % self.gradient_accumulation == 0:
                     if self.gradient_clip > 0:
                         if self._scaler:
-                            self._scaler.unscale_(self._optimizer)
+                            self._scaler.unscale_(optimizer)
                         torch.nn.utils.clip_grad_norm_(self._model.parameters(), self.gradient_clip)
 
                     if self._scaler:
-                        self._scaler.step(self._optimizer)
+                        self._scaler.step(optimizer)
                         self._scaler.update()
                     else:
-                        self._optimizer.step()
+                        optimizer.step()
 
-                    self._optimizer.zero_grad()
+                    optimizer.zero_grad()
                     if self._scheduler:
                         self._scheduler.step()
 
@@ -262,7 +265,7 @@ class HuanLuyenPyTorch:
             acc = dung / tong
             self._history["train_loss"].append(avg_loss)
             self._history["train_acc"].append(acc)
-            self._history["lr"].append(self._optimizer.param_groups[0]["lr"])
+            self._history["lr"].append(optimizer.param_groups[0]["lr"])
 
             val_loss = 0.0
             val_acc = 0.0
@@ -314,6 +317,8 @@ class HuanLuyenPyTorch:
     @_no_grad()
     def _danh_gia_val(self, val_loader: DataLoader, criterion: Any) -> Tuple[float, float]:
         """Đánh giá trên validation set."""
+        if self._model is None:
+            raise RuntimeError("Chưa huấn luyện.")
         self._model.eval()
         tong_loss = 0.0
         dung = 0
@@ -366,7 +371,9 @@ class HuanLuyenPyTorch:
 
         checkpoint = {
             "model_state_dict": self._model.state_dict(),
-            "optimizer_state_dict": self._optimizer.state_dict(),
+            "optimizer_state_dict": self._optimizer.state_dict()
+            if self._optimizer is not None
+            else None,
             "history": self._history,
             "thiet_bi": self.thiet_bi,
             "best_val_loss": self._best_val_loss,

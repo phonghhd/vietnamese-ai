@@ -1,6 +1,7 @@
 """UngDungWeb - Giao diện web no-code/low-code cho Vietnamese AI."""
 
 import json
+from typing import Any, Optional
 
 from vietnamese_ai.utils.logger import Logger
 
@@ -198,10 +199,10 @@ class UngDungWeb:
         self.port = port
         self.host = host
         self.logger = Logger("WebApp")
-        self._data = None
-        self._labels = None
-        self._model = None
-        self._target_col = None
+        self._data: Optional[Any] = None
+        self._labels: Optional[Any] = None
+        self._model: Optional[Any] = None
+        self._target_col: Optional[Any] = None
 
     def _xu_ly_upload(self, form_data: dict, file_data: bytes) -> dict:
         """Xử lý upload dữ liệu CSV."""
@@ -214,19 +215,23 @@ class UngDungWeb:
             target = form_data.get("target", "").strip()
 
             if target and target in df.columns:
-                self._labels = df[target].values
-                self._data = df.drop(columns=[target]).values
-                self._target_col = target
+                labels = df[target].values
+                data = df.drop(columns=[target]).values
+                target_col = target
             else:
-                self._labels = df.iloc[:, -1].values
-                self._data = df.iloc[:, :-1].values
-                self._target_col = df.columns[-1]
+                labels = df.iloc[:, -1].values
+                data = df.iloc[:, :-1].values
+                target_col = df.columns[-1]
+
+            self._labels = labels
+            self._data = data
+            self._target_col = target_col
 
             return {
                 "status": "success",
-                "so_mau": len(self._data),
-                "so_dac_trung": self._data.shape[1],
-                "cot_nhan": self._target_col,
+                "so_mau": len(data),
+                "so_dac_trung": data.shape[1],
+                "cot_nhan": target_col,
                 "cac_cot": list(df.columns),
             }
         except Exception as e:
@@ -234,7 +239,7 @@ class UngDungWeb:
 
     def _xu_ly_train(self, params: dict) -> dict:
         """Huấn luyện mô hình."""
-        if self._data is None:
+        if self._data is None or self._labels is None:
             return {"status": "error", "message": "Chưa upload dữ liệu"}
 
         try:

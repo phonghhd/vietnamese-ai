@@ -62,3 +62,11 @@ results/*.csv
 .modal_training/
 modal_*.py
 
+# Rust build artifacts & local runtime workspaces
+rust_core/target/
+*.sig
+vai_workspace/
+vai_remote_jobs/
+outputs/
+site/
+

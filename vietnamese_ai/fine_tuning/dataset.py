@@ -13,7 +13,7 @@ TEMPLATE_ALPACA = {
     "prompt_no_input": "### Dưới đây là một nhiệm vụ. Viết phản hồi hoàn thành yêu cầu.\n\n### Nhiệm vụ:\n{instruction}\n\n### Phản hồi:\n",
 }
 
-TEMPLATE_SHAREGPT = {
+TEMPLATE_SHAREGPT: Dict[str, Any] = {
     "system": "Bạn là trợ lý AI hữu ích, trả lời bằng tiếng Việt.",
     "roles": ["user", "assistant"],
 }
@@ -161,12 +161,12 @@ class InstructionDataset:
     def format_sharegpt(self, mau: Dict[str, Any]) -> List[Dict[str, str]]:
         """Format một mẫu theo ShareGPT template."""
         conversations = mau.get("conversations", [])
-        formatted = []
+        formatted: List[Dict[str, str]] = []
 
         formatted.append(
             {
                 "role": "system",
-                "content": TEMPLATE_SHAREGPT["system"],
+                "content": str(TEMPLATE_SHAREGPT["system"]),
             }
         )
 

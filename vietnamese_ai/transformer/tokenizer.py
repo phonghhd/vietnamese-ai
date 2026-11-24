@@ -4,7 +4,8 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from typing import Counter as TypingCounter
 
 from vietnamese_ai.utils.logger import Logger
 
@@ -78,9 +79,9 @@ class VietnameseTokenizer:
             return [tu]
         return list(tu) + ["</w>"]
 
-    def _dem_cap(self, cac_tokens: List[List[str]]) -> Counter:
+    def _dem_cap(self, cac_tokens: List[List[str]]) -> TypingCounter[Tuple[str, str]]:
         """Đếm tần suất các cặp token liên tiếp."""
-        cap = Counter()
+        cap: TypingCounter[Tuple[str, str]] = Counter()
         for tokens in cac_tokens:
             for i in range(len(tokens) - 1):
                 cap[(tokens[i], tokens[i + 1])] += 1
@@ -99,7 +100,7 @@ class VietnameseTokenizer:
                 i += 1
         return ket_qua
 
-    def huan_luyen(self, cac_van_ban: List[str]) -> Dict[str, int]:
+    def huan_luyen(self, cac_van_ban: List[str]) -> Dict[str, Any]:
         """
         Huấn luyện tokenizer trên corpus.
 

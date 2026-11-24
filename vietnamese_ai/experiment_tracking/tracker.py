@@ -204,10 +204,10 @@ class TheoDoiThiNghiem:
 
         return "\n".join(lines)
 
-    def so_sanh(self) -> Dict[str, List]:
+    def so_sanh(self) -> Dict[str, List[Dict[str, Any]]]:
         """So sánh metrics giữa các thí nghiệm."""
         lich_su = self.lay_lich_su()
-        so_sanh = {}
+        so_sanh: Dict[str, List[Dict[str, Any]]] = {}
 
         for chay in lich_su:
             for m in chay.get("metrics", []):

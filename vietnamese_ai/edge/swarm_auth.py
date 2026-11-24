@@ -75,7 +75,7 @@ def phat_hien_ip_tailscale() -> Optional[str]:
         thong_tin_ip = socket.getaddrinfo(ten_host, None)
         for muc in thong_tin_ip:
             ip = muc[4][0]
-            if _la_ip_tailscale_hop_le(ip):
+            if isinstance(ip, str) and _la_ip_tailscale_hop_le(ip):
                 return ip
     except Exception:
         pass

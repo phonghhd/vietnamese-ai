@@ -309,31 +309,58 @@ class LlamaCppWrapper(BaseLLMWrapper):
     def __init__(
         self,
         duong_dan_gguf: Optional[str] = None,
-        n_ctx: int = 512,
+        n_ctx: int = 2048,
         max_tokens: int = 128,
         temperature: float = 0.7,
+        so_luong_thread: int = 4,
     ):
+        if duong_dan_gguf and not Path(duong_dan_gguf).exists():
+            try:
+                from vietnamese_ai.edge.model_hub import QuanLyMoHinhEdge
+
+                resolved = QuanLyMoHinhEdge().tim_duong_dan_mo_hinh(duong_dan_gguf)
+                if resolved is not None:
+                    duong_dan_gguf = str(resolved)
+            except Exception:
+                pass
+
         self.duong_dan_gguf = duong_dan_gguf
         self.n_ctx = n_ctx
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.so_luong_thread = max(1, int(so_luong_thread))
         self._llama_cpp: Any = None
         self._native_gpt: Any = None
         self.metadata_gguf: Dict[str, Any] = {}
 
         if duong_dan_gguf and Path(duong_dan_gguf).exists():
-            try:
-                from llama_cpp import Llama  # type: ignore
+            from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
 
-                self._llama_cpp = Llama(model_path=duong_dan_gguf, n_ctx=n_ctx, verbose=False)
-            except Exception:
+            llama_mod = QuanLyPhuThuoc.nhap_tuy_chon(
+                "llama_cpp", nhom_extra="local-llm", tinh_nang="LlamaCppWrapper"
+            )
+            if llama_mod is not None and hasattr(llama_mod, "Llama"):
+                try:
+                    self._llama_cpp = llama_mod.Llama(
+                        model_path=duong_dan_gguf,
+                        n_ctx=n_ctx,
+                        n_threads=self.so_luong_thread,
+                        use_mmap=True,
+                        verbose=False,
+                    )
+                except Exception:
+                    self._llama_cpp = None
+
+            if self._llama_cpp is None:
                 from vietnamese_ai.export.gguf import XuatGGUF
                 from vietnamese_ai.transformer.gpt_model import GPTModel
 
                 exporter = XuatGGUF()
-                info = exporter.tai_tu_gguf(duong_dan_gguf)
-                self.metadata_gguf = info.get("metadata", {})
-                tensors = info.get("tensors", {})
+                info: Dict[str, Any] = exporter.tai_tu_gguf(duong_dan_gguf)
+                meta_raw = info.get("metadata", {})
+                self.metadata_gguf = meta_raw if isinstance(meta_raw, dict) else {}
+                tensors_raw = info.get("tensors", {})
+                tensors: Dict[str, Any] = tensors_raw if isinstance(tensors_raw, dict) else {}
                 gpt = GPTModel(d_model=64, so_dau=4, d_ff=128, so_block=2, so_tu_vung=256)
                 if "tok_emb.weight" in tensors and tensors["tok_emb.weight"].ndim == 2:
                     vocab, d_mod = tensors["tok_emb.weight"].shape
@@ -344,12 +371,31 @@ class LlamaCppWrapper(BaseLLMWrapper):
                         so_block=1,
                         so_tu_vung=int(vocab),
                     )
-                    gpt.tok_emb = tensors["tok_emb.weight"].astype("float32")
+                    setattr(gpt, "tok_emb", tensors["tok_emb.weight"].astype("float32"))
                 self._native_gpt = gpt
         else:
             from vietnamese_ai.transformer.gpt_model import GPTModel
 
             self._native_gpt = GPTModel(d_model=64, so_dau=4, d_ff=128, so_block=2, so_tu_vung=256)
+
+    def sinh_stream(self, prompt: str, **kwargs: Any):
+        """Sinh luồng token thời gian thực từ `llama-cpp-python` hoặc fallback `GPTModel`."""
+        temp = float(kwargs.get("nhiet_do", kwargs.get("temperature", self.temperature)))
+        tokens = int(kwargs.get("do_dai", kwargs.get("do_dai_toi_da", kwargs.get("max_tokens", self.max_tokens))))
+
+        if self._llama_cpp is not None:
+            for chunk in self._llama_cpp(prompt, max_tokens=tokens, temperature=temp, stream=True):
+                choices = chunk.get("choices") or []
+                if choices:
+                    piece = str(choices[0].get("text", ""))
+                    if piece:
+                        yield piece
+            return
+
+        van_ban = self._native_gpt.sinh_van_ban(prompt, do_dai=min(tokens, 32), nhiet_do=temp)
+        cac_tu = str(van_ban).split(" ")
+        for idx, tu in enumerate(cac_tu):
+            yield tu + (" " if idx < len(cac_tu) - 1 else "")
 
     def sinh_van_ban(self, prompt: str, **kwargs: Any) -> str:
         temp = float(kwargs.get("nhiet_do", kwargs.get("temperature", self.temperature)))

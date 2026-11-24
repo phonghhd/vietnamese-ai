@@ -9,6 +9,8 @@ import multiprocessing
 import queue
 from typing import Any, Tuple
 
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
+
 from .ast_analyzer import LoiAnNinh, PhanTichAST
 
 logger = logging.getLogger("V-Sandbox")
@@ -68,8 +70,20 @@ def _tien_trinh_thuc_thi(ma_nguon: str, ket_qua_queue: multiprocessing.Queue):
         ket_qua_queue.put(("LOI", str(e)))
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta=(
+        "V-Sandbox mức ứng dụng (PhanTichAST + multiprocessing spawn + restricted builtins + timeout); "
+        "không thay thế cách ly cấp kernel/container trên production."
+    ),
+)
 class ThucThiDocLap:
-    """Môi trường hộp cát (Sandbox) thực thi mã."""
+    """
+    Môi trường hộp cát mức ứng dụng (V-Sandbox) thực thi mã Python tách tiến trình.
+
+    Giới hạn bảo mật: Lớp bảo vệ AST và restricted builtins tự phát triển phù hợp cho kiểm thử
+    và cô lập cơ bản; khi chạy mã không tin cậy ở production cần kết hợp container/VM cách ly.
+    """
 
     def __init__(self, timeout_giay: int = 5):
         """

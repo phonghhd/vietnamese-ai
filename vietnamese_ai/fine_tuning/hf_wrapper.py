@@ -100,7 +100,7 @@ class HuggingFaceWrapper:
         "mistral-small-3.1": "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = Logger("HuggingFaceWrapper")
         self.model: Any = None
         self.tokenizer: Any = None
@@ -122,6 +122,7 @@ class HuggingFaceWrapper:
         self._qa_memory: List[Dict[str, str]] = []
         self._gen_memory: List[Dict[str, str]] = []
         self._train_history: Dict[str, List[float]] = {"train_loss": [], "eval_loss": []}
+        self.version: Optional[str] = None
 
         try:
             import transformers
@@ -211,15 +212,22 @@ class HuggingFaceWrapper:
         if che_do_offline:
             return self._khoi_tao_native_backend(model_id, nhiem_vu, so_lop)
 
-        try:
-            from transformers import AutoModel, AutoTokenizer
-        except ImportError:
-            if bat_buoc_hf:
-                raise ImportError("Cần cài đặt: pip install transformers")
+        from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+
+        tf_mod = (
+            QuanLyPhuThuoc.yeu_cau("transformers", nhom_extra="transformers", tinh_nang="HuggingFaceWrapper")
+            if bat_buoc_hf
+            else QuanLyPhuThuoc.nhap_tuy_chon(
+                "transformers", nhom_extra="transformers", tinh_nang="HuggingFaceWrapper"
+            )
+        )
+        if tf_mod is None:
             self.logger.info(
                 f"Không tìm thấy transformers, chuyển sang Native Backend cho '{model_id}'"
             )
             return self._khoi_tao_native_backend(model_id, nhiem_vu, so_lop)
+        AutoModel = tf_mod.AutoModel
+        AutoTokenizer = tf_mod.AutoTokenizer
 
         self.logger.info(f"Đang tải model: {model_id} (nhiệm vụ: {nhiem_vu})")
 
@@ -340,15 +348,19 @@ class HuggingFaceWrapper:
             except Exception:
                 try:
                     from vietnamese_ai.fine_tuning.lora_peft import LoRAPeft
+                    from vietnamese_ai.fine_tuning.peft_config import PEFTConfig
 
                     peft_helper = LoRAPeft(
-                        r=rank,
-                        lora_alpha=int(alpha),
-                        lora_dropout=dropout,
-                        target_modules=target_modules,
+                        config=PEFTConfig(
+                            phuong_phap="lora",
+                            rank=rank,
+                            alpha=alpha,
+                            dropout=dropout,
+                            target_modules=target_modules,
+                        )
                     )
-                    self.model = peft_helper.gan_lora(self.model)
-                    tk_lora = peft_helper.thong_ke()
+                    self.model = peft_helper.ap_dung(self.model)
+                    tk_lora = peft_helper.thong_ke(self.model)
                     self.da_gan_lora = True
                     self.lora_config = {
                         "rank": rank,
@@ -357,7 +369,7 @@ class HuggingFaceWrapper:
                         "target_modules": target_modules,
                         "so_tham_so_lora": tk_lora.get("trainable_params", 0),
                         "tong_tham_so_goc": tk_lora.get("total_params", 0),
-                        "ty_le_huan_luyen_pct": tk_lora.get("trainable_pct", 0.0),
+                        "ty_le_huan_luyen_pct": tk_lora.get("trainable_percent", 0.0),
                         "backend": "lora_peft",
                     }
                     return self.lora_config.copy()
@@ -748,7 +760,6 @@ class HuggingFaceWrapper:
             context_default = kwargs.get("context", "")
             from vietnamese_ai.nlp.qa import HoiDapTiengViet
 
-            qa = HoiDapTiengViet()
             for vb in cac_van_ban:
                 matched_ans = None
                 for mem in reversed(self._qa_memory):
@@ -757,8 +768,10 @@ class HuggingFaceWrapper:
                         break
                 if matched_ans is None:
                     ctx = context_default or (self._qa_memory[-1]["context"] if self._qa_memory else vb)
-                    kq_qa = qa.tra_loi(vb, ctx)
-                    matched_ans = kq_qa.get("cau_tra_loi", vb) if isinstance(kq_qa, dict) else str(kq_qa)
+                    qa = HoiDapTiengViet()
+                    qa.them_tai_lieu("ctx", ctx)
+                    kq_qa = qa.hoi(vb)
+                    matched_ans = str(kq_qa.get("tra_loi", vb))
                 results.append({"van_ban": vb, "cau_tra_loi": matched_ans})
             return results
 
@@ -792,12 +805,14 @@ class HuggingFaceWrapper:
         if self.nhiem_vu == "summarization":
             from vietnamese_ai.nlp.summarization import TomTatVanBan
 
-            return TomTatVanBan().tom_tat(prompt, so_cau=2)
+            kq_tt = TomTatVanBan().tom_tat(prompt, so_cau=2)
+            return str(kq_tt.get("tom_tat", prompt))
 
         if self.nhiem_vu == "translation":
             from vietnamese_ai.nlp.translation import DichThuat
 
-            return DichThuat().dich_viet_anh(prompt)
+            kq_dich = DichThuat().dich(prompt, nguon="vi", dich="en")
+            return str(kq_dich.get("dich", prompt))
 
         # Sinh token thật từ _native_model (GPTModel)
         vocab = self._native_model.so_tu_vung

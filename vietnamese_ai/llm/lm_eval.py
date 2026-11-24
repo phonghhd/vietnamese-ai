@@ -18,7 +18,7 @@ class EvalTask:
         du_lieu: Optional[List[Dict]] = None,
         metrics: Optional[List[str]] = None,
         mo_ta: str = "",
-    ):
+    ) -> None:
         self.ten = ten
         self.loai = loai
         self.du_lieu = du_lieu or []
@@ -56,7 +56,7 @@ class LMEvalHarness:
         >>> ket_qua = harness.danh_gia(model, ["task1", "task2"])
     """
 
-    TASKS_MAC_DINH = {
+    TASKS_MAC_DINH: Dict[str, Dict[str, Any]] = {
         "vie_perplexity": {
             "mo_ta": "Perplexity trên văn bản tiếng Việt",
             "loai": "perplexity",
@@ -84,7 +84,7 @@ class LMEvalHarness:
         },
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = Logger("LMEvalHarness")
         self._tasks: Dict[str, EvalTask] = {}
         self._ket_qua: Dict[str, Dict] = {}

@@ -26,16 +26,16 @@ class SelfRefine:
         self,
         ham_sinh: Callable[[str], str],
         ham_danh_gia: Optional[Callable[[str, str], Dict[str, Any]]] = None,
-        ham_feedback: Optional[Callable[[str, str], str]] = None,
-        ham_refine: Optional[Callable[[str, str], str]] = None,
+        ham_feedback: Optional[Callable[[str], str]] = None,
+        ham_refine: Optional[Callable[[str], str]] = None,
         so_vong_toi_da: int = 3,
         nguong_chat_luong: float = 0.8,
         giam_diem_dung: float = 0.01,
     ):
         self.ham_sinh = ham_sinh
         self.ham_danh_gia = ham_danh_gia
-        self.ham_feedback = ham_feedback or ham_sinh
-        self.ham_refine = ham_refine or ham_sinh
+        self.ham_feedback: Callable[[str], str] = ham_feedback or ham_sinh
+        self.ham_refine: Callable[[str], str] = ham_refine or ham_sinh
         self.so_vong_toi_da = so_vong_toi_da
         self.nguong_chat_luong = nguong_chat_luong
         self.giam_diem_dung = giam_diem_dung

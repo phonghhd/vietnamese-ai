@@ -23,13 +23,22 @@ class SapXepLai:
         che_do: str = "mmr",
         ham_score: Optional[Callable[[str, str], float]] = None,
         trong_so_da_dang: float = 0.5,
+        duong_dan_onnx: Optional[str] = None,
     ):
-        if che_do not in ("mmr", "cross_encoder", "keyword", "position"):
-            raise ValueError("che_do phải là: mmr, cross_encoder, keyword, position")
+        if che_do not in ("mmr", "cross_encoder", "keyword", "position", "onnx_viet", "vietnamese_semantic"):
+            raise ValueError(
+                "che_do phải là: mmr, cross_encoder, keyword, position, onnx_viet, vietnamese_semantic"
+            )
 
         self.che_do = che_do
         self.ham_score = ham_score
         self.trong_so_da_dang = trong_so_da_dang
+        self.duong_dan_onnx = duong_dan_onnx
+        self._onnx_reranker: Optional[Any] = None
+        if che_do in ("onnx_viet", "vietnamese_semantic"):
+            from vietnamese_ai.rag.onnx_semantic import BoSapXepLaiONNXTiengViet
+
+            self._onnx_reranker = BoSapXepLaiONNXTiengViet(duong_dan_onnx=duong_dan_onnx)
 
     def sap_xep_lai(
         self,
@@ -53,6 +62,9 @@ class SapXepLai:
 
         if self.che_do == "mmr":
             return self._mmr(cau_hoi, ket_qua, top_k)
+        elif self.che_do in ("onnx_viet", "vietnamese_semantic"):
+            assert self._onnx_reranker is not None
+            return self._onnx_reranker.sap_xep_lai(cau_hoi, ket_qua, top_k)
         elif self.che_do == "cross_encoder":
             return self._cross_encoder(cau_hoi, ket_qua, top_k)
         elif self.che_do == "keyword":

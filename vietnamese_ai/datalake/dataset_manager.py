@@ -505,28 +505,76 @@ class HoDuLieu:
         """Liệt kê tất cả các bộ dữ liệu mẫu tiếng Việt có sẵn cùng số bản ghi gốc."""
         return {ten: len(ds) for ten, ds in cls.BO_DU_LIEU_MAU_TIENG_VIET.items()}
 
+    def nhap_tu_thu_muc(
+        self,
+        thu_muc_nguon: str,
+        ten_dataset: str = "corpus_thuc_te.jsonl",
+        phan_mo_rong: tuple = (".txt", ".md", ".jsonl", ".csv"),
+    ) -> Dict[str, Any]:
+        """Nhập toàn bộ tệp dữ liệu thực tế từ thư mục cục bộ vào DataLake có băm SHA-256."""
+        import csv
+        import json
+        from pathlib import Path
+
+        root = Path(thu_muc_nguon)
+        if not root.exists() or not root.is_dir():
+            raise FileNotFoundError(f"Không tìm thấy thư mục nguồn: {thu_muc_nguon}")
+
+        ban_ghi: List[Dict[str, Any]] = []
+        for tep in sorted(root.rglob("*")):
+            if not tep.is_file() or tep.suffix.lower() not in phan_mo_rong:
+                continue
+            ext = tep.suffix.lower()
+            if ext in (".txt", ".md"):
+                noi_dung = tep.read_text(encoding="utf-8", errors="ignore").strip()
+                if noi_dung:
+                    ban_ghi.append({"id": tep.stem, "nguon": str(tep), "text": noi_dung})
+            elif ext == ".jsonl":
+                for dong in tep.read_text(encoding="utf-8", errors="ignore").splitlines():
+                    dong_s = dong.strip()
+                    if dong_s:
+                        ban_ghi.append(json.loads(dong_s))
+            elif ext == ".csv":
+                with open(tep, "r", encoding="utf-8", errors="ignore", newline="") as f:
+                    for row in csv.DictReader(f):
+                        ban_ghi.append(dict(row))
+
+        commit_hash = self.nhap_danh_sach(ban_ghi, ten_dataset, tin_nhan_commit=f"Nhập thư mục thực tế {root.name}")
+        return {
+            "ten_dataset": ten_dataset,
+            "commit_hash": commit_hash,
+            "so_ban_ghi": len(ban_ghi),
+            "nguon": "thu_muc_cuc_bo",
+            "la_du_lieu_thuc_te": True,
+        }
+
     def sinh_them_mau(self, ten_bo: str = "uit_vsfc", so_luong: int = 20) -> Dict[str, Any]:
-        """
-        Tự động nhân bản và biến thể hóa (Data Augmentation) một bộ dữ liệu mẫu tiếng Việt
-        lên `so_luong` bản ghi để phục vụ huấn luyện hoặc benchmark quy mô lớn.
-        """
+        """Tăng cường ngôn ngữ thực tế bằng `TangCuongVanBan` thay vì ghép nhãn hậu tố lặp cứng."""
+        from vietnamese_ai.preprocessing.text_augmenter import TangCuongVanBan
+
         key = ten_bo.lower().strip()
         if key not in self.BO_DU_LIEU_MAU_TIENG_VIET:
             hop_le = ", ".join(self.BO_DU_LIEU_MAU_TIENG_VIET.keys())
             raise ValueError(f"Bộ dữ liệu '{ten_bo}' không tồn tại. Chọn một trong: {hop_le}")
 
         goc = self.BO_DU_LIEU_MAU_TIENG_VIET[key]
+        tang_cuong = TangCuongVanBan(seed=42)
         mo_rong: List[Dict[str, Any]] = []
-        hau_to = ["(mẫu chuẩn)", "(thực tế)", "(kiểm chứng)", "(mở rộng)", "(nâng cao)"]
 
         for i in range(max(1, so_luong)):
             mau_goc = dict(goc[i % len(goc)])
-            tag = hau_to[i % len(hau_to)]
             if i >= len(goc):
                 if "text" in mau_goc:
-                    mau_goc["text"] = f"{mau_goc['text']} {tag}"
+                    van_ban_goc = str(mau_goc["text"])
+                    ds_aug = tang_cuong.tang_cuong(van_ban_goc, so_mau=1)
+                    mau_goc["text"] = ds_aug[0] if ds_aug else van_ban_goc
                 if "instruction" in mau_goc:
-                    mau_goc["instruction"] = f"{mau_goc['instruction']} [{i + 1}]"
+                    lenh_goc = str(mau_goc["instruction"])
+                    ds_aug_inst = tang_cuong.tang_cuong(lenh_goc, so_mau=1)
+                    mau_goc["instruction"] = ds_aug_inst[0] if ds_aug_inst else lenh_goc
+                mau_goc["la_du_lieu_tang_cuong"] = True
+            else:
+                mau_goc["la_du_lieu_tang_cuong"] = False
             mo_rong.append(mau_goc)
 
         ten_file = f"{key}_aug_{so_luong}.jsonl"
@@ -536,6 +584,7 @@ class HoDuLieu:
             "commit_hash": commit_hash,
             "so_ban_ghi": len(mo_rong),
             "du_lieu": mo_rong,
+            "co_tang_cuong_nlp": True,
         }
 
     def tai_bo_mau(self, ten_bo: str = "uit_vsfc") -> Dict[str, Any]:
@@ -603,4 +652,5 @@ class HoDuLieu:
 
         kq = self.tai_bo_mau(fallback_key)
         kq["nguon"] = f"offline_fallback:{fallback_key}"
+        kq["la_du_lieu_mau_noi_bo"] = True
         return kq

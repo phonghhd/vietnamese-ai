@@ -1,0 +1,20 @@
+# Phụ thuộc dành riêng cho phát triển, kiểm thử, lint, type-check và build tài liệu.
+# Tách biệt hoàn toàn khỏi requirements.txt (production core).
+-r requirements.txt
+
+# Testing
+pytest>=7.0
+pytest-cov>=4.0
+pytest-asyncio>=0.21
+
+# Formatting, Linting & Static Type Checking
+black>=23.0
+ruff>=0.1.0
+mypy>=1.0
+
+# Documentation & Packaging
+mkdocs>=1.5
+mkdocs-material>=9.0
+mkdocstrings[python]>=0.24
+build>=1.0
+twine>=4.0

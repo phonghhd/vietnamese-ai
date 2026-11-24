@@ -1,6 +1,7 @@
 """KiemTraSucKhoe - Health check system cho production."""
 
 import os
+import sys
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -161,7 +162,7 @@ class KiemTraSucKhoe:
 
     def _kiem_tra_he_thong(self) -> Dict[str, Any]:
         """Kiểm tra tài nguyên hệ thống."""
-        info = {}
+        info: Dict[str, Any] = {}
 
         # CPU usage
         try:
@@ -206,7 +207,7 @@ class KiemTraSucKhoe:
 
         # Python info
         info["python_version"] = (
-            f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}"
+            f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         )
         info["pid"] = os.getpid()
 

@@ -1,7 +1,7 @@
 """QdrantVectorStore - Lưu trữ và tìm kiếm vector bằng Qdrant."""
 
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -22,11 +22,11 @@ class QdrantVectorStore:
         kich_thuoc: int = 128,
         khoang_cach: str = "cosine",
     ):
-        try:
-            from qdrant_client import QdrantClient
-            from qdrant_client.http.models import Distance, VectorParams
-        except ImportError:
-            raise ImportError("Vui lòng cài đặt qdrant-client: pip install qdrant-client")
+        from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+
+        qdrant_mod = QuanLyPhuThuoc.yeu_cau("qdrant_client", nhom_extra="rag", tinh_nang="QdrantVectorStore")
+        QdrantClient = qdrant_mod.QdrantClient
+        from qdrant_client.http.models import Distance, VectorParams
 
         # Map distance metric string to Qdrant Distance
         dist_map = {"cosine": Distance.COSINE, "l2": Distance.EUCLID, "inner_product": Distance.DOT}
@@ -62,6 +62,7 @@ class QdrantVectorStore:
         if len(vec) != self.kich_thuoc:
             raise ValueError(f"Vector kích thước {len(vec)}, mong đợi {self.kich_thuoc}")
 
+        point_id: Union[int, str]
         if ma.isdigit():
             point_id = int(ma)
         else:

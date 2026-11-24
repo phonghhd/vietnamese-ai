@@ -77,13 +77,11 @@ class RingAttentionNode:
             and len(self.peer_nodes) == self.total_nodes
             and all(n.k_buffer is not None and n.v_buffer is not None for n in self.peer_nodes)
         ):
-            ring_blocks = [
-                (
-                    self.peer_nodes[(self.node_id - step) % self.total_nodes].k_buffer,
-                    self.peer_nodes[(self.node_id - step) % self.total_nodes].v_buffer,
-                )
-                for step in range(self.total_nodes)
-            ]
+            ring_blocks = []
+            for step in range(self.total_nodes):
+                peer = self.peer_nodes[(self.node_id - step) % self.total_nodes]
+                if peer.k_buffer is not None and peer.v_buffer is not None:
+                    ring_blocks.append((peer.k_buffer, peer.v_buffer))
         elif (
             self.total_nodes > 1
             and K_local.shape[1] >= self.total_nodes

@@ -3,7 +3,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -181,7 +181,7 @@ class KetNoi:
         }
 
 
-TEMPLATE_PIPELINES = {
+TEMPLATE_PIPELINES: Dict[str, Dict[str, Any]] = {
     "phan_loai_co_ban": {
         "ten": "Phân loại cơ bản",
         "mo_ta": "Pipeline phân loại với tiền xử lý",
@@ -481,6 +481,7 @@ class StudioKeoTha:
         X = du_lieu_vao["X"]
         y = du_lieu_vao.get("y")
 
+        mo_hinh: Union[PhanCum, HoiQuy, PhanLoai]
         if nhiem_vu == "phan_cum":
             mo_hinh = PhanCum(so_cum=node.tham_so.get("so_cum", 3), thuat_toan=thuat_toan)
             mo_hinh.huan_luyen(X)

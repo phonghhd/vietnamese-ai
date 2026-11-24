@@ -1,7 +1,7 @@
 """GPTModel - GPT-style Decoder-Only Transformer cho tiếng Việt."""
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import numpy as np
 
@@ -74,7 +74,7 @@ class CausalSelfAttention:
         self.W_o = np.random.randn(d_model, d_model) * scale
 
         self.lora_layers: Dict[str, LoRALayer] = {}
-        self._attention_weights = None
+        self._attention_weights: Optional[np.ndarray] = None
         self._cache: Dict = {}
 
     def tien(self, X: np.ndarray, attention_mask: Optional[np.ndarray] = None) -> np.ndarray:
@@ -606,7 +606,7 @@ class GPTModel:
             for name, lora in block.lora_layers.items():
                 arrays[f"b{idx}_ffn_{name}_A"] = lora.A
                 arrays[f"b{idx}_ffn_{name}_B"] = lora.B
-        np.savez_compressed(duong_dan, **arrays)
+        np.savez_compressed(duong_dan, **cast(Dict[str, Any], arrays))
         return {"duong_dan": duong_dan, "so_mang": len(arrays), "config": self.lora_config}
 
     def tai_lora(self, duong_dan: str) -> Dict[str, Any]:
@@ -904,7 +904,7 @@ class GPTModel:
             dX_norm, X_pre_ln, self.ln_final_gamma
         )
 
-        block_grads = [None] * len(self.blocks)
+        block_grads: List[Dict[str, Any]] = [{} for _ in range(len(self.blocks))]
         for idx in range(len(self.blocks) - 1, -1, -1):
             dX, b_grad = self.blocks[idx].nguoc(dX, tinh_grad_goc=tinh_grad_goc)
             block_grads[idx] = b_grad
@@ -926,8 +926,9 @@ class GPTModel:
                     for lg in bg["attn"].get("lora", {}).values():
                         sq_norm += float(np.sum(lg["dA"] ** 2) + np.sum(lg["dB"] ** 2))
             else:
+                emb_sq = float(np.sum(d_embedding**2)) if d_embedding is not None else 0.0
                 sq_norm = float(
-                    np.sum(d_embedding**2) + np.sum(d_ln_gamma**2) + np.sum(d_ln_beta**2)
+                    emb_sq + np.sum(d_ln_gamma**2) + np.sum(d_ln_beta**2)
                 )
                 for bg in block_grads:
                     for k in ("W1", "b1", "W2", "b2", "gamma1", "beta1", "gamma2", "beta2"):
@@ -968,7 +969,7 @@ class GPTModel:
             "ln_final_beta", self.ln_final_beta, d_ln_beta, toc_do_hoc, 0.0
         )
 
-        if not self.da_gan_lora:
+        if not self.da_gan_lora and d_embedding is not None:
             self.embedding = self._adamw_update(
                 "embedding", self.embedding, d_embedding, toc_do_hoc, weight_decay
             )

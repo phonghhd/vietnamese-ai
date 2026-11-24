@@ -2,7 +2,7 @@
 
 ## Project Info
 - **Name**: Vietnamese AI Framework (`vietnamese-ai`)
-- **Version**: 31.0.2
+- **Version**: 31.0.3
 - **Language**: Python 3.8+
 - **Package dir**: `vietnamese_ai/`
 
@@ -39,9 +39,10 @@ ruff check vietnamese_ai/ tests/ --fix
 mypy vietnamese_ai/ --ignore-missing-imports
 ```
 
-### Build Docs
+### Build Docs & Release Check
 ```bash
-mkdocs build
+mkdocs build --strict
+vai release-check
 ```
 
 ### Build Package
@@ -63,26 +64,29 @@ python -m build
 
 ```
 vietnamese_ai/
-├── rag/                 # RAG Pipeline (text + graph + multimodal)
+├── rag/                 # RAGPipeline, KhoTriThucVAIDB (.vaidb), onnx_semantic, legal/ (100 điều luật + hiệu lực + đồ thị + hợp đồng)
+├── connectors/          # KetNoiZaloOA, KetNoiTelegram, MayChuWebhookKenh (lưu SQLite Workspace)
+├── solutions/           # TroLyPhapLy, TongDaiCSKH, TrichXuatThongMinh
+├── ui/                  # StudioDashboard (6 tabs), QuanLyPhienChatWorkspace (SQLite + DPO), V-UI
 ├── serving/             # Batch, Streaming, Rate Limiter, Speculative
 ├── prompts/             # Prompt Templates, Chains, Guardrails
 ├── compression/         # Distillation, Pruning, BitNet
 ├── production/          # Health, Circuit Breaker, Logging, Metrics
-├── nlp/                 # NER, QA, Summarization, Translation, Spelling
+├── nlp/                 # Native Tokenizer, NER, QA, Summarization, Translation, Spelling
 ├── models/              # PhanLoai, HoiQuy, PhanCum, MangNron
-├── core/                # Engine, Pipeline, CrossValidation
+├── core/                # Engine, Pipeline, CrossValidation, QuyTrinhDauCuoi
 ├── preprocessing/       # XuLyVanBan, XuLySo, TaoDacTrung
-├── fine_tuning/         # SFT, DPO, RLHF, LoRA, PEFT
+├── fine_tuning/         # SFT, DPO, RLHF, LoRA, PEFT, remote_gpu (Modal/SSH), eval_gate (4 trục)
 ├── transformer/         # GPT, Tokenizer, Attention
-├── llm/                 # VietnameseLLM (n-gram), Eval, Benchmark
+├── llm/                 # VietnameseLLM, Eval, Benchmark
 ├── automl/              # AutoML, NAS
 ├── embeddings/          # Word2Vec, FastText
 ├── federated/           # Federated Learning
 ├── mobile/              # Mobile Deployment
-├── enterprise/          # Auth, Audit, SaaS platform (NenTangDichVu)
+├── enterprise/          # Auth (RBAC), Audit, SaaS platform (NenTangDichVu)
 ├── studio/              # No-code Studio
-├── agents/              # Multi-agent, Swarm, MoA, MCTS
-├── edge/                # Edge routing (một số tính năng mô phỏng)
+├── agents/              # StateGraph, DeepResearch, CodeHealing, MayChuMCPThucTe (stdio/SSE)
+├── edge/                # QuanLyMoHinhEdge, DongCoSuyLuanEdge, Swarm CPU (một số tính năng DePIN mô phỏng)
 ├── orchestrator/        # Cluster: NutChinh / DieuPhoiCum
 ├── extreme/             # JIT / kernel fusion (thử nghiệm)
 └── ...
@@ -90,12 +94,12 @@ vietnamese_ai/
 
 ## Important Notes
 
-- All tests must pass before commit: `pytest tests/ -v`
-- Lint must pass: `ruff check vietnamese_ai/ tests/`
+- All tests must pass before commit: `pytest tests/ -q --tb=short`
+- Lint, type check & release gate must pass: `ruff check vietnamese_ai/ tests/ benchmarks/`, `mypy vietnamese_ai/ --ignore-missing-imports`, `vai release-check`, `mkdocs build --strict`
 - No comments in code unless asked
 - Follow existing code patterns (see models/base.py for base class pattern)
-- New modules need: `__init__.py` with exports, implementation file, tests
-- Một số module Edge/DePIN/multimodal/WASM là **mô phỏng** — xem docstring từng class
-- Version canonical: **31.0.2** (`__init__.py` == `pyproject.toml` == `setup.py`)
-- Plugin: `QuanLyPlugin` = hot-swap; `PluginManager` = legacy hooks (cả hai đều hợp lệ)
-- Baseline test (v31.0.2): ~1176 passed, ~32 skipped (torch/optional deps)
+- New modules need: `__init__.py` with exports, implementation file, tests (and update `__init__.pyi` if adding top-level exports)
+- Một số module Edge/DePIN/multimodal/WASM là **mô phỏng** — kiểm tra trực tiếp qua `vai status-map` hoặc docstring từng class
+- Version canonical: **31.0.3** (`__init__.py` == `pyproject.toml` == `setup.py` == `packages/*/pyproject.toml` == `rust_core/Cargo.toml`)
+- Plugin: `QuanLyPlugin` = hot-swap (tự gắn vào FastAPI & MCP); `PluginManager` = legacy hooks (cả hai đều hợp lệ)
+- Baseline test (v31.0.3): 1,265 passed, 32 skipped (torch/optional deps), 0 mypy errors (327 files), 316 public exports

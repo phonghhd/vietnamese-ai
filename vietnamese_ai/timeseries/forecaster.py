@@ -1,6 +1,6 @@
 """DuDoanChuoiThoiGian - Dự đoán chuỗi thời gian."""
 
-from typing import Optional
+from typing import Any, List, Optional, Union
 
 import numpy as np
 
@@ -46,9 +46,9 @@ class DuDoanChuoiThoiGian(BaseModel):
         self._du_lieu: Optional[np.ndarray] = None
         self._trung_binh_truot: Optional[np.ndarray] = None
         self._he_so_tuyen_tinh: Optional[np.ndarray] = None
-        self._mo_hinh_regression = None
+        self._mo_hinh_regression: Optional[BaseModel] = None
 
-    def huan_luyen(self, X: np.ndarray, y: np.ndarray = None) -> None:
+    def huan_luyen(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> None:
         """
         Huấn luyện mô hình trên chuỗi thời gian.
 
@@ -79,11 +79,15 @@ class DuDoanChuoiThoiGian(BaseModel):
         self.logger.info("Huấn luyện hoàn tất")
 
     def _huan_luyen_moving_average(self) -> None:
+        if self._du_lieu is None:
+            raise RuntimeError("Chưa có dữ liệu huấn luyện.")
         cumsum = np.cumsum(self._du_lieu)
         cumsum[self.cua_so :] = cumsum[self.cua_so :] - cumsum[: -self.cua_so]
         self._trung_binh_truot = cumsum[self.cua_so - 1 :] / self.cua_so
 
     def _huan_luyen_exponential(self) -> None:
+        if self._du_lieu is None:
+            raise RuntimeError("Chưa có dữ liệu huấn luyện.")
         ket_qua = np.zeros(len(self._du_lieu))
         ket_qua[0] = self._du_lieu[0]
         for i in range(1, len(self._du_lieu)):
@@ -91,6 +95,8 @@ class DuDoanChuoiThoiGian(BaseModel):
         self._trung_binh_truot = ket_qua
 
     def _huan_luyen_linear_trend(self) -> None:
+        if self._du_lieu is None:
+            raise RuntimeError("Chưa có dữ liệu huấn luyện.")
         n = len(self._du_lieu)
         x = np.arange(n)
         A = np.vstack([x, np.ones(n)]).T
@@ -99,16 +105,21 @@ class DuDoanChuoiThoiGian(BaseModel):
     def _huan_luyen_window_regression(self) -> None:
         from vietnamese_ai.models.regression import HoiQuy
 
-        X_win, y_win = [], []
+        if self._du_lieu is None:
+            raise RuntimeError("Chưa có dữ liệu huấn luyện.")
+
+        X_win_list: List[np.ndarray] = []
+        y_win_list: List[Any] = []
         for i in range(self.cua_so, len(self._du_lieu)):
-            X_win.append(self._du_lieu[i - self.cua_so : i])
-            y_win.append(self._du_lieu[i])
+            X_win_list.append(self._du_lieu[i - self.cua_so : i])
+            y_win_list.append(self._du_lieu[i])
 
-        X_win, y_win = np.array(X_win), np.array(y_win)
-        self._mo_hinh_regression = HoiQuy(thuat_toan="ridge")
-        self._mo_hinh_regression.huan_luyen(X_win, y_win)
+        X_win, y_win = np.array(X_win_list), np.array(y_win_list)
+        mo_hinh = HoiQuy(thuat_toan="ridge")
+        mo_hinh.huan_luyen(X_win, y_win)
+        self._mo_hinh_regression = mo_hinh
 
-    def du_doan(self, X: np.ndarray) -> np.ndarray:
+    def du_doan(self, X: Union[int, np.integer, np.ndarray]) -> np.ndarray:
         """
         Dự đoán các bước tiếp theo.
 
@@ -138,19 +149,27 @@ class DuDoanChuoiThoiGian(BaseModel):
         return np.zeros(so_buoc)
 
     def _du_doan_moving_average(self, so_buoc: int) -> np.ndarray:
+        if self._trung_binh_truot is None:
+            raise RuntimeError("Chưa huấn luyện.")
         gia_tri = self._trung_binh_truot[-1]
         return np.full(so_buoc, gia_tri)
 
     def _du_doan_exponential(self, so_buoc: int) -> np.ndarray:
+        if self._trung_binh_truot is None:
+            raise RuntimeError("Chưa huấn luyện.")
         gia_tri_cuoi = self._trung_binh_truot[-1]
         return np.full(so_buoc, gia_tri_cuoi)
 
     def _du_doan_linear_trend(self, so_buoc: int) -> np.ndarray:
+        if self._du_lieu is None or self._he_so_tuyen_tinh is None:
+            raise RuntimeError("Chưa huấn luyện.")
         n = len(self._du_lieu)
         x_moi = np.arange(n, n + so_buoc)
         return x_moi * self._he_so_tuyen_tinh[0] + self._he_so_tuyen_tinh[1]
 
     def _du_doan_window_regression(self, so_buoc: int) -> np.ndarray:
+        if self._du_lieu is None or self._mo_hinh_regression is None:
+            raise RuntimeError("Chưa huấn luyện.")
         ket_qua = []
         cua_so_hien_tai = self._du_lieu[-self.cua_so :].copy()
 
@@ -161,7 +180,7 @@ class DuDoanChuoiThoiGian(BaseModel):
 
         return np.array(ket_qua)
 
-    def danh_gia(self, X: np.ndarray, y: np.ndarray = None) -> float:
+    def danh_gia(self, X: np.ndarray, y: Optional[np.ndarray] = None) -> float:
         """Đánh giá bằng MAE trên tập test."""
         if y is None:
             return 0.0
@@ -170,4 +189,6 @@ class DuDoanChuoiThoiGian(BaseModel):
 
     def lay_du_lieu_goc(self) -> np.ndarray:
         """Trả về dữ liệu gốc."""
+        if self._du_lieu is None:
+            raise RuntimeError("Chưa huấn luyện.")
         return self._du_lieu.copy()

@@ -299,21 +299,47 @@ class BoTinhChinhMoHinh:
             from vietnamese_ai.fine_tuning.rlhf_pipeline import RLHFPipeline
 
             rlhf = RLHFPipeline(
-                so_vong_reward=max(1, so_vong),
-                so_vong_ppo=max(1, so_vong),
-                toc_do_hoc=toc_do_hoc,
+                sft_config={
+                    "so_vong": max(1, so_vong),
+                    "kich_thuoc_batch": kich_thuoc_batch,
+                    "toc_do_hoc": toc_do_hoc,
+                },
+                dpo_config={
+                    "so_vong": max(1, so_vong),
+                    "kich_thuoc_batch": kich_thuoc_batch,
+                    "toc_do_hoc": toc_do_hoc,
+                },
+                reward_config={"toc_do_hoc": toc_do_hoc},
             )
             samples = list(du_lieu_train) if isinstance(du_lieu_train, (list, tuple)) else []
-            prompts = [str(m.get("prompt", "")) for m in samples if isinstance(m, dict)]
             target_m = (
                 self._hf_wrapper._native_model
                 if self._hf_wrapper is not None and self._hf_wrapper._che_do_native
                 else self.model
             )
-            kq = rlhf.chay_pipeline(
+            sft_samples: List[Dict[str, Any]] = [
+                {
+                    "instruction": str(m.get("prompt", "")),
+                    "output": str(m.get("chosen", "")),
+                }
+                for m in samples
+                if isinstance(m, dict)
+            ]
+            pref_samples: List[Dict[str, str]] = [
+                {
+                    "prompt": str(m.get("prompt", "")),
+                    "chosen": str(m.get("chosen", "")),
+                    "rejected": str(m.get("rejected", "")),
+                }
+                for m in samples
+                if isinstance(m, dict)
+            ]
+            kq = rlhf.chay_day_du(
                 model=target_m,
-                preference_data=samples,
-                prompts=prompts or ["Xin chào"],
+                ref_model=target_m,
+                reward_model=target_m,
+                sft_data=sft_samples,
+                preference_data=pref_samples,
             )
             if self._hf_wrapper is not None:
                 for m in samples:

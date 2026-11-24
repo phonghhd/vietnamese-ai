@@ -1,13 +1,20 @@
 import json
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
-try:
+if TYPE_CHECKING:
     from fastapi import Request
     from fastapi.responses import JSONResponse
     from starlette.middleware.base import BaseHTTPMiddleware
-except ImportError:
-    BaseHTTPMiddleware = object  # Fallback for systems without FastAPI
+else:
+    try:
+        from fastapi import Request
+        from fastapi.responses import JSONResponse
+        from starlette.middleware.base import BaseHTTPMiddleware
+    except ImportError:
+        Request = Any
+        JSONResponse = Any
+        BaseHTTPMiddleware = object
 
 from vietnamese_ai.security.llm_firewall import TuongLuaAI
 
@@ -43,8 +50,9 @@ class AISecurityMiddleware(BaseHTTPMiddleware):
 
                             if not an_toan:
                                 if self.ghi_log:
+                                    nguon = request.client.host if request.client else "unknown"
                                     self.logger.warning(
-                                        f"BẢO MẬT: Đã chặn truy vấn độc hại. Lý do: {ly_do}. Nguồn: {request.client.host}"
+                                        f"BẢO MẬT: Đã chặn truy vấn độc hại. Lý do: {ly_do}. Nguồn: {nguon}"
                                     )
 
                                 return JSONResponse(

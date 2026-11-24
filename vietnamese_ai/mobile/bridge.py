@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import json
 import os
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Set, Tuple
 
 from vietnamese_ai.mobile.mobile_agent import MobileHybridAgent
 from vietnamese_ai.mobile.power_manager import PowerManager
@@ -25,7 +25,7 @@ class MobileAppBridge:
         strict_aead: bool = False,
     ):
         self.mobile_agent = mobile_agent
-        self.clients = set()
+        self.clients: Set[Any] = set()
         self.e2e_key = e2e_key
         self.strict_aead = strict_aead
         self.notification_history: List[str] = []

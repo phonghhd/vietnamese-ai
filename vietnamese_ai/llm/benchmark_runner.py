@@ -58,7 +58,7 @@ class BenchmarkRunner:
         {"text": "Thất vọng nặng nề, tiền mất tật mang.", "label": "negative"},
     ] * 4
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = Logger("BenchmarkRunner")
         self._eval_harness = LMEvalHarness()
         self._ket_qua: Dict[str, Any] = {}
@@ -86,7 +86,7 @@ class BenchmarkRunner:
         self.logger.info(f"Bắt đầu benchmark ({len(benchmarks)} tests)")
         bat_dau = time.time()
 
-        tong_ket_qua = {}
+        tong_ket_qua: Dict[str, Any] = {}
 
         if "perplexity" in benchmarks:
             tong_ket_qua["perplexity"] = self._bench_perplexity(model)

@@ -116,6 +116,10 @@ class Word2VecTiengViet:
         self.logger.info(f"Bắt đầu huấn luyện Word2Vec ({self.che_do})")
         self._tao_tu_dien(cac_van_ban)
         self._khoi_tao_trong_so()
+        if self._W_in is None or self._W_out is None:
+            raise RuntimeError("Trọng số chưa được khởi tạo.")
+        W_in = self._W_in
+        W_out = self._W_out
         self.logger.info(f"Từ điển: {len(self._tu_dien)} từ")
 
         for vong in range(so_vong):
@@ -124,14 +128,14 @@ class Word2VecTiengViet:
             tong_loss = 0.0
 
             for tam_idx, canh_idx in cap:
-                v_tam = self._W_in[tam_idx]
+                v_tam = W_in[tam_idx]
 
                 # Positive sample
-                z = np.dot(v_tam, self._W_out[canh_idx])
+                z = np.dot(v_tam, W_out[canh_idx])
                 sig = self._sigmoid(z)
                 g = (sig - 1) * self.toc_do_hoc
-                self._W_out[canh_idx] -= g * v_tam
-                grad = g * self._W_out[canh_idx]
+                W_out[canh_idx] -= g * v_tam
+                grad = g * W_out[canh_idx]
 
                 # Negative samples
                 for _ in range(self.so_am):
@@ -139,15 +143,15 @@ class Word2VecTiengViet:
                     while am_idx == canh_idx:
                         am_idx = np.random.randint(0, len(self._tu_dien))
 
-                    z_am = np.dot(v_tam, self._W_out[am_idx])
+                    z_am = np.dot(v_tam, W_out[am_idx])
                     sig_am = self._sigmoid(z_am)
                     g_am = sig_am * self.toc_do_hoc
-                    self._W_out[am_idx] -= g_am * v_tam
-                    grad += g_am * self._W_out[am_idx]
+                    W_out[am_idx] -= g_am * v_tam
+                    grad += g_am * W_out[am_idx]
 
-                self._W_in[tam_idx] -= grad
+                W_in[tam_idx] -= grad
 
-                tong_loss += -np.log(sig + 1e-10)
+                tong_loss += float(-np.log(sig + 1e-10))
 
             self.logger.info(f"Vòng {vong + 1}/{so_vong}: loss={tong_loss / len(cap):.4f}")
 
@@ -156,7 +160,7 @@ class Word2VecTiengViet:
 
     def lay_vector(self, tu: str) -> Optional[np.ndarray]:
         """Lấy vector biểu diễn của một từ."""
-        if not self._da_huan_luyen:
+        if not self._da_huan_luyen or self._W_in is None:
             raise RuntimeError("Chưa huấn luyện. Gọi huan_luyen() trước.")
         if tu not in self._tu_dien:
             return None
@@ -181,7 +185,7 @@ class Word2VecTiengViet:
     def tim_tu_giong(self, tu: str, top_n: int = 5) -> List[Tuple[str, float]]:
         """Tìm các từ giống nhất (cosine similarity)."""
         v = self.lay_vector(tu)
-        if v is None:
+        if v is None or self._W_in is None:
             return []
 
         # Chuẩn hóa
@@ -202,7 +206,7 @@ class Word2VecTiengViet:
 
     def luu(self, duong_dan: str) -> None:
         """Lưu vectors ra file text format."""
-        if not self._da_huan_luyen:
+        if not self._da_huan_luyen or self._W_in is None:
             raise RuntimeError("Chưa huấn luyện.")
         with open(duong_dan, "w", encoding="utf-8") as f:
             f.write(f"{len(self._tu_dien)} {self.kich_thuoc}\n")

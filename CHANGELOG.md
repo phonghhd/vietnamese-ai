@@ -2,6 +2,28 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v31.0.3 (2026-11-24 — Open-Source Production Release)
+
+### 🚀 4 Hướng Chiến Lược, 5 Ưu Tiên Sản Xuất & Khép Kín Toàn Bộ 9 Mối Nối Liên Tầng
+- **Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Tham Chiếu Pháp Lý**:
+  - `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 tiếng Việt có dấu/không dấu + Float32 Vector + đồng bộ thư mục tăng dần SHA-256 `RAGPipeline.dong_bo_thu_muc`), hỗ trợ trực tiếp `RAGPipeline.luu("*.vaidb")` và `RAGPipeline.tai("*.vaidb")`.
+  - `BoNhungONNXTiengViet` & `BoXepHangLaiNguNghiaONNX` (`onnx_viet`) hiểu từ đồng nghĩa đời thường tiếng Việt (sa thải, sổ đỏ, hóa đơn đỏ, lộ dữ liệu) chạy 100% trên CPU.
+  - `BoTheoDoiHieuLucPhapLy` & `DoThiThamChieuPhapLy` (`vai legal-graph`): truy vết Luật ↔ Nghị định ↔ Thông tư ↔ văn bản thay thế hiện hành theo mốc ngày kèm sơ đồ Mermaid.
+  - Đóng gói sẵn **100 điều khoản pháp lý Việt Nam + 35 QA chuẩn** trực tiếp trong wheel (`vietnamese_ai/rag/legal/data/`), đồng bộ mặc định trên `StudioDashboard`, `vai solution phap-ly`, `vai connector`, `MayChuMCPThucTe` và `vai eval-gate`.
+- **Bàn Làm Việc Hợp Đồng, Chat Workspace Phòng Ban, MCP IDE & Zalo/Telegram**:
+  - `BoSoSanhRaSoatHopDong` (`vai contract-review`): so sánh điều khoản hợp đồng `.docx`/`.pdf`/`.txt` với mẫu chuẩn, kiểm toán hiệu lực luật, xuất báo cáo Redline Markdown & Word `.docx`.
+  - `QuanLyPhienChatWorkspace` + `StudioDashboard` (`vai studio --vaidb ... --workspace-dir ... --auth`): chat đa phiên cách ly `.vaidb` theo phòng ban, kéo-thả tệp thẳng vào Workspace, RBAC + Audit + Thumbs Up/Down kèm đáp án sửa (`cau_tra_loi_sua`), giao diện động kết nối đủ Status Map 3 tầng, Đồ thị Luật, Eval Gate & Xuất DPO.
+  - `MayChuMCPThucTe` (`vai mcp-server --transport stdio|sse --plugin-dir ...`): chuẩn MCP JSON-RPC 2.0 cắm thẳng vào Cursor, VS Code & Claude Desktop, tự động khám phá & phơi bày công cụ V-Plugin 2.0 (`gan_quan_ly_plugin`).
+  - `KetNoiZaloOA` & `KetNoiTelegram` (`vai connector --workspace-dir ...`): xác thực MAC SHA-256 / Secret Token, lưu lịch sử bền vững vào SQLite Workspace để gom DPO, hỗ trợ lệnh nhanh `/hieuluc`, `/luat`, `/hopdong`.
+- **Zero-GPU Edge CPU Runtime & Multi-Provider Remote GPU Flywheel**:
+  - `QuanLyMoHinhEdge` (`vai pull` / `vai run`): 8 mô hình GGUF tiếng Việt tự chọn lượng tử theo RAM thực, tải HTTP Range Resume, chạy 3 tầng Native (`llama-cpp-python` → `llama-cli` → GGUF mmap NumPy), mở trực tiếp `.vaidb` với `vai run ... --rag kb.vaidb --admin`.
+  - `BoDieuPhoiTinhChinhXa` (`vai train-cloud --from-workspace ... --eval-4-axis`): hỗ trợ `NhaCungCapModal`, `NhaCungCapSSH`, `NhaCungCapCucBo`, rút thẳng DPO JSONL đã ẩn PII từ Workspace, kiểm trần ngân sách USD/VNĐ, ký HMAC-SHA256 và kiểm định hồi quy 4 trục (`CongKiemDinhMoHinh`, `vai eval-gate`).
+- **Tăng cường Bảo mật, API & Trải nghiệm Open Source**:
+  - Vá biểu thức Prompt Injection tiếng Việt trên `TuongLuaAI` (`bỏ qua mọi/toàn bộ quy tắc`, `tiết lộ toàn bộ mật khẩu nội bộ`) và nâng cấp chấm điểm bám sát nguồn `CongAnToanDauRa.kiem_tra_ao_giac` (ưu tiên `noi_dung` / `trich_doan` đầy đủ).
+  - `FastAPIServer` hỗ trợ trực tiếp `TroLyPhapLy`, `TongDaiCSKH`, `DongCoSuyLuanEdge`; `QuyTrinhDauCuoi` bổ sung cầu nối 1 dòng `ra_soat_hop_dong`, `kiem_dinh_mo_hinh`, `tao_mcp_server`, `tao_webhook_kenh`; `vietnamese_ai.ui` export lazy đầy đủ các lớp Studio/Workspace.
+  - Bổ sung `vai demo`, `vai status-map` (bản đồ minh bạch 3 tầng Core / Optional / Experimental), `vai release-check`, `benchmarks/Dockerfile.benchmark`, và nâng cấp `.github/workflows/publish.yml` (OIDC Trusted Publishing TestPyPI/PyPI + clean-venv wheel smoke test).
+  - Kiểm định toàn diện: **316/316** public API stubs `.pyi`, **1,265 passed / 32 skipped / 0 failed**, **0 lỗi `mypy`** (327 tệp), **0 lỗi `ruff`**, `mkdocs build --strict` exit 0.
+
 ## v31.0.2 (2026-11-18)
 
 ### 🌟 Hệ Sinh Thái Khép Kín 5 Bước Tự Tối Ưu Hóa & Tự Chữa Lành (Closed-Loop Autonomous AI Ecosystem)

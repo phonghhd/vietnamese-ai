@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Union
@@ -202,7 +203,11 @@ class TongDaiCSKH:
         if nen_chay_ngam:
             server.khoi_dong_chay_ngam()
         else:
-            server.khoi_dong()
+            khoi_dong_fn = getattr(server, "khoi_dong", None)
+            if callable(khoi_dong_fn):
+                khoi_dong_fn()
+            else:
+                asyncio.run(server.khoi_dong_async())
         return server
 
 

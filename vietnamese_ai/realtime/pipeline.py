@@ -12,36 +12,60 @@ from vietnamese_ai.utils.logger import Logger
 
 class MessageQueue:
     """
-    In-memory message queue mô phỏng Kafka/Redis Streams.
-
-    Hỗ trợ:
-    - Publish/Subscribe pattern
-    - Consumer groups
-    - Message retention
-    - Backpressure handling
+    Hàng đợi thông điệp thời gian thực (Real-time Message Queue) hỗ trợ Pub/Sub,
+    Consumer groups, Backpressure và tùy chọn nhật ký bền vững WAL JSONL (`duong_dan_wal`).
     """
 
-    def __init__(self, ten: str = "default", kich_thuoc_toi_da: int = 10000):
+    def __init__(
+        self,
+        ten: str = "default",
+        kich_thuoc_toi_da: int = 10000,
+        duong_dan_wal: Optional[str] = None,
+    ) -> None:
         self.ten = ten
         self.kich_thuoc_toi_da = kich_thuoc_toi_da
+        self._duong_dan_wal = duong_dan_wal
         self._queue: deque = deque(maxlen=kich_thuoc_toi_da)
         self._subscribers: Dict[str, List[Callable]] = {}
         self._lock = threading.Lock()
         self._so_tin_nhan = 0
         self._so_tin_nhan_da_xu_ly = 0
+        if self._duong_dan_wal:
+            self._phuc_hoi_tu_wal()
+
+    def _phuc_hoi_tu_wal(self) -> None:
+        """Phục hồi các thông điệp đã lưu trong tệp WAL JSONL khi khởi động lại tiến trình."""
+        import json
+        from pathlib import Path
+
+        p = Path(str(self._duong_dan_wal))
+        if not p.exists():
+            return
+        for dong in p.read_text(encoding="utf-8").splitlines():
+            dong_s = dong.strip()
+            if not dong_s:
+                continue
+            try:
+                tn = json.loads(dong_s)
+                self._queue.append(tn)
+                self._so_tin_nhan = max(self._so_tin_nhan, int(tn.get("id", 0)) + 1)
+            except Exception:
+                continue
+
+    def _ghi_wal(self, tin_nhan: Dict[str, Any]) -> None:
+        """Ghi bền vững thông điệp ra tệp WAL JSONL nếu được cấu hình."""
+        if not self._duong_dan_wal:
+            return
+        import json
+        from pathlib import Path
+
+        p = Path(self._duong_dan_wal)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with open(p, "a", encoding="utf-8") as f:
+            f.write(json.dumps(tin_nhan, ensure_ascii=False, default=str) + "\n")
 
     def publish(self, topic: str, du_lieu: Any, key: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Gửi tin nhắn vào queue.
-
-        Args:
-            topic: Chủ đề tin nhắn
-            du_lieu: Dữ liệu tin nhắn
-            key: Khóa phân vùng (tùy chọn)
-
-        Returns:
-            Dict chứa metadata tin nhắn
-        """
+        """Gửi tin nhắn vào queue và ghi WAL bền vững nếu bật."""
         tin_nhan = {
             "topic": topic,
             "du_lieu": du_lieu,
@@ -53,6 +77,7 @@ class MessageQueue:
         with self._lock:
             self._queue.append(tin_nhan)
             self._so_tin_nhan += 1
+            self._ghi_wal(tin_nhan)
 
         if topic in self._subscribers:
             for callback in self._subscribers[topic]:

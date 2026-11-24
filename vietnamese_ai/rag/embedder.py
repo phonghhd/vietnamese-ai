@@ -1,7 +1,7 @@
 """BoNhungVanBan - embedding văn bản cho RAG (sentence-transformers hoặc fallback)."""
 
 import hashlib
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 import numpy as np
 
@@ -35,7 +35,7 @@ class BoNhungVanBan:
         self.bat_buoc_st = bat_buoc_st
         self.phuong_phap = phuong_phap
         self.logger = Logger("BoNhungVanBan")
-        self._model = None
+        self._model: Optional[Any] = None
         self._che_do = "chua_tai"
         self._cache_nhung: dict = {}
         self._max_cache = 2048
@@ -50,8 +50,9 @@ class BoNhungVanBan:
         try:
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.ten_model)
-            dim = int(self._model.get_sentence_embedding_dimension())
+            model = SentenceTransformer(self.ten_model)
+            self._model = model
+            dim = int(model.get_sentence_embedding_dimension())
             self.kich_thuoc = dim
             self._che_do = "sentence_transformers"
             self.logger.info(f"Đã tải sentence-transformers: {self.ten_model} ({dim} chiều)")
@@ -145,8 +146,12 @@ class BoNhungVanBan:
 
     def nhung(self, van_ban: Union[str, List[str]]) -> np.ndarray:
         """Nhúng một hoặc nhiều câu văn bản thành vector."""
-        la_don = isinstance(van_ban, str)
-        texts: List[str] = [van_ban] if la_don else list(van_ban)
+        if isinstance(van_ban, str):
+            la_don = True
+            texts: List[str] = [van_ban]
+        else:
+            la_don = False
+            texts = list(van_ban)
 
         if self._model is not None:
             dim = self.kich_thuoc
@@ -192,7 +197,6 @@ def tao_ham_embed(
     bat_buoc_st: bool = False,
 ) -> BoNhungVanBan:
     """Factory tạo BoNhungVanBan dùng làm ham_embed."""
-    kwargs = {"bat_buoc_st": bat_buoc_st}
     if ten_model:
-        kwargs["ten_model"] = ten_model
-    return BoNhungVanBan(**kwargs)
+        return BoNhungVanBan(ten_model=ten_model, bat_buoc_st=bat_buoc_st)
+    return BoNhungVanBan(bat_buoc_st=bat_buoc_st)

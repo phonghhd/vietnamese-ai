@@ -5,8 +5,14 @@ import ctypes
 import numpy as np
 
 from vietnamese_ai.extreme.jit_engine import EvoJITCompiler
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXTERNAL_DEPENDENCY,
+    mo_ta="Dung hợp toán tử Dense+LayerNorm+ReLU thử nghiệm qua EvoJITCompiler; yêu cầu g++ (OpenMP).",
+    phu_thuoc_ngoai=["g++ với hỗ trợ OpenMP (-fopenmp)"],
+)
 class FusedDenseNormReLU:
     """
     Dung hợp 4 Toán tử: Nhân ma trận (Dense) + Bias + LayerNorm + ReLU.

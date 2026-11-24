@@ -3,7 +3,7 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -37,8 +37,30 @@ Ví dụ sử dụng:
 
     # === INSTALL ===
     inst_parser = subparsers.add_parser("install", help="Cài đặt nhóm gói mở rộng tùy chọn (ml, viz, dl, fast, rag, llm, api, full)")
-    inst_parser.add_argument("group", help="Tên nhóm mở rộng (ml, tabular, viz, nlp, dl, fast, rag, llm, api, full)")
+    inst_parser.add_argument("group", help="Tên nhóm mở rộng (ml, tabular, viz, nlp, dl, fast, rag, legal-rag, audio, ocr-vn, llm, api, full)")
     inst_parser.add_argument("--dry-run", action="store_true", help="Chỉ hiển thị câu lệnh pip mà không chạy thật")
+
+    # === SETUP ===
+    setup_parser = subparsers.add_parser(
+        "setup",
+        help="Tự động quét phần cứng và thiết lập môi trường thông minh 3 tầng (gói mở rộng + Rust Core tầng thấp)",
+    )
+    setup_parser.add_argument(
+        "--profile",
+        default="core",
+        choices=["core", "edge", "legal-rag", "nlp", "audio", "vision", "ocr-vn", "ml", "dl", "api", "cloud-gpu", "full"],
+        help="Hồ sơ cài đặt phù hợp nhu cầu (mặc định: core)",
+    )
+    setup_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Thực thi cài đặt thực tế (mặc định chỉ chạy xem trước an toàn dry-run)",
+    )
+    setup_parser.add_argument(
+        "--no-rust",
+        action="store_true",
+        help="Bỏ qua bước kiểm tra/biên dịch tầng thấp Rust Core",
+    )
 
     # === TRAIN ===
     train_parser = subparsers.add_parser("train", help="Huấn luyện mô hình (tự động ký số HMAC-SHA256)")
@@ -65,6 +87,12 @@ Ví dụ sử dụng:
     serve_parser.add_argument("--model", required=True, help="Đường dẫn file mô hình hoặc tên LLM (VD: vgpt2)")
     serve_parser.add_argument("--host", default="0.0.0.0", help="Host (mặc định: 0.0.0.0)")
     serve_parser.add_argument("--port", type=int, default=8080, help="Port (mặc định: 8080)")
+    serve_parser.add_argument(
+        "--backend",
+        default="simple",
+        choices=["simple", "fastapi"],
+        help="Backend API server (`simple` zero-dependency hoặc `fastapi` hỗ trợ SSE Streaming, Tool Calling, /metrics)",
+    )
 
     # === EVALUATE ===
     eval_parser = subparsers.add_parser("evaluate", help="Đánh giá mô hình")
@@ -86,15 +114,67 @@ Ví dụ sử dụng:
     ft_parser.add_argument("--rank", type=int, default=8, help="Rank của LoRA")
     ft_parser.add_argument("--output", default="outputs/finetuned", help="Thư mục lưu mô hình")
 
+    # === TRAIN-CLOUD (MULTI-PROVIDER REMOTE GPU FLYWHEEL) ===
+    tc_parser = subparsers.add_parser(
+        "train-cloud",
+        help="Tinh chỉnh GPU từ xa đa nhà cung cấp (Modal Serverless GPU, SSH GPU nội bộ, Local Subprocess) và kéo GGUF/LoRA về Edge",
+    )
+    tc_parser.add_argument("--data", default=None, help="Đường dẫn tệp dữ liệu (.jsonl / .json)")
+    tc_parser.add_argument(
+        "--from-workspace",
+        default=None,
+        help="Xuất thẳng phản hồi DPO đã ẩn PII từ thư mục Studio Workspace SQLite để đưa lên GPU tinh chỉnh",
+    )
+    tc_parser.add_argument("--workspace", default=None, help="Lọc mã Workspace khi dùng `--from-workspace`")
+    tc_parser.add_argument(
+        "--provider",
+        default="modal",
+        choices=["modal", "ssh", "local"],
+        help="Nhà cung cấp GPU (modal, ssh, local — mặc định: modal)",
+    )
+    tc_parser.add_argument("--model", default="vgpt2", help="Tên mô hình gốc (VD: vgpt2, qwen2.5-1.5b, phobert)")
+    tc_parser.add_argument("--task", default="sft", help="Nhiệm vụ tinh chỉnh (sft, dpo, grpo, instruction)")
+    tc_parser.add_argument("--gpu", default="T4", help="Loại GPU (T4, L4, A10G, A100, H100, CPU)")
+    tc_parser.add_argument("--epochs", type=int, default=3, help="Số vòng huấn luyện")
+    tc_parser.add_argument("--rank", type=int, default=8, help="Rank của LoRA")
+    tc_parser.add_argument("--quantization", default="q8_0", help="Mức lượng tử GGUF tải về (q4_0, q8_0, f16)")
+    tc_parser.add_argument("--max-budget-usd", type=float, default=2.0, help="Trần ngân sách GPU tối đa (USD)")
+    tc_parser.add_argument(
+        "--eval-4-axis",
+        action="store_true",
+        help="Chấm hồi quy 4 trục (`CongKiemDinhMoHinh`) trước khi promote model sau khi tải artifact",
+    )
+    tc_parser.add_argument(
+        "--allow-cloud",
+        action="store_true",
+        help="Xác nhận rõ ràng cho phép gửi dữ liệu đã ẩn PII lên GPU đám mây bên ngoài (Modal)",
+    )
+    tc_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Thực thi thật (mặc định chạy xem trước dry-run an toàn và xuất script)",
+    )
+    tc_parser.add_argument("--ssh-host", default="", help="Địa chỉ máy chủ GPU SSH (khi --provider ssh)")
+    tc_parser.add_argument("--ssh-user", default=None, help="Tên người dùng SSH")
+    tc_parser.add_argument("--ssh-port", type=int, default=22, help="Cổng SSH (mặc định: 22)")
+    tc_parser.add_argument("--ssh-key", default=None, help="Đường dẫn khóa riêng SSH (.pem / id_ed25519)")
+    tc_parser.add_argument("--output", default="vai_remote_jobs", help="Thư mục lưu tác vụ và artifact tải về")
+
     # === RAG ===
-    rag_parser = subparsers.add_parser("rag", help="Truy vấn cơ sở tri thức RAG (có khử độc tài liệu & Tường lửa)")
-    rag_parser.add_argument("--docs", required=True, help="Đường dẫn file văn bản hoặc JSONL")
+    rag_parser = subparsers.add_parser("rag", help="Truy vấn cơ sở tri thức RAG đa định dạng & kho bền vững .vaidb")
+    rag_parser.add_argument("--docs", default=None, help="Đường dẫn tệp (.txt/.md/.docx/.pdf/.png/.json/.jsonl) hoặc thư mục tài liệu")
     rag_parser.add_argument("--query", required=True, help="Câu hỏi cần truy vấn")
+    rag_parser.add_argument("--db", default=None, help="Đường dẫn tệp kho tri thức bền vững `.vaidb` (SQLite + FTS5 + Vector)")
+    rag_parser.add_argument(
+        "--semantic-onnx",
+        action="store_true",
+        help="Dùng Bộ nhúng & Reranker ngữ nghĩa đồng nghĩa tiếng Việt / ONNX INT8 CPU",
+    )
     rag_parser.add_argument(
         "--admin",
         "--hanh-chinh",
         action="store_true",
-        help="Kích hoạt chế độ tối ưu hóa văn bản hành chính & quy phạm pháp luật Việt Nam",
+        help="Kích hoạt chế độ tối ưu hóa văn bản hành chính, hiệu lực & đồ thị tham chiếu pháp luật Việt Nam",
     )
 
     # === CHAT ===
@@ -140,6 +220,9 @@ Ví dụ sử dụng:
     studio_parser = subparsers.add_parser("studio", help="Khởi động Vietnamese AI Web Studio Dashboard")
     studio_parser.add_argument("--port", type=int, default=8080, help="Cổng máy chủ (mặc định: 8080)")
     studio_parser.add_argument("--host", default="0.0.0.0", help="Địa chỉ host (mặc định: 0.0.0.0)")
+    studio_parser.add_argument("--vaidb", default=None, help="Đường dẫn tệp kho tri thức bền vững `.vaidb` (tùy chọn)")
+    studio_parser.add_argument("--workspace-dir", default=None, help="Thư mục lưu SQLite Chat Workspace & `.vaidb` theo phòng ban")
+    studio_parser.add_argument("--auth", action="store_true", help="Bật xác thực RBAC & nhật ký kiểm toán trên Studio Workspace")
 
     # === SOLUTION (1-CLICK REAL-WORLD TEMPLATES) ===
     sol_parser = subparsers.add_parser("solution", help="Chạy các giải pháp thực chiến 1-Click đóng gói sẵn")
@@ -151,6 +234,8 @@ Ví dụ sử dụng:
     sol_parser.add_argument("--query", "-q", default=None, help="Câu hỏi hoặc yêu cầu xử lý")
     sol_parser.add_argument("--input", "-i", default=None, help="Đường dẫn tệp ảnh hoặc nội dung văn bản đầu vào")
     sol_parser.add_argument("--type", default="cccd", choices=["cccd", "hoa_don"], help="Loại giấy tờ cho trich-xuat")
+    sol_parser.add_argument("--vaidb", default=None, help="Đường dẫn tệp kho tri thức `.vaidb` cho giải pháp `phap-ly`")
+    sol_parser.add_argument("--no-open-corpus", action="store_true", help="Không nạp thêm 100 điều khoản pháp lý mở mặc định")
     sol_parser.add_argument("--voice", action="store_true", help="Khởi động máy chủ WebRTC Voicebot thời gian thực cho CSKH")
 
     # === AGENT (DEEP RESEARCH & CODE HEALING) ===
@@ -167,17 +252,41 @@ Ví dụ sử dụng:
     code_parser.add_argument("--output", "-o", default=None, help="Đường dẫn lưu mã nguồn đã kiểm thử")
     code_parser.add_argument("--max-retries", type=int, default=3, help="Số lần tự sửa tối đa")
 
+    # === PULL (VIETNAMESE GGUF MODEL HUB & RAM-AWARE QUANTIZATION) ===
+    pull_parser = subparsers.add_parser(
+        "pull",
+        help="Tải mô hình LLM GGUF tiếng Việt chuẩn (tự chọn Q4_K_M/Q8_0 theo RAM, hỗ trợ Range Resume & SHA-256)",
+    )
+    pull_parser.add_argument(
+        "model",
+        nargs="?",
+        default=None,
+        help="Tên mô hình (VD: qwen2.5-3b-q4, phogpt-4b, vistral-7b, hf://org/repo/file.gguf)",
+    )
+    pull_parser.add_argument("--list", action="store_true", help="Liệt kê danh mục mô hình tiếng Việt và đề xuất theo RAM máy")
+    pull_parser.add_argument("--installed", action="store_true", help="Liệt kê các mô hình GGUF đã tải về máy")
+    pull_parser.add_argument("--remove", default=None, help="Xóa một mô hình GGUF đã tải khỏi bộ nhớ đệm")
+    pull_parser.add_argument("--quant", default="auto", help="Mức lượng tử hóa (auto, Q3_K_M, Q4_K_M, Q5_K_M, Q8_0)")
+    pull_parser.add_argument("--dry-run", action="store_true", help="Xem trước URL, dung lượng và biến thể lượng tử mà không tải")
+    pull_parser.add_argument("--force", action="store_true", help="Tải lại kể cả khi mô hình đã tồn tại")
+    pull_parser.add_argument("--dir", default=None, help="Thư mục lưu mô hình tùy chỉnh (mặc định: ~/.cache/vietnamese-ai/models)")
+    pull_parser.add_argument("--sha256", default=None, help="Mã băm SHA-256 kỳ vọng để xác minh toàn vẹn")
+    pull_parser.add_argument("--hf-token", default=None, help="HuggingFace access token (tùy chọn cho repo riêng tư)")
+
     # === RUN (ZERO-GPU NATIVE INFERENCE ENGINE) ===
     run_parser = subparsers.add_parser(
-        "run", help="Chạy suy luận CPU siêu tốc Zero-GPU (mmap GGUF, Streaming Token 60 FPS)"
+        "run", help="Chạy suy luận CPU siêu tốc Zero-GPU (mmap GGUF, llama.cpp native, Tường lửa & RAG pháp lý)"
     )
-    run_parser.add_argument("model", help="Đường dẫn file mô hình .gguf hoặc tên mô hình (vgpt2)")
+    run_parser.add_argument("model", help="Đường dẫn file .gguf hoặc bí danh mô hình đã tải (VD: qwen2.5-3b-q4, phogpt-4b, vgpt2)")
     run_parser.add_argument("--prompt", "-p", default=None, help="Câu hỏi đơn lẻ cần suy luận")
     run_parser.add_argument("--chat", action="store_true", help="Vào chế độ đối thoại hội thoại tương tác trực tiếp")
     run_parser.add_argument("--threads", "-t", type=int, default=4, help="Số luồng CPU (mặc định: 4)")
     run_parser.add_argument("--bench", action="store_true", help="Hiển thị bảng thống kê hiệu năng chi tiết (T/s, TTFT, RAM)")
     run_parser.add_argument("--temp", type=float, default=0.7, help="Nhiệt độ ngẫu nhiên (mặc định: 0.7)")
     run_parser.add_argument("--max-tokens", type=int, default=128, help="Số token tối đa sinh ra")
+    run_parser.add_argument("--rag", default=None, help="Đường dẫn tệp (`.vaidb`/`.txt`/`.docx`/`.pdf`/`.json`) hoặc thư mục tri thức gắn kèm RAG")
+    run_parser.add_argument("--admin", "--hanh-chinh", action="store_true", help="Bật chế độ RAG pháp lý/hành chính Việt Nam khi dùng --rag")
+    run_parser.add_argument("--native", action="store_true", help="Ưu tiên chạy trực tiếp qua llama-cpp-python / llama-cli nếu có")
 
     # === PACK (1-CLICK DESKTOP OFFLINE STANDALONE PACKAGER) ===
     pack_parser = subparsers.add_parser("pack", help="Tự động tạo gói Desktop 1-Click Offline (run_desktop.sh / .bat)")
@@ -200,6 +309,10 @@ Ví dụ sử dụng:
     swarm_parser.add_argument("--join", default=None, help="Gia nhập cụm máy chủ qua địa chỉ IP:PORT")
     swarm_parser.add_argument("--port", type=int, default=9999, help="Cổng TCP Socket lắng nghe (mặc định: 9999)")
     swarm_parser.add_argument("--pin", default=None, help="Mã PIN bảo mật xác thực cụm Zero-Trust")
+    swarm_parser.add_argument("--tls-cert", default=None, help="Đường dẫn chứng chỉ TLS (.pem/.crt) cho Swarm TCP LAN")
+    swarm_parser.add_argument("--tls-key", default=None, help="Đường dẫn khóa riêng TLS (.pem/.key) cho Swarm TCP LAN")
+    swarm_parser.add_argument("--tls-ca", default=None, help="Đường dẫn chứng chỉ CA (.pem) cho TLS/mTLS Swarm")
+    swarm_parser.add_argument("--mtls", action="store_true", help="Bắt buộc xác thực hai chiều mTLS (cần --tls-ca)")
     swarm_parser.add_argument("--fp16", action="store_true", help="Bật nén tensor Float16 giảm 50%% băng thông mạng LAN")
     swarm_parser.add_argument("--tailscale", action="store_true", help="Tự động phát hiện và liên kết qua mạng Tailscale")
     swarm_parser.add_argument(
@@ -246,6 +359,97 @@ Ví dụ sử dụng:
     plugin_parser.add_argument("target", default=None, nargs="?", help="Đường dẫn file .py hoặc tên Plugin")
     plugin_parser.add_argument("--tool", default=None, help="Tên công cụ muốn thực thi trong Plugin")
     plugin_parser.add_argument("--params", default="{}", help="Tham số thực thi dạng JSON (ví dụ: '{\"thu_nhap_thang\": 25000000}')")
+
+    demo_parser = subparsers.add_parser(
+        "demo",
+        help="Chạy trình diễn 1-Click thực chiến trong 5 phút (Legal RAG 100 điều khoản, Edge CPU, Bảo mật, GPU Flywheel)",
+    )
+    demo_parser.add_argument(
+        "mode",
+        nargs="?",
+        default="all",
+        choices=["all", "legal-rag", "edge-chat", "security", "flywheel"],
+        help="Kịch bản demo cần chạy (mặc định: all)",
+    )
+
+    rel_parser = subparsers.add_parser(
+        "release-check",
+        help="Kiểm định toàn diện trước khi phát hành TestPyPI/PyPI (SemVer, phụ thuộc, type stubs, Rust abi3)",
+    )
+    rel_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Xuất báo cáo kiểm định dưới dạng JSON thuần để tích hợp CI/CD",
+    )
+
+    lg_parser = subparsers.add_parser(
+        "legal-graph",
+        help="Truy vấn Đồ thị Tham chiếu Pháp lý Việt Nam (Luật ↔ Nghị định ↔ Thông tư ↔ Sửa đổi/Thay thế)",
+    )
+    lg_parser.add_argument("so_hieu", help="Số hiệu văn bản cần tra cứu (VD: 45/2013/QH13, 31/2024/QH15, 123/2020/NĐ-CP)")
+    lg_parser.add_argument("--date", default=None, help="Ngày tra cứu hiệu lực dạng YYYY-MM-DD (mặc định: hôm nay)")
+    lg_parser.add_argument("--active-only", action="store_true", help="Chỉ hiển thị văn bản liên quan còn hiệu lực")
+    lg_parser.add_argument("--mermaid", action="store_true", help="In thêm sơ đồ Mermaid flowchart LR")
+
+    cr_parser = subparsers.add_parser(
+        "contract-review",
+        help="Rà soát rủi ro & so sánh hợp đồng (.docx/.pdf/.txt) kèm xuất báo cáo Redline Markdown & Word .docx",
+    )
+    cr_parser.add_argument("partner", help="Đường dẫn tệp hợp đồng đối tác gửi (.docx/.pdf/.txt)")
+    cr_parser.add_argument("--template", default=None, help="Đường dẫn tệp hợp đồng mẫu chuẩn để đối chiếu từng điều khoản")
+    cr_parser.add_argument("--date", default=None, help="Ngày kiểm toán hiệu lực luật dạng YYYY-MM-DD")
+    cr_parser.add_argument("--output-md", default=None, help="Đường dẫn xuất báo cáo Redline định dạng Markdown (.md)")
+    cr_parser.add_argument("--output-docx", default=None, help="Đường dẫn xuất báo cáo Redline định dạng Word (.docx)")
+
+    mcp_parser = subparsers.add_parser(
+        "mcp-server",
+        help="Khởi chạy MCP Server chuẩn stdio/SSE cắm trực tiếp vào Cursor, VS Code & Claude Desktop",
+    )
+    mcp_parser.add_argument("--transport", default="stdio", choices=["stdio", "sse"], help="Giao vận MCP (stdio hoặc sse)")
+    mcp_parser.add_argument("--host", default="127.0.0.1", help="Host cho chế độ SSE (mặc định: 127.0.0.1)")
+    mcp_parser.add_argument("--port", type=int, default=8090, help="Cổng cho chế độ SSE (mặc định: 8090)")
+    mcp_parser.add_argument("--vaidb", default=None, help="Đường dẫn tệp kho tri thức `.vaidb` gắn cho MCP tools")
+    mcp_parser.add_argument("--plugin-dir", default=None, help="Thư mục V-Plugin 2.0 tự động nạp thêm vào MCP Server")
+    mcp_parser.add_argument(
+        "--print-config",
+        default=None,
+        choices=["cursor", "claude", "vscode"],
+        help="In cấu hình JSON mẫu để dán trực tiếp vào Cursor / Claude Desktop / VS Code rồi thoát",
+    )
+
+    conn_parser = subparsers.add_parser(
+        "connector",
+        help="Khởi động Webhook Server kết nối Zalo OA & Telegram Bot với Trợ lý Pháp lý / CSKH",
+    )
+    conn_parser.add_argument("channel", choices=["zalo", "telegram", "both"], help="Kênh kết nối cần chạy")
+    conn_parser.add_argument("--solution", default="phap-ly", choices=["phap-ly", "cskh"], help="Bộ xử lý AI gắn vào kênh")
+    conn_parser.add_argument("--host", default="0.0.0.0", help="Host lắng nghe Webhook")
+    conn_parser.add_argument("--port", type=int, default=8095, help="Cổng lắng nghe Webhook (mặc định: 8095)")
+    conn_parser.add_argument("--vaidb", default=None, help="Đường dẫn tệp `.vaidb` (khi dùng giải pháp pháp lý)")
+    conn_parser.add_argument("--workspace-dir", default=None, help="Thư mục SQLite Workspace để lưu bền vững lịch sử chat & gom DPO")
+    conn_parser.add_argument("--dry-run", action="store_true", help="Chỉ in cấu hình endpoint và trạng thái mà không mở socket chặn")
+
+    dpo_parser = subparsers.add_parser(
+        "export-dpo",
+        help="Xuất phản hồi Thumbs Up/Down từ Studio Workspace sang tập dữ liệu DPO JSONL đã ẩn PII",
+    )
+    dpo_parser.add_argument("--workspace-dir", required=True, help="Thư mục dữ liệu Workspace SQLite")
+    dpo_parser.add_argument("--workspace", default=None, help="Lọc theo mã Workspace (tùy chọn)")
+    dpo_parser.add_argument("--output", default="studio_dpo_feedback.jsonl", help="Đường dẫn tệp DPO JSONL xuất ra")
+
+    eg_parser = subparsers.add_parser(
+        "eval-gate",
+        help="Chạy Cổng Kiểm Định hồi quy tự động (Citation Accuracy, Hiệu lực luật, Chống ảo giác & An toàn)",
+    )
+    eg_parser.add_argument("--limit", type=int, default=8, help="Số câu hỏi pháp lý chuẩn cần chấm (mặc định: 8)")
+    eg_parser.add_argument("--min-score", type=float, default=0.55, help="Ngưỡng điểm tổng hợp tối thiểu để đạt chuẩn")
+    eg_parser.add_argument("--json", action="store_true", help="Xuất kết quả kiểm định dưới dạng JSON thuần")
+
+    sm_parser = subparsers.add_parser(
+        "status-map",
+        help="Hiển thị bản đồ minh bạch 3 tầng Core Production vs Optional Extensions vs Experimental/Simulated",
+    )
+    sm_parser.add_argument("--json", action="store_true", help="Xuất bản đồ trạng thái dưới dạng JSON")
 
     return parser
 
@@ -334,7 +538,9 @@ def _tai_mo_hinh_an_toan(duong_dan_hoac_ten: str) -> Any:
     if p.is_dir():
         from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh
 
-        return BoTinhChinhMoHinh.tai(str(p))
+        tuner = BoTinhChinhMoHinh(che_do_offline=True)
+        tuner.tai(str(p))
+        return tuner
 
     from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh
 
@@ -343,28 +549,34 @@ def _tai_mo_hinh_an_toan(duong_dan_hoac_ten: str) -> Any:
 
 def cmd_info():
     """Hiển thị thông tin framework."""
+    from vietnamese_ai import __all__ as public_exports
     from vietnamese_ai import __version__
 
     print(f"""
-╔══════════════════════════════════════════╗
-║       Vietnamese AI Framework            ║
-║       Version: {__version__:<24s}║
-╚══════════════════════════════════════════╝
+╔════════════════════════════════════════════╗
+║       Vietnamese AI Framework              ║
+║       Version: {__version__:<26s}║
+╚════════════════════════════════════════════╝
 
-Kiến trúc: Micro-Core Siêu Nhẹ (< 5ms Lazy Import) + Tường lửa AI Đa tầng
-Modules:
-  - models & fine_tuning: PhanLoai, HoiQuy, GPTModel, BoTinhChinhMoHinh, BoTangTocHuanLuyen
-  - rag & agents:         RAGPipeline, TacTu, MCPServer, HethongNhoMemGPT
-  - security & serving:   TuongLuaBaoVeFramework, ContinuousBatcher, ServerDonGian
+Kiến trúc: Micro-Core Siêu Nhẹ (Lazy Import PEP 562, {len(public_exports)} biểu tượng) + Tường lửa AI Đa tầng
+Phân hệ chính:
+  - RAG & Pháp lý VN:     RAGPipeline (.vaidb + onnx_viet), BoTheoDoiHieuLucPhapLy, DoThiThamChieuPhapLy, BoSoSanhRaSoatHopDong
+  - Edge & GPU Flywheel:  QuanLyMoHinhEdge, DongCoSuyLuanEdge, BoDieuPhoiTinhChinhXa (Modal/SSH/Local), CongKiemDinhMoHinh
+  - Workbench & Kênh:     StudioDashboard, QuanLyPhienChatWorkspace (DPO), MayChuMCPThucTe, KetNoiZaloOA, KetNoiTelegram
 
-Lệnh:
-  vai doctor                        Chẩn đoán hệ thống, phần cứng & gói phụ thuộc
-  vai install <nhom>                Cài gói mở rộng (ml, viz, dl, fast, rag, llm, api, full)
-  vai train --data FILE --model M   Huấn luyện & ký số HMAC-SHA256
-  vai predict --model M --input I   Dự đoán an toàn (RestrictedUnpickler)
-  vai chat --model vgpt2            Trò chuyện trực tiếp kèm Tường lửa AI
-  vai benchmark                     Đo tốc độ Sequence Packing & KV-Cache
-  vai serve --model M --port P      Khởi động OpenAI-compatible API server
+Lệnh tiêu biểu:
+  vai demo [all|legal-rag|edge-chat]       Trình diễn 1-Click trọn vẹn trong 5 phút
+  vai doctor / vai status-map              Chẩn đoán phần cứng & bản đồ minh bạch 3 tầng
+  vai pull qwen2.5-3b-q4 && vai run ...    Tải & chạy LLM GGUF tiếng Việt trên CPU (--rag .vaidb --admin)
+  vai rag --db kb.vaidb --docs ./luat --semantic-onnx --admin --query "..."
+  vai legal-graph 45/2013/QH13 --mermaid   Truy vấn Đồ thị Tham chiếu Pháp lý Việt Nam
+  vai contract-review hd.docx --template mau.docx --output-docx redline.docx
+  vai studio --vaidb kb.vaidb --workspace-dir ./ws --port 8080
+  vai mcp-server --transport stdio|sse     Cắm trực tiếp vào Cursor, VS Code & Claude Desktop
+  vai connector both --solution phap-ly --workspace-dir ./ws
+  vai export-dpo --workspace-dir ./ws      Xuất phản hồi người dùng sang DPO JSONL đã ẩn PII
+  vai train-cloud --from-workspace ./ws --provider modal --eval-4-axis
+  vai eval-gate / vai release-check        Kiểm định hồi quy 4 trục & cổng phát hành PyPI
 """)
 
 
@@ -373,9 +585,15 @@ def cmd_doctor():
     from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
 
     bc = QuanLyPhuThuoc.chan_doan_he_thong()
+    cpu_info = bc.get("kien_truc_cpu", {})
+    simd_str = ", ".join(cpu_info.get("tap_lenh_simd", [])) or "chuẩn cơ bản"
     print(f"=== CHẨN ĐOÁN HỆ THỐNG VIETNAMESE AI v{bc['phien_ban_framework']} ===")
     print(f"  Python:            {bc['python']} ({bc['he_dieu_hanh']})")
-    print(f"  CPU / GPU:         {bc['so_nhan_cpu']} nhân CPU | CUDA GPU: {bc['ten_gpu'] or 'Không (chạy tối ưu CPU/NumPy)'}")
+    print(f"  CPU / GPU:         {bc['so_nhan_cpu']} nhân CPU ({cpu_info.get('kien_truc', 'unknown')}) | CUDA GPU: {bc['ten_gpu'] or 'Không (chạy tối ưu CPU/NumPy)'}")
+    print(f"  Tập lệnh SIMD:     {simd_str}")
+    print(f"  Rust Core (abi3):  {'SẴN SÀNG (tăng tốc native)' if bc.get('co_rust_native') else 'Fallback Python/NumPy'}")
+    print(f"  Trình cài nhanh:   {'uv + pip' if bc.get('co_uv') else 'pip'} | VAI_AUTO_INSTALL: {'BẬT' if bc.get('tu_dong_cai_bat') else 'TẮT (Opt-in)'}")
+    print(f"  Cache PEP 668:     {bc.get('thu_muc_cache_runtime', '')}")
     print(f"  Tốc độ nạp Core:   {bc['thoi_gian_nap_core_ms']} ms")
     print("  Bảo mật mặc định:  Tường lửa AI Đa tầng + Ký số HMAC-SHA256 [BẬT]")
     print("\nTrạng thái các nhóm gói mở rộng:")
@@ -398,6 +616,35 @@ def cmd_install(args):
     else:
         print(f"Cài đặt nhóm '{kq['nhom']}' thất bại:\n{kq.get('dau_ra', '')}")
         sys.exit(1)
+    return kq
+
+
+def cmd_setup(args):
+    """Thiết lập môi trường thông minh 3 tầng (`vai setup --profile <...> [--apply]`)."""
+    from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+
+    chay_that = bool(getattr(args, "apply", False))
+    bien_dich_rust = not bool(getattr(args, "no_rust", False))
+    profile = str(getattr(args, "profile", "core"))
+    kq = QuanLyPhuThuoc.thiet_lap_tu_dong(
+        profile=profile,
+        chay_that=chay_that,
+        bien_dich_rust=bien_dich_rust,
+    )
+    hw = kq["phan_cung"]
+    print(f"=== THIẾT LẬP THÔNG MINH VIETNAMESE AI (Hồ sơ: {kq['ho_so']}) ===")
+    print(
+        f"  Phần cứng:  {hw['he_dieu_hanh']} ({hw['kien_truc']}, {hw['so_nhan_cpu']} CPU) | "
+        f"CUDA: {'Có' if hw['co_cuda_gpu'] else 'Không'} | Rust Core: {'Sẵn sàng' if hw['co_rust_native'] else 'Fallback Python'}"
+    )
+    for item in kq["cac_nhom_goi"]:
+        print(
+            f"  Nhóm [{item['nhom']}] ({item['trinh_cai']}): {', '.join(item['danh_sach_goi'])}"
+            f"{' [cache runtime]' if item.get('su_dung_cache_runtime') else ''}"
+        )
+    print(f"  Tầng thấp:  {kq['tang_thap_rust'].get('trang_thai')} - {kq['tang_thap_rust'].get('thong_bao', '')}")
+    if not chay_that:
+        print(f"  [Dry-Run] Chạy lại với cờ --apply để thực thi cài đặt: vai setup --profile {profile} --apply")
     return kq
 
 
@@ -456,8 +703,7 @@ def cmd_predict(args):
 
 
 def cmd_serve(args):
-    """Khởi động API server từ CLI."""
-    from vietnamese_ai.api.server import ServerDonGian
+    """Khởi động API server từ CLI (hỗ trợ cả `simple` zero-dependency và `fastapi` SSE/Tools/Metrics)."""
     from vietnamese_ai.utils.logger import Logger
 
     logger = Logger("CLI-Serve")
@@ -466,8 +712,19 @@ def cmd_serve(args):
     mo_hinh = _tai_mo_hinh_an_toan(args.model)
     logger.info(f"Loại mô hình: {type(mo_hinh).__name__}")
 
+    backend = getattr(args, "backend", "simple")
+    if backend == "fastapi":
+        from vietnamese_ai.api.fastapi_server import FastAPIServer
+
+        server_fa = FastAPIServer(bo_xu_ly=mo_hinh, ten="VAI-FastAPI-Server")
+        server_fa.chay(host=args.host, port=args.port)
+        return server_fa
+
+    from vietnamese_ai.api.server import ServerDonGian
+
     server = ServerDonGian(mo_hinh=mo_hinh, ten="VAI-Server", bat_tuong_lua=True)
     server.chay(host=args.host, port=args.port)
+    return server
 
 
 def cmd_evaluate(args):
@@ -532,26 +789,139 @@ def cmd_finetune(args):
     print(f"Đã fine-tune thành công ({args.epochs} epochs, loss_min={kq.get('train_loss_min', 0.0):.4f}) -> {args.output}")
 
 
-def cmd_rag(args):
-    """Truy vấn RAG từ CLI."""
-    from vietnamese_ai.rag.rag_pipeline import RAGPipeline
+def cmd_train_cloud(args):
+    """Tinh chỉnh GPU từ xa đa nhà cung cấp (`vai train-cloud`), hỗ trợ lấy trực tiếp tập DPO từ `--from-workspace`."""
+    from vietnamese_ai.fine_tuning.remote_gpu import (
+        BoDieuPhoiTinhChinhXa,
+        CauHinhTinhChinhXa,
+        NhaCungCapSSH,
+    )
 
-    doc_path = Path(args.docs)
-    if not doc_path.exists():
-        print(f"Lỗi: Không tìm thấy tài liệu '{args.docs}'")
+    data_source = getattr(args, "data", None)
+    from_ws = getattr(args, "from_workspace", None)
+    if not data_source and not from_ws:
+        print("Lỗi: Cần truyền `--data <file.jsonl>` hoặc `--from-workspace <thu_muc_workspace>`.")
         sys.exit(1)
 
-    che_do_hc = getattr(args, "admin", False)
-    rag = RAGPipeline(che_do_hanh_chinh=che_do_hc)
-    rag.them_tai_lieu(doc_path.name, doc_path.read_text(encoding="utf-8"), che_do_hanh_chinh=che_do_hc)
-    kq = rag.hoi(args.query)
-    print(f"Trả lời: {kq.get('tra_loi', '')}")
-    if che_do_hc and kq.get("trich_dan_phap_ly"):
-        td = kq["trich_dan_phap_ly"]
-        if td.get("dieu_khoan"):
-            print(f"Điều khoản căn cứ: {', '.join(td['dieu_khoan'])}")
-        if td.get("so_hieu_van_ban"):
-            print(f"Số hiệu văn bản: {', '.join(td['so_hieu_van_ban'])}")
+    dieu_phoi = BoDieuPhoiTinhChinhXa(thu_muc_lam_viec=args.output)
+    task_name = str(getattr(args, "task", "sft"))
+    if from_ws:
+        kq_dpo = dieu_phoi.chuan_bi_du_lieu_tu_workspace(
+            thu_muc_workspace=from_ws,
+            ma_workspace=getattr(args, "workspace", None),
+            an_pii=True,
+        )
+        data_source = kq_dpo["duong_dan_jsonl"]
+        if task_name == "sft":
+            task_name = "dpo"
+        print(f"[WORKSPACE -> DPO] Đã xuất {kq_dpo['so_mau_dpo']} mẫu DPO sạch tại: {data_source}")
+
+    if args.provider == "ssh" and getattr(args, "ssh_host", ""):
+        dieu_phoi.dang_ky_nha_cung_cap(
+            "ssh",
+            NhaCungCapSSH(
+                host=args.ssh_host,
+                user=getattr(args, "ssh_user", None),
+                port=int(getattr(args, "ssh_port", 22)),
+                khoa_ssh=getattr(args, "ssh_key", None),
+            ),
+        )
+
+    cfg = CauHinhTinhChinhXa(
+        mo_hinh=args.model,
+        nhiem_vu=task_name,
+        loai_gpu=args.gpu,
+        so_vong=args.epochs,
+        rank_lora=args.rank,
+        quantization=args.quantization,
+        ngan_sach_toi_da_usd=float(getattr(args, "max_budget_usd", 2.0)),
+        cho_phep_gui_cloud=bool(getattr(args, "allow_cloud", False)),
+    )
+    kq = dieu_phoi.chay_vong_lap_flywheel(
+        nguon_du_lieu=data_source,
+        ten_nha_cung_cap=args.provider,
+        cau_hinh=cfg,
+        chay_that=bool(getattr(args, "apply", False)),
+        su_dung_eval_gate_4_truc=bool(getattr(args, "eval_4_axis", False)),
+    )
+    print(f"=== REMOTE GPU FLYWHEEL [{kq.nha_cung_cap.upper()}] ({kq.trang_thai}) ===")
+    print(f"  Mã tác vụ:          {kq.ma_tac_vu}")
+    if kq.bao_cao_an_ninh_du_lieu:
+        an = kq.bao_cao_an_ninh_du_lieu
+        print(
+            f"  Làm sạch dữ liệu:   {an.get('so_mau_sau_lam_sach')}/{an.get('tong_mau_ban_dau')} mẫu hợp lệ "
+            f"(đã ẩn PII: {an.get('so_mau_da_an_pii', 0)})"
+        )
+    if kq.bao_cao_chi_phi:
+        cp = kq.bao_cao_chi_phi
+        print(
+            f"  Chi phí ước tính:   {cp.get('chi_phi_uoc_tinh_usd', 0.0)} USD "
+            f"(~{int(cp.get('chi_phi_uoc_tinh_vnd', 0))} VNĐ | giới hạn {cp.get('ngan_sach_toi_da_usd')} USD)"
+        )
+    if kq.duong_dan_gguf:
+        print(f"  GGUF tải về:        {kq.duong_dan_gguf}")
+    if kq.duong_dan_script:
+        print(f"  Script tác vụ:      {kq.duong_dan_script}")
+    if kq.chi_tiet_loi:
+        print(f"  Cảnh báo / Lỗi:     {kq.chi_tiet_loi}")
+    return kq.to_dict()
+
+
+def cmd_rag(args):
+    """Truy vấn RAG đa định dạng từ CLI (TXT/MD/DOCX/PDF/Ảnh OCR/JSON/JSONL, thư mục & kho bền vững `.vaidb`)."""
+    from vietnamese_ai.rag.rag_pipeline import RAGPipeline
+
+    docs_arg = getattr(args, "docs", None)
+    db_arg = getattr(args, "db", None)
+    if not docs_arg and not db_arg:
+        print("Lỗi: Cần truyền ít nhất `--docs <tệp/thư mục>` hoặc `--db <file.vaidb>`.")
+        sys.exit(1)
+
+    che_do_hc = bool(getattr(args, "admin", False))
+    dung_onnx = bool(getattr(args, "semantic_onnx", False))
+    rag = RAGPipeline(
+        backend="vaidb" if db_arg else "memory",
+        duong_dan_vaidb=db_arg,
+        che_do_nhung="onnx_viet" if dung_onnx else "auto",
+        che_do_rerank="onnx_viet" if dung_onnx else "mmr",
+        che_do_hanh_chinh=che_do_hc,
+    )
+
+    try:
+        if docs_arg:
+            doc_path = Path(docs_arg)
+            if not doc_path.exists():
+                print(f"Lỗi: Không tìm thấy tài liệu '{docs_arg}'")
+                sys.exit(1)
+            if doc_path.is_dir():
+                if db_arg:
+                    sync_bc = rag.dong_bo_thu_muc(doc_path, che_do_hanh_chinh=che_do_hc)
+                    print(
+                        f"[VAIDB] Đồng bộ thư mục: cập nhật {sync_bc['so_tep_cap_nhat']}, "
+                        f"bỏ qua không đổi {sync_bc['so_tep_bo_qua_khong_doi']}, xóa {sync_bc['so_tep_da_xoa']}."
+                    )
+                else:
+                    rag.them_thu_muc(doc_path, che_do_hanh_chinh=che_do_hc)
+            else:
+                rag.them_tep(doc_path, ma=doc_path.name, che_do_hanh_chinh=che_do_hc)
+
+        kq = rag.hoi(args.query)
+        print(f"Trả lời: {kq.get('tra_loi', '')}")
+        if che_do_hc and kq.get("trich_dan_phap_ly"):
+            td = kq["trich_dan_phap_ly"]
+            if td.get("dieu_khoan"):
+                print(f"Điều khoản căn cứ: {', '.join(td['dieu_khoan'])}")
+            if td.get("so_hieu_van_ban"):
+                print(f"Số hiệu văn bản: {', '.join(td['so_hieu_van_ban'])}")
+            for cb in td.get("canh_bao_hieu_luc") or []:
+                print(f"Cảnh báo hiệu lực: {cb}")
+            dt = td.get("do_thi_tham_chieu") or {}
+            hd_list = [x["so_hieu"] for x in dt.get("van_ban_huong_dan_con_hieu_luc") or []]
+            if hd_list:
+                print(f"Văn bản hướng dẫn thi hành còn hiệu lực: {', '.join(hd_list)}")
+        return kq
+    finally:
+        rag.dong()
 
 
 def cmd_chat(args):
@@ -741,7 +1111,13 @@ def cmd_studio(args):
     """Khởi động Vietnamese AI Web Studio Dashboard."""
     from vietnamese_ai.ui.studio_dashboard import StudioDashboard
 
-    app = StudioDashboard(host=args.host, port=args.port)
+    app = StudioDashboard(
+        host=args.host,
+        port=args.port,
+        duong_dan_vaidb=getattr(args, "vaidb", None),
+        thu_muc_workspace=getattr(args, "workspace_dir", None),
+        bat_xac_thuc=bool(getattr(args, "auth", False)),
+    )
     app.chay()
 
 
@@ -751,14 +1127,24 @@ def cmd_solution(args):
     if name == "phap_ly":
         from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
 
-        tro_ly = TroLyPhapLy()
-        q = args.query or args.input or "Thời giờ làm việc bình thường là bao nhiêu?"
-        print(f"=== TRỢ LÝ PHÁP LÝ & DOANH NGHIỆP ===\nCâu hỏi: {q}\n")
-        kq = tro_ly.tra_cuu(q)
-        print(f"Trả lời:\n{kq['tra_loi']}\n")
-        if kq["can_cu_phap_ly"]:
-            print(f"Căn cứ pháp lý: {', '.join(kq['can_cu_phap_ly'])}")
-        return kq
+        tro_ly = TroLyPhapLy(
+            nap_kho_mo=not bool(getattr(args, "no_open_corpus", False)),
+            duong_dan_vaidb=getattr(args, "vaidb", None),
+            dung_onnx_semantic=True,
+        )
+        try:
+            q = args.query or args.input or "Thời giờ làm việc bình thường là bao nhiêu?"
+            print(f"=== TRỢ LÝ PHÁP LÝ & DOANH NGHIỆP ===\nCâu hỏi: {q}\n")
+            kq = tro_ly.tra_cuu(q)
+            print(f"Trả lời:\n{kq['tra_loi']}\n")
+            if kq["can_cu_phap_ly"]:
+                print(f"Căn cứ pháp lý: {', '.join(kq['can_cu_phap_ly'])}")
+            td_pl = kq.get("trich_dan_phap_ly") or {}
+            for cb in td_pl.get("canh_bao_hieu_luc") or []:
+                print(f"Cảnh báo hiệu lực: {cb}")
+            return kq
+        finally:
+            tro_ly.rag.dong()
 
     if name == "trich_xuat":
         from vietnamese_ai.solutions.trich_xuat import TrichXuatThongMinh
@@ -845,8 +1231,64 @@ def cmd_agent(args):
     return None
 
 
+def cmd_pull(args):
+    """Xử lý lệnh `vai pull` (Quản lý tải mô hình GGUF tiếng Việt tự chọn lượng tử theo RAM máy)."""
+    from vietnamese_ai.edge.model_hub import QuanLyMoHinhEdge, do_ram_he_thong_gb
+
+    hub = QuanLyMoHinhEdge(thu_muc_luu=getattr(args, "dir", None))
+    ram_info = do_ram_he_thong_gb()
+
+    if getattr(args, "remove", None):
+        da_xoa = hub.xoa_mo_hinh(args.remove)
+        if da_xoa:
+            print(f"Đã xóa mô hình '{args.remove}' khỏi bộ nhớ đệm.")
+        else:
+            print(f"Không tìm thấy mô hình '{args.remove}' trong bộ nhớ đệm.")
+        return {"da_xoa": da_xoa, "mo_hinh": args.remove}
+
+    if getattr(args, "installed", False):
+        ds_cai = hub.danh_sach_da_tai()
+        print(f"=== MÔ HÌNH GGUF ĐÃ TẢI ({hub.thu_muc_luu}) ===")
+        if not ds_cai:
+            print("  (Chưa có mô hình nào. Dùng: vai pull qwen2.5-3b-q4)")
+        for item in ds_cai:
+            mb = round(item.get("kich_thuoc_bytes", 0) / (1024 * 1024), 2)
+            print(f"  * {item['khoa_mo_hinh']:<22s} {mb:>8.2f} MB | HMAC: {'HỢP LỆ' if item.get('hmac_hop_le') else 'CẢNH BÁO'} | {item['duong_dan']}")
+        return ds_cai
+
+    if getattr(args, "list", False) or not getattr(args, "model", None):
+        goi_y = hub.goi_y_mo_hinh_theo_may()
+        print(
+            f"=== DANH MỤC MÔ HÌNH LLM TIẾNG VIỆT GGUF "
+            f"(RAM khả dụng: {ram_info['ram_kha_dung_gb']} / {ram_info['tong_ram_gb']} GB | {ram_info['so_nhan_cpu']} CPU) ==="
+        )
+        for m in goi_y:
+            trang_thai = "[ĐÃ TẢI]" if m["da_tai_cuc_bo"] else ("[PHÙ HỢP]" if m["phu_hop_may"] else "[NẶNG RAM]")
+            print(
+                f"  {trang_thai:<10s} {m['ma_mo_hinh']:<15s} | Đề xuất: {m['muc_luong_tu_de_xuat']:<6s} "
+                f"(~{m['dung_luong_gb']:>4.2f} GB) - {m['ten_hien_thi']}"
+            )
+        return goi_y
+
+    kq = hub.tai_mo_hinh(
+        ten_hoac_nguon=args.model,
+        muc_luong_tu=getattr(args, "quant", "auto"),
+        chay_that=not getattr(args, "dry_run", False),
+        tai_lai=getattr(args, "force", False),
+        sha256_mong_doi=getattr(args, "sha256", None),
+        hf_token=getattr(args, "hf_token", None),
+    )
+    print(f"=== VAI PULL [{kq['khoa_mo_hinh']}] ({kq['trang_thai']}) ===")
+    print(f"  Lý do chọn:   {kq.get('ly_do', '')}")
+    print(f"  Nguồn URL:    {kq.get('url', '')}")
+    print(f"  Lưu cục bộ:   {kq.get('duong_dan', '')}")
+    if kq.get("sha256"):
+        print(f"  SHA-256:      {kq['sha256']}")
+    return kq
+
+
 def cmd_run(args):
-    """Xử lý lệnh `vai run` (Động cơ suy luận Edge Native Zero-GPU)."""
+    """Xử lý lệnh `vai run` (Động cơ suy luận Edge Native Zero-GPU kèm Tường lửa & RAG pháp lý)."""
     from vietnamese_ai.edge.native_inference import DongCoSuyLuanEdge
 
     engine = DongCoSuyLuanEdge(
@@ -854,11 +1296,18 @@ def cmd_run(args):
         so_luong_thread=args.threads,
         nhiet_do=args.temp,
         do_dai_toi_da=args.max_tokens,
+        uu_tien_native_c=bool(getattr(args, "native", False)),
     )
+
+    rag_src = getattr(args, "rag", None)
+    che_do_hc = bool(getattr(args, "admin", False))
+    if rag_src:
+        kq_nap = engine.nap_tai_lieu_rag(rag_src, che_do_hanh_chinh=che_do_hc)
+        print(f"[RAG] Đã nạp {kq_nap['so_chunks']} phân đoạn từ '{rag_src}' (hành chính/pháp lý={che_do_hc}).")
 
     if args.chat:
         print("=== VIETNAMESE AI ZERO-GPU CHAT (CPU STREAMING) ===")
-        print(f"Mô hình: {args.model} | CPU Threads: {args.threads} | Gõ 'exit' hoặc 'quit' để thoát.\n")
+        print(f"Mô hình: {args.model} | Chế độ: {engine._che_do_suy_luan} | CPU Threads: {args.threads} | Gõ 'exit' để thoát.\n")
         while True:
             try:
                 user_msg = input("Bạn: ").strip()
@@ -867,10 +1316,14 @@ def cmd_run(args):
                 if user_msg.lower() in ("exit", "quit", "thoat"):
                     print("Tạm biệt!")
                     break
-                print("\nAI: ", end="", flush=True)
-                for tok in engine.sinh_stream(user_msg):
-                    print(tok, end="", flush=True)
-                print("\n")
+                if rag_src:
+                    kq_r = engine.hoi_kem_rag(user_msg, do_dai_toi_da=args.max_tokens, nhiet_do=args.temp)
+                    print(f"\nAI: {kq_r['tra_loi']}\n")
+                else:
+                    print("\nAI: ", end="", flush=True)
+                    for tok in engine.sinh_stream(user_msg):
+                        print(tok, end="", flush=True)
+                    print("\n")
             except (KeyboardInterrupt, EOFError):
                 print("\nKết thúc phiên hội thoại.")
                 break
@@ -878,8 +1331,26 @@ def cmd_run(args):
 
     prompt = args.prompt or "Xin chào! Bạn có thể giới thiệu về khả năng của mình không?"
     print("=== ĐỘNG CƠ SUY LUẬN EDGE NATIVE (ZERO-GPU) ===")
-    print(f"Mô hình: {args.model} | Threads: {args.threads}\n")
+    print(f"Mô hình: {args.model} | Chế độ: {engine._che_do_suy_luan} | Threads: {args.threads}\n")
     print(f"Prompt: {prompt}\n")
+
+    if rag_src:
+        kq_rag = engine.hoi_kem_rag(prompt, do_dai_toi_da=args.max_tokens, nhiet_do=args.temp)
+        print("AI:\n" + kq_rag["tra_loi"])
+        td = kq_rag.get("trich_dan_phap_ly")
+        if td:
+            if td.get("so_hieu_van_ban"):
+                print(f"\nCăn cứ pháp lý: {', '.join(td['so_hieu_van_ban'])}")
+            for cb in td.get("canh_bao_hieu_luc") or []:
+                print(f"Cảnh báo hiệu lực: {cb}")
+            dt = td.get("do_thi_tham_chieu") or {}
+            hd_list = [x["so_hieu"] for x in dt.get("van_ban_huong_dan_con_hieu_luc") or []]
+            if hd_list:
+                print(f"Văn bản hướng dẫn thi hành còn hiệu lực: {', '.join(hd_list)}")
+            tt_list = [x["so_hieu"] for x in dt.get("van_ban_thay_the_hien_hanh") or []]
+            if tt_list:
+                print(f"Văn bản thay thế hiện hành: {', '.join(tt_list)}")
+        return kq_rag
 
     if args.bench:
         kq = engine.sinh_kem_thong_ke(prompt, do_dai_toi_da=args.max_tokens, nhiet_do=args.temp)
@@ -958,11 +1429,24 @@ def cmd_voice(args):
         from vietnamese_ai.rag.rag_pipeline import RAGPipeline
 
         print(f"📚 Nạp cơ sở tri thức RAG từ: {args.rag}")
-        rag = RAGPipeline()
-        rag.nap_tai_lieu(args.rag)
+        rag_p = Path(args.rag)
+        if rag_p.suffix.lower() == ".vaidb":
+            rag = RAGPipeline(
+                backend="vaidb",
+                duong_dan_vaidb=str(rag_p),
+                che_do_nhung="onnx_viet",
+                che_do_rerank="onnx_viet",
+                che_do_hanh_chinh=True,
+            )
+        else:
+            rag = RAGPipeline(che_do_nhung="onnx_viet", che_do_rerank="onnx_viet")
+            if rag_p.is_dir():
+                rag.them_thu_muc(rag_p)
+            else:
+                rag.them_tep(rag_p)
 
         def _voice_rag_reply(q: str) -> str:
-            res = rag.truy_van(q)
+            res = rag.hoi(q)
             return res.get("tra_loi", res.get("cau_tra_loi", "Tôi đã tra cứu nhưng không tìm thấy thông tin phù hợp."))
 
         ham_tra_loi = _voice_rag_reply
@@ -1023,12 +1507,26 @@ def cmd_swarm(args):
     # 1. Chế độ Máy Chủ Lắng Nghe (Host / Master Node)
     if getattr(args, "host", False):
         from vietnamese_ai.edge.swarm_auth import phat_hien_ip_tailscale, tao_ma_pin_ngau_nhien
-        from vietnamese_ai.edge.swarm_inference import NutSwarmCPU
+        from vietnamese_ai.edge.swarm_inference import NutSwarmCPU, tao_ssl_context_server
 
         ip_ts = phat_hien_ip_tailscale() if getattr(args, "tailscale", False) else None
         host = "0.0.0.0"
         port = getattr(args, "port", 9999)
         pin = getattr(args, "pin", None) or tao_ma_pin_ngau_nhien(6)
+        tls_cert = getattr(args, "tls_cert", None)
+        tls_key = getattr(args, "tls_key", None)
+        tls_ca = getattr(args, "tls_ca", None)
+        use_mtls = bool(getattr(args, "mtls", False))
+        ssl_ctx = (
+            tao_ssl_context_server(
+                certfile=tls_cert,
+                keyfile=tls_key,
+                cafile=tls_ca,
+                yeu_cau_mtls=use_mtls,
+            )
+            if (tls_cert and tls_key)
+            else None
+        )
 
         print("======================================================================")
         print("🌐 MÁY CHỦ CỤM SWARM CPU (MASTER NODE) ĐANG KHỞI ĐỘNG...")
@@ -1038,13 +1536,15 @@ def cmd_swarm(args):
         else:
             print(f"📍 Lắng nghe trên mọi mạng: 0.0.0.0:{port}")
         print(f"🔑 Mã PIN bảo mật Zero-Trust: {pin}")
+        if ssl_ctx is not None:
+            print(f"🔒 Mã hóa kênh truyền: {'mTLS 2 chiều (TLS 1.2+)' if use_mtls else 'TLS 1.2+'}")
         print("\n⚡ Đang chờ các máy worker gia nhập cụm...")
         join_ip = ip_ts if ip_ts else "127.0.0.1"
         print("👉 Trên máy worker, chỉ cần gõ:")
         print(f"   vietnamese-ai swarm --join {join_ip}:{port} --pin {pin}\n")
 
-        server = NutSwarmCPU(node_id="master_server", dai_layer=(0, 4), ma_pin=pin)
-        server.khoi_dong_server_lan(host=host, port=port, ma_pin=pin)
+        server = NutSwarmCPU(node_id="master_server", dai_layer=(0, 4), ma_pin=pin, ssl_context=ssl_ctx)
+        server.khoi_dong_server_lan(host=host, port=port, ma_pin=pin, ssl_context=ssl_ctx)
         try:
             while True:
                 time.sleep(1.0)
@@ -1056,11 +1556,25 @@ def cmd_swarm(args):
     # 2. Chế độ Máy Con Gia Nhập (Join / Worker Node)
     endpoint = getattr(args, "join", None)
     if endpoint:
-        from vietnamese_ai.edge.swarm_inference import NutSwarmCPU
+        from vietnamese_ai.edge.swarm_inference import NutSwarmCPU, tao_ssl_context_client
 
         pin = getattr(args, "pin", None)
         if not pin:
             print("⚠️ Cảnh báo: Bạn chưa chỉ định --pin. Bắt tay xác thực có thể bị máy chủ từ chối.")
+        tls_cert = getattr(args, "tls_cert", None)
+        tls_key = getattr(args, "tls_key", None)
+        tls_ca = getattr(args, "tls_ca", None)
+        use_mtls = bool(getattr(args, "mtls", False))
+        ssl_ctx_client = (
+            tao_ssl_context_client(
+                cafile=tls_ca,
+                certfile=tls_cert,
+                keyfile=tls_key,
+                kiem_tra_hostname=False,
+            )
+            if (tls_ca or (tls_cert and tls_key) or use_mtls)
+            else None
+        )
         print(f"🔍 Đang kiểm tra kết nối tới cụm Swarm tại {endpoint}...")
         worker = NutSwarmCPU(
             node_id="worker_cli",
@@ -1069,6 +1583,7 @@ def cmd_swarm(args):
             che_do="mang_vat_ly_lan",
             ma_pin=pin,
             nen_fp16=getattr(args, "fp16", False),
+            ssl_context=ssl_ctx_client,
         )
         x_dummy = np.ones((1, 128), dtype=np.float32)
         try:
@@ -1341,6 +1856,292 @@ def cmd_plugin(args):
                 return {"thanh_cong": False, "loi": str(e)}
 
 
+def cmd_demo(args: Any) -> Any:
+    """Chạy trình diễn 1-Click thực chiến (`vai demo [all|legal-rag|edge-chat|security|flywheel]`)."""
+    from vietnamese_ai.cli.demo import chay_demo_nhanh
+
+    che_do = str(getattr(args, "mode", "all") or "all")
+    return chay_demo_nhanh(che_do=che_do, in_ra=True)
+
+
+def cmd_release_check(args: Any) -> Any:
+    """Kiểm định toàn diện trước khi phát hành PyPI/TestPyPI (`vai release-check`)."""
+    import json
+
+    from vietnamese_ai.utils.versioning import QuanLyPhatHanhGoi
+
+    bc = QuanLyPhatHanhGoi.kiem_tra_san_sang_phat_hanh()
+    if getattr(args, "json", False):
+        print(json.dumps(bc, ensure_ascii=False, indent=2))
+        return bc
+
+    trang_thai = "SẴN SÀNG PHÁT HÀNH" if bc["san_sang_phat_hanh"] else "CẦN BỔ SUNG TRƯỚC KHI PHÁT HÀNH"
+    print(f"=== KIỂM ĐỊNH PHÁT HÀNH PYPI VIETNAMESE AI v{bc['phien_ban']} [{trang_thai}] ===")
+    print(
+        f"  SemVer & Đồng bộ:     {'ĐẠT' if bc['semver']['hop_le_semver'] and bc['semver']['dong_bo_phien_ban'] else 'CHƯA ĐẠT'} "
+        f"({len(bc['semver']['cac_nguon'])} tệp phiên bản)"
+    )
+    print(
+        f"  Xung đột phụ thuộc:   {'ĐẠT (0 xung đột)' if bc['phu_thuoc']['hop_le'] else 'CÓ XUNG ĐỘT'}"
+    )
+    print(
+        f"  Type Stubs (.pyi):    {'ĐẠT' if not bc['thieu_type_stub'] else 'THIẾU ' + str(len(bc['thieu_type_stub']))} "
+        f"({bc['so_bieu_tuong_cong_khai']} biểu tượng công khai)"
+    )
+    print(f"  Rust Core (abi3):     {'ĐẠT (abi3-py39)' if bc['rust_abi3_san_sang'] else 'CHƯA ĐẠT'}")
+    print(
+        f"  Tệp phát hành chuẩn:  {'ĐẠT' if not bc['thieu_tep_bat_buoc'] else 'THIẾU: ' + ', '.join(bc['thieu_tep_bat_buoc'])}"
+    )
+    print(f"  Lệnh đóng gói gợi ý:  {bc['lenh_dong_goi_goi_y']}")
+    return bc
+
+
+def cmd_legal_graph(args: Any) -> Any:
+    """Truy vấn Đồ thị Tham chiếu Pháp lý Việt Nam (`vai legal-graph <so_hieu>`)."""
+    from vietnamese_ai.rag.legal.citation_graph import DoThiThamChieuPhapLy
+
+    do_thi = DoThiThamChieuPhapLy()
+    kq = do_thi.truy_van_van_ban_lien_quan(
+        args.so_hieu,
+        ngay_tra_cuu=getattr(args, "date", None),
+        chi_lay_con_hieu_luc=bool(getattr(args, "active_only", False)),
+    )
+    hl = kq["hieu_luc_goc"]
+    print(f"=== ĐỒ THỊ THAM CHIẾU PHÁP LÝ: {kq['so_hieu']} ===")
+    print(f"  Tên văn bản:          {hl.get('ten_van_ban', kq['so_hieu'])}")
+    print(f"  Trạng thái hiệu lực:  {hl['trang_thai']} (ngày tra cứu: {hl['ngay_tra_cuu']})")
+    if kq["van_ban_thay_the_hien_hanh"]:
+        ds_tt = ", ".join(x["so_hieu"] for x in kq["van_ban_thay_the_hien_hanh"])
+        print(f"  Thay thế hiện hành:   {ds_tt}")
+    if kq["van_ban_huong_dan"]:
+        print("  Nghị định / Thông tư hướng dẫn:")
+        for item in kq["van_ban_huong_dan"]:
+            print(f"    - {item['so_hieu']} [{item['trang_thai']}]: {item['ten_van_ban']}")
+    if kq["van_ban_sua_doi_bo_sung"]:
+        print("  Văn bản sửa đổi, bổ sung:")
+        for item in kq["van_ban_sua_doi_bo_sung"]:
+            print(f"    - {item['so_hieu']} [{item['trang_thai']}]: {item['ten_van_ban']}")
+    if getattr(args, "mermaid", False):
+        mmd = do_thi.xuat_do_thi_mermaid(so_hieu_trung_tam=args.so_hieu)
+        kq["mermaid"] = mmd
+        print("\n--- SƠ ĐỒ MERMAID ---")
+        print(mmd)
+    return kq
+
+
+def cmd_contract_review(args: Any) -> Any:
+    """Rà soát rủi ro & so sánh hợp đồng (`vai contract-review <partner> [--template ...] [--output-docx ...]`)."""
+    from vietnamese_ai.rag.legal.contract_review import BoSoSanhRaSoatHopDong
+
+    engine = BoSoSanhRaSoatHopDong()
+    kq = engine.so_sanh_va_ra_soat(
+        hop_dong_doi_tac=Path(args.partner),
+        hop_dong_chuan=Path(args.template) if getattr(args, "template", None) else None,
+        ngay_tra_cuu=getattr(args, "date", None),
+    )
+    md = engine.xuat_bao_cao_markdown(kq)
+    print(md)
+    if getattr(args, "output_md", None):
+        out_md = Path(args.output_md)
+        out_md.parent.mkdir(parents=True, exist_ok=True)
+        out_md.write_text(md, encoding="utf-8")
+        print(f"Đã xuất báo cáo Markdown tại: {out_md}")
+    if getattr(args, "output_docx", None):
+        out_docx = engine.xuat_bao_cao_docx(kq, args.output_docx)
+        print(f"Đã xuất báo cáo Word (.docx) tại: {out_docx}")
+    return kq
+
+
+def cmd_mcp_server(args: Any) -> Any:
+    """Khởi chạy máy chủ MCP chuẩn stdio/SSE hoặc in cấu hình IDE (`vai mcp-server`)."""
+    import json
+
+    from vietnamese_ai.agents.mcp_transport import MayChuMCPThucTe
+
+    print_cfg = getattr(args, "print_config", None)
+    vaidb = getattr(args, "vaidb", None)
+    if print_cfg:
+        cfg = MayChuMCPThucTe.xuat_cau_hinh_ide(ten_ide=print_cfg, duong_dan_vaidb=vaidb)
+        print(json.dumps(cfg, ensure_ascii=False, indent=2))
+        return cfg
+
+    quan_ly_plugin = None
+    plugin_dir = getattr(args, "plugin_dir", None)
+    if plugin_dir:
+        from vietnamese_ai.plugin.plugin_manager import QuanLyPlugin
+
+        quan_ly_plugin = QuanLyPlugin()
+        p_dir = Path(plugin_dir)
+        if p_dir.is_dir():
+            for py_f in sorted(p_dir.glob("*.py")):
+                if not py_f.name.startswith("__"):
+                    try:
+                        quan_ly_plugin.nap_plugin(str(py_f))
+                    except Exception:
+                        pass
+
+    server = MayChuMCPThucTe(duong_dan_vaidb=vaidb, quan_ly_plugin=quan_ly_plugin)
+    try:
+        if getattr(args, "transport", "stdio") == "sse":
+            server.chay_sse(host=getattr(args, "host", "127.0.0.1"), port=int(getattr(args, "port", 8090)))
+        else:
+            server.chay_stdio()
+    finally:
+        server.dong()
+    return {"trang_thai": "da_dung"}
+
+
+def cmd_connector(args: Any) -> Any:
+    """Khởi động Webhook Server cho Zalo OA / Telegram Bot (`vai connector <zalo|telegram|both>`)."""
+    import os
+
+    from vietnamese_ai.connectors.telegram_bot import KetNoiTelegram
+    from vietnamese_ai.connectors.webhook_server import MayChuWebhookKenh
+    from vietnamese_ai.connectors.zalo_oa import KetNoiZaloOA
+
+    sol = getattr(args, "solution", "phap-ly")
+    if sol == "cskh":
+        from vietnamese_ai.solutions.cskh import TongDaiCSKH
+
+        handler: Any = TongDaiCSKH()
+    else:
+        from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
+
+        handler = TroLyPhapLy(
+            nap_kho_mo=True,
+            duong_dan_vaidb=getattr(args, "vaidb", None),
+            dung_onnx_semantic=True,
+        )
+
+    ws_dir = getattr(args, "workspace_dir", None)
+    ql_ws = None
+    if ws_dir:
+        from vietnamese_ai.ui.workspace_store import QuanLyPhienChatWorkspace
+
+        ql_ws = QuanLyPhienChatWorkspace(thu_muc_du_lieu=ws_dir, bat_xac_thuc=False)
+
+    channel = getattr(args, "channel", "both")
+    zalo = (
+        KetNoiZaloOA(
+            bo_xu_ly=handler,
+            app_id=os.environ.get("ZALO_APP_ID", ""),
+            oa_secret_key=os.environ.get("ZALO_OA_SECRET", ""),
+            access_token=os.environ.get("ZALO_OA_ACCESS_TOKEN", ""),
+            che_do_gui_that=bool(os.environ.get("ZALO_OA_ACCESS_TOKEN")),
+            quan_ly_workspace=ql_ws,
+        )
+        if channel in ("zalo", "both")
+        else None
+    )
+    telegram = (
+        KetNoiTelegram(
+            bo_xu_ly=handler,
+            bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
+            webhook_secret=os.environ.get("TELEGRAM_WEBHOOK_SECRET", ""),
+            che_do_gui_that=bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
+            quan_ly_workspace=ql_ws,
+        )
+        if channel in ("telegram", "both")
+        else None
+    )
+
+    host = getattr(args, "host", "0.0.0.0")
+    port = int(getattr(args, "port", 8095))
+    endpoints: List[str] = [
+        *(["/webhook/zalo"] if zalo is not None else []),
+        *(["/webhook/telegram"] if telegram is not None else []),
+        "/health",
+    ]
+    info: Dict[str, Any] = {
+        "kenh": channel,
+        "giai_phap": sol,
+        "host": host,
+        "port": port,
+        "endpoints": endpoints,
+        "workspace_dir": ws_dir,
+    }
+    if getattr(args, "dry_run", False):
+        print(f"=== [DRY-RUN] VIETNAMESE AI CONNECTOR ({channel.upper()}) ===")
+        print(f"  Giải pháp gắn kết: {sol} | Endpoints: {', '.join(endpoints)}")
+        if ql_ws is not None:
+            ql_ws.dong()
+        return info
+
+    srv = MayChuWebhookKenh(ket_noi_zalo=zalo, ket_noi_telegram=telegram, host=host, port=port)
+    try:
+        srv.chay()
+    finally:
+        if ql_ws is not None:
+            ql_ws.dong()
+    return info
+
+
+def cmd_export_dpo(args: Any) -> Any:
+    """Xuất phản hồi người dùng từ Workspace sang tập huấn luyện DPO (`vai export-dpo`)."""
+    from vietnamese_ai.ui.workspace_store import QuanLyPhienChatWorkspace
+
+    ql = QuanLyPhienChatWorkspace(thu_muc_du_lieu=args.workspace_dir, bat_xac_thuc=False)
+    try:
+        kq = ql.xuat_tap_du_lieu_dpo(
+            duong_dan_jsonl=args.output,
+            ma_workspace=getattr(args, "workspace", None),
+            an_pii=True,
+        )
+        print(f"Đã xuất {kq['so_mau_dpo']} mẫu DPO sạch (đã ẩn PII) tại: {kq['duong_dan_jsonl']}")
+        return kq
+    finally:
+        ql.dong()
+
+
+def cmd_eval_gate(args: Any) -> Any:
+    """Chạy Cổng Kiểm Định tự động (`vai eval-gate`)."""
+    import json
+
+    from vietnamese_ai.fine_tuning.eval_gate import CongKiemDinhMoHinh
+    from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
+
+    tro_ly = TroLyPhapLy(nap_kho_mo=True, dung_onnx_semantic=True)
+    gate = CongKiemDinhMoHinh()
+    kq = gate.so_sanh_va_quyet_dinh(
+        ung_vien=tro_ly,
+        gioi_han_mau=int(getattr(args, "limit", 8)),
+        nguong_dat=float(getattr(args, "min_score", 0.55)),
+    )
+    out = kq.to_dict()
+    if getattr(args, "json", False):
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return out
+    print(f"=== CỔNG KIỂM ĐỊNH EVAL GATE [{out['quyet_dinh']}] ===")
+    for k, v in out["diem_ung_vien"].items():
+        print(f"  {k:<32s}: {v:.4f}")
+    print(f"  Kết luận: {out['ly_do']}")
+    return out
+
+
+def cmd_status_map(args: Any) -> Any:
+    """Hiển thị bản đồ phân tách 3 tầng Core Production / Optional Extensions / Experimental-Simulated (`vai status-map`)."""
+    import json
+
+    from vietnamese_ai.utils.feature_status import bao_cao_ranh_gioi_he_thong
+
+    bc = bao_cao_ranh_gioi_he_thong()
+    if getattr(args, "json", False):
+        print(json.dumps(bc, ensure_ascii=False, indent=2))
+        return bc
+    tq = bc["tong_quan"]
+    print("=== BẢN ĐỒ MINH BẠCH TRẠNG THÁI HỆ THỐNG VIETNAMESE AI ===")
+    print(f"  1. Core Production (0 phụ thuộc ngoài): {tq['so_phan_he_core_production']} phân hệ")
+    for item in bc["core_production"]:
+        print(f"     [CORE] {item['ten']} ({item['module']})")
+    print(f"  2. Optional Extensions (cài thêm extra): {tq['so_phan_he_optional_extensions']} phân hệ")
+    for item in bc["optional_extensions"]:
+        print(f"     [EXT ] {item['nhom']:<12s} extra=[{item['extra']}] ({item['module']})")
+    print(f"  3. Experimental / Simulated / External:  {tq['so_phan_he_experimental_simulated']} phân hệ")
+    for item in bc["experimental_or_simulated"]:
+        print(f"     [EXP ] {item['nhom']:<12s} trạng thái={item['trang_thai']} ({item['module']})")
+    return bc
+
+
 def main():
     """Entry point cho CLI."""
     parser = _tao_parser()
@@ -1354,12 +2155,14 @@ def main():
         "info": lambda: cmd_info(),
         "doctor": lambda: cmd_doctor(),
         "install": lambda: cmd_install(args),
+        "setup": lambda: cmd_setup(args),
         "train": lambda: cmd_train(args),
         "predict": lambda: cmd_predict(args),
         "serve": lambda: cmd_serve(args),
         "evaluate": lambda: cmd_evaluate(args),
         "web": lambda: cmd_web(args),
         "finetune": lambda: cmd_finetune(args),
+        "train-cloud": lambda: cmd_train_cloud(args),
         "rag": lambda: cmd_rag(args),
         "chat": lambda: cmd_chat(args),
         "benchmark": lambda: cmd_benchmark(args),
@@ -1369,12 +2172,22 @@ def main():
         "studio": lambda: cmd_studio(args),
         "solution": lambda: cmd_solution(args),
         "agent": lambda: cmd_agent(args),
+        "pull": lambda: cmd_pull(args),
         "run": lambda: cmd_run(args),
         "pack": lambda: cmd_pack(args),
         "swarm": lambda: cmd_swarm(args),
         "voice": lambda: cmd_voice(args),
         "verify": lambda: cmd_verify(args),
         "plugin": lambda: cmd_plugin(args),
+        "demo": lambda: cmd_demo(args),
+        "release-check": lambda: cmd_release_check(args),
+        "legal-graph": lambda: cmd_legal_graph(args),
+        "contract-review": lambda: cmd_contract_review(args),
+        "mcp-server": lambda: cmd_mcp_server(args),
+        "connector": lambda: cmd_connector(args),
+        "export-dpo": lambda: cmd_export_dpo(args),
+        "eval-gate": lambda: cmd_eval_gate(args),
+        "status-map": lambda: cmd_status_map(args),
     }
     ham = bang_lenh.get(args.command)
     if ham is not None:

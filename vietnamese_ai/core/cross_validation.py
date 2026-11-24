@@ -56,7 +56,7 @@ class KiemDinhCheo:
     def _chia_fold_stratified(self, indices: np.ndarray, y: np.ndarray) -> List[tuple]:
         """Chia fold giữ tỷ lệ lớp (stratified)."""
         np.random.seed(self.seed)
-        folds_test = [[] for _ in range(self.so_fold)]
+        folds_test: List[List[Any]] = [[] for _ in range(self.so_fold)]
 
         for lop in np.unique(y):
             lop_idx = indices[y[indices] == lop]
@@ -113,14 +113,14 @@ class KiemDinhCheo:
 
                 self.logger.debug(f"  Lần {lan + 1}, Fold {fold_idx + 1}: {chi_so}={diem:.4f}")
 
-        tat_ca_diem = np.array(tat_ca_diem)
+        diem_arr = np.array(tat_ca_diem)
         ket_qua = {
             "chi_so": chi_so,
-            "cac_diem": tat_ca_diem.tolist(),
-            "diem_trung_binh": float(np.mean(tat_ca_diem)),
-            "do_lech_chuan": float(np.std(tat_ca_diem)),
-            "diem_toi_thieu": float(np.min(tat_ca_diem)),
-            "diem_toi_da": float(np.max(tat_ca_diem)),
+            "cac_diem": diem_arr.tolist(),
+            "diem_trung_binh": float(np.mean(diem_arr)),
+            "do_lech_chuan": float(np.std(diem_arr)),
+            "diem_toi_thieu": float(np.min(diem_arr)),
+            "diem_toi_da": float(np.max(diem_arr)),
             "so_fold": self.so_fold,
             "so_lan_lap": self.lap_lai,
         }

@@ -4,25 +4,43 @@ import json
 import struct
 import time
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 from vietnamese_ai.utils.logger import Logger
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta=(
+        "Triển khai di động dùng định dạng container nội bộ (VAI_TFL/VAI_CLM/VAI_ONX/VAI_PTE) "
+        "khi chưa cài toolchain gốc. Xuất định dạng native cho thiết bị thật yêu cầu công cụ ngoài."
+    ),
+    phu_thuoc_ngoai=[
+        "tensorflow / ai-edge-litert + Android SDK/NDK (cho TFLite FlatBuffer native)",
+        "coremltools + Xcode trên macOS (cho CoreML .mlmodel/.mlpackage native)",
+        "skl2onnx + onnxruntime (cho ONNX chuẩn, cài qua vietnamese-ai[export])",
+        "PyTorch ExecuTorch toolchain (cho .pte native)",
+    ],
+    nhom_extra="mobile",
+    la_mo_phong=True,
+)
 class TriKhaiDiDong:
     """
-    Triển khai mô hình học máy lên thiết bị di động và edge.
+    Triển khai mô hình học máy lên thiết bị di động và edge (Thử nghiệm / External Toolchain).
 
     Alias công khai: `MobileDeployer`, `ONNXExporter` (cùng class).
 
-    Hỗ trợ:
-    - TFLite: TensorFlow Lite (Android, microcontrollers)
-    - CoreML: Apple CoreML (iOS, macOS)
-    - ONNX Mobile: ONNX Runtime Mobile (cross-platform)
-    - Quantization: Giảm kích thước mô hình (INT8, FP16)
-    - Benchmark: Đo hiệu suất trên edge
+    Lưu ý minh bạch về định dạng và phụ thuộc ngoài:
+    - `xuat_tflite`: xuất container nội bộ `VAI_TFL` (chạy qua `chay_suy_luan_di_dong`);
+      không sinh FlatBuffer `.tflite` chuẩn nếu chưa cài `tensorflow` / `ai-edge-litert` + Android SDK/NDK.
+    - `xuat_coreml`: xuất container nội bộ `VAI_CLM`;
+      không sinh `.mlmodel`/`.mlpackage` chuẩn Apple nếu chưa cài `coremltools` + Xcode (macOS).
+    - `xuat_onnx_mobile`: dùng `skl2onnx` khi đã cài `vietnamese-ai[export]`, ngược lại fallback `VAI_ONX`.
+    - `xuat_executorch`: xuất container placeholder `VAI_PTE`; native cần PyTorch ExecuTorch toolchain.
+    - `benchmark_edge`: đo thời gian suy luận giả lập trên CPU host hiện tại, không đo trên NPU di động.
 
     Sử dụng:
         >>> tkdd = TriKhaiDiDong()
@@ -43,7 +61,7 @@ class TriKhaiDiDong:
         return mo_hinh
 
     def _kiem_tra_dau_vao(
-        self, mo_hinh: Any, duong_dan: str, kich_thuoc_dau_vao: Tuple[int, ...]
+        self, mo_hinh: Any, duong_dan: str, kich_thuoc_dau_vao: Tuple[Optional[int], ...]
     ) -> None:
         """Kiểm tra tính hợp lệ của đầu vào."""
         if not duong_dan or not isinstance(duong_dan, str):
@@ -69,18 +87,26 @@ class TriKhaiDiDong:
         trong_so["loai_mo_hinh"] = type(model).__name__
         return trong_so
 
+    @gan_nhan_tinh_nang(
+        trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+        mo_ta="Xuất container VAI_TFL nội bộ; định dạng FlatBuffer .tflite gốc cần tensorflow/ai-edge-litert.",
+        phu_thuoc_ngoai=["tensorflow / ai-edge-litert", "Android SDK/NDK"],
+        nhom_extra="mobile",
+        la_mo_phong=True,
+    )
     def xuat_tflite(
         self,
         mo_hinh: Any,
         duong_dan: str,
-        kich_thuoc_dau_vao: Tuple[int, ...] = (None,),
+        kich_thuoc_dau_vao: Tuple[Optional[int], ...] = (None,),
         luong_hoa: bool = False,
     ) -> str:
         """
-        Xuất mô hình sang TensorFlow Lite format.
+        Xuất mô hình sang container TFLite nội bộ (`VAI_TFL`) — Thử nghiệm / Mô phỏng định dạng.
 
-        Tạo file metadata .tflite chứa trọng số mô hình đã serialize,
-        tương thích với TFLite Interpreter trên Android/iOS.
+        Tạo file container chứa trọng số mô hình đã serialize chạy được bằng
+        `chay_suy_luan_di_dong()`. Để tạo tệp FlatBuffer `.tflite` chuẩn cho TFLite Interpreter
+        trên Android/iOS cần cài đặt toolchain ngoài (`tensorflow` / `ai-edge-litert` + Android NDK).
 
         Args:
             mo_hinh: Mô hình sklearn (hoặc wrapper có ._mo_hinh)
@@ -118,18 +144,25 @@ class TriKhaiDiDong:
         )
         return str(duong_dan_path)
 
+    @gan_nhan_tinh_nang(
+        trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+        mo_ta="Xuất container VAI_CLM nội bộ; tệp .mlmodel/.mlpackage chuẩn Apple cần coremltools + Xcode.",
+        phu_thuoc_ngoai=["coremltools", "Xcode (macOS)"],
+        nhom_extra="mobile",
+        la_mo_phong=True,
+    )
     def xuat_coreml(
         self,
         mo_hinh: Any,
         duong_dan: str,
-        kich_thuoc_dau_vao: Tuple[int, ...] = (None,),
+        kich_thuoc_dau_vao: Tuple[Optional[int], ...] = (None,),
         ten_mo_hinh: str = "VietnameseAI_Model",
     ) -> str:
         """
-        Xuất mô hình sang Apple CoreML format.
+        Xuất mô hình sang container CoreML nội bộ (`VAI_CLM`) — Thử nghiệm / Mô phỏng định dạng.
 
-        Tạo file metadata .coreml chứa thông tin mô hình,
-        có thể tích hợp vào iOS/macOS apps.
+        Tạo file container chứa metadata và trọng số mô hình chạy được qua `chay_suy_luan_di_dong()`.
+        Để xuất định dạng `.mlmodel`/`.mlpackage` chuẩn của Apple cần cài đặt `coremltools` và Xcode.
 
         Args:
             mo_hinh: Mô hình sklearn
@@ -168,14 +201,22 @@ class TriKhaiDiDong:
         self.logger.info(f"Đã xuất CoreML: {duong_dan} ({kich_thuoc} bytes)")
         return str(duong_dan_path)
 
+    @gan_nhan_tinh_nang(
+        trang_thai=TrangThaiTinhNang.EXTERNAL_DEPENDENCY,
+        mo_ta="Xuất ONNX chuẩn khi cài skl2onnx/onnxruntime; fallback sang container VAI_ONX nội bộ khi thiếu.",
+        phu_thuoc_ngoai=["skl2onnx", "onnxruntime"],
+        nhom_extra="export",
+    )
     def xuat_onnx_mobile(
         self,
         mo_hinh: Any,
         duong_dan: str,
-        kich_thuoc_dau_vao: Tuple[int, ...] = (None,),
+        kich_thuoc_dau_vao: Tuple[Optional[int], ...] = (None,),
     ) -> str:
         """
-        Xuất mô hình sang ONNX Mobile format (optimized cho mobile runtime).
+        Xuất mô hình sang ONNX Mobile (ưu tiên `skl2onnx`, fallback sang container nội bộ `VAI_ONX`).
+
+        Cài đặt công cụ ONNX đầy đủ: `pip install "vietnamese-ai[export]"`.
 
         Args:
             mo_hinh: Mô hình sklearn
@@ -250,9 +291,19 @@ class TriKhaiDiDong:
         }
         return xuat.xuat_tu_numpy(trong_so, duong_dan, quantization=quantization, thong_tin=thong_tin)
 
+    @gan_nhan_tinh_nang(
+        trang_thai=TrangThaiTinhNang.SIMULATED,
+        mo_ta="Xuất container placeholder VAI_PTE; biên dịch ExecuTorch gốc cần PyTorch ExecuTorch toolchain.",
+        phu_thuoc_ngoai=["PyTorch ExecuTorch toolchain"],
+        nhom_extra="mobile",
+        la_mo_phong=True,
+    )
     def xuat_executorch(self, mo_hinh: Any, duong_dan: str) -> str:
         """
-        Xuất mô hình sang định dạng ExecuTorch (.pte) kèm toàn bộ trọng số thực thi.
+        Xuất mô hình sang container ExecuTorch placeholder (`VAI_PTE`) — Mô phỏng định dạng.
+
+        Chạy suy luận kiểm thử qua `chay_suy_luan_di_dong()`. Định dạng `.pte` native cần
+        biên dịch bằng PyTorch ExecuTorch toolchain.
         """
         duong_dan_path = Path(duong_dan)
         duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
@@ -429,6 +480,12 @@ class TriKhaiDiDong:
 
         return data
 
+    @gan_nhan_tinh_nang(
+        trang_thai=TrangThaiTinhNang.SIMULATED,
+        mo_ta="Đo benchmark giả lập trên CPU host hiện tại, không đo trên NPU/thiết bị di động vật lý.",
+        nhom_extra="mobile",
+        la_mo_phong=True,
+    )
     def benchmark_edge(
         self,
         mo_hinh: Any,
@@ -477,6 +534,8 @@ class TriKhaiDiDong:
         except Exception:
             pass
 
+        import platform
+
         return {
             "thoi_gian_trung_binh_ms": float(np.mean(thoi_gian_arr)),
             "thoi_gian_min_ms": float(np.min(thoi_gian_arr)),
@@ -486,6 +545,8 @@ class TriKhaiDiDong:
             "throughput_mau_giay": float(batch_size / (np.mean(thoi_gian_arr) / 1000)),
             "kich_thuoc_mo_hinh_bytes": kich_thuoc_mo_hinh,
             "so_lan_chay": so_lan,
+            "thiet_bi_do": f"host_cpu:{platform.machine()}",
+            "la_thiet_bi_di_dong_that": False,
             "kich_thuoc_batch": batch_size,
         }
 

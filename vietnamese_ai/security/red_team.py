@@ -2,14 +2,25 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from vietnamese_ai.security.llm_firewall import TuongLuaAI
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta=(
+        "Bộ mô phỏng tấn công nội bộ dựa trên bộ kịch bản tĩnh tự phát triển; "
+        "dùng cho kiểm thử hồi quy Tường lửa AI, không thay thế kiểm định pentest chuyên nghiệp."
+    ),
+    la_mo_phong=True,
+)
 class RedTeamSimulator:
     """
-    Công cụ mô phỏng tấn công (Red Teaming) tự động.
-    Sử dụng một kho chứa các câu lệnh độc hại (Prompt Injection, Jailbreak, System Leak,
-    Obfuscation, Malicious Payload) để kiểm thử độ bền bỉ của Tường lửa AI và Mô hình.
-    Hỗ trợ sinh tập dữ liệu Preference DPO đối kháng nhằm tôi luyện mô hình qua chu trình Co-Evolution.
+    Công cụ mô phỏng tấn công (Red Teaming) tự động — Thử nghiệm / Kịch bản nội bộ.
+
+    Bản chất: Giải pháp tự phát triển thuần Python dựa trên kho kịch bản tĩnh (Prompt Injection,
+    Jailbreak, System Leak, Obfuscation, Malicious Payload) để kiểm thử hồi quy Tường lửa AI
+    và tạo cặp DPO đối kháng. Không phụ thuộc công cụ ngoài nhưng cũng không thay thế các bộ
+    kiểm định bảo mật chuyên sâu (như Garak, PyRIT hoặc đánh giá an ninh độc lập).
     """
 
     # Bộ dữ liệu tấn công mẫu chuẩn (đảm bảo 100% được phòng thủ bởi Tường lửa AI mặc định)
@@ -208,10 +219,18 @@ from vietnamese_ai.agents.agent import TacTu  # noqa: E402
 from vietnamese_ai.agents.tools import CongCu  # noqa: E402
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta="Khung tác tử điều phối Red Team phụ thuộc vào LLM bên ngoài truyền vào qua tham số `llm`.",
+    phu_thuoc_ngoai=["LLM provider / model do người dùng cung cấp (OpenAI, Gemini, Ollama, HF)"],
+    nhom_extra="llm",
+)
 class RedTeamAgent(TacTu):
     """
-    Tác tử chuyên dụng cho việc đóng vai Hacker (Red Teaming).
-    Mục tiêu: Sinh ra mã độc hoặc kịch bản tấn công để vượt qua các lớp Sandbox.
+    Tác tử chuyên dụng cho việc đóng vai Hacker (Red Teaming) — Thử nghiệm / Khung điều phối.
+
+    Bản chất: Khung điều phối tác tử (Agentic Orchestration) gửi kịch bản tấn công dựa trên
+    mô hình `llm` do người dùng cung cấp để kiểm tra độ bền của công cụ và Sandbox.
     """
 
     def __init__(self, llm: Any, muc_tieu: CongCu, max_iterations: int = 10):

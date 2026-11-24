@@ -44,7 +44,7 @@ class TuongLuaAI:
     """
 
     MAU_HIEM_DOC = [
-        r"(?i)\bbỏ\s+qua\s+(?:tất\s+cả\s+)?(?:các\s+)?(?:hướng\s+dẫn|chỉ\s+thị|lệnh|quy\s+tắc)\b",
+        r"(?i)\bbỏ\s+qua\s+(?:tất\s+cả\s+|toàn\s+bộ\s+|mọi\s+)?(?:các\s+)?(?:hướng\s+dẫn|chỉ\s+thị|lệnh|quy\s+tắc)\b",
         r"(?i)\b(?:ignore|disregard|forget)\s+(?:all\s+)?(?:the\s+)?(?:previous\s+|prior\s+)?(?:instructions|commands|prompts?|rules)\b",
         r"(?i)\bbạn\s+(?:bây\s+giờ\s+)?(?:sẽ\s+)?đóng\s+vai\b",
         r"(?i)\byou\s+(?:will\s+)?(?:now\s+)?act\s+as\b",
@@ -55,7 +55,7 @@ class TuongLuaAI:
         r"(?i)\bquên\s+(?:tất\s+cả\s+)?(?:những\s+)?gì\s+tôi\s+đã\s+nói\b",
         r"(?i)\bsystem\s+prompt\b",
         r"(?i)\btừ\s+giờ\s+trở\s+đi\b",
-        r"(?i)(?:lặp\s+lại|in\s+ra|hiển\s+thị|tiết\s+lộ|repeat|reveal)\s+(?:toàn\s+bộ\s+)?(?:prompt\s+hệ\s+thống|chỉ\s+thị\s+ban\s+đầu|system\s+prompt)",
+        r"(?i)(?:lặp\s+lại|in\s+ra|hiển\s+thị|tiết\s+lộ|repeat|reveal)\s+(?:toàn\s+bộ\s+|mọi\s+)?(?:prompt\s+hệ\s+thống|chỉ\s+thị\s+ban\s+đầu|system\s+prompt|mật\s+khẩu\s+nội\s+bộ|khóa\s+bí\s+mật)",
         r"(?i)(?:tắt|vô\s+hiệu\s+hóa|disable|turn\s+off)\s+(?:mọi\s+|tất\s+cả\s+)?(?:biện\s+pháp\s+an\s+toàn|bảo\s+mật|tường\s+lửa|safety|guardrails|firewall)",
         r"(?i)(?:sudo\s+rm\s+-rf|tải\s+payload|/etc/passwd|/etc/shadow|union\s+select\s+|drop\s+table\s+)",
     ]

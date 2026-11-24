@@ -149,7 +149,7 @@ class Marketplace:
     def thong_ke(self) -> Dict:
         """Thống kê marketplace."""
         items = self._catalog["items"]
-        theo_loai = {}
+        theo_loai: Dict[str, int] = {}
         for info in items.values():
             loai = info["loai"]
             theo_loai[loai] = theo_loai.get(loai, 0) + 1

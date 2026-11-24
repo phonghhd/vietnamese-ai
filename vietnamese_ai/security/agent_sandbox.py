@@ -4,13 +4,23 @@ import subprocess
 import tempfile
 from typing import Tuple
 
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
+
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta=(
+        "Sandbox mức ứng dụng (AST + subprocess + timeout) tự phát triển; "
+        "không thay thế cách ly cấp hệ điều hành/container (Docker, gVisor, seccomp)."
+    ),
+)
 class MoiTruongCachLy:
     """
-    Môi trường cách ly (Sandbox) sử dụng subprocess để chạy mã Python do LLM sinh ra.
-    Ngăn chặn việc gọi các lệnh hệ thống nguy hiểm bằng cách:
-    1. Kiểm tra Cây cú pháp (AST) trước khi chạy để chặn các module cấm.
-    2. Chạy trên tiến trình riêng biệt với timeout.
+    Môi trường cách ly mức ứng dụng (Agent Sandbox) dùng kiểm tra AST và subprocess + timeout.
+
+    Giới hạn bảo mật: Đây là lớp bảo vệ phòng thủ chiều sâu ở tầng Python, không áp đặt
+    cgroup/seccomp/network namespace ở cấp nhân OS. Khi thực thi mã không tin cậy trên
+    môi trường production, bắt buộc kết hợp container cách ly (Docker, gVisor, Firecracker).
     """
 
     CONFIG_FILE = os.path.join(os.path.dirname(__file__), "sandbox_rules.json")

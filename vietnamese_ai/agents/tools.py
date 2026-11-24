@@ -129,16 +129,23 @@ def _danh_gia_nut_toan(node: ast.AST) -> Any:
     raise ValueError(f"Cú pháp không được phép trong máy tính: {type(node).__name__}")
 
 
+def danh_gia_bieu_thuc_toan(bieu_thuc: str) -> Any:
+    """Đánh giá an toàn biểu thức toán học bằng cây AST, tuyệt đối không sử dụng eval()."""
+    if not isinstance(bieu_thuc, str) or not bieu_thuc.strip():
+        raise ValueError("Biểu thức toán học phải là chuỗi không rỗng.")
+    if len(bieu_thuc) > 500:
+        raise ValueError("Biểu thức vượt quá độ dài an toàn (500 ký tự).")
+    cay = ast.parse(bieu_thuc.strip(), mode="eval")
+    return _danh_gia_nut_toan(cay)
+
+
 @cong_cu(
     ten="may_tinh",
     mo_ta="Tính toán một biểu thức toán học. Tham số 'bieu_thuc' là một chuỗi (vd: '2 + 2'). Hỗ trợ các phép cộng, trừ, nhân, chia và math module.",
 )
 def cong_cu_may_tinh(bieu_thuc: str) -> str:
     try:
-        if len(bieu_thuc) > 500:
-            return "Lỗi tính toán: Biểu thức vượt quá độ dài an toàn."
-        cay = ast.parse(bieu_thuc.strip(), mode="eval")
-        ket_qua = _danh_gia_nut_toan(cay)
+        ket_qua = danh_gia_bieu_thuc_toan(bieu_thuc)
         return str(ket_qua)
     except Exception as e:
         return f"Lỗi tính toán: {str(e)}"

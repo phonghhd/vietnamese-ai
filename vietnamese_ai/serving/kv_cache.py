@@ -1,6 +1,6 @@
 """Quantized KV Cache - Tiết kiệm RAM qua ép kiểu FP8/INT8."""
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -73,7 +73,7 @@ class QuantizedKVCache:
 
         self.current_len += seq_len
 
-    def get_cache(self) -> Tuple[np.ndarray, np.ndarray]:
+    def get_cache(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
         Lấy toàn bộ Cache ra để tính toán (Dequantize on-the-fly).
         """

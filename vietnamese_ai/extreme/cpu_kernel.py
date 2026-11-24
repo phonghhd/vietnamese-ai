@@ -10,9 +10,16 @@ try:
 except ImportError:
     _CO_TORCH = False
 
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
+
 logger = logging.getLogger("EvoKernelCPU")
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXTERNAL_DEPENDENCY,
+    mo_ta="Nhân ma trận BitNet 1.58-bit thử nghiệm qua EvoJITCompiler; yêu cầu trình biên dịch g++.",
+    phu_thuoc_ngoai=["g++ (GCC/Clang C++ compiler)"],
+)
 class EvoKernelCPU:
     """
     Nhân ma trận lượng tử hoá 1.58-bit (Trọng số chỉ là -1, 0, 1).

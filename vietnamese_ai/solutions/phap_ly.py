@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 from vietnamese_ai.rag.rag_pipeline import RAGPipeline
 from vietnamese_ai.security.data_defense import CongAnToanDauRa
@@ -96,19 +97,86 @@ class TroLyPhapLy:
         },
     ]
 
-    def __init__(self, bo_du_lieu_luat: Optional[List[Dict[str, str]]] = None):
+    def __init__(
+        self,
+        bo_du_lieu_luat: Optional[List[Dict[str, str]]] = None,
+        nap_kho_mo: bool = False,
+        duong_dan_vaidb: Optional[Union[str, Path]] = None,
+        dung_onnx_semantic: bool = False,
+    ):
+        from vietnamese_ai.rag.legal.citation_graph import DoThiThamChieuPhapLy
+        from vietnamese_ai.rag.legal.validity_tracker import BoTheoDoiHieuLucPhapLy
         from vietnamese_ai.rag.vietnamese_context import BoToiUuNguCanhHanhChinh
 
         self.tuong_lua = TuongLuaBaoVeFramework(chan_khi_vi_pham=False)
         self.bo_toi_uu = BoToiUuNguCanhHanhChinh(bat_tuong_lua=False)
+        self.bo_theo_doi_hieu_luc = BoTheoDoiHieuLucPhapLy()
+        self.do_thi_tham_chieu = DoThiThamChieuPhapLy(bo_theo_doi=self.bo_theo_doi_hieu_luc)
         self.rag = RAGPipeline(
             nguong_diem=0.05,
             top_k=3,
+            backend="vaidb" if duong_dan_vaidb is not None else "memory",
+            duong_dan_vaidb=duong_dan_vaidb,
+            che_do_nhung="onnx_viet" if dung_onnx_semantic else "auto",
+            che_do_rerank="onnx_viet" if dung_onnx_semantic else "mmr",
             che_do_hanh_chinh=True,
             bo_toi_uu_hanh_chinh=self.bo_toi_uu,
         )
+        self.rag._bo_theo_doi_hieu_luc = self.bo_theo_doi_hieu_luc
+        self.rag._do_thi_tham_chieu = self.do_thi_tham_chieu
         self.kho_tai_lieu = list(bo_du_lieu_luat or self.DU_LIEU_LUAT_MAC_DINH)
-        self._nap_du_lieu_luat()
+        if duong_dan_vaidb is None or self.rag.csdl_vector.so_luong() == 0:
+            self._nap_du_lieu_luat()
+            if nap_kho_mo:
+                self.nap_kho_phap_ly_mo()
+        elif nap_kho_mo and self.rag.csdl_vector.so_tai_lieu() < 50:
+            self.nap_kho_phap_ly_mo()
+
+    def tra_cuu_van_ban_lien_quan(
+        self,
+        so_hieu: str,
+        ngay_tra_cuu: Optional[str] = None,
+        chi_lay_con_hieu_luc: bool = False,
+    ) -> Dict[str, Any]:
+        """Truy vấn Nghị định hướng dẫn, Thông tư, sửa đổi và văn bản thay thế hiện hành của `so_hieu`."""
+        return self.do_thi_tham_chieu.truy_van_van_ban_lien_quan(
+            so_hieu,
+            ngay_tra_cuu=ngay_tra_cuu,
+            chi_lay_con_hieu_luc=chi_lay_con_hieu_luc,
+        )
+
+    def nap_kho_phap_ly_mo(self) -> int:
+        """Nạp toàn bộ kho dữ liệu pháp lý mở Việt Nam (100 điều khoản) vào RAG nội bộ."""
+        from vietnamese_ai.rag.legal.open_corpus import tai_bo_phap_ly_mo
+
+        ban_ghi = tai_bo_phap_ly_mo()
+        da_nap = 0
+        for item in ban_ghi:
+            ma = str(item.get("id", f"mo_{da_nap}"))
+            so_hieu = str(item.get("so_hieu", ""))
+            van_ban = str(item.get("ten_van_ban", ""))
+            dieu = str(item.get("dieu", ""))
+            noi_dung = str(item.get("noi_dung", ""))
+            full = f"[{van_ban} - {so_hieu}]\n{dieu}. {noi_dung}"
+            self.rag.them_tai_lieu(
+                ma,
+                full,
+                metadata={"van_ban": van_ban, "dieu": dieu, "so_hieu": so_hieu},
+                che_do_hanh_chinh=True,
+            )
+            da_nap += 1
+        return da_nap
+
+    def kiem_tra_hieu_luc(
+        self,
+        so_hieu_hoac_van_ban: str,
+        ngay_tra_cuu: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Kiểm tra hiệu lực một số hiệu văn bản hoặc quét toàn bộ trích dẫn pháp lý trong văn bản."""
+        text = str(so_hieu_hoac_van_ban or "").strip()
+        if " " not in text and "/" in text:
+            return self.bo_theo_doi_hieu_luc.kiem_tra_hieu_luc(text, ngay_tra_cuu=ngay_tra_cuu)
+        return self.bo_theo_doi_hieu_luc.kiem_tra_hieu_luc_trong_van_ban(text, ngay_tra_cuu=ngay_tra_cuu)
 
     def _nap_du_lieu_luat(self) -> None:
         """Nạp các tài liệu luật vào RAG pipeline với cấu trúc Điều/Khoản bảo toàn."""
@@ -181,6 +249,7 @@ class TroLyPhapLy:
                     "van_ban": van_ban,
                     "dieu": dieu,
                     "tieu_de": tieu_de,
+                    "noi_dung": noi_dung,
                     "trich_doan": noi_dung[:200] + "..." if len(noi_dung) > 200 else noi_dung,
                 }
             )

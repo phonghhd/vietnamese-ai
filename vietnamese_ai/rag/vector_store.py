@@ -7,6 +7,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
+try:
+    import vietnamese_ai_rust as _rust_core  # type: ignore
+except ImportError:
+    try:
+        from vietnamese_ai import vietnamese_ai_rust as _rust_core  # type: ignore
+    except ImportError:
+        _rust_core = None
+
 
 class KetQuaTaiLieu:
     """Đối tượng tài liệu trả về từ similarity_search (tương thích cả thuộc tính và dict)."""
@@ -61,6 +69,11 @@ class CSDLVector:
         self._vectors: Optional[np.ndarray] = None
         self._metadata: List[Dict[str, Any]] = []
         self._id_to_idx: Dict[str, int] = {}
+        self._bo_nhung_mac_dinh: Optional[Any] = None
+        self._ivf_centroids: Optional[np.ndarray] = None
+        self._ivf_buckets: Dict[int, np.ndarray] = {}
+        self._ivf_nprobe: int = 3
+        self._ivf_dirty: bool = True
 
     def chen(
         self,
@@ -84,14 +97,17 @@ class CSDLVector:
 
         if ma in self._id_to_idx:
             idx = self._id_to_idx[ma]
-            self._vectors[idx] = vector
+            if self._vectors is not None:
+                self._vectors[idx] = vector
             self._metadata[idx] = metadata or {}
+            self._ivf_dirty = True
             return
 
         idx = len(self._ids)
         self._ids.append(ma)
         self._metadata.append(metadata or {})
         self._id_to_idx[ma] = idx
+        self._ivf_dirty = True
 
         if self._vectors is None:
             self._vectors = vector.reshape(1, -1)
@@ -137,7 +153,59 @@ class CSDLVector:
                 self._vectors = None
 
         self._id_to_idx = {ma: i for i, ma in enumerate(self._ids)}
+        self._ivf_dirty = True
         return True
+
+    def xay_dung_chi_muc_ivf(
+        self,
+        so_cum: int = 16,
+        so_vong_lap: int = 8,
+        nprobe: int = 3,
+        seed: int = 42,
+    ) -> Dict[str, Any]:
+        """Xây dựng chỉ mục gần đúng IVF-Flat (K-Means trên vector chuẩn hóa L2) giúp tìm kiếm dưới 5 ms ở quy mô lớn."""
+        if self._vectors is None or len(self._ids) == 0:
+            self._ivf_centroids = None
+            self._ivf_buckets = {}
+            self._ivf_dirty = False
+            return {"da_xay_dung": False, "so_cum": 0, "so_vector": 0}
+
+        n_vecs = len(self._ids)
+        k = max(1, min(int(so_cum), n_vecs))
+        norms = np.maximum(np.linalg.norm(self._vectors, axis=1, keepdims=True), 1e-10)
+        vecs_norm = (self._vectors / norms).astype(np.float32)
+
+        rng = np.random.RandomState(seed)
+        init_idx = rng.choice(n_vecs, size=k, replace=False)
+        centroids = vecs_norm[init_idx].copy()
+
+        labels = np.zeros(n_vecs, dtype=np.int32)
+        for _ in range(max(1, int(so_vong_lap))):
+            sims = vecs_norm @ centroids.T
+            labels = np.argmax(sims, axis=1).astype(np.int32)
+            for c in range(k):
+                members = vecs_norm[labels == c]
+                if len(members) > 0:
+                    mean_c = np.mean(members, axis=0)
+                    n_c = float(np.linalg.norm(mean_c))
+                    centroids[c] = (mean_c / n_c if n_c > 1e-10 else mean_c).astype(np.float32)
+
+        buckets: Dict[int, np.ndarray] = {}
+        for c in range(k):
+            idx_c = np.where(labels == c)[0]
+            if len(idx_c) > 0:
+                buckets[c] = idx_c.astype(np.int32)
+
+        self._ivf_centroids = centroids
+        self._ivf_buckets = buckets
+        self._ivf_nprobe = max(1, min(int(nprobe), k))
+        self._ivf_dirty = False
+        return {
+            "da_xay_dung": True,
+            "so_cum": k,
+            "nprobe": self._ivf_nprobe,
+            "so_vector": n_vecs,
+        }
 
     def _nhung_chuoi(self, van_ban: str) -> np.ndarray:
         """Nhúng chuỗi văn bản sang vector có kích thước bằng kich_thuoc của CSDL."""
@@ -231,6 +299,70 @@ class CSDLVector:
         if query.shape[0] != self.kich_thuoc:
             raise ValueError(f"Query vector phải có {self.kich_thuoc} chiều")
 
+        if (
+            self.khoang_cach == "cosine"
+            and bo_loc is None
+            and self._ivf_centroids is not None
+            and not self._ivf_dirty
+            and len(self._ids) > top_k
+        ):
+            q_norm = float(np.linalg.norm(query))
+            if q_norm > 1e-10:
+                q_unit = (query / q_norm).astype(np.float32)
+                c_scores = self._ivf_centroids @ q_unit
+                k_probe = min(self._ivf_nprobe, len(c_scores))
+                top_clusters = np.argpartition(c_scores, -k_probe)[-k_probe:]
+                cand_lists = [self._ivf_buckets[int(c)] for c in top_clusters if int(c) in self._ivf_buckets]
+                if cand_lists:
+                    cands = np.concatenate(cand_lists)
+                    cand_vecs = self._vectors[cands]
+                    cand_norms = np.maximum(np.linalg.norm(cand_vecs, axis=1), 1e-10)
+                    cand_scores = (cand_vecs @ q_unit) / cand_norms
+                    k_take = min(top_k, len(cands))
+                    order_loc = np.argsort(cand_scores)[::-1][:k_take]
+                    kq_ivf: List[Dict[str, Any]] = []
+                    for loc in order_loc:
+                        g_idx = int(cands[int(loc)])
+                        diem = float(cand_scores[int(loc)])
+                        if nguong is not None and diem < nguong:
+                            break
+                        kq_ivf.append(
+                            {
+                                "ma": self._ids[g_idx],
+                                "diem": diem,
+                                "metadata": self._metadata[g_idx],
+                            }
+                        )
+                    return kq_ivf
+
+        if (
+            self.khoang_cach == "cosine"
+            and bo_loc is None
+            and _rust_core is not None
+            and hasattr(_rust_core, "fast_top_k_cosine_bytes")
+            and len(self._ids) >= 64
+        ):
+            try:
+                q_bytes = np.ascontiguousarray(query, dtype="<f4").tobytes()
+                m_bytes = np.ascontiguousarray(self._vectors, dtype="<f4").tobytes()
+                top_pairs = _rust_core.fast_top_k_cosine_bytes(
+                    q_bytes, m_bytes, len(self._ids), self.kich_thuoc, top_k
+                )
+                kq_rs: List[Dict[str, Any]] = []
+                for idx_r, diem_r in top_pairs:
+                    if nguong is not None and float(diem_r) < nguong:
+                        break
+                    kq_rs.append(
+                        {
+                            "ma": self._ids[int(idx_r)],
+                            "diem": float(diem_r),
+                            "metadata": self._metadata[int(idx_r)],
+                        }
+                    )
+                return kq_rs
+            except Exception:
+                pass
+
         if self.khoang_cach == "cosine":
             scores = self._cosine_scores(query)
         elif self.khoang_cach == "l2":
@@ -245,7 +377,7 @@ class CSDLVector:
         else:
             chi_so = np.argsort(scores)[::-1]
 
-        ket_qua = []
+        ket_qua: List[Dict[str, Any]] = []
         for idx in chi_so:
             if len(ket_qua) >= top_k:
                 break
@@ -272,7 +404,7 @@ class CSDLVector:
 
     def lay_vector(self, ma: str) -> Optional[np.ndarray]:
         """Lấy vector theo ID."""
-        if ma not in self._id_to_idx:
+        if ma not in self._id_to_idx or self._vectors is None:
             return None
         return self._vectors[self._id_to_idx[ma]].copy()
 
@@ -311,16 +443,19 @@ class CSDLVector:
         """Xóa toàn bộ vector."""
         self._ids.clear()
         self._vectors = None
+        self._ivf_centroids = None
+        self._ivf_buckets.clear()
+        self._ivf_dirty = True
         self._metadata.clear()
         self._id_to_idx.clear()
 
     def luu(self, duong_dan: str) -> None:
         """Lưu CSDL vector ra file pickle."""
-        duong_dan = Path(duong_dan)
-        duong_dan.parent.mkdir(parents=True, exist_ok=True)
+        duong_dan_path = Path(duong_dan)
+        duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
 
         # v27.0.1: Lưu file numpy rời để hỗ trợ mmap (Zero-Copy)
-        npy_path = duong_dan.with_suffix('.npy')
+        npy_path = duong_dan_path.with_suffix(".npy")
         if self._vectors is not None:
             np.save(npy_path, self._vectors)
 
@@ -332,7 +467,7 @@ class CSDLVector:
             "metadata": self._metadata,
             "npy_file": npy_path.name if self._vectors is not None else None
         }
-        with open(duong_dan, "wb") as f:
+        with open(duong_dan_path, "wb") as f:
             pickle.dump(data, f)
 
     @classmethod

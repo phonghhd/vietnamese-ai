@@ -15,9 +15,9 @@ class LopDense:
         limit = np.sqrt(6.0 / (dau_vao + dau_ra))
         self.trong_so = np.random.uniform(-limit, limit, (dau_vao, dau_ra))
         self.bias = np.zeros((1, dau_ra))
-        self._input_cache = None
-        self._grad_w = None
-        self._grad_b = None
+        self._input_cache: Optional[np.ndarray] = None
+        self._grad_w: Optional[np.ndarray] = None
+        self._grad_b: Optional[np.ndarray] = None
 
     def __call__(self, X: np.ndarray) -> np.ndarray:
         return self.tien(X)
@@ -37,19 +37,24 @@ class LopDense:
         return z
 
     def ve(self, grad: np.ndarray, toc_do_hoc: float) -> np.ndarray:
+        if self._input_cache is None:
+            raise RuntimeError("Cần gọi tien() trước ve().")
+        input_cache = self._input_cache
         if self.ham_kich_hoat == "relu":
-            grad = grad * (self._input_cache @ self.trong_so + self.bias > 0).astype(float)
+            grad = grad * (input_cache @ self.trong_so + self.bias > 0).astype(float)
         elif self.ham_kich_hoat == "sigmoid":
-            s = self.tien(self._input_cache)
+            s = self.tien(input_cache)
             grad = grad * s * (1 - s)
         elif self.ham_kich_hoat == "tanh":
-            t = np.tanh(self._input_cache @ self.trong_so + self.bias)
+            t = np.tanh(input_cache @ self.trong_so + self.bias)
             grad = grad * (1 - t**2)
 
-        self._grad_w = self._input_cache.T @ grad / len(self._input_cache)
-        self._grad_b = np.sum(grad, axis=0, keepdims=True) / len(self._input_cache)
-        self.trong_so -= toc_do_hoc * self._grad_w
-        self.bias -= toc_do_hoc * self._grad_b
+        grad_w = input_cache.T @ grad / len(input_cache)
+        grad_b = np.sum(grad, axis=0, keepdims=True) / len(input_cache)
+        self._grad_w = grad_w
+        self._grad_b = grad_b
+        self.trong_so -= toc_do_hoc * grad_w
+        self.bias -= toc_do_hoc * grad_b
         return grad @ self.trong_so.T
 
 
@@ -58,7 +63,7 @@ class LopDropout:
 
     def __init__(self, ty_le: float = 0.5):
         self.ty_le = ty_le
-        self._mask = None
+        self._mask: Optional[np.ndarray] = None
 
     def __call__(self, X: np.ndarray, training: bool = True) -> np.ndarray:
         if training and self.ty_le > 0:

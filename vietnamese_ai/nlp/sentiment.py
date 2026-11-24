@@ -1,6 +1,6 @@
 """PhanTichCamXuc - Phân tích cảm xúc văn bản tiếng Việt."""
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -44,11 +44,11 @@ class PhanTichCamXuc:
         "tuyệt hảo",
         "đỉnh",
         "chất lượng",
-        "tệ",
-        "kém",
-        "dở",
-        "tồi",
-        "tệ hại",
+        "nhanh",
+        "ổn định",
+        "ổn_định",
+        "nhiệt tình",
+        "nhiệt_tình",
         "rất tốt",
         "rất hay",
         "rất đẹp",
@@ -64,6 +64,10 @@ class PhanTichCamXuc:
         "kém",
         "dở",
         "tồi",
+        "xấu",
+        "chậm",
+        "lỗi",
+        "tệ hại",
         "tệ_hại",
         "tệ_nặng",
         "chán",
@@ -71,17 +75,28 @@ class PhanTichCamXuc:
         "ghét",
         "tức",
         "giận",
+        "thất vọng",
         "thất_vọng",
         "bực",
+        "khó chịu",
         "khó_chịu",
+        "rất tệ",
         "rất_tệ",
+        "rất kém",
         "rất_kém",
+        "quá dở",
         "quá_dở",
+        "thật tệ",
         "thật_tệ",
+        "thảm họa",
         "thảm_họa",
+        "lừa đảo",
         "lừa_đảo",
+        "không tốt",
         "không_tốt",
+        "không hài lòng",
         "không_hài_lòng",
+        "kém chất lượng",
         "kém_chất_lượng",
     }
 
@@ -89,7 +104,7 @@ class PhanTichCamXuc:
         self.che_do = che_do
         self.logger = Logger("PhanTichCamXuc")
         self._xl = XuLyVanBan()
-        self._mo_hinh = None
+        self._mo_hinh: Any = None
         self._da_huan_luyen = False
 
         if che_do == "underthesea":
@@ -106,25 +121,36 @@ class PhanTichCamXuc:
                 self.che_do = "tu_dien"
 
     def _diem_tu_dien(self, text: str) -> Dict[str, float]:
-        """Tính điểm cảm xúc bằng từ điển."""
+        """Tính điểm cảm xúc bằng từ điển tiếng Việt có xử lý cụm từ và phủ định cục bộ."""
         tu_list = self._xl.tach_tu(text)
         text_lower = text.lower()
+        tich_cuc_chuan = {w.replace("_", " ") for w in self.TU_CAM_XUC_TICH_CUC}
+        tieu_cuc_chuan = {w.replace("_", " ") for w in self.TU_CAM_XUC_TIEU_CUC}
+        tu_phu_dinh = {"không", "chưa", "chẳng", "không hề"}
 
         diem_tich_cuc = 0
         diem_tieu_cuc = 0
 
-        for tu in tu_list:
-            if tu in self.TU_CAM_XUC_TICH_CUC or text_lower.find(tu.replace("_", " ")) >= 0:
+        for idx, tu in enumerate(tu_list):
+            tu_chuan = tu.lower().replace("_", " ")
+            bi_phu_dinh = idx > 0 and tu_list[idx - 1].lower().replace("_", " ") in tu_phu_dinh
+            if tu_chuan in tich_cuc_chuan:
+                if bi_phu_dinh:
+                    diem_tieu_cuc += 1
+                else:
+                    diem_tich_cuc += 1
+            elif tu_chuan in tieu_cuc_chuan:
+                if bi_phu_dinh:
+                    diem_tich_cuc += 1
+                else:
+                    diem_tieu_cuc += 1
+
+        for cum in tich_cuc_chuan:
+            if " " in cum and cum in text_lower:
                 diem_tich_cuc += 1
-            if tu in self.TU_CAM_XUC_TIEU_CUC or text_lower.find(tu.replace("_", " ")) >= 0:
+        for cum in tieu_cuc_chuan:
+            if " " in cum and cum in text_lower:
                 diem_tieu_cuc += 1
-
-        # Kiểm tra phủ định
-        tu_phu_dinh = {"không", "chưa", "chẳng", "ít", "không_hề", "chẳng_hạn"}
-        co_phu_dinh = any(p in text_lower for p in tu_phu_dinh)
-
-        if co_phu_dinh:
-            diem_tich_cuc, diem_tieu_cuc = diem_tieu_cuc, diem_tich_cuc
 
         tong = diem_tich_cuc + diem_tieu_cuc
         if tong == 0:

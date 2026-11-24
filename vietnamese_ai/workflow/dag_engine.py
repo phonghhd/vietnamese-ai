@@ -6,7 +6,7 @@ trong Đồ thị có hướng (Directed Acyclic Graph).
 import concurrent.futures
 import logging
 from collections import defaultdict, deque
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set
 
 from .node import NutCongViec
 
@@ -22,7 +22,7 @@ class LoiVongLap(Exception):
 class DongChayDAG:
     """Lõi định tuyến Luồng công việc."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.danh_sach_nut: Dict[str, NutCongViec] = {}
         # Ánh xạ biến (biến A được tạo ra bởi Nút X)
         self.nguon_cung_cap_bien: Dict[str, str] = {}
@@ -97,7 +97,7 @@ class DongChayDAG:
 
         return thu_tu_chay
 
-    def thuc_thi(self, du_lieu_khoi_tao: Dict[str, Any] = None) -> Dict[str, Any]:
+    def thuc_thi(self, du_lieu_khoi_tao: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Thực thi đồ thị song song bằng Multi-threading.
 
@@ -115,9 +115,9 @@ class DongChayDAG:
             for v in do_thi[u]:
                 bac_vao[v] += 1
 
-        nut_san_sang = set([nut for nut, bac in bac_vao.items() if bac == 0])
-        nut_dang_chay = set()
-        nut_hoan_thanh = set()
+        nut_san_sang: Set[str] = {nut for nut, bac in bac_vao.items() if bac == 0}
+        nut_dang_chay: Set[str] = set()
+        nut_hoan_thanh: Set[str] = set()
 
         logger.info(f"[DAG] Bắt đầu chạy Workflow ({len(self.danh_sach_nut)} nút).")
 

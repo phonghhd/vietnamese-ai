@@ -334,7 +334,7 @@ class TestVersionAndPublicExportsV31:
     """Kiểm tra đồng bộ phiên bản 31.0.0 và symbols công khai."""
 
     def test_version_canonical_v31(self):
-        assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2")
+        assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2", "31.0.3")
 
     def test_lazy_loaded_public_symbols_v31(self):
         assert getattr(vietnamese_ai, "CayMerkleSuyLuan") is CayMerkleSuyLuan

@@ -219,7 +219,10 @@ class TrichXuat:
     def _tim_keyword(
         self, cau_hoi: str, top_k: int, nguong: Optional[float]
     ) -> List[Dict[str, Any]]:
-        """Tìm kiếm keyword (BM25-like)."""
+        """Tìm kiếm keyword (ưu tiên SQLite FTS5 BM25 trên `.vaidb`, dự phòng BM25 in-memory)."""
+        if hasattr(self.csdl_vector, "tim_kiem_fts"):
+            return self.csdl_vector.tim_kiem_fts(cau_hoi, top_k=top_k, nguong=nguong)
+
         tu_query = cau_hoi.lower().split()
         diem_map: Dict[str, float] = {}
 
@@ -349,25 +352,29 @@ class TrichXuat:
         return tong / max(len(self._tu_dien), 1)
 
     def xoa_tai_lieu(self, ma: str) -> int:
-        """Xóa tài liệu và tất cả chunks liên quan."""
-        if ma not in self._van_ban_goc:
-            return 0
-
-        del self._van_ban_goc[ma]
+        """Xóa tài liệu và tất cả chunks liên quan (hỗ trợ cả in-memory lẫn `.vaidb` bền vững)."""
         da_xoa = 0
+        if ma in self._van_ban_goc:
+            del self._van_ban_goc[ma]
 
-        keys_to_remove = [k for k in self._tu_dien.keys() if k.startswith(f"{ma}_chunk_")]
+        keys_to_remove = [k for k in self._tu_dien.keys() if k.startswith(f"{ma}_chunk_") or k == ma]
         for key in keys_to_remove:
             del self._tu_dien[key]
-            self.csdl_vector.xoa(key)
+            if not hasattr(self.csdl_vector, "xoa_tai_lieu"):
+                self.csdl_vector.xoa(key)
             da_xoa += 1
 
-        self._tong_tai_lieu -= da_xoa
+        if hasattr(self.csdl_vector, "xoa_tai_lieu"):
+            da_xoa_db = int(self.csdl_vector.xoa_tai_lieu(ma))
+            da_xoa = max(da_xoa, da_xoa_db)
+
+        self._tong_tai_lieu = max(0, self._tong_tai_lieu - da_xoa)
         return da_xoa
 
     def so_tai_lieu(self) -> int:
-        """Số tài liệu trong retriever."""
-        return len(self._van_ban_goc)
+        """Số tài liệu trong retriever (tự đọc từ `.vaidb` nếu mở lại từ đĩa)."""
+        so_db = self.csdl_vector.so_tai_lieu() if hasattr(self.csdl_vector, "so_tai_lieu") else 0
+        return max(len(self._van_ban_goc), int(so_db))
 
     def thong_ke(self) -> Dict[str, Any]:
         """Thống kê retriever."""
@@ -376,9 +383,10 @@ class TrichXuat:
         else:
             so = self.csdl_vector.so_luong() if hasattr(self.csdl_vector, "so_luong") else 0
             csdl_info = {"so_luong": so}
+        so_chunks_db = self.csdl_vector.so_luong() if hasattr(self.csdl_vector, "so_luong") else 0
         return {
-            "so_tai_lieu": len(self._van_ban_goc),
-            "so_chunks": self._tong_tai_lieu,
+            "so_tai_lieu": self.so_tai_lieu(),
+            "so_chunks": max(self._tong_tai_lieu, int(so_chunks_db)),
             "che_do": self.che_do,
             "trong_so_semantic": self.trong_so_semantic,
             "csdl_vector": csdl_info,
@@ -462,7 +470,7 @@ class MultiModalRetriever(TrichXuat):
 
     def tim_kiem_da_phuong_thuc(
         self, cau_hoi: str, la_hinh_anh: bool = False, top_k: int = 3
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """
         Tìm kiếm thông minh.
         Nếu la_hinh_anh = True: cau_hoi là đường dẫn ảnh.

@@ -171,7 +171,7 @@ class BoGioiHanTocDo:
     def lay_thong_ke(self) -> Dict[str, Any]:
         """Lấy thống kê rate limiter."""
         with self._lock:
-            stats = self._thong_ke.copy()
+            stats: Dict[str, Any] = dict(self._thong_ke)
             stats["go_i_y"] = self.go_i_y
             stats["cua_so"] = self.cua_so
             stats["che_do"] = self.che_do

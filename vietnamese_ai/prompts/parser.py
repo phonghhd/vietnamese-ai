@@ -159,8 +159,8 @@ class PhanTichDauRa:
                     else:
                         coerced[fname] = self._ep_kieu_gia_tri(van_ban, ftype)
             if hasattr(schema, "model_validate"):
-                return schema.model_validate(coerced)
-            return schema.parse_obj(coerced)
+                return getattr(schema, "model_validate")(coerced)
+            return getattr(schema, "parse_obj")(coerced)
 
         # 2. Nếu là Python @dataclass
         if isinstance(schema, type) and dataclasses.is_dataclass(schema):

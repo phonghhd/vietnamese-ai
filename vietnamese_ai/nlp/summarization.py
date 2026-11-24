@@ -105,13 +105,12 @@ class TomTatVanBan:
         diem_cau = self._tinh_diem_cau(cac_cau, van_ban)
 
         # Chọn câu có điểm cao nhất, giữ thứ tự gốc
-        chi_so_chon = np.argsort(diem_cau)[::-1][:so_cau]
-        chi_so_chon = sorted(chi_so_chon)
+        chi_so_chon: List[Any] = sorted(np.argsort(diem_cau)[::-1][:so_cau])
 
         # Giới hạn số từ
         if toi_da_tu:
             tong_tu = 0
-            chi_so_cuoi = []
+            chi_so_cuoi: List[Any] = []
             for idx in chi_so_chon:
                 so_tu = len(cac_cau[idx].split())
                 if tong_tu + so_tu > toi_da_tu:
@@ -142,6 +141,9 @@ class TomTatVanBan:
 
         prompt = f"{yeu_cau}\n\nVăn bản:\n{van_ban}\n\nTóm tắt:"
 
+        if self.ham_sinh is None:
+            return self._tom_tat_extractive(van_ban, 3, toi_da_tu)
+
         try:
             tom_tat = self.ham_sinh(prompt)
         except Exception as e:
@@ -166,7 +168,7 @@ class TomTatVanBan:
         diem = np.zeros(n)
 
         # TF-IDF scoring
-        tu_van_ban = {}
+        tu_van_ban: Dict[str, int] = {}
         for cau in cac_cau:
             for tu in self._xl.tach_tu(cau.lower()):
                 tu_van_ban[tu] = tu_van_ban.get(tu, 0) + 1

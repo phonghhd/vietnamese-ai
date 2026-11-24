@@ -1,7 +1,7 @@
 """PreTrainer - Pre-training trainer cho GPT-style models."""
 
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Set
 
 import numpy as np
 
@@ -51,7 +51,7 @@ class TextDataset:
         if not cac_van_ban:
             raise ValueError("Corpus trống")
 
-        all_chars = set()
+        all_chars: Set[str] = set()
         for vb in cac_van_ban:
             all_chars.update(vb)
 

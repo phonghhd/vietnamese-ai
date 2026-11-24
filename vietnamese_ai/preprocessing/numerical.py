@@ -67,7 +67,7 @@ class XuLySo:
         data = np.asarray(data, dtype=float)
         if fit:
             self.fit(data)
-        if not self._da_fit:
+        if not self._da_fit or self._min is None or self._max is None:
             raise RuntimeError("Cần gọi fit() trước.")
 
         pham_vi = self._max - self._min
@@ -85,7 +85,7 @@ class XuLySo:
         data = np.asarray(data, dtype=float)
         if fit:
             self.fit(data)
-        if not self._da_fit:
+        if not self._da_fit or self._mean is None or self._std is None:
             raise RuntimeError("Cần gọi fit() trước.")
 
         std_safe = np.where(self._std == 0, 1, self._std)

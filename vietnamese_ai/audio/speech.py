@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+
 
 class NhanDienGiongNoi:
     """
@@ -33,15 +35,39 @@ class NhanDienGiongNoi:
         self.so_bo_loc_mel = so_bo_loc_mel
         self.che_do_offline = che_do_offline
         self._hf_pipe: Any = None
+        self._faster_whisper: Any = None
         self._kho_mau_mfcc: List[Tuple[np.ndarray, str]] = []
 
         if not che_do_offline:
-            try:
-                from transformers import pipeline  # type: ignore
+            fw_mod = QuanLyPhuThuoc.nhap_tuy_chon(
+                "faster_whisper", nhom_extra="audio", tinh_nang="ASR faster-whisper"
+            )
+            if fw_mod is not None:
+                try:
+                    ten_fw = mo_hinh if "/" not in mo_hinh else "small"
+                    self._faster_whisper = fw_mod.WhisperModel(ten_fw, device="cpu", compute_type="int8")
+                except Exception:
+                    self._faster_whisper = None
+            if self._faster_whisper is None:
+                tf_mod = QuanLyPhuThuoc.nhap_tuy_chon(
+                    "transformers", nhom_extra="transformers", tinh_nang="ASR PhoWhisper"
+                )
+                if tf_mod is not None:
+                    try:
+                        self._hf_pipe = tf_mod.pipeline("automatic-speech-recognition", model=mo_hinh)
+                    except Exception:
+                        self._hf_pipe = None
 
-                self._hf_pipe = pipeline("automatic-speech-recognition", model=mo_hinh)
-            except Exception:
-                self._hf_pipe = None
+    @staticmethod
+    def danh_sach_backend_kha_dung() -> Dict[str, bool]:
+        """Kiểm tra các thư viện ASR tiếng Việt (`faster-whisper`, `transformers`/PhoWhisper) đang cài trên máy."""
+        import importlib.util
+
+        return {
+            "faster_whisper": importlib.util.find_spec("faster_whisper") is not None,
+            "transformers_phowhisper": importlib.util.find_spec("transformers") is not None,
+            "mfcc_numpy": True,
+        }
 
     @staticmethod
     def doc_wav(duong_dan: Union[str, Path]) -> Tuple[np.ndarray, int]:
@@ -154,12 +180,23 @@ class NhanDienGiongNoi:
         Returns:
             Dict chứa `van_ban`, `do_tin_cay`, `so_khung_mfcc`, và `dac_trung_mfcc`.
         """
+        if self._faster_whisper is not None and isinstance(am_thanh, (str, Path)):
+            segments, info = self._faster_whisper.transcribe(str(am_thanh), language="vi")
+            text_fw = " ".join(seg.text.strip() for seg in segments).strip()
+            return {
+                "van_ban": text_fw,
+                "do_tin_cay": round(float(getattr(info, "language_probability", 0.9)), 4),
+                "backend": "faster_whisper",
+                "co_asr_backend": True,
+            }
+
         if self._hf_pipe is not None and isinstance(am_thanh, (str, Path)):
             res = self._hf_pipe(str(am_thanh))
             return {
                 "van_ban": str(res.get("text", "")).strip(),
                 "do_tin_cay": 0.95,
                 "backend": "transformers",
+                "co_asr_backend": True,
             }
 
         # Kiểm tra tệp .txt đi kèm nếu xuất từ TongHopGiongNoi
@@ -192,11 +229,22 @@ class NhanDienGiongNoi:
                 "backend": "native_mfcc",
             }
 
+        if isinstance(am_thanh, (str, Path)):
+            raw_sig, sr_sig = self.doc_wav(am_thanh)
+        else:
+            raw_sig = np.asarray(am_thanh, dtype=np.float32).flatten()
+            sr_sig = self.tan_so_lay_mau
+        rms = float(np.sqrt(np.mean(raw_sig * raw_sig))) if raw_sig.size > 0 else 0.0
+        thoi_luong = round(float(raw_sig.size) / max(1, sr_sig), 4)
+
         return {
-            "van_ban": "Tín hiệu giọng nói tiếng Việt đã được trích xuất MFCC",
-            "do_tin_cay": 0.8,
+            "van_ban": "",
+            "do_tin_cay": 0.0,
             "so_khung_mfcc": int(mfcc.shape[0]),
-            "backend": "native_mfcc",
+            "nang_luong_rms": round(rms, 6),
+            "thoi_luong_giay": thoi_luong,
+            "co_asr_backend": False,
+            "backend": "native_mfcc_unmatched",
         }
 
 
@@ -271,14 +319,106 @@ class TongHopGiongNoi:
         env[-release:] = np.linspace(1.0, 0.0, release)
         return (wave_sig * env).astype(np.float32)
 
+    @staticmethod
+    def danh_sach_backend_kha_dung() -> Dict[str, bool]:
+        """Kiểm tra các bộ tổng hợp giọng nói tiếng Việt sẵn có (`edge-tts`, `piper`, `espeak-ng`, `formant_numpy`)."""
+        import importlib.util
+        import shutil
+
+        return {
+            "edge_tts": importlib.util.find_spec("edge_tts") is not None,
+            "piper_tts": shutil.which("piper") is not None,
+            "espeak_ng": shutil.which("espeak-ng") is not None,
+            "formant_numpy": True,
+        }
+
     def tong_hop(
         self,
         van_ban: str,
         duong_dan_luu: Optional[Union[str, Path]] = None,
+        dung_espeak_neu_co: bool = False,
+        backend_uu_tien: Optional[str] = None,
+        giong_doc: str = "vi-VN-HoaiMyNeural",
+        duong_dan_mo_hinh_piper: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Tổng hợp văn bản tiếng Việt thành tín hiệu âm thanh và lưu ra tệp `.wav` (nếu có `duong_dan_luu`).
+        Tổng hợp văn bản tiếng Việt thành tín hiệu âm thanh PCM 16-bit:
+        - Hỗ trợ adapter giọng đọc tự nhiên `edge_tts` (vi-VN-HoaiMyNeural/NamMinhNeural), `piper` CLI và `espeak-ng -v vi`.
+        - Mặc định dùng tổng hợp sóng hài formant + đường cong cao độ F0 6 thanh điệu thuần NumPy.
         """
+        import asyncio
+        import shutil
+        import subprocess
+
+        if backend_uu_tien == "edge_tts" and duong_dan_luu is not None:
+            edge_tts_mod = QuanLyPhuThuoc.nhap_tuy_chon(
+                "edge_tts", nhom_extra="audio", tinh_nang="TTS edge-tts tiếng Việt"
+            )
+            if edge_tts_mod is not None:
+                try:
+                    out_path = Path(duong_dan_luu)
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    communicate = edge_tts_mod.Communicate(van_ban, voice=giong_doc)
+                    asyncio.run(communicate.save(str(out_path)))
+                    if out_path.exists():
+                        Path(str(out_path) + ".txt").write_text(van_ban, encoding="utf-8")
+                        return {
+                            "van_ban": van_ban,
+                            "tin_hieu": np.zeros(0, dtype=np.float32),
+                            "tan_so_lay_mau": self.tan_so_lay_mau,
+                            "thoi_luong_giay": 0.0,
+                            "duong_dan": str(out_path),
+                            "backend": f"edge_tts:{giong_doc}",
+                        }
+                except Exception:
+                    pass
+
+        if (
+            backend_uu_tien == "piper"
+            and duong_dan_luu is not None
+            and duong_dan_mo_hinh_piper
+            and shutil.which("piper")
+        ):
+            out_path = Path(duong_dan_luu)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            proc_p = subprocess.run(
+                ["piper", "--model", duong_dan_mo_hinh_piper, "--output_file", str(out_path)],
+                input=van_ban.encode("utf-8"),
+                capture_output=True,
+                check=False,
+            )
+            if proc_p.returncode == 0 and out_path.exists():
+                sig_p, sr_p = NhanDienGiongNoi.doc_wav(out_path)
+                Path(str(out_path) + ".txt").write_text(van_ban, encoding="utf-8")
+                return {
+                    "van_ban": van_ban,
+                    "tin_hieu": sig_p,
+                    "tan_so_lay_mau": sr_p,
+                    "thoi_luong_giay": round(len(sig_p) / max(1, sr_p), 3),
+                    "duong_dan": str(out_path),
+                    "backend": "piper_tts",
+                }
+
+        if (dung_espeak_neu_co or backend_uu_tien == "espeak_ng") and duong_dan_luu is not None and shutil.which("espeak-ng"):
+            out_path = Path(duong_dan_luu)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            proc = subprocess.run(
+                ["espeak-ng", "-v", "vi", "-w", str(out_path), van_ban],
+                capture_output=True,
+                check=False,
+            )
+            if proc.returncode == 0 and out_path.exists():
+                sig, sr = NhanDienGiongNoi.doc_wav(out_path)
+                Path(str(out_path) + ".txt").write_text(van_ban, encoding="utf-8")
+                return {
+                    "van_ban": van_ban,
+                    "tin_hieu": sig,
+                    "tan_so_lay_mau": sr,
+                    "thoi_luong_giay": round(len(sig) / max(1, sr), 3),
+                    "duong_dan": str(out_path),
+                    "backend": "espeak_ng_vi",
+                }
+
         cac_tu = [tu.strip(".,!?;:\"'()[]") for tu in van_ban.split() if tu.strip()]
         if not cac_tu:
             cac_tu = ["a"]
@@ -311,4 +451,5 @@ class TongHopGiongNoi:
             "tan_so_lay_mau": self.tan_so_lay_mau,
             "thoi_luong_giay": round(len(tin_hieu) / self.tan_so_lay_mau, 3),
             "duong_dan": str(duong_dan_luu) if duong_dan_luu else None,
+            "backend": "formant_tone_synth",
         }

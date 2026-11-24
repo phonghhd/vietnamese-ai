@@ -1,10 +1,25 @@
 from pathlib import Path
 
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
+
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta=(
+        "Sinh mã mẫu Flutter/React Native (mã hóa Base64 minh họa). "
+        "Môi trường production yêu cầu SDK di động (Flutter/Node) và thư viện AEAD phía client."
+    ),
+    phu_thuoc_ngoai=["Flutter SDK (cho Dart)", "Node.js / React Native CLI (cho JS)"],
+    nhom_extra="mobile",
+    la_mo_phong=True,
+)
 class SDKGenerator:
     """
-    Trình tự động sinh mã kết nối WebSocket (Flutter / React Native) tương thích
-    chuẩn E2EE / AEAD1 của MobileAppBridge và hàng đợi ngoại tuyến tự động đồng bộ.
+    Trình tự động sinh mã kết nối WebSocket (Flutter / React Native) — Thử nghiệm / Mã mẫu.
+
+    Lưu ý: Các template sinh ra hiện dùng Base64 minh họa cho mục đích tích hợp nhanh;
+    khi triển khai production cần thay thế `encryptPayload` bằng thư viện AEAD/TLS thực tế
+    của nền tảng di động và biên dịch bằng Flutter SDK / React Native CLI.
     """
 
     FLUTTER_TEMPLATE = """// EvoNetConnector.dart

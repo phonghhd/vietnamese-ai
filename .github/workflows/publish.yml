@@ -1,36 +1,136 @@
-name: Publish Python Package to PyPI
+name: Publish Python Package & Native Rust Wheels to PyPI / TestPyPI
 
-# Kịch bản này sẽ tự động chạy khi bạn push một "tag" phiên bản (ví dụ: v20.0.0) lên GitHub
 on:
   push:
     tags:
-      - 'v*.*.*'  # Kích hoạt khi tag có định dạng vX.Y.Z
-      - 'v*.*'    # Kích hoạt khi tag có định dạng vX.Y
+      - 'v*.*.*'
+      - 'v*.*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Đích phát hành gói (testpypi để kiểm thử trước khi đẩy pypi chính thức)'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+          - pypi
 
 jobs:
+  release-gate:
+    name: Release Readiness Gate (vai release-check & Wheel Smoke Test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build & verification tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine numpy
+
+      - name: Run Vietnamese AI Release Check
+        run: python -m vietnamese_ai.cli.main release-check
+
+      - name: Build sdist & wheel and verify with twine
+        run: |
+          python -m build --outdir dist_check
+          twine check dist_check/*
+
+      - name: Clean-venv wheel smoke test (verify bundled 100 legal provisions)
+        run: |
+          python -m venv /tmp/smoke_venv
+          /tmp/smoke_venv/bin/pip install dist_check/*.whl
+          /tmp/smoke_venv/bin/python -c "import vietnamese_ai as v; assert len(v.tai_bo_phap_ly_mo()) == 100; assert len(v.tai_bo_hoi_dap_phap_ly_mo()) == 35; print('Wheel smoke test OK!')"
+          /tmp/smoke_venv/bin/vai demo legal-rag
+
+  build-rust-wheels:
+    name: Build abi3 Rust Core (${{ matrix.os }} / ${{ matrix.arch }})
+    needs: release-gate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            manylinux: auto
+          - os: macos-14
+            arch: arm64
+            target: aarch64-apple-darwin
+            manylinux: ""
+          - os: windows-latest
+            arch: x64
+            target: x86_64-pc-windows-msvc
+            manylinux: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build abi3-py39 Rust extension wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: rust_core
+          target: ${{ matrix.target }}
+          args: --release --out ../dist_rust
+          manylinux: ${{ matrix.manylinux }}
+
+      - name: Upload native Rust wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-wheel-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist_rust/*.whl
+
   build-and-publish:
-    name: Build and upload to PyPI
+    name: Build Package and Upload (${{ inputs.target || 'pypi' }})
+    needs: [release-gate, build-rust-wheels]
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Bắt buộc cho Trusted Publishing (OIDC) để xác thực nguồn gốc GitHub
+      id-token: write
       contents: read
 
     steps:
-      - name: Checkout mã nguồn
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Thiết lập môi trường Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x" # Sử dụng phiên bản Python 3 mới nhất
+          python-version: "3.12"
 
-      - name: Cài đặt các công cụ đóng gói
+      - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build twine
 
-      - name: Đóng gói project (từ pyproject.toml)
+      - name: Build vietnamese-ai sdist and wheel
         run: python -m build
 
-      - name: Upload lên PyPI (qua OIDC Trusted Publishing)
+      - name: Download native Rust wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rust-wheel-*
+          path: dist/
+          merge-multiple: true
+
+      - name: Verify all distribution artifacts with twine
+        run: twine check dist/*
+
+      - name: Upload to TestPyPI via OIDC Trusted Publishing
+        if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Upload to PyPI via OIDC Trusted Publishing
+        if: github.event_name != 'workflow_dispatch' || inputs.target == 'pypi'
         uses: pypa/gh-action-pypi-publish@release/v1

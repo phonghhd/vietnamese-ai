@@ -9,6 +9,8 @@ from vietnamese_ai.agents.long_term_memory import HethongNhoMemGPT as HethongNho
 from vietnamese_ai.agents.mcp import MCPBridge as MCPBridge
 from vietnamese_ai.agents.mcp import MCPClient as MCPClient
 from vietnamese_ai.agents.mcp import MCPServer as MCPServer
+from vietnamese_ai.agents.mcp_transport import MayChuMCPThucTe as MayChuMCPThucTe
+from vietnamese_ai.agents.mcp_transport import ProductionMCPServer as ProductionMCPServer
 from vietnamese_ai.agents.mcts_planning import LapKeHoachMCTS as LapKeHoachMCTS
 from vietnamese_ai.agents.memory import BoNhoTacTu as BoNhoTacTu
 from vietnamese_ai.agents.moa import MoA as MoA
@@ -40,6 +42,7 @@ from vietnamese_ai.agents.tools import CongCu as CongCu
 from vietnamese_ai.agents.tools import CongCuManHinh as CongCuManHinh
 from vietnamese_ai.agents.tools import cong_cu as cong_cu
 from vietnamese_ai.agents.tools import cong_cu_man_hinh as cong_cu_man_hinh
+from vietnamese_ai.api.fastapi_server import BoThuThapTelemetryAPI as BoThuThapTelemetryAPI
 from vietnamese_ai.api.server import MayChuOpenAI as MayChuOpenAI
 from vietnamese_ai.api.server import OpenAICompatibleServer as OpenAICompatibleServer
 from vietnamese_ai.api.server import ServerDonGian as ServerDonGian
@@ -66,6 +69,12 @@ from vietnamese_ai.compression.extreme import BitLinear as BitLinear
 from vietnamese_ai.compression.extreme import BitNetTransformerBlock as BitNetTransformerBlock
 from vietnamese_ai.compression.extreme import RMSNorm as RMSNorm
 from vietnamese_ai.compression.pruning import CatTiaMoHinh as CatTiaMoHinh
+from vietnamese_ai.connectors.telegram_bot import KetNoiTelegram as KetNoiTelegram
+from vietnamese_ai.connectors.telegram_bot import TelegramBotConnector as TelegramBotConnector
+from vietnamese_ai.connectors.webhook_server import ChannelWebhookServer as ChannelWebhookServer
+from vietnamese_ai.connectors.webhook_server import MayChuWebhookKenh as MayChuWebhookKenh
+from vietnamese_ai.connectors.zalo_oa import KetNoiZaloOA as KetNoiZaloOA
+from vietnamese_ai.connectors.zalo_oa import ZaloOAConnector as ZaloOAConnector
 from vietnamese_ai.core.cross_validation import KiemDinhCheo as KiemDinhCheo
 from vietnamese_ai.core.end_to_end import EndToEndWorkflow as EndToEndWorkflow
 from vietnamese_ai.core.end_to_end import HeSinhThaiAI as HeSinhThaiAI
@@ -73,6 +82,7 @@ from vietnamese_ai.core.end_to_end import QuyTrinhDauCuoi as QuyTrinhDauCuoi
 from vietnamese_ai.core.engine import Engine as Engine
 from vietnamese_ai.core.hyperparameter import TimKiemThamSo as TimKiemThamSo
 from vietnamese_ai.core.pipeline import Pipeline as Pipeline
+from vietnamese_ai.crypto.audit import KiemToanMatMa as KiemToanMatMa
 from vietnamese_ai.datalake.dataset_manager import HoDuLieu as HoDuLieu
 from vietnamese_ai.distributed.distributed import PhanTanHuanLuyen as PhanTanHuanLuyen
 from vietnamese_ai.distributed.multi_gpu import MultiGPUTrainer as MultiGPUTrainer
@@ -80,7 +90,16 @@ from vietnamese_ai.edge.c_bridge import CauNoiCtypesNative as CauNoiCtypesNative
 from vietnamese_ai.edge.c_bridge import CtypesLlamaBridge as CtypesLlamaBridge
 from vietnamese_ai.edge.c_bridge import NativeLlamaBridge as NativeLlamaBridge
 from vietnamese_ai.edge.intelligent_router import EdgeRouter as EdgeRouter
+from vietnamese_ai.edge.model_hub import DANH_MUC_MO_HINH_VIET as DANH_MUC_MO_HINH_VIET
+from vietnamese_ai.edge.model_hub import EdgeModelHub as EdgeModelHub
+from vietnamese_ai.edge.model_hub import QuanLyMoHinhEdge as QuanLyMoHinhEdge
+from vietnamese_ai.edge.model_hub import dinh_dang_prompt_chat as dinh_dang_prompt_chat
+from vietnamese_ai.edge.model_hub import do_ram_he_thong_gb as do_ram_he_thong_gb
 from vietnamese_ai.edge.native_inference import BoGiaiLuongTuQ4 as BoGiaiLuongTuQ4
+from vietnamese_ai.edge.native_inference import (
+    BoGiaiMaTransformerEdge as BoGiaiMaTransformerEdge,
+)
+from vietnamese_ai.edge.native_inference import BoTachTuBPEGGUF as BoTachTuBPEGGUF
 from vietnamese_ai.edge.native_inference import DongCoSuyLuanEdge as DongCoSuyLuanEdge
 from vietnamese_ai.edge.native_inference import EdgeInferenceEngine as EdgeInferenceEngine
 from vietnamese_ai.edge.native_inference import GGUFMemoryMappedStreamer as GGUFMemoryMappedStreamer
@@ -107,6 +126,12 @@ from vietnamese_ai.edge.swarm_inference import (
 from vietnamese_ai.edge.swarm_inference import (
     SwarmInferenceOrchestrator as SwarmInferenceOrchestrator,
 )
+from vietnamese_ai.edge.swarm_inference import (
+    tao_ssl_context_client as tao_ssl_context_client,
+)
+from vietnamese_ai.edge.swarm_inference import (
+    tao_ssl_context_server as tao_ssl_context_server,
+)
 from vietnamese_ai.embeddings.fasttext import FastTextTiengViet as FastTextTiengViet
 from vietnamese_ai.embeddings.word2vec import Word2VecTiengViet as Word2VecTiengViet
 from vietnamese_ai.enterprise.audit import NhatKyHoatDong as NhatKyHoatDong
@@ -123,6 +148,9 @@ from vietnamese_ai.fine_tuning.auto_finetuner import AutoFineTuner as AutoFineTu
 from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh as BoTinhChinhMoHinh
 from vietnamese_ai.fine_tuning.dataset import InstructionDataset as InstructionDataset
 from vietnamese_ai.fine_tuning.dpo_trainer import DPOTrainer as DPOTrainer
+from vietnamese_ai.fine_tuning.eval_gate import CongKiemDinhMoHinh as CongKiemDinhMoHinh
+from vietnamese_ai.fine_tuning.eval_gate import KetQuaKiemDinhMoHinh as KetQuaKiemDinhMoHinh
+from vietnamese_ai.fine_tuning.eval_gate import ModelEvalGate as ModelEvalGate
 from vietnamese_ai.fine_tuning.grpo_trainer import GRPOTrainer as GRPOTrainer
 from vietnamese_ai.fine_tuning.hf_wrapper import HuggingFaceWrapper as HuggingFaceWrapper
 from vietnamese_ai.fine_tuning.instruction_trainer import (
@@ -134,6 +162,36 @@ from vietnamese_ai.fine_tuning.lora import QLoRAAdapter as QLoRAAdapter
 from vietnamese_ai.fine_tuning.lora_peft import LoRAPeft as LoRAPeft
 from vietnamese_ai.fine_tuning.peft_config import PEFTConfig as PEFTConfig
 from vietnamese_ai.fine_tuning.pytorch_trainer import HuanLuyenPyTorch as HuanLuyenPyTorch
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    BoDieuPhoiTinhChinhXa as BoDieuPhoiTinhChinhXa,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    CauHinhTinhChinhXa as CauHinhTinhChinhXa,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    KetQuaTinhChinhXa as KetQuaTinhChinhXa,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    ModalGPUProvider as ModalGPUProvider,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    NhaCungCapCucBo as NhaCungCapCucBo,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    NhaCungCapGPUXa as NhaCungCapGPUXa,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    NhaCungCapModal as NhaCungCapModal,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    NhaCungCapSSH as NhaCungCapSSH,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    RemoteFineTuneOrchestrator as RemoteFineTuneOrchestrator,
+)
+from vietnamese_ai.fine_tuning.remote_gpu import (
+    SSHRemoteGPUProvider as SSHRemoteGPUProvider,
+)
 from vietnamese_ai.fine_tuning.reward_model import RewardModel as RewardModel
 from vietnamese_ai.fine_tuning.rlhf_pipeline import RLHFPipeline as RLHFPipeline
 from vietnamese_ai.fine_tuning.sft_trainer import SFTTrainer as SFTTrainer
@@ -231,11 +289,46 @@ from vietnamese_ai.rag.evaluation import DanhGiaRAG as DanhGiaRAG
 from vietnamese_ai.rag.graph import GraphExtractor as GraphExtractor
 from vietnamese_ai.rag.graph import GraphRetriever as GraphRetriever
 from vietnamese_ai.rag.graph import NetworkXStore as NetworkXStore
+from vietnamese_ai.rag.legal.citation_graph import (
+    DoThiThamChieuPhapLy as DoThiThamChieuPhapLy,
+)
+from vietnamese_ai.rag.legal.citation_graph import LegalCitationGraph as LegalCitationGraph
+from vietnamese_ai.rag.legal.citation_graph import QuanHePhapLy as QuanHePhapLy
+from vietnamese_ai.rag.legal.contract_review import (
+    BoSoSanhRaSoatHopDong as BoSoSanhRaSoatHopDong,
+)
+from vietnamese_ai.rag.legal.contract_review import (
+    ContractReviewEngine as ContractReviewEngine,
+)
+from vietnamese_ai.rag.legal.document_parser import BoDocTaiLieuPhapLy as BoDocTaiLieuPhapLy
+from vietnamese_ai.rag.legal.open_corpus import (
+    tai_bo_hoi_dap_phap_ly_mo as tai_bo_hoi_dap_phap_ly_mo,
+)
+from vietnamese_ai.rag.legal.open_corpus import tai_bo_phap_ly_mo as tai_bo_phap_ly_mo
+from vietnamese_ai.rag.legal.validity_tracker import (
+    BoTheoDoiHieuLucPhapLy as BoTheoDoiHieuLucPhapLy,
+)
+from vietnamese_ai.rag.legal.validity_tracker import HoSoHieuLucVanBan as HoSoHieuLucVanBan
+from vietnamese_ai.rag.legal.validity_tracker import (
+    LegalValidityTracker as LegalValidityTracker,
+)
 from vietnamese_ai.rag.multimodal import ImageEmbedder as ImageEmbedder
 from vietnamese_ai.rag.multimodal import MultimodalStore as MultimodalStore
+from vietnamese_ai.rag.onnx_semantic import BoNhungONNXTiengViet as BoNhungONNXTiengViet
+from vietnamese_ai.rag.onnx_semantic import (
+    BoSapXepLaiONNXTiengViet as BoSapXepLaiONNXTiengViet,
+)
+from vietnamese_ai.rag.onnx_semantic import (
+    VietnameseONNXEmbedder as VietnameseONNXEmbedder,
+)
+from vietnamese_ai.rag.onnx_semantic import (
+    VietnameseONNXReranker as VietnameseONNXReranker,
+)
 from vietnamese_ai.rag.rag_pipeline import RAGPipeline as RAGPipeline
 from vietnamese_ai.rag.reranker import SapXepLai as SapXepLai
 from vietnamese_ai.rag.retriever import TrichXuat as TrichXuat
+from vietnamese_ai.rag.vaidb_store import KhoTriThucVAIDB as KhoTriThucVAIDB
+from vietnamese_ai.rag.vaidb_store import VAIDBStore as VAIDBStore
 from vietnamese_ai.rag.vector_store import CSDLVector as CSDLVector
 from vietnamese_ai.rag.vietnamese_context import BoToiUuNguCanhHanhChinh as BoToiUuNguCanhHanhChinh
 from vietnamese_ai.rag.vietnamese_context import (
@@ -318,12 +411,23 @@ from vietnamese_ai.transformer.tokenizer import VietnameseTokenizer as Vietnames
 from vietnamese_ai.ui.studio_dashboard import MayChuStudioDashboard as MayChuStudioDashboard
 from vietnamese_ai.ui.studio_dashboard import StudioDashboard as StudioDashboard
 from vietnamese_ai.ui.web_app import UngDungWeb as UngDungWeb
+from vietnamese_ai.ui.workspace_store import (
+    QuanLyPhienChatWorkspace as QuanLyPhienChatWorkspace,
+)
+from vietnamese_ai.ui.workspace_store import (
+    StudioWorkspaceManager as StudioWorkspaceManager,
+)
+from vietnamese_ai.utils.feature_status import (
+    bao_cao_ranh_gioi_he_thong as bao_cao_ranh_gioi_he_thong,
+)
 from vietnamese_ai.utils.io_utils import LuuTai as LuuTai
 from vietnamese_ai.utils.lazy_loader import DependencyManager as DependencyManager
 from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc as QuanLyPhuThuoc
 from vietnamese_ai.utils.logger import Logger as Logger
 from vietnamese_ai.utils.metrics import Metrics as Metrics
 from vietnamese_ai.utils.validators import Validator as Validator
+from vietnamese_ai.utils.versioning import PhienBanSemVer as PhienBanSemVer
+from vietnamese_ai.utils.versioning import QuanLyPhatHanhGoi as QuanLyPhatHanhGoi
 from vietnamese_ai.vision.image_classifier import PhanLoaiHinhAnh as PhanLoaiHinhAnh
 from vietnamese_ai.vision.ocr import TrichXuatVanBanAnh as TrichXuatVanBanAnh
 from vietnamese_ai.vision.vlm import MoHinhThiGiacNgonNgu as MoHinhThiGiacNgonNgu

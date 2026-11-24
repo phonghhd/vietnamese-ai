@@ -3,7 +3,7 @@
 import json
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from vietnamese_ai.fine_tuning.peft_config import PEFTConfig
 from vietnamese_ai.utils.logger import Logger
@@ -18,7 +18,15 @@ except ImportError:
     _CO_PYTORCH = False
 
 
-class LoRALinear(nn.Module if _CO_PYTORCH else object):
+if TYPE_CHECKING:
+
+    class _BaseModule(nn.Module):
+        pass
+else:
+    _BaseModule = nn.Module if _CO_PYTORCH else object
+
+
+class LoRALinear(_BaseModule):
     """LoRA layer cho Linear - PyTorch nn.Module."""
 
     def __init__(

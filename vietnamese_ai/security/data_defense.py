@@ -1110,7 +1110,14 @@ class CongAnToanDauRa:
             if isinstance(ng, str):
                 van_ban_nguon_gop.append(ng)
             elif isinstance(ng, dict):
-                nd = ng.get("noi_dung") or ng.get("van_ban") or ng.get("text") or ng.get("metadata", {}).get("noi_dung", "")
+                nd = (
+                    ng.get("noi_dung")
+                    or ng.get("trich_doan")
+                    or ng.get("doan_trich")
+                    or ng.get("text")
+                    or ng.get("metadata", {}).get("noi_dung", "")
+                    or ng.get("van_ban", "")
+                )
                 van_ban_nguon_gop.append(str(nd))
 
         tap_tu_nguon = set(re.findall(r"[a-zA-Z0-9À-ỹ]{2,}", " ".join(van_ban_nguon_gop).lower()))

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import ast
-import traceback
+import json
+import os
+import subprocess
+import sys
+import tempfile
 from typing import Any, Callable, Dict, Optional, Tuple
 
 from vietnamese_ai.agents.state_graph import (
@@ -31,11 +35,30 @@ class _KiemTraASTAnToan:
         "ftplib",
         "pty",
         "pickle",
+        "builtins",
+        "importlib",
+        "ctypes",
+        "tempfile",
+        "threading",
+        "multiprocessing",
+        "marshal",
     }
-    CAC_HAM_NGUY_HIEM = {"eval", "exec", "__import__", "compile", "open"}
+    CAC_HAM_NGUY_HIEM = {
+        "eval",
+        "exec",
+        "__import__",
+        "compile",
+        "open",
+        "getattr",
+        "setattr",
+        "delattr",
+        "globals",
+        "locals",
+        "breakpoint",
+    }
 
     def kiem_tra(self, code: str) -> Tuple[bool, str]:
-        """Phân tích AST để phát hiện import độc hại hoặc hàm thực thi động ngoài ý muốn."""
+        """Phân tích AST để phát hiện import độc hại, hàm thực thi động hoặc truy cập dunder."""
         try:
             tree = ast.parse(code)
             for node in ast.walk(tree):
@@ -52,8 +75,25 @@ class _KiemTraASTAnToan:
                 elif isinstance(node, ast.Call):
                     if isinstance(node.func, ast.Name) and node.func.id in self.CAC_HAM_NGUY_HIEM:
                         return False, f"Bảo mật chặn hàm thực thi động '{node.func.id}'"
-                    elif isinstance(node.func, ast.Attribute) and node.func.attr in ("system", "popen", "spawn"):
-                        return False, f"Bảo mật chặn gọi phương thức shell '{node.func.attr}'"
+                    elif isinstance(node.func, ast.Attribute):
+                        if node.func.attr in ("system", "popen", "spawn"):
+                            return False, f"Bảo mật chặn gọi phương thức shell '{node.func.attr}'"
+                        if (
+                            node.func.attr.startswith("__")
+                            and node.func.attr.endswith("__")
+                            and node.func.attr != "__init__"
+                        ):
+                            return (
+                                False,
+                                f"Bảo mật chặn truy cập thuộc tính hệ thống '{node.func.attr}'",
+                            )
+                elif isinstance(node, ast.Attribute):
+                    if (
+                        node.attr.startswith("__")
+                        and node.attr.endswith("__")
+                        and node.attr != "__init__"
+                    ):
+                        return False, f"Bảo mật chặn truy cập thuộc tính hệ thống '{node.attr}'"
             return True, ""
         except SyntaxError as e:
             return False, f"Lỗi cú pháp (SyntaxError): {e}"
@@ -263,8 +303,7 @@ class TacTuLapTrinhTuSua:
 
             test_code = (
                 "def test_suite():\n"
-                f"    fn = globals().get('{ten_ham}')\n"
-                "    assert fn is not None and callable(fn)\n"
+                f"    assert callable({ten_ham})\n"
                 "    return True\n"
             )
 
@@ -273,15 +312,83 @@ class TacTuLapTrinhTuSua:
             "nhat_ky": ["[Sinh Test] Đã tạo bộ test suite TDD."],
         }
 
+    @staticmethod
+    def _thuc_thi_cach_ly(toan_bo_code: str, timeout_giay: int = 5) -> Dict[str, Any]:
+        """Thực thi mã nguồn và unit test trong tiến trình Python cách ly với builtins giới hạn."""
+        runner_script = (
+            "import json, sys, traceback\n"
+            "ALLOWED_MODULES = {'math', 'statistics', 'itertools', 'functools', 'collections', 'decimal', 'fractions', 're', 'json'}\n"
+            "def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):\n"
+            "    root = name.split('.')[0]\n"
+            "    if root not in ALLOWED_MODULES:\n"
+            "        raise ImportError(f'Module khong duoc phep trong sandbox: {name}')\n"
+            "    return __import__(name, globals, locals, fromlist, level)\n"
+            "SAFE_BUILTINS = {\n"
+            "    'abs': abs, 'all': all, 'any': any, 'bool': bool, 'callable': callable,\n"
+            "    'dict': dict, 'enumerate': enumerate, 'filter': filter, 'float': float,\n"
+            "    'frozenset': frozenset, 'int': int, 'isinstance': isinstance, 'len': len,\n"
+            "    'list': list, 'map': map, 'max': max, 'min': min, 'pow': pow, 'print': print,\n"
+            "    'range': range, 'reversed': reversed, 'round': round, 'set': set,\n"
+            "    'slice': slice, 'sorted': sorted, 'str': str, 'sum': sum, 'tuple': tuple,\n"
+            "    'zip': zip, 'Exception': Exception, 'ValueError': ValueError,\n"
+            "    'TypeError': TypeError, 'IndexError': IndexError, 'KeyError': KeyError,\n"
+            "    'ZeroDivisionError': ZeroDivisionError, 'AssertionError': AssertionError,\n"
+            "    '__import__': _safe_import,\n"
+            "}\n"
+            "src_path = sys.argv[1]\n"
+            "with open(src_path, 'r', encoding='utf-8') as f:\n"
+            "    code_str = f.read()\n"
+            "ns = {'__builtins__': SAFE_BUILTINS}\n"
+            "try:\n"
+            "    exec(compile(code_str, '<sandbox>', 'exec'), ns)\n"
+            "    ok = ns.get('test_result') is True\n"
+            "    out = {'passed': ok, 'error_type': '' if ok else 'AssertionError', 'traceback': '' if ok else 'test_suite khong tra ve True'}\n"
+            "except Exception as exc:\n"
+            "    out = {'passed': False, 'error_type': type(exc).__name__, 'traceback': f'{type(exc).__name__}: {exc}\\n{traceback.format_exc()}'}\n"
+            "sys.stdout.write('__SANDBOX_JSON__' + json.dumps(out, ensure_ascii=False))\n"
+        )
+        fd_code, path_code = tempfile.mkstemp(suffix=".py", text=True)
+        fd_runner, path_runner = tempfile.mkstemp(suffix=".py", text=True)
+        try:
+            with os.fdopen(fd_code, "w", encoding="utf-8") as f_code:
+                f_code.write(toan_bo_code)
+            with os.fdopen(fd_runner, "w", encoding="utf-8") as f_runner:
+                f_runner.write(runner_script)
+
+            proc = subprocess.run(
+                [sys.executable, "-I", path_runner, path_code],
+                capture_output=True,
+                text=True,
+                timeout=timeout_giay,
+            )
+            marker = "__SANDBOX_JSON__"
+            if marker in proc.stdout:
+                payload = proc.stdout.split(marker, 1)[1].strip()
+                return json.loads(payload)
+            return {
+                "passed": False,
+                "error_type": "SandboxRuntimeError",
+                "traceback": proc.stderr or "Tiến trình sandbox kết thúc bất thường.",
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "passed": False,
+                "error_type": "TimeoutError",
+                "traceback": f"Lỗi Timeout: Mã thực thi vượt quá {timeout_giay} giây trong sandbox.",
+            }
+        finally:
+            for p in (path_code, path_runner):
+                if os.path.exists(p):
+                    os.remove(p)
+
     def _nut_chay_kiem_thu(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Nút 3: Thực thi mã nguồn và test suite trong môi trường an toàn."""
+        """Nút 3: Thực thi mã nguồn và test suite trong tiến trình hộp cát cách ly."""
         ma_nguon = state.get("ma_nguon", "")
         ma_test = state.get("ma_test", "")
         so_lan = state.get("so_lan_thu_lai", 0)
 
         toan_bo_code = f"{ma_nguon}\n\n{ma_test}\ntest_result = test_suite()"
 
-        # Kiểm tra tính an toàn cú pháp và import qua AST trước khi chạy
         an_toan, ly_do = self.ast_checker.kiem_tra(toan_bo_code)
         if not an_toan:
             return {
@@ -291,28 +398,21 @@ class TacTuLapTrinhTuSua:
                 "nhat_ky": [f"[Sandbox] {ly_do}"],
             }
 
-        khong_gian: Dict[str, Any] = {"__builtins__": __builtins__}
-        try:
-            exec(toan_bo_code, khong_gian)
-            if khong_gian.get("test_result") is True:
-                return {
-                    "test_passed": True,
-                    "loi_traceback": "",
-                    "nhat_ky": ["[Sandbox] Kiểm thử TDD THÀNH CÔNG (100% assertions passed)!"],
-                }
+        ket_qua_sb = self._thuc_thi_cach_ly(toan_bo_code, timeout_giay=5)
+        if ket_qua_sb.get("passed") is True:
             return {
-                "test_passed": False,
-                "loi_traceback": "test_suite không trả về True",
-                "so_lan_thu_lai": so_lan + 1,
+                "test_passed": True,
+                "loi_traceback": "",
+                "nhat_ky": ["[Sandbox] Kiểm thử TDD THÀNH CÔNG (100% assertions passed)!"],
             }
-        except Exception as e:
-            tb = traceback.format_exc()
-            return {
-                "test_passed": False,
-                "loi_traceback": f"{type(e).__name__}: {e}\n{tb}",
-                "so_lan_thu_lai": so_lan + 1,
-                "nhat_ky": [f"[Sandbox] Kiểm thử THẤT BẠI ở lần {so_lan + 1}: {type(e).__name__}"],
-            }
+
+        loai_loi = ket_qua_sb.get("error_type", "RuntimeError")
+        return {
+            "test_passed": False,
+            "loi_traceback": ket_qua_sb.get("traceback", "test_suite không trả về True"),
+            "so_lan_thu_lai": so_lan + 1,
+            "nhat_ky": [f"[Sandbox] Kiểm thử THẤT BẠI ở lần {so_lan + 1}: {loai_loi}"],
+        }
 
     def _nut_tu_sua_ma_nguon(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Nút 4: Phân tích Traceback và tự động sửa mã nguồn (Self-Healing)."""
@@ -333,11 +433,11 @@ class TacTuLapTrinhTuSua:
             elif "IndexError" in loi:
                 ma_nguon_sua = ma_nguon_cu.replace("range(len(x))", "range(min(len(x), len(y)))")
 
-        if self.dung_self_refine and (self.sinh_ma_fn or self.llm_sinh_code):
+        if self.dung_self_refine and sinh_fn is not None:
             from vietnamese_ai.salm.self_refine import SelfRefine
 
             refiner = SelfRefine(
-                ham_sinh=self.sinh_ma_fn or self.llm_sinh_code,
+                ham_sinh=sinh_fn,
                 so_vong_toi_da=self.so_vong_refine,
             )
             kq_rf = refiner.chay(

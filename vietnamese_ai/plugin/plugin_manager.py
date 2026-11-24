@@ -26,7 +26,7 @@ _BASE_CLASSES = {PluginCoSo, PluginCongCu, PluginTriThuc, PluginGiaiPhap}
 class QuanLyPlugin:
     """Hệ thống Quản trị & Điều phối V-Plugin 2.0."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Lưu trữ các đối tượng Plugin đã khởi tạo: { ten_module: object_plugin }
         self.cac_plugin_dang_chay: Dict[str, PluginCoSo] = {}
 

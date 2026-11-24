@@ -189,7 +189,7 @@ class MachCat:
     def lay_thong_ke(self) -> Dict[str, Any]:
         """Lấy thống kê circuit breaker."""
         with self._lock:
-            stats = self._thong_ke.copy()
+            stats: Dict[str, Any] = dict(self._thong_ke)
             stats["trang_thai"] = self._trang_thai.value
             stats["so_loi_hien_tai"] = self._so_loi
             stats["so_loi_toi_da"] = self.so_loi_toi_da

@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
+from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
+
 
 class TrichXuatVanBanAnh:
     """
@@ -177,15 +179,26 @@ class TrichXuatVanBanAnh:
         img.info["vietnamese_ocr_text"] = van_ban
         return img
 
+    @staticmethod
+    def danh_sach_engine_kha_dung() -> Dict[str, bool]:
+        """Kiểm tra các thư viện OCR tiếng Việt đang cài (`vietocr`, `paddleocr`, `easyocr`, `pytesseract`)."""
+        import importlib.util
+
+        return {
+            "vietocr": importlib.util.find_spec("vietocr") is not None,
+            "paddleocr": importlib.util.find_spec("paddleocr") is not None,
+            "easyocr": importlib.util.find_spec("easyocr") is not None,
+            "pytesseract": importlib.util.find_spec("pytesseract") is not None,
+        }
+
     def doc_van_ban(self, anh: Union[str, Path, np.ndarray, Any]) -> Dict[str, Any]:
-        """
-        Trích xuất văn bản và bố cục dòng chữ từ ảnh tài liệu tiếng Việt.
-        """
+        """Trích xuất văn bản và bố cục dòng chữ từ ảnh tài liệu tiếng Việt qua OCR thật (vietocr/paddleocr/easyocr/pytesseract)."""
         binary = self.tien_xu_ly_anh(anh)
         cac_dong = self.phat_hien_dong_chu(binary)
         van_ban_ket_qua = ""
+        nguon_ocr = "khong_co_engine_ocr"
+        co_ocr_engine = False
 
-        # 1. Thử đọc metadata PNG hoặc pytesseract nếu có
         if isinstance(anh, (str, Path)):
             try:
                 from PIL import Image  # type: ignore
@@ -193,19 +206,83 @@ class TrichXuatVanBanAnh:
                 img = Image.open(str(anh))
                 if "vietnamese_ocr_text" in img.info:
                     van_ban_ket_qua = str(img.info["vietnamese_ocr_text"])
+                    nguon_ocr = "png_text_metadata"
+                    co_ocr_engine = True
                 else:
-                    try:
-                        import pytesseract  # type: ignore
-
-                        van_ban_ket_qua = str(
-                            pytesseract.image_to_string(img, lang=self.ngon_ngu)
-                        ).strip()
-                    except Exception:
-                        pass
+                    vietocr_cfg = QuanLyPhuThuoc.nhap_tuy_chon(
+                        "vietocr.tool.config", nhom_extra="ocr-vn", tinh_nang="VietOCR"
+                    )
+                    vietocr_pred = (
+                        QuanLyPhuThuoc.nhap_tuy_chon(
+                            "vietocr.tool.predictor", nhom_extra="ocr-vn", tinh_nang="VietOCR"
+                        )
+                        if vietocr_cfg is not None
+                        else None
+                    )
+                    if vietocr_cfg is not None and vietocr_pred is not None:
+                        try:
+                            cfg = vietocr_cfg.Cfg.load_config_from_name("vgg_transformer")
+                            cfg["device"] = "cpu"
+                            detector = vietocr_pred.Predictor(cfg)
+                            van_ban_ket_qua = str(detector.predict(img)).strip()
+                            if van_ban_ket_qua:
+                                nguon_ocr = "vietocr"
+                                co_ocr_engine = True
+                        except Exception:
+                            pass
+                    if not van_ban_ket_qua:
+                        pytesseract_mod = QuanLyPhuThuoc.nhap_tuy_chon(
+                            "pytesseract", nhom_extra="vision", tinh_nang="OCR PyTesseract"
+                        )
+                        if pytesseract_mod is not None:
+                            try:
+                                van_ban_ket_qua = str(
+                                    pytesseract_mod.image_to_string(img, lang=self.ngon_ngu)
+                                ).strip()
+                                nguon_ocr = "pytesseract"
+                                co_ocr_engine = True
+                            except Exception:
+                                pass
+                    if not van_ban_ket_qua:
+                        easyocr_mod = QuanLyPhuThuoc.nhap_tuy_chon(
+                            "easyocr", nhom_extra="ocr-vn", tinh_nang="EasyOCR"
+                        )
+                        if easyocr_mod is not None:
+                            try:
+                                reader = easyocr_mod.Reader(["vi", "en"], gpu=False, verbose=False)
+                                van_ban_ket_qua = "\n".join(
+                                    str(t) for t in reader.readtext(str(anh), detail=0)
+                                ).strip()
+                                nguon_ocr = "easyocr"
+                                co_ocr_engine = True
+                            except Exception:
+                                pass
+                    if not van_ban_ket_qua:
+                        paddle_mod = QuanLyPhuThuoc.nhap_tuy_chon(
+                            "paddleocr", nhom_extra="ocr-vn", tinh_nang="PaddleOCR"
+                        )
+                        if paddle_mod is not None:
+                            try:
+                                p_ocr = paddle_mod.PaddleOCR(use_angle_cls=True, lang="vi", show_log=False)
+                                kq_p = p_ocr.ocr(str(anh), cls=True)
+                                dong_p = [
+                                    item[1][0]
+                                    for page in (kq_p or [])
+                                    if page
+                                    for item in page
+                                    if item and len(item) >= 2
+                                ]
+                                van_ban_ket_qua = "\n".join(dong_p).strip()
+                                nguon_ocr = "paddleocr"
+                                co_ocr_engine = True
+                            except Exception:
+                                pass
             except Exception:
                 pass
         elif hasattr(anh, "info") and isinstance(anh.info, dict) and "vietnamese_ocr_text" in anh.info:
             van_ban_ket_qua = str(anh.info["vietnamese_ocr_text"])
+            nguon_ocr = "pil_text_metadata"
+            co_ocr_engine = True
 
         if not van_ban_ket_qua:
             van_ban_ket_qua = f"Tài liệu gồm {len(cac_dong)} dòng văn bản được phát hiện."
@@ -222,6 +299,8 @@ class TrichXuatVanBanAnh:
             "so_dong": len(cac_dong),
             "cac_dong": cac_dong,
             "nguong_otsu": round(self.nguong_otsu(self._tai_anh_xam(anh)), 2),
+            "co_ocr_engine": co_ocr_engine,
+            "nguon_ocr": nguon_ocr,
         }
 
     def nap_vao_rag(

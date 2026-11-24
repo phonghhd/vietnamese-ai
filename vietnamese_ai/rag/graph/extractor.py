@@ -55,7 +55,7 @@ Văn bản:
 {van_ban}
 """
         phan_hoi = ""
-        if hasattr(self.llm, "sinh_van_ban"):
+        if self.llm is not None and hasattr(self.llm, "sinh_van_ban"):
             phan_hoi = self.llm.sinh_van_ban(prompt, do_dai=512)
         elif callable(self.llm):
             phan_hoi = self.llm(prompt)

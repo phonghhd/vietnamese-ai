@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vietnamese-ai-legal"
+version = "31.0.3"
+description = "RAG Hành chính & Pháp lý Việt Nam: Hierarchy-Preserving Chunking, OCR/PDF/DOCX Parser & Legal Prompts"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+ocr-pdf = [
+    "pypdf>=3.0.0",
+    "python-docx>=1.0.0",
+    "pdfplumber>=0.10.0",
+    "pillow>=9.0.0",
+    "pytesseract>=0.3.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["../.."]
+include = ["vietnamese_ai.rag.legal*", "vietnamese_ai.legal*", "vietnamese_ai.legal.rag*"]

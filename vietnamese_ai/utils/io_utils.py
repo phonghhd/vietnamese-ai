@@ -30,7 +30,7 @@ class RestrictedUnpickler(pickle.Unpickler):
         "importlib",
         "pty",
         "commands",
-        " marshal",
+        "marshal",
     }
 
     BLOCKED_BUILTINS = {
@@ -205,9 +205,9 @@ class LuuTai:
     @staticmethod
     def luu_numpy(duong_dan: str, **matran: np.ndarray) -> None:
         """Lưu nhiều mảng numpy vào một file .npz."""
-        duong_dan = Path(duong_dan)
-        duong_dan.parent.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(duong_dan, **matran)
+        duong_dan_path = Path(duong_dan)
+        duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(duong_dan_path, allow_pickle=True, **matran)
 
     @staticmethod
     def tai_numpy(duong_dan: str) -> Dict[str, np.ndarray]:
@@ -221,9 +221,9 @@ class LuuTai:
     @staticmethod
     def luu_json(data: Dict[str, Any], duong_dan: str) -> None:
         """Lưu dữ liệu ra file JSON."""
-        duong_dan = Path(duong_dan)
-        duong_dan.parent.mkdir(parents=True, exist_ok=True)
-        with open(duong_dan, "w", encoding="utf-8") as f:
+        duong_dan_path = Path(duong_dan)
+        duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(duong_dan_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     @staticmethod

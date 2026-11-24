@@ -1,5 +1,5 @@
 site_name: Vietnamese AI Framework
-site_description: Framework AI thuần tiếng Việt cho Python - Micro-Core, Swarm CPU Sharding, Verifiable AI, Legal RAG
+site_description: Framework AI thuần tiếng Việt cho Python - Micro-Core, .vaidb Legal RAG, Hợp đồng Redline, MCP IDE, Zalo/Telegram, Zero-GPU Edge LLM & Remote GPU Flywheel
 site_url: https://phonghhd.github.io/vietnamese-ai
 repo_url: https://github.com/phonghhd/vietnamese-ai
 repo_name: phonghhd/vietnamese-ai
@@ -41,9 +41,14 @@ nav:
     - Cài đặt: getting-started/installation.md
     - Sử dụng nhanh: getting-started/quickstart.md
   - Trụ cột Chiến lược v31:
+    - Trải nghiệm 5 Phút & Phát hành PyPI: guides/five-minute-dx-and-release.md
+    - Tinh chỉnh GPU Từ xa (Remote Flywheel): guides/remote-gpu-flywheel.md
+    - LLM Tiếng Việt Zero-GPU (vai pull / run): guides/edge-cpu-llm-runtime.md
+    - RAG Pháp lý, Hiệu lực & Studio Kéo-Thả: guides/vietnamese-rag.md
+    - Hợp đồng Redline, MCP IDE & Zalo/Telegram: guides/workbench-mcp-connectors.md
     - Swarm CPU & LAN Parallelism: guides/swarm-cpu.md
     - Verifiable AI (Proof of Inference): guides/verifiable-ai.md
-    - RAG Pháp lý & Hành chính: guides/vietnamese-rag.md
+    - Phạm vi Kiểm toán Mật mã (zkML Audit): guides/crypto-audit-scope.md
     - Phòng thủ Dữ liệu & Khiên Đa lớp: guides/data-defense.md
     - Tác tử StateGraph & MCP: guides/state-graph-agents.md
     - Hồ Dữ liệu 16 Tập (DataLake): guides/datalake-16-datasets.md
@@ -74,10 +79,16 @@ nav:
     - Google Colab / Kaggle: guides/google-colab-kaggle.md
     - Trạng thái v30: guides/trang-thai-v30.md
   - API Reference:
+    - Core: api/core.md
+    - Utils & Versioning: api/utils.md
+    - Vietnamese NLP Core: api/nlp.md
+    - Edge & Swarm CPU: api/edge.md
+    - Legal & Admin RAG: api/legal-rag.md
+    - Crypto & zkML: api/crypto-zkml.md
+    - Classic ML: api/classic-ml.md
+    - Benchmark Suite: api/benchmark.md
     - Models: api/models.md
     - Preprocessing: api/preprocessing.md
-    - Core: api/core.md
-    - Utils: api/utils.md
     - Mobile/Edge: api/mobile.md
     - Federated: api/federated.md
     - Real-time: api/realtime.md

@@ -65,7 +65,7 @@ class Workspace:
         }
 
 
-GOI_DICH_VU = {
+GOI_DICH_VU: Dict[str, Dict[str, Any]] = {
     "free": {
         "ten": "Miễn phí",
         "max_models": 3,
@@ -531,6 +531,6 @@ class NenTangDichVu:
         self.nhat_ky.ghi("xoa_workspace", nguoi_dung=ws.chu_so_huu, mo_ta=f"Đã xóa workspace {ma}")
         self.logger.info(f"Đã xóa workspace: {ma}")
 
-    def lay_goi_dich_vu(self) -> Dict[str, Dict]:
+    def lay_goi_dich_vu(self) -> Dict[str, Dict[str, Any]]:
         """Lấy thông tin tất cả gói dịch vụ."""
         return GOI_DICH_VU.copy()

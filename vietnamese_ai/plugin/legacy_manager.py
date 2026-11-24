@@ -1,6 +1,6 @@
 """PluginManager - Hệ thống plugin mở rộng."""
 
-import importlib
+import importlib.util
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
@@ -25,7 +25,7 @@ class PluginManager:
         ...     return float(np.mean(y_true == y_pred))
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = Logger("PluginManager")
         self._plugins: Dict[str, Any] = {}
         self._hooks: Dict[str, List[Callable]] = {
@@ -95,19 +95,21 @@ class PluginManager:
 
         File plugin phải có hàm register() để đăng ký các plugins.
         """
-        duong_dan = Path(duong_dan)
-        if not duong_dan.exists():
-            raise FileNotFoundError(f"Không tìm thấy file plugin: {duong_dan}")
+        file_path = Path(duong_dan)
+        if not file_path.exists():
+            raise FileNotFoundError(f"Không tìm thấy file plugin: {file_path}")
 
-        spec = importlib.util.spec_from_file_location("plugin_module", str(duong_dan))
+        spec = importlib.util.spec_from_file_location("plugin_module", str(file_path))
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Không thể tải file plugin: {file_path}")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
         if hasattr(module, "register"):
             module.register(self)
-            self.logger.info(f"Đã tải plugin từ: {duong_dan}")
+            self.logger.info(f"Đã tải plugin từ: {file_path}")
         else:
-            self.logger.warning(f"Plugin không có hàm register(): {duong_dan}")
+            self.logger.warning(f"Plugin không có hàm register(): {file_path}")
 
     def tai_plugin_tu_thu_muc(self, duong_dan: str) -> None:
         """Tải tất cả plugins từ một thư mục."""

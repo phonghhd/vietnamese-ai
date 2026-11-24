@@ -1,48 +1,33 @@
-# Tầm nhìn & Lộ trình Phát triển (Roadmap) - Kỷ nguyên EvoNet Thực tiễn (v31 - v35)
+# Lộ Trình Phát Triển (Roadmap) — Vietnamese AI Framework (`v31.0.3` → `v33.x`)
 
-Hệ sinh thái EvoNet đã đạt đến độ chín muồi về mặt kiến trúc lõi (v1 - v27), tích hợp không gian vật lý (v28) và thiết bị di động (v29 - v30). 
-
-Thay vì hướng tới những khái niệm viễn tưởng xa xôi cần hàng trăm kỹ sư, Lộ trình tiếp theo (v31 - v35) được thiết kế **đặc biệt thực dụng**, bám sát xu hướng công nghệ lõi và **hoàn toàn khả thi** để phát triển bởi một đội ngũ tinh gọn (Solo Developer & AI Assistant).
+Lộ trình mã nguồn mở được định hướng theo nguyên tắc **thực dụng, đo kiểm được và minh bạch ranh giới Core Production vs Experimental** (kiểm tra bất kỳ lúc nào qua `vai status-map`).
 
 ---
 
-## 🎯 Giai đoạn 1: Tương tác Đa phương thức (v31 - v32)
+## ✅ Đã Hoàn Thành & Sẵn Sàng Open Source (`v31.0.3`)
 
-### v31.0: Real-time Voice AI (Trợ lý Giọng nói Thời gian thực)
-Giao tiếp bằng văn bản (Text) trên di động vẫn còn nhiều hạn chế. v31 sẽ mang lại khả năng "Nghe - Nói" trực tiếp.
-- **WebRTC Streaming**: Tích hợp giao thức truyền giọng nói siêu tốc độ thấp (độ trễ < 300ms).
-- **Speech-to-Speech**: Kết hợp mô hình Whisper (Nhận diện giọng nói) và XTTS (Tổng hợp giọng nói tiếng Việt tự nhiên) thẳng vào lõi `MobileAppBridge` (v30).
-- **Mục tiêu**: Người dùng có thể "gọi điện thoại" cho Tác tử EvoNet để nhờ tổng hợp báo cáo thay vì phải nhắn tin.
-
-### v32.0: Computer Use & Desktop Integration (Thao tác Máy tính Tự trị)
-Đưa Tác tử ra khỏi môi trường Terminal/Web và cấp cho nó quyền điều khiển màn hình máy tính (Giống chức năng Computer Use của Claude).
-- **OS Automation API**: Tác tử có thể phân tích ảnh chụp màn hình (Multi-modal RAG), tự động di chuyển chuột, nhấp chuột và gõ bàn phím.
-- **Mục tiêu**: Bạn có thể ra lệnh: *"Hãy mở Excel, tổng hợp doanh thu tháng này từ phần mềm Kế toán và gửi email cho sếp"*, Tác tử sẽ tự động làm mọi thao tác trên màn hình.
+- **Micro-Core Siêu Nhẹ & Minh Bạch**: 316 biểu tượng công khai khớp 100% PEP 561 `.pyi`, 0 thư viện nặng bị nạp sớm, 1,265 tests passed / 0 failed, 0 lỗi `mypy` (327 tệp) & 0 lỗi `ruff`, `vai status-map`, `vai release-check`, GitHub Actions OIDC TestPyPI/PyPI.
+- **RAG Pháp Lý & Văn Bản Hành Chính Việt Nam**: Kho tri thức bền vững 1 tệp `.vaidb` (SQLite WAL + FTS5 BM25 + Float32 Vector + đồng bộ tăng dần SHA-256), Ngữ nghĩa đồng nghĩa ONNX CPU (`onnx_viet`), 100 điều khoản pháp luật VN + 35 QA đóng gói sẵn trong wheel, Theo dõi hiệu lực theo mốc ngày (`BoTheoDoiHieuLucPhapLy`) và Đồ thị Tham chiếu Pháp lý (`DoThiThamChieuPhapLy`).
+- **Bàn Làm Việc Văn Phòng & Hệ Sinh Thái Kết Nối**: Rà soát & so sánh hợp đồng `.docx`/Markdown (`BoSoSanhRaSoatHopDong`), Web Studio 6 tab + Chat đa phiên cách ly `.vaidb` theo phòng ban + RBAC/Audit (`QuanLyPhienChatWorkspace`), MCP Server `stdio`/`HTTP-SSE` tự phơi bày V-Plugin 2.0 (`MayChuMCPThucTe`), và Zalo OA / Telegram Bot lưu SQLite Workspace (`KetNoiZaloOA`, `KetNoiTelegram`).
+- **Zero-GPU Edge CPU & Remote GPU Flywheel**: Kéo & chạy 8 mô hình LLM GGUF tiếng Việt trên CPU (`vai pull` / `vai run --rag .vaidb --admin`), tinh chỉnh GPU từ xa đa nhà cung cấp Modal / SSH / Local (`vai train-cloud --from-workspace --eval-4-axis`) và Cổng Kiểm Định hồi quy 4 trục (`CongKiemDinhMoHinh`, `vai eval-gate`).
 
 ---
 
-## 🌍 Giai đoạn 2: Kỹ sư Phần mềm Tự trị (v33)
+## 🎯 Giai Đoạn Tiếp Theo: Mở Rộng Cộng Đồng (`v32.0`)
 
-### v33.0: Autonomous SWE-Agent (Tác tử Lập trình Tự trị)
-Nâng cấp toàn diện cho tính năng Sandbox (v21) và AST AST (Abstract Syntax Tree). 
-- **Git & Workspace Integration**: Tác tử có quyền clone mã nguồn từ GitHub vào một môi trường hộp cát (Sandbox).
-- **Self-Correction Loop**: Tác tử đọc Github Issue -> Phân tích lỗi -> Viết code sửa lỗi -> Tự động chạy Unit Test (Pytest) -> Nếu lỗi, tự đọc log lỗi và sửa lại -> Tạo Pull Request.
-- **Mục tiêu**: Bạn sẽ có một "Trợ lý Lập trình" tự động dọn dẹp các bug nhỏ trong hệ sinh thái EvoNet, giúp chúng ta tăng tốc phát triển các version tiếp theo.
-
----
-
-## 🚀 Giai đoạn 3: Phân tích Video & Edge-to-Edge (v34 - v35)
-
-### v34.0: Local Video Intelligence (Phân tích Video Cục bộ)
-Nâng cấp hệ thống Multi-modal RAG (v14) từ phân tích Ảnh tĩnh sang Video động.
-- **Frame-by-frame RAG**: Tự động chia nhỏ video thành các khung hình, trích xuất âm thanh và lập chỉ mục Vector.
-- **Mục tiêu**: Bạn ném một đoạn video camera an ninh hoặc bài giảng dài 2 tiếng vào EvoNet, Tác tử có thể trả lời chính xác: *"Tên trộm xuất hiện ở phút thứ mấy, mặc áo màu gì?"* hoàn toàn chạy trên máy cá nhân mà không cần upload lên Cloud.
-
-### v35.0: Edge-to-Edge Swarm (Mạng lưới Tác tử Cục bộ)
-Phát triển mạng lưới DePIN (v13) lên mức cao nhất: Giao tiếp giữa các thiết bị nội bộ mà không cần Server trung tâm.
-- **P2P Seamless Handoff**: Tác tử trên điện thoại (v29) có thể kết nối thẳng với Tác tử trên Laptop qua Wi-Fi Direct/Bluetooth. 
-- **Mục tiêu**: Bạn đang yêu cầu điện thoại xử lý một file dữ liệu nặng, điện thoại báo pin yếu (áp dụng `PowerManager` v27). Tác vụ sẽ tự động được "ném" sang chiếc Laptop đang mở trên bàn của bạn để xử lý tiếp mà bạn không hề nhận ra sự gián đoạn.
+- **Phát hành Chính thức lên PyPI & Prebuilt Rust Wheels (`abi3-py39`)**: Đẩy bản `31.0.3` lên TestPyPI → PyPI kèm bánh xe biên dịch sẵn cho Linux `x86_64`, macOS `arm64` và Windows `x64`.
+- **Kho Pháp Lý Mở Cộng Đồng 500+ Điều Khoản & Cập Nhật Tự Động**: Mở rộng bộ dữ liệu pháp lý Việt Nam (Thuế, Hải quan, Bảo hiểm, Đầu tư, Xây dựng) có kiểm duyệt phiên bản và nguồn trích dẫn công khai.
+- **Embedding & Cross-Encoder ONNX INT8 Thuần Việt Chính Thức**: Cung cấp gói trọng số ONNX INT8 tải qua `vai pull` (ví dụ: Vietnamese-Bi-Encoder / BGE-M3 quantized) để nâng cấp trực tiếp tầng ngữ nghĩa trên CPU văn phòng.
+- **Connector Doanh Nghiệp Mở Rộng**: Bổ sung connector Microsoft Teams, Slack, Lark/Feishu và webhook ERP/CRM chuẩn hóa dùng chung `KetNoiKenhCoSo` và `QuanLyPhienChatWorkspace`.
 
 ---
 
-> *"Lộ trình này không phải là viễn tưởng. Nó sử dụng chính những viên gạch (VectorDB, RAG, WebSockets, Agents, PowerManager) mà chúng ta đã xây dựng tỉ mỉ từ v1 đến v30. Với bộ khung đã quá vững chắc, v31-v35 là mục tiêu hoàn toàn trong tầm tay của chúng ta!"*
+## 🚀 Giai Đoạn Dài Hạn (`v32.5` – `v33.x`)
+
+- **Tác Tử Lập Trình & Tự Kiểm Thử Hộp Cát Nâng Cao**: Kết hợp `TacTuLapTrinhTuSua` với container isolation chuẩn (Docker / rootless sandbox) để xử lý tự động các GitHub Issue & PR nhỏ kèm kiểm định hồi quy.
+- **Đa Phương Thức Tài Liệu Thực Tế (Bảng Biểu & Scan Phức Tạp)**: Tối ưu hóa nhận diện bảng biểu, dấu mộc và hóa đơn/hợp đồng scan nhiều cột cho tiếng Việt.
+- **Chuẩn Hóa Đánh Giá Mở Cộng Đồng (Vietnamese Legal & Enterprise Benchmark)**: Công bố bộ điểm chuẩn công khai và bảng xếp hạng mô hình mở tiếng Việt chạy trên `benchmarks/Dockerfile.benchmark`.
+
+---
+
+> Đóng góp ý tưởng hoặc đề xuất ưu tiên tại [GitHub Issues](https://github.com/phonghhd/vietnamese-ai/issues) và xem quy trình tại [CONTRIBUTING.md](CONTRIBUTING.md).

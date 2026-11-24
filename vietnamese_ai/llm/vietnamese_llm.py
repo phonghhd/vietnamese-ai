@@ -169,13 +169,13 @@ class VietnameseLLM:
             return "<END>"
 
         cac_tu = list(self._ngram_counts[context].keys())
-        cac_xac_suat = []
+        cac_xac_suat_list: List[float] = []
 
         for tu in cac_tu:
             p = self._xac_suat_tu_ke_tiep(context, tu)
-            cac_xac_suat.append(p)
+            cac_xac_suat_list.append(p)
 
-        cac_xac_suat = np.array(cac_xac_suat)
+        cac_xac_suat = np.array(cac_xac_suat_list, dtype=float)
 
         if nhiet_do != 1.0 and nhiet_do > 0:
             log_p = np.log(cac_xac_suat + 1e-10) / nhiet_do
@@ -269,7 +269,7 @@ class VietnameseLLM:
         if not self._da_huan_luyen:
             raise RuntimeError("Chưa huấn luyện.")
 
-        lua_chon = []
+        lua_chon: List[Dict[str, Any]] = []
         for _ in range(so_lua_chon):
             van_ban = self.sinh_van_ban(dau_vao, do_dai_toi_da, nhiet_do)
             perplexity = self.tinh_perplexity(van_ban)
@@ -317,7 +317,7 @@ class VietnameseLLM:
         self,
         text: str,
         top_n: int = 5,
-    ) -> List[Dict[str, float]]:
+    ) -> List[Dict[str, Any]]:
         """
         Gợi ý các từ tiếp theo.
 
@@ -345,7 +345,7 @@ class VietnameseLLM:
                     for t, c in targets.items():
                         candidates[t] = candidates.get(t, 0) + c
 
-        ket_qua = []
+        ket_qua: List[Dict[str, Any]] = []
         for tu, dem in sorted(candidates.items(), key=lambda x: -x[1]):
             if tu in ("<START>", "<END>"):
                 continue

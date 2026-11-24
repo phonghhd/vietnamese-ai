@@ -117,6 +117,45 @@ class RewardModel:
 
 ---
 
+## Tinh chỉnh GPU Từ Xa Đa Nhà Cung Cấp (`vietnamese_ai.fine_tuning.remote_gpu`)
+
+Vòng lặp **Local-First ↔ Cloud GPU Burst Flywheel** hỗ trợ cắm nóng nhiều nhà cung cấp (`modal`, `ssh`, `local` hoặc tùy chỉnh), đi qua lớp lọc PII (`DataSanitizer`) + chống đầu độc (`PhongThuDuLieu`), trần ngân sách (`MayTinhTien`), xác minh SHA-256 + ký số HMAC-SHA256 (`LuuTai`) và cổng kiểm định `Eval Gate` trước khi nạp vào `DongCoSuyLuanEdge`:
+
+```python
+class CauHinhTinhChinhXa:
+    mo_hinh: str = "vgpt2"
+    nhiem_vu: str = "sft"
+    loai_gpu: str = "T4"
+    so_vong: int = 3
+    rank_lora: int = 8
+    quantization: str = "q8_0"
+    ngan_sach_toi_da_usd: float = 2.0
+    cho_phep_gui_cloud: bool = False
+
+class NhaCungCapModal(NhaCungCapGPUXa): ...
+class NhaCungCapSSH(NhaCungCapGPUXa): ...
+class NhaCungCapCucBo(NhaCungCapGPUXa): ...
+
+class BoDieuPhoiTinhChinhXa:
+    def dang_ky_nha_cung_cap(ten: str, provider: NhaCungCapGPUXa) -> None
+    def danh_sach_nha_cung_cap() -> Dict[str, Dict[str, Any]]
+    def chuan_bi_du_lieu_an_toan(nguon_du_lieu, cau_hinh, thu_muc_dich, ma_tac_vu)
+    def kiem_dinh_eval_gate(ket_qua, bo_cau_hoi_kiem_thu=None, diem_toi_thieu=0.5, ham_danh_gia=None) -> Dict[str, Any]
+    def chay_vong_lap_flywheel(
+        nguon_du_lieu,
+        ten_nha_cung_cap: str = "modal",
+        cau_hinh: Optional[CauHinhTinhChinhXa] = None,
+        chay_that: bool = False,
+        chay_eval_gate: bool = True,
+        quan_ly_mo_hinh: Optional[Any] = None,
+    ) -> KetQuaTinhChinhXa
+```
+
+Cài đặt phụ thuộc tùy chọn cho Modal: `pip install "vietnamese-ai[cloud-gpu]"`.
+CLI tương ứng: `vai train-cloud --data data.jsonl --provider modal --gpu T4 --allow-cloud --apply`.
+
+---
+
 ## RLHFPipeline
 
 ```python

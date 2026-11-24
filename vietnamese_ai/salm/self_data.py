@@ -37,7 +37,7 @@ class SinhDuLieuTuDong:
         self.logger = Logger("SinhDuLieuTuDong")
 
         self._giong_mau: List[Dict[str, str]] = []
-        self._du_lieu_da_sinh: List[Dict[str, str]] = []
+        self._du_lieu_da_sinh: List[Dict[str, Any]] = []
         self._lich_su: List[Dict[str, Any]] = []
 
     def them_giong_mau(
@@ -69,7 +69,7 @@ class SinhDuLieuTuDong:
         so_luong: int,
         loai: str = "instruction",
         chu_de: str = "",
-    ) -> List[Dict[str, str]]:
+    ) -> List[Dict[str, Any]]:
         """
         Sinh dữ liệu huấn luyện.
 
@@ -82,7 +82,7 @@ class SinhDuLieuTuDong:
             [{instruction, input, output, diem}, ...]
         """
         bat_dau = time.time()
-        du_lieu = []
+        du_lieu: List[Dict[str, Any]] = []
 
         if not self._giong_mau:
             self.logger.warning("Chưa có seed examples, tạo mẫu mặc định")
@@ -90,12 +90,13 @@ class SinhDuLieuTuDong:
 
         for i in range(so_luong):
             for lap in range(self.toi_da_lap):
-                mau = self._sinh_mau(loai, chu_de, i)
+                mau_raw = self._sinh_mau(loai, chu_de, i)
 
                 # Đánh giá chất lượng
-                diem = self._danh_gia_mau(mau)
+                diem = self._danh_gia_mau(mau_raw)
 
                 if diem >= self.nguong_chat_luong:
+                    mau: Dict[str, Any] = dict(mau_raw)
                     mau["diem"] = round(diem, 3)
                     du_lieu.append(mau)
                     break
@@ -294,7 +295,7 @@ class SinhDuLieuTuDong:
                 {"instruction": "Ví dụ mẫu", "input": "", "output": "Kết quả mẫu"},
             ]
 
-    def lay_du_lieu_da_sinh(self) -> List[Dict[str, str]]:
+    def lay_du_lieu_da_sinh(self) -> List[Dict[str, Any]]:
         """Lấy tất cả dữ liệu đã sinh."""
         return self._du_lieu_da_sinh.copy()
 

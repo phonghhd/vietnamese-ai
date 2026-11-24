@@ -1,12 +1,12 @@
 <div class="hero-banner">
   <h1>Vietnamese AI Framework</h1>
-  <p>Hệ sinh thái Trí tuệ Nhân tạo thuần tiếng Việt cho Python. Thiết kế theo triết lý Zero-Dependency Micro-Core, tích hợp Swarm CPU Sharding, RAG Pháp lý Hành chính chuyên sâu và Xác thực Suy luận Mật mã (Verifiable AI).</p>
+  <p>Hệ sinh thái Trí tuệ Nhân tạo thuần tiếng Việt cho Python. Thiết kế theo triết lý Zero-Dependency Micro-Core, tích hợp Kho tri thức `.vaidb`, RAG Pháp lý 100 điều khoản, Rà soát hợp đồng Redline, MCP IDE Server, Zalo/Telegram Connectors, Zero-GPU Edge LLM và Remote GPU Flywheel.</p>
   <div class="hero-badges">
-    <span class="badge-pill">🚀 Phiên bản 31.0.0</span>
-    <span class="badge-pill">🐍 Python 3.8 – 3.13</span>
-    <span class="badge-pill">✅ 1,120+ Tests 100% Pass</span>
-    <span class="badge-pill">⚡ 1.2ms Cold Start</span>
-    <span class="badge-pill">🛡️ Zero Dependency Micro-Core</span>
+    <span class="badge-pill">🚀 Phiên bản 31.0.3</span>
+    <span class="badge-pill">🐍 Python 3.8 – 3.14</span>
+    <span class="badge-pill">✅ 1,265 Tests Passed</span>
+    <span class="badge-pill">📦 316 Public APIs (.pyi)</span>
+    <span class="badge-pill">🛡️ 0 Mypy / 0 Ruff Errors</span>
     <span class="badge-pill">📄 MIT License</span>
   </div>
 </div>
@@ -69,7 +69,7 @@
 
 ## 📊 Bảng Đo Lường So Sánh Toàn Diện
 
-| Chỉ số Đo lường | LangChain + HF | LlamaIndex Core | vLLM (CPU) | Vietnamese AI Framework (v31.0.0) |
+| Chỉ số Đo lường | LangChain + HF | LlamaIndex Core | vLLM (CPU) | Vietnamese AI Framework (v31.0.3) |
 | :--- | :---: | :---: | :---: | :---: |
 | **Khởi động lạnh (Cold Start)** | 3,420 ms | 2,850 ms | 6,100 ms | **1.2 ms (nhanh gấp 2,000x)** |
 | **Dung lượng RAM Nền** | 485 MB | 360 MB | 1,250 MB | **14.2 MB (tiết kiệm 96%)** |
@@ -99,27 +99,35 @@ mo_hinh.huan_luyen(X, y)
 print("Dự đoán nhãn:", mo_hinh.du_doan(["Dịch vụ khách hàng rất tuyệt vời!"]))
 ```
 
-### 2. RAG Văn Bản Pháp Lý Hành Chính
+### 2. Kho Tri Thức `.vaidb`, RAG Pháp Lý & Rà Soát Hợp Đồng
 ```python
-from vietnamese_ai.rag import DuongOngRAG
-from vietnamese_ai.rag.vietnamese_context import BoToiUuNguCanhHanhChinh
+from vietnamese_ai import BoSoSanhRaSoatHopDong, DoThiThamChieuPhapLy, RAGPipeline
 
-rag = DuongOngRAG(bo_toi_uu=BoToiUuNguCanhHanhChinh())
-rag.nap_tai_lieu("noi_dung_luat_doanh_nghiep.txt")
+rag = RAGPipeline(
+    backend="vaidb",
+    duong_dan_vaidb="cong_ty.vaidb",
+    che_do_nhung="onnx_viet",
+    che_do_rerank="onnx_viet",
+    che_do_hanh_chinh=True,
+)
+rag.them_tep("hop_dong_dat_dai.docx", che_do_hanh_chinh=True)
+ket_qua = rag.hoi("Quyền chuyển nhượng sổ đỏ được quy định thế nào?")
+print(ket_qua["tra_loi"])
+rag.dong()
 
-cau_tra_loi = rag.hoi_dap("Quy trình đăng ký người đại diện theo pháp luật gồm những bước nào?")
-print(cau_tra_loi.noi_dung)
+print(DoThiThamChieuPhapLy().truy_van_van_ban_lien_quan("45/2013/QH13", chi_lay_con_hieu_luc=True))
+bao_cao = BoSoSanhRaSoatHopDong().so_sanh_va_ra_soat("hop_dong_doi_tac.docx", "hop_dong_chuan.docx")
+print("Điểm an toàn:", bao_cao["diem_an_toan_phap_ly"], "| Rủi ro:", bao_cao["xep_loai_rui_ro"])
 ```
 
-### 3. Suy luận Mật mã Minh bạch (Verifiable AI)
+### 3. Suy luận Mật mã Minh bạch & Bản đồ Minh bạch 3 Tầng
 ```python
-from vietnamese_ai.verifiable.schnorr_zk import XacThucSuyLuanMaoHiem
+from vietnamese_ai import KiemToanMatMa, bao_cao_ranh_gioi_he_thong
 
-xac_thuc = XacThucSuyLuanMaoHiem()
-chung_minh = xac_thuc.tao_bang_chung(vector_dau_vao=[0.1, 0.4, 0.9], ket_qua_logits=[0.02, 0.98])
-
-assert xac_thuc.kiem_tra_bang_chung(chung_minh) == True
-print("Kết quả suy luận đã được xác thực toàn vẹn mật mã!")
+bao_cao = KiemToanMatMa.chay_kiem_toan_tu_dong()
+assert bao_cao["tong_quan_dat"] is True
+print(f"Đạt {bao_cao['so_hang_muc_dat']}/{bao_cao['tong_hang_muc']} hạng mục mật mã {bao_cao['chuan_mat_ma']}!")
+print("Tổng quan 3 tầng:", bao_cao_ranh_gioi_he_thong()["tong_quan"])
 ```
 
 ---
@@ -128,9 +136,13 @@ print("Kết quả suy luận đã được xác thực toàn vẹn mật mã!")
 
 - 🚀 [Hướng Dẫn Cài Đặt](getting-started/installation.md)
 - ⚡ [Khởi Động Nhanh](getting-started/quickstart.md)
+- 🎯 [Trải Nghiệm 5 Phút (`vai demo`), Minh Bạch 3 Tầng (`vai status-map`) & Phát Hành PyPI](guides/five-minute-dx-and-release.md)
+- ☁️ [Tinh Chỉnh GPU Từ Xa Đa Nhà Cung Cấp (Modal / SSH / Local Flywheel)](guides/remote-gpu-flywheel.md)
+- 💻 [LLM Tiếng Việt Zero-GPU Trên CPU (`vai pull` & `vai run`)](guides/edge-cpu-llm-runtime.md)
+- 📜 [RAG Pháp Lý 100 Điều Khoản, `.vaidb`, Ngữ Nghĩa ONNX & Đồ Thị Luật](guides/vietnamese-rag.md)
+- 📑 [Rà Soát Hợp Đồng Redline, Chat Workspace, MCP IDE & Zalo/Telegram](guides/workbench-mcp-connectors.md)
 - 🌐 [Swarm CPU Sharding qua LAN](guides/swarm-cpu.md)
 - 🛡️ [Verifiable AI & Proof of Inference](guides/verifiable-ai.md)
-- 📜 [RAG Pháp Lý & Văn Bản Hành Chính](guides/vietnamese-rag.md)
 - 🔒 [Phòng Thủ Dữ Liệu & Khiên Đa Lớp](guides/data-defense.md)
 - 🤖 [Tác Tử Đồ Thị Trạng Thái (StateGraph)](guides/state-graph-agents.md)
 - 📊 [Hồ Dữ Liệu 16 Bộ Tập Tiếng Việt](guides/datalake-16-datasets.md)

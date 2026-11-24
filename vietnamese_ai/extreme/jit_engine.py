@@ -3,23 +3,40 @@
 import ctypes
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
+from typing import Any, Callable, Dict, List, Optional
+
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
 logger = logging.getLogger("EvoJITCompiler")
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXTERNAL_DEPENDENCY,
+    mo_ta=(
+        "Trình biên dịch C++ JIT thử nghiệm. KHÔNG phải Zero-Dependency: "
+        "bắt buộc cài đặt trình biên dịch g++ (GCC/Clang) trên hệ điều hành."
+    ),
+    phu_thuoc_ngoai=["g++ (GNU C++ Compiler / build-essential)"],
+)
 class EvoJITCompiler:
     """
-    Trình biên dịch C++ JIT cực đoan.
-    Nhận mã nguồn C++, biên dịch nó thành file .so qua g++, và nạp vào bằng ctypes.
-    Đảm bảo hàm C++ chạy hoàn toàn tách biệt khỏi khóa GIL của Python.
+    Trình biên dịch C++ JIT cực đoan (Thử nghiệm — Yêu cầu công cụ ngoài `g++`).
+
+    Nhận mã nguồn C++, biên dịch thành thư viện động `.so` qua `g++` và nạp bằng `ctypes`
+    để chạy tách biệt khỏi GIL của Python.
+
+    Yêu cầu bắt buộc: Máy chạy phải cài đặt sẵn `g++` trong PATH
+    (ví dụ Ubuntu/Debian: `sudo apt install g++`). Tính năng này không hoạt động ở chế độ
+    Zero-Dependency thuần Python.
     """
 
     def __init__(self, use_openmp: bool = False):
         self.use_openmp = use_openmp
         self.temp_dir = tempfile.gettempdir()
-        self.loaded_libs = {}
+        self.loaded_libs: Dict[str, ctypes.CDLL] = {}
 
     def _write_cpp(self, name: str, code: str) -> str:
         """Lưu mã nguồn C++ vào ổ cứng."""
@@ -30,6 +47,12 @@ class EvoJITCompiler:
 
     def _compile(self, cpp_path: str, so_path: str) -> bool:
         """Gọi g++ để biên dịch với tối ưu hóa cao nhất (-O3)."""
+        if shutil.which("g++") is None:
+            logger.error(
+                "Thiếu trình biên dịch C++ 'g++' trên hệ thống. "
+                "EvoJITCompiler yêu cầu công cụ ngoài 'g++' (ví dụ: sudo apt install g++)."
+            )
+            return False
         cmd = ["g++", "-O3", "-shared", "-fPIC", cpp_path, "-o", so_path]
         if self.use_openmp:
             cmd.extend(["-fopenmp"])
@@ -42,8 +65,13 @@ class EvoJITCompiler:
             return False
 
     def compile_and_load(
-        self, name: str, code: str, func_name: str, arg_types: list, restype: type
-    ) -> callable:
+        self,
+        name: str,
+        code: str,
+        func_name: str,
+        arg_types: List[Any],
+        restype: Optional[Any],
+    ) -> Callable[..., Any]:
         """
         Toàn bộ luồng JIT: Sinh mã -> Compile -> Load Ctypes.
         """

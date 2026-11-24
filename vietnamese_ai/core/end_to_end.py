@@ -2,7 +2,7 @@
 
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from vietnamese_ai.agents.agent import TacTu
 from vietnamese_ai.agents.state_graph import END, BoLuuDiemKiemTra, DoThiTrangThai
@@ -89,6 +89,8 @@ class QuyTrinhDauCuoi:
         self._dataset_hien_tai: Optional[str] = None
         self._ten_mo_hinh_dang_ky: Optional[str] = None
         self.dieu_phoi_swarm: Optional[Any] = None
+        self.dong_co_edge: Optional[Any] = None
+        self.quan_ly_plugin: Optional[Any] = None
         self._duong_dan_gguf_moi_nhat: Optional[str] = None
         self._duong_dan_onnx_moi_nhat: Optional[str] = None
 
@@ -175,6 +177,230 @@ class QuyTrinhDauCuoi:
             "so_tai_lieu_da_nap": so_tai_lieu,
             "trang_thai": "san_sang",
         }
+
+    def mo_kho_tri_thuc_vaidb(
+        self,
+        duong_dan_vaidb: Optional[Union[str, Path]] = None,
+        che_do_hanh_chinh: bool = True,
+        dung_onnx_semantic: bool = True,
+    ) -> Dict[str, Any]:
+        """Khởi tạo hoặc mở lại kho tri thức bền vững một tệp `.vaidb` gắn trực tiếp vào quy trình đầu-cuối."""
+        db_path = Path(duong_dan_vaidb) if duong_dan_vaidb is not None else (self.thu_muc / "knowledge.vaidb")
+        self.rag = RAGPipeline(
+            backend="vaidb",
+            duong_dan_vaidb=db_path,
+            che_do_nhung="onnx_viet" if dung_onnx_semantic else "auto",
+            che_do_rerank="onnx_viet" if dung_onnx_semantic else "mmr",
+            che_do_hanh_chinh=che_do_hanh_chinh,
+        )
+        return {
+            "duong_dan_vaidb": str(db_path),
+            "che_do_hanh_chinh": che_do_hanh_chinh,
+            "dung_onnx_semantic": dung_onnx_semantic,
+            "thong_ke": self.rag.csdl_vector.thong_ke(),
+        }
+
+    def nap_tep_phap_ly(
+        self,
+        duong_dan: Union[str, Path],
+        che_do_hanh_chinh: bool = True,
+        toi_uu_ivf: bool = False,
+        so_cum_ivf: int = 16,
+    ) -> Dict[str, Any]:
+        """Nạp tệp hoặc thư mục tài liệu pháp lý đa định dạng (TXT/MD/DOCX/PDF/Ảnh OCR/JSONL) vào RAG bằng `BoDocTaiLieuPhapLy`."""
+        if self.rag is None:
+            self.rag = RAGPipeline(che_do_hanh_chinh=che_do_hanh_chinh)
+        elif che_do_hanh_chinh and not self.rag.che_do_hanh_chinh:
+            self.rag.che_do_hanh_chinh = True
+
+        path = Path(duong_dan)
+        if path.is_dir():
+            kq_dir = self.rag.them_thu_muc(path, che_do_hanh_chinh=che_do_hanh_chinh)
+            so_chunks = int(kq_dir["tong_chunks"])
+        else:
+            so_chunks = self.rag.them_tep(path, che_do_hanh_chinh=che_do_hanh_chinh)
+
+        kq_ivf = self.rag.toi_uu_chi_muc_vector(so_cum=so_cum_ivf) if toi_uu_ivf else None
+        return {
+            "duong_dan": str(path),
+            "so_chunks": so_chunks,
+            "che_do_hanh_chinh": che_do_hanh_chinh,
+            "ivf": kq_ivf,
+        }
+
+    def khoi_tao_edge(
+        self,
+        duong_dan_mo_hinh: Optional[Union[str, Path]] = None,
+        so_luong_thread: int = 4,
+        do_dai_toi_da: int = 128,
+        nhiet_do: float = 0.7,
+    ) -> Any:
+        """Khởi tạo động cơ suy luận Zero-GPU `DongCoSuyLuanEdge` gắn trực tiếp vào quy trình đầu-cuối."""
+        from vietnamese_ai.edge.native_inference import DongCoSuyLuanEdge
+
+        model_path = duong_dan_mo_hinh or self._duong_dan_gguf_moi_nhat
+        self.dong_co_edge = DongCoSuyLuanEdge(
+            duong_dan_mo_hinh=model_path,
+            so_luong_thread=so_luong_thread,
+            do_dai_toi_da=do_dai_toi_da,
+            nhiet_do=nhiet_do,
+            rag_pipeline=self.rag,
+        )
+        return self.dong_co_edge
+
+    def tai_mo_hinh_edge(
+        self,
+        ten_mo_hinh: str,
+        muc_luong_tu: str = "auto",
+        chay_that: bool = True,
+        tu_dong_nap_edge: bool = True,
+        thu_muc_luu: Optional[Union[str, Path]] = None,
+        sha256_mong_doi: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Tải mô hình LLM GGUF tiếng Việt (`vai pull`) tự chọn lượng tử theo RAM máy và tự gắn vào `DongCoSuyLuanEdge`."""
+        from vietnamese_ai.edge.model_hub import QuanLyMoHinhEdge
+
+        hub = QuanLyMoHinhEdge(thu_muc_luu=thu_muc_luu or (self.thu_muc / "models"))
+        kq = hub.tai_mo_hinh(
+            ten_hoac_nguon=ten_mo_hinh,
+            muc_luong_tu=muc_luong_tu,
+            chay_that=chay_that,
+            sha256_mong_doi=sha256_mong_doi,
+        )
+        da_nap = False
+        if (
+            tu_dong_nap_edge
+            and chay_that
+            and kq.get("trang_thai") in ("da_tai_thanh_cong", "da_co_san")
+            and kq.get("duong_dan")
+        ):
+            self._duong_dan_gguf_moi_nhat = str(kq["duong_dan"])
+            self.khoi_tao_edge(duong_dan_mo_hinh=kq["duong_dan"])
+            da_nap = True
+        kq["da_nap_edge"] = da_nap
+        return kq
+
+    def sinh_stream(
+        self,
+        prompt: str,
+        do_dai_toi_da: int = 128,
+        nhiet_do: float = 0.7,
+    ) -> Iterator[str]:
+        """Sinh văn bản dạng luồng token thời gian thực qua `DongCoSuyLuanEdge`, `DieuPhoiSwarmCPU` hoặc `hoi()`."""
+        if self.dong_co_edge is not None:
+            yield from self.dong_co_edge.sinh_stream(
+                prompt, do_dai_toi_da=do_dai_toi_da, nhiet_do=nhiet_do
+            )
+            return
+        if self.dieu_phoi_swarm is not None and hasattr(self.dieu_phoi_swarm, "sinh_stream"):
+            yield from self.dieu_phoi_swarm.sinh_stream(prompt, do_dai_toi_da=do_dai_toi_da)
+            return
+        kq = self.hoi(prompt)
+        van_ban = str(kq.get("tra_loi", ""))
+        cac_tu = van_ban.split(" ") if van_ban else []
+        for idx, tu in enumerate(cac_tu):
+            yield tu + (" " if idx < len(cac_tu) - 1 else "")
+
+    def tao_api_server(
+        self,
+        ten: Optional[str] = None,
+        quan_ly_plugin: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Đóng gói toàn bộ quy trình đầu-cuối thành `FastAPIServer` chuẩn OpenAI (SSE Streaming, Tool Calling, /metrics)."""
+        from vietnamese_ai.api.fastapi_server import FastAPIServer
+
+        return FastAPIServer(
+            bo_xu_ly=self,
+            ten=ten or f"{self.ten_du_an}-API",
+            ho_du_lieu=self.ho_du_lieu,
+            mach_cat=self.mach_cat,
+            suc_khoe=self.suc_khoe,
+            quan_ly_plugin=quan_ly_plugin,
+            **kwargs,
+        )
+
+    def tinh_chinh_gpu_xa(
+        self,
+        nha_cung_cap: str = "modal",
+        ten_dataset: Optional[str] = None,
+        du_lieu: Optional[Union[str, Path, List[Dict[str, Any]]]] = None,
+        loai_gpu: str = "T4",
+        mo_hinh: str = "vgpt2",
+        nhiem_vu: str = "sft",
+        so_vong: int = 3,
+        rank_lora: int = 8,
+        quantization: str = "q8_0",
+        ngan_sach_toi_da_usd: float = 2.0,
+        cho_phep_gui_cloud: bool = False,
+        chay_that: bool = False,
+        tu_dong_nap_edge: bool = True,
+        ssh_config: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Vòng lặp Flywheel Local -> Remote GPU (Modal / SSH GPU nội bộ / Local Subprocess) -> Edge:
+        Đọc dữ liệu từ `HoDuLieu` (hoặc truyền trực tiếp), lọc PII/Backdoor cục bộ, gửi GPU tinh chỉnh,
+        qua cổng kiểm định `Eval Gate`, promote vào `QuanLyMoHinh` và tự nạp lại tệp GGUF vào `DongCoSuyLuanEdge`.
+        """
+        from vietnamese_ai.fine_tuning.remote_gpu import (
+            BoDieuPhoiTinhChinhXa,
+            CauHinhTinhChinhXa,
+            NhaCungCapSSH,
+        )
+
+        nguon: Union[str, Path, List[Dict[str, Any]]]
+        if du_lieu is not None:
+            nguon = du_lieu
+        else:
+            ds_name = ten_dataset or self._dataset_hien_tai or "feedback_dpo.jsonl"
+            ban_ghi: List[Dict[str, Any]] = []
+            for lo in self.ho_du_lieu.doc_luong_du_lieu(ds_name):
+                ban_ghi.extend(lo)
+            if not ban_ghi:
+                raise RuntimeError(
+                    f"Không có dữ liệu hợp lệ trong DataLake ('{ds_name}') để gửi tinh chỉnh GPU từ xa."
+                )
+            nguon = ban_ghi
+
+        dieu_phoi = BoDieuPhoiTinhChinhXa(thu_muc_lam_viec=self.thu_muc / "remote_gpu_jobs")
+        if ssh_config:
+            dieu_phoi.dang_ky_nha_cung_cap("ssh", NhaCungCapSSH(**ssh_config))
+
+        cfg = CauHinhTinhChinhXa(
+            mo_hinh=mo_hinh,
+            nhiem_vu=nhiem_vu,
+            loai_gpu=loai_gpu,
+            so_vong=so_vong,
+            rank_lora=rank_lora,
+            quantization=quantization,
+            ngan_sach_toi_da_usd=ngan_sach_toi_da_usd,
+            cho_phep_gui_cloud=cho_phep_gui_cloud,
+        )
+        kq = dieu_phoi.chay_vong_lap_flywheel(
+            nguon_du_lieu=nguon,
+            ten_nha_cung_cap=nha_cung_cap,
+            cau_hinh=cfg,
+            chay_that=chay_that,
+            chay_eval_gate=True,
+            quan_ly_mo_hinh=self.quan_ly_mo_hinh,
+            ten_dang_ky_registry=f"{self.ten_du_an}_{nhiem_vu}_remote",
+        )
+
+        da_nap_edge = False
+        if (
+            tu_dong_nap_edge
+            and kq.trang_thai == "hoan_thanh"
+            and kq.duong_dan_gguf
+            and Path(kq.duong_dan_gguf).is_file()
+            and (kq.ket_qua_eval_gate is None or kq.ket_qua_eval_gate.get("dat_chuan"))
+        ):
+            self._duong_dan_gguf_moi_nhat = kq.duong_dan_gguf
+            self.khoi_tao_edge(duong_dan_mo_hinh=kq.duong_dan_gguf)
+            da_nap_edge = True
+
+        res_dict = kq.to_dict()
+        res_dict["da_nap_lai_edge"] = da_nap_edge
+        return res_dict
 
     def huan_luyen_mo_hinh(
         self,
@@ -323,6 +549,8 @@ class QuyTrinhDauCuoi:
             if dung_edge and self.dieu_phoi_swarm is not None:
                 kq_edge = self.suy_luan_edge(cau_hoi)
                 return str(kq_edge.get("cau_tra_loi", kq_edge))
+            elif dung_edge and self.dong_co_edge is not None:
+                return str(self.dong_co_edge.sinh_van_ban(cau_hoi))
             elif dung_agent and self.tac_tu is not None:
                 so_refine_truoc = len(getattr(self.tac_tu, "lich_su_refine", []))
                 ket_qua_agent = self.tac_tu.chay(cau_hoi)
@@ -505,8 +733,8 @@ class QuyTrinhDauCuoi:
             else:
                 from vietnamese_ai.export.gguf import XuatGGUF
 
-                xuat_tool = XuatGGUF()
-                res_path = xuat_tool.xuat_tu_mo_hinh(
+                xuat_gguf_tool = XuatGGUF()
+                res_path = xuat_gguf_tool.xuat_tu_mo_hinh(
                     self.mo_hinh_hien_tai, out_path, quantization=quantization
                 )
                 res = {
@@ -524,8 +752,8 @@ class QuyTrinhDauCuoi:
             else:
                 from vietnamese_ai.export.onnx_export import XuatONNX
 
-                xuat_tool = XuatONNX()
-                res_path = xuat_tool.xuat_sklearn(self.mo_hinh_hien_tai, out_path)
+                xuat_onnx_tool = XuatONNX()
+                res_path = xuat_onnx_tool.xuat_sklearn(self.mo_hinh_hien_tai, out_path)
                 res = {
                     "duong_dan": res_path,
                     "dinh_dang": "onnx",
@@ -1027,6 +1255,125 @@ class QuyTrinhDauCuoi:
             "dong_tien_hoa_doi_khang": ket_qua_co_evolution,
         }
 
+    def ra_soat_hop_dong(
+        self,
+        hop_dong_doi_tac: Union[str, Path],
+        hop_dong_chuan: Optional[Union[str, Path]] = None,
+        ngay_tra_cuu: Optional[str] = None,
+        xuat_docx: Optional[Union[str, Path]] = None,
+    ) -> Dict[str, Any]:
+        """So sánh, phát hiện rủi ro pháp lý, kiểm toán hiệu lực văn bản và xuất báo cáo Redline hợp đồng."""
+        from vietnamese_ai.rag.legal.contract_review import BoSoSanhRaSoatHopDong
+
+        engine = BoSoSanhRaSoatHopDong()
+        kq = engine.so_sanh_va_ra_soat(
+            hop_dong_doi_tac=hop_dong_doi_tac,
+            hop_dong_chuan=hop_dong_chuan,
+            ngay_tra_cuu=ngay_tra_cuu,
+        )
+        kq["bao_cao_markdown"] = engine.xuat_bao_cao_markdown(kq)
+        if xuat_docx is not None:
+            kq["duong_dan_docx"] = str(engine.xuat_bao_cao_docx(kq, xuat_docx))
+        return kq
+
+    def kiem_dinh_mo_hinh(
+        self,
+        ung_vien: Optional[Any] = None,
+        ban_goc: Optional[Any] = None,
+        gioi_han_mau: int = 8,
+        nguong_dat: float = 0.55,
+    ) -> Dict[str, Any]:
+        """Chạy Cổng Kiểm Định hồi quy 4 trục (`CongKiemDinhMoHinh`) cho hệ thống hiện tại trước khi promote Production."""
+        from vietnamese_ai.fine_tuning.eval_gate import CongKiemDinhMoHinh
+
+        muc_tieu = ung_vien
+        if muc_tieu is None:
+            if self.rag is not None and self.rag.csdl_vector.so_luong() > 0:
+                muc_tieu = self.rag
+            elif self.tac_tu is not None:
+                muc_tieu = self.tac_tu
+            elif self.mo_hinh_hien_tai is not None:
+                muc_tieu = self.mo_hinh_hien_tai
+            else:
+                from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
+
+                muc_tieu = TroLyPhapLy(nap_kho_mo=True, dung_onnx_semantic=True)
+
+        gate = CongKiemDinhMoHinh()
+        kq = gate.so_sanh_va_quyet_dinh(
+            ung_vien=muc_tieu,
+            ban_goc=ban_goc,
+            gioi_han_mau=gioi_han_mau,
+            nguong_dat=nguong_dat,
+        )
+        return kq.to_dict()
+
+    def tao_mcp_server(
+        self,
+        ten: str = "vietnamese-ai-mcp",
+        nap_kho_phap_ly_mo: bool = True,
+        quan_ly_plugin: Optional[Any] = None,
+    ) -> Any:
+        """Khởi tạo máy chủ MCP chuẩn `stdio` / `HTTP/SSE` dùng chung kho `.vaidb` và hệ sinh thái `QuanLyPlugin` của quy trình."""
+        from vietnamese_ai.agents.mcp_transport import MayChuMCPThucTe
+
+        duong_dan_db = getattr(self.rag, "duong_dan_vaidb", None) if self.rag is not None else None
+        return MayChuMCPThucTe(
+            ten=ten,
+            duong_dan_vaidb=duong_dan_db,
+            nap_kho_phap_ly_mo=nap_kho_phap_ly_mo,
+            quan_ly_plugin=quan_ly_plugin or getattr(self, "quan_ly_plugin", None),
+        )
+
+    def tao_webhook_kenh(
+        self,
+        kenh: str = "both",
+        host: str = "0.0.0.0",
+        port: int = 8095,
+        bo_xu_ly: Optional[Any] = None,
+        zalo_config: Optional[Dict[str, Any]] = None,
+        telegram_config: Optional[Dict[str, Any]] = None,
+        quan_ly_workspace: Optional[Any] = None,
+    ) -> Any:
+        """Tạo `MayChuWebhookKenh` kết nối Zalo OA / Telegram Bot thẳng vào RAG / Agent / Mô hình của `QuyTrinhDauCuoi`."""
+        from vietnamese_ai.connectors.telegram_bot import KetNoiTelegram
+        from vietnamese_ai.connectors.webhook_server import MayChuWebhookKenh
+        from vietnamese_ai.connectors.zalo_oa import KetNoiZaloOA
+
+        handler = bo_xu_ly or self.rag or self.tac_tu or self.mo_hinh_hien_tai
+        if handler is None:
+            from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
+
+            handler = TroLyPhapLy(nap_kho_mo=True, dung_onnx_semantic=True)
+
+        z_cfg = dict(zalo_config or {})
+        t_cfg = dict(telegram_config or {})
+        zalo = (
+            KetNoiZaloOA(
+                bo_xu_ly=handler,
+                app_id=str(z_cfg.get("app_id", "")),
+                oa_secret_key=str(z_cfg.get("oa_secret_key", "")),
+                access_token=str(z_cfg.get("access_token", "")),
+                che_do_gui_that=bool(z_cfg.get("che_do_gui_that", False)),
+                quan_ly_workspace=quan_ly_workspace,
+            )
+            if kenh in ("zalo", "both")
+            else None
+        )
+        telegram = (
+            KetNoiTelegram(
+                bo_xu_ly=handler,
+                bot_token=str(t_cfg.get("bot_token", "")),
+                webhook_secret=str(t_cfg.get("webhook_secret", "")),
+                che_do_gui_that=bool(t_cfg.get("che_do_gui_that", False)),
+                quan_ly_workspace=quan_ly_workspace,
+            )
+            if kenh in ("telegram", "both")
+            else None
+        )
+        return MayChuWebhookKenh(ket_noi_zalo=zalo, ket_noi_telegram=telegram, host=host, port=port)
+
 
 HeSinhThaiAI = QuyTrinhDauCuoi
+HeThongAI = QuyTrinhDauCuoi
 EndToEndWorkflow = QuyTrinhDauCuoi

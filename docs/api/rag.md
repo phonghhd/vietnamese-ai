@@ -222,3 +222,60 @@ class RAGPipeline:
     "so_luong_nguon": int,      # Số nguồn
 }
 ```
+
+---
+
+## KhoTriThucVAIDB (`.vaidb` — SQLite + FTS5 + Vector Index)
+
+```python
+class KhoTriThucVAIDB:
+    """Kho tri thức bền vững một tệp duy nhất `.vaidb` (SQLite WAL + FTS5 BM25 + Float32 Vector)."""
+
+    def __init__(
+        duong_dan="vietnamese_ai_knowledge.vaidb",
+        kich_thuoc=384,
+        khoang_cach="cosine",
+        suc_chua_toi_da=500000,
+    )
+
+    def chen(ma, vector, metadata=None) -> None
+    def chen_batch(ma_list, vectors, metadata_list=None) -> None
+    def ghi_nhan_tai_lieu(ma_tai_lieu, sha256_noi_dung, so_chunks, duong_dan_nguon=None, kich_thuoc_bytes=0, metadata=None) -> None
+    def da_ton_tai_tai_lieu(ma_tai_lieu, sha256_noi_dung=None) -> bool
+    def danh_sach_tai_lieu() -> List[Dict[str, Any]]
+    def tim_kiem(query_vector, top_k=5, nguong=None, bo_loc=None) -> List[Dict[str, Any]]
+    def tim_kiem_fts(cau_hoi, top_k=5, nguong=None, bo_loc=None) -> List[Dict[str, Any]]
+    def tim_kiem_lai(cau_hoi, query_vector=None, top_k=5, trong_so_semantic=0.65, nguong=None, bo_loc=None) -> List[Dict[str, Any]]
+    def xay_dung_chi_muc_ivf(so_cum=16, so_vong_lap=8, nprobe=3, seed=42) -> Dict[str, Any]
+    def xoa_tai_lieu(ma_tai_lieu) -> int
+    def thong_ke() -> Dict[str, Any]
+    def dong() -> None
+```
+
+Tích hợp trực tiếp qua `RAGPipeline(backend="vaidb", duong_dan_vaidb="tri_thuc.vaidb")` kèm phương thức đồng bộ tăng dần theo SHA-256 `RAGPipeline.dong_bo_thu_muc(...)`. Alias: `VAIDBStore`, `SQLiteVectorStore`.
+
+---
+
+## BoNhungONNXTiengViet & BoSapXepLaiONNXTiengViet
+
+```python
+class BoNhungONNXTiengViet:
+    """Bộ nhúng Dense Tiếng Việt 2 tầng: ONNX Runtime CPU INT8/FP32 + Ngữ nghĩa Đồng nghĩa zero-dependency."""
+
+    def __init__(duong_dan_onnx=None, duong_dan_tokenizer=None, kich_thuoc=384, so_luong_thread=4, do_dai_toi_da=256)
+    @staticmethod
+    def luong_tu_hoa_int8(duong_dan_onnx_goc, duong_dan_int8) -> Dict[str, Any]
+    def nhung(van_ban) -> np.ndarray
+    def nhung_mot(van_ban) -> np.ndarray
+    def thong_ke() -> Dict[str, Any]
+
+class BoSapXepLaiONNXTiengViet:
+    """Cross-Encoder Reranker tiếng Việt (ONNX Runtime CPU + Chấm điểm tương tác chéo khái niệm đồng nghĩa)."""
+
+    def __init__(duong_dan_onnx=None, so_luong_thread=4, do_dai_toi_da=256)
+    def cham_diem(cau_hoi, tai_lieu) -> float
+    def sap_xep_lai(cau_hoi, ket_qua, top_k=5) -> List[Dict[str, Any]]
+    def thong_ke() -> Dict[str, Any]
+```
+
+Kích hoạt nhanh qua `RAGPipeline(che_do_nhung="onnx_viet", che_do_rerank="onnx_viet")` hoặc CLI `vai rag --semantic-onnx`. Alias: `VietnameseONNXEmbedder`, `VietnameseONNXReranker`.

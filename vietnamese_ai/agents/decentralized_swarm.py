@@ -89,8 +89,29 @@ class P2PSwarmOrchestrator(HeThongSwarm):
             )
 
     def _chay_node_tu_xa(self, node_engine: Any, sub_agent: TacTuSwarm, nhiem_vu: str) -> str:
-        """Hàm mô phỏng việc chạy Agent trên Edge Node thông qua P2P RPC."""
-        ket_qua = sub_agent.chay(nhiem_vu)
+        """Thực thi tác vụ trên Edge Node: gọi HTTP RPC thực tế nếu có `endpoint_url`, hoặc chạy trực tiếp trên engine cục bộ."""
+        endpoint = getattr(node_engine, "endpoint_url", None)
+        ket_qua = ""
+        if isinstance(endpoint, str) and endpoint.startswith(("http://", "https://")):
+            import urllib.request
+
+            req_data = json.dumps({"prompt": nhiem_vu, "agent": sub_agent.ten}, ensure_ascii=False).encode("utf-8")
+            req = urllib.request.Request(
+                endpoint,
+                data=req_data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=5.0) as resp:
+                    body = resp.read().decode("utf-8", errors="ignore")
+                    parsed = json.loads(body)
+                    ket_qua = str(parsed.get("result") or parsed.get("ket_qua") or parsed.get("text") or body)
+            except Exception:
+                ket_qua = ""
+
+        if not ket_qua:
+            ket_qua = sub_agent.chay(nhiem_vu)
 
         if self.ledger is not None:
             node_id = getattr(node_engine, "node_id", "UnknownNode")

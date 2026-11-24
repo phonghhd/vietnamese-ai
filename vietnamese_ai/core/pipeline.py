@@ -204,11 +204,11 @@ class Pipeline:
 
         Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải pipeline từ nguồn tin cậy.
         """
-        duong_dan = Path(duong_dan)
-        duong_dan.parent.mkdir(parents=True, exist_ok=True)
-        with open(duong_dan, "wb") as f:
+        duong_dan_path = Path(duong_dan)
+        duong_dan_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(duong_dan_path, "wb") as f:
             pickle.dump(self, f)
-        self.logger.info(f"Đã lưu pipeline tại: {duong_dan}")
+        self.logger.info(f"Đã lưu pipeline tại: {duong_dan_path}")
 
     @classmethod
     def tai(cls, duong_dan: str) -> "Pipeline":

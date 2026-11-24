@@ -19,16 +19,31 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-31.0.2-blue.svg" alt="version">
-  <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="python">
+  <img src="https://img.shields.io/badge/version-31.0.3-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/python-3.8%20--%203.14-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-1176%20passed-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-1265%20passed-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/mypy-0%20errors-brightgreen.svg" alt="mypy">
+  <img src="https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg" alt="ruff">
+  <img src="https://img.shields.io/badge/public%20APIs-316-indigo.svg" alt="apis">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
 ---
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
-## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.0.2 - Closed-Loop Self-Evolving Ecosystem)
+## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.0.3 — Open-Source Production Release)
+
+- **Bàn Làm Việc AI Tiếng Việt Thực Chiến (9 Trụ Cột Đã Liên Kết Khép Kín)**:
+  - **1. Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Luật (`vai rag --db`, `vai legal-graph`)**: `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 tiếng Việt có dấu/không dấu + Float32 Vector + đồng bộ thư mục tăng dần SHA-256 `dong_bo_thu_muc`), `RAGPipeline.luu/tai("*.vaidb")`, `BoNhungONNXTiengViet` (`onnx_viet` hiểu đồng nghĩa đời thường) và `DoThiThamChieuPhapLy` truy vết Luật ↔ Nghị định ↔ Thông tư kèm sơ đồ Mermaid.
+  - **2. RAG Pháp Lý 100 Điều Khoản Đóng Gói Sẵn Trong Wheel & Theo Dõi Hiệu Lực**: Bộ 100 điều khoản pháp luật Việt Nam + 35 QA chuẩn đi kèm ngay khi `pip install vietnamese-ai` (`vietnamese_ai/rag/legal/data/`), `BoTheoDoiHieuLucPhapLy` cảnh báo văn bản hết hiệu lực/sửa đổi theo mốc ngày (`45/2013/QH13` → `31/2024/QH15`, `123/2020/NĐ-CP` → `70/2025/NĐ-CP`). Xem [Hướng dẫn RAG Pháp lý & Hiệu lực](docs/guides/vietnamese-rag.md).
+  - **3. Rà Soát Hợp Đồng Redline, Chat Workspace Phòng Ban, MCP IDE & Zalo/Telegram**:
+    - `BoSoSanhRaSoatHopDong` (`vai contract-review`): so sánh hợp đồng `.docx`/`.pdf`/`.txt` với mẫu chuẩn, chấm điểm an toàn pháp lý, xuất báo cáo Redline Markdown & Word `.docx`.
+    - `QuanLyPhienChatWorkspace` + `StudioDashboard` (`vai studio --vaidb ... --workspace-dir ... --auth`): chat đa phiên cách ly `.vaidb` theo phòng ban, kéo-thả tệp thẳng vào Workspace, RBAC + Audit + Thumbs Up/Down kèm đáp án sửa `cau_tra_loi_sua`.
+    - `MayChuMCPThucTe` (`vai mcp-server --transport stdio|sse --plugin-dir ...`): cắm trực tiếp vào Cursor, VS Code & Claude Desktop kèm tự động phơi bày công cụ V-Plugin 2.0.
+    - `KetNoiZaloOA` & `KetNoiTelegram` (`vai connector both --workspace-dir ...`): xác thực chữ ký MAC/Secret, lưu lịch sử SQLite Workspace gom DPO, hỗ trợ lệnh nhanh `/hieuluc`, `/luat`, `/hopdong`. Xem [Hướng dẫn Hợp đồng, MCP & Zalo/Telegram](docs/guides/workbench-mcp-connectors.md).
+  - **4. Động cơ LLM Tiếng Việt Zero-GPU Trên CPU (`vai pull` & `vai run`)**: `QuanLyMoHinhEdge` quản lý 8 mô hình GGUF tiếng Việt (`qwen2.5-1.5b/3b/7b`, `qwen3-4b`, `phogpt-4b`, `vistral-7b`, `seallm-7b`, `gemma2-2b`), tự chọn lượng tử theo RAM thực, tải HTTP Range Resume, chạy 3 tầng Native (`llama-cpp-python` → `llama-cli` → GGUF mmap NumPy) và mở trực tiếp `.vaidb` qua `vai run ... --rag cong_ty.vaidb --admin`. Xem [Hướng dẫn Edge CPU LLM Runtime](docs/guides/edge-cpu-llm-runtime.md).
+  - **5. Remote GPU Burst Flywheel & Cổng Kiểm Định Hồi Quy 4 Trục (`vai train-cloud`, `vai export-dpo`, `vai eval-gate`)**: Đẩy thẳng phản hồi DPO đã ẩn PII từ Workspace (`--from-workspace`) lên `NhaCungCapModal` (Modal Serverless GPU), `NhaCungCapSSH` (máy chủ GPU nội bộ) hoặc `NhaCungCapCucBo`, kiểm trần ngân sách USD/VNĐ, ký HMAC-SHA256 và chấm hồi quy 4 trục (`CongKiemDinhMoHinh`: trích dẫn luật, hiệu lực văn bản, chống ảo giác/PII, kháng Prompt Injection) trước khi promote Production. Xem [Hướng dẫn Remote GPU Flywheel](docs/guides/remote-gpu-flywheel.md).
+  - **6. Trải Nghiệm 5 Phút (`vai demo`), Minh Bạch 3 Tầng (`vai status-map`) & Kiểm Định Phát Hành (`vai release-check`)**: Demo offline trong 1 lệnh, phân tách minh bạch **Core Production / Optional Extensions / Experimental-Simulated**, cổng CI/CD TestPyPI & PyPI OIDC Trusted Publishing (`publish.yml`) cùng `benchmarks/Dockerfile.benchmark` tái lập. Xem [Hướng dẫn 5-Minute DX & Release](docs/guides/five-minute-dx-and-release.md).
 
 - **Hệ Sinh Thái Khép Kín 5 Bước Tự Tối Ưu Hóa & Tự Chữa Lành (Closed-Loop Autonomous AI Ecosystem) (v31.0.2)**:
   - **1. Bánh đà Dữ liệu Khép kín (Continuous Data Flywheel & DPO Loop)**: Mọi tương tác suy luận, phản hồi người dùng hoặc đánh giá từ Tác tử Tự sửa (`Self-Refine`) được tự động đóng gói theo cấu trúc `(prompt, chosen, rejected)` vào `HoDuLieu` (DataLake DVC) kèm mã băm SHA-256. `DPOTrainer` tự động đọc dữ liệu và tối ưu hóa trọng số mô hình, đăng ký và thăng hạng trực tiếp lên `QuanLyMoHinh` (`production`).
@@ -69,7 +84,9 @@
 
 ### 📊 Bảng So Sánh Đối Đầu Định Lượng (Vietnamese AI vs LangChain / LlamaIndex)
 
-| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (v30.2)** | **LangChain** | **LlamaIndex** | **Ưu thế của Vietnamese AI** |
+> Tái lập trực tiếp trên máy của bạn bằng `vai benchmark --compare` hoặc container cố định `benchmarks/Dockerfile.benchmark`.
+
+| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (v31.0.3)** | **LangChain** | **LlamaIndex** | **Ưu thế của Vietnamese AI** |
 |:---|:---:|:---:|:---:|:---:|
 | **Thời gian khởi động (Cold-start)** | **1.20 ms** | 2,150 ms | 2,680 ms | ⚡ **Nhanh gấp ~1,790 lần** |
 | **Dung lượng RAM chiếm dụng** | **14.0 MB** | 142.5 MB | 165.0 MB | 🍃 **Tiết kiệm 90.2% RAM** |
@@ -120,7 +137,9 @@
 
 ## Cài đặt
 
-### Cơ bản
+### Cơ bản (Core — chỉ phụ thuộc NumPy)
+
+Cài đặt mặc định chỉ kéo về phụ thuộc tối thiểu cho lõi (`vietnamese_ai.core`, `vietnamese_ai.utils`, `XuLySo`, `Zero-GPU Edge Engine`):
 
 ```bash
 pip install vietnamese-ai
@@ -136,23 +155,68 @@ source venv/bin/activate
 pip install -e .
 ```
 
-### Với NLP tiếng Việt (underthesea)
+### Cài đặt theo phân hệ mở rộng (`optional-dependencies`)
 
 ```bash
-pip install -e ".[nlp]"
-```
+# Học máy cổ điển & Chuỗi thời gian (scikit-learn, pandas)
+pip install "vietnamese-ai[ml]"
 
-### Với Deep Learning (PyTorch)
+# NLP tiếng Việt (underthesea)
+pip install "vietnamese-ai[vietnamese-nlp]"   # hoặc vietnamese-ai[nlp]
 
-```bash
-pip install -e ".[torch]"
-```
+# Deep Learning & Fine-Tuning (PyTorch, Transformers, PEFT, TRL, Datasets)
+pip install "vietnamese-ai[torch]"
+pip install "vietnamese-ai[dl]"
 
-### Tất cả tính năng
+# RAG Pháp lý đọc DOCX/PDF/ảnh scan OCR & Kho tri thức nâng cao
+pip install "vietnamese-ai[legal-rag]"
+pip install "vietnamese-ai[rag]"
 
-```bash
+# Kết nối LLM Cloud APIs, Local llama.cpp CPU & Remote GPU Serverless (Modal)
+pip install "vietnamese-ai[llm]"
+pip install "vietnamese-ai[local-llm]"
+pip install "vietnamese-ai[cloud-gpu]"
+
+# Thị giác máy tính & OCR, Xuất mô hình (ONNX/GGUF), API Server, Mobile/Web3/Robotics
+pip install "vietnamese-ai[vision]"
+pip install "vietnamese-ai[export]"
+pip install "vietnamese-ai[api]"
+pip install "vietnamese-ai[mobile]"
+pip install "vietnamese-ai[web3]"
+pip install "vietnamese-ai[robotics]"
+
+# Hoặc dùng trình thiết lập thông minh 3 tầng tự phát hiện phần cứng
+vai setup --profile legal-rag --apply
+
+# Đầy đủ các nhóm mở rộng tiêu chuẩn (không gồm gói cần CUDA/biên dịch riêng như unsloth/llama-cpp-python)
 pip install -e ".[all]"
+
+# Môi trường phát triển & kiểm thử (tách riêng khỏi requirements.txt production)
+pip install -r requirements-dev.txt
 ```
+
+### Kiến trúc Lõi vs Phần Mở rộng & Bản đồ Minh bạch 3 Tầng (`vai status-map`)
+
+Framework phân định rõ 3 tầng năng lực ngay trong runtime (kiểm tra trực tiếp bất kỳ lúc nào qua `vai status-map` hoặc `GET /api/system/status-map` trên Web Studio, tương thích ngược 100% với đường dẫn import cũ):
+
+- **Core Production (`vietnamese_ai.core`, `vietnamese_ai.rag`, `vietnamese_ai.solutions`, `vietnamese_ai.connectors`, `vietnamese_ai.ui`, `vietnamese_ai.security`)**: Thực thi thật 100% chỉ với Python + NumPy (0 thư viện nặng bị nạp sớm khi `import vietnamese_ai`, 316 biểu tượng công khai khớp chuẩn `.pyi`).
+- **Optional Extensions (`vietnamese_ai.extensions.*`)**: Không gian tên lazy-load cho các phân hệ mở rộng tùy chọn cài thêm qua extras (`ml`, `legal-rag`, `local-llm`, `cloud-gpu`, `dl`, `api`, `export`, `vision`...).
+- **Experimental / Simulated**: Các mô-đun nghiên cứu/mô phỏng được gắn nhãn tường minh qua `@gan_nhan_tinh_nang` và liệt kê rõ trong bảng bên dưới.
+
+### Yêu cầu Công cụ Ngoài & Minh bạch Trạng thái Tính năng (External Toolchain Requirements)
+
+> Lưu ý: Nguyên tắc **Zero-Dependency** áp dụng cho lõi Python/NumPy và V-UI. Các tính năng thử nghiệm/tăng tốc phần cứng hoặc xuất định dạng nền tảng gốc dưới đây yêu cầu công cụ bên ngoài hoặc chạy ở chế độ mô phỏng/fallback khi thiếu toolchain:
+
+| Phân hệ / Class | Trạng thái | Công cụ ngoài bắt buộc (cho chế độ Native) | Hành vi khi không có công cụ ngoài |
+| :--- | :---: | :--- | :--- |
+| `EvoJITCompiler`, `EvoKernelCPU`, `FusedDenseNormReLU` | **External Dependency / Experimental** | Trình biên dịch **`g++`** (GCC/Clang, `-fopenmp`) | Không biên dịch JIT C++ được (báo lỗi rõ ràng hướng dẫn cài `g++`). |
+| `TriKhaiDiDong` (`xuat_tflite`, `xuat_coreml`, `xuat_executorch`) | **Experimental / Simulated Format** | `tensorflow`/`ai-edge-litert` + Android NDK; `coremltools` + Xcode (macOS); PyTorch ExecuTorch | Xuất container nội bộ (`VAI_TFL`, `VAI_CLM`, `VAI_PTE`) chạy được qua `chay_suy_luan_di_dong()`; `benchmark_edge()` mô phỏng trên CPU host. |
+| `TriKhaiDiDong.xuat_onnx_mobile` / `XuatONNX` | **External Dependency** | `skl2onnx` + `onnxruntime` (`vietnamese-ai[export]`) | Fallback sang container đồ thị nội bộ `VAI_ONX` chạy trên NumPy. |
+| `CauNoiCtypesNative` & `DongCoSuyLuanEdge` | **Core + Optional Native C++** | `libllama.so`/`llama.dll` hoặc `llama-cli` | Fallback Python thuần (đọc mmap GGUF & giải lượng tử Q4/Q8 thật; sinh văn bản fallback tối thiểu). |
+| `DieuPhoiSwarmCPU` | **Experimental** | `gguf` (tùy chọn), `tailscale` (tùy chọn WAN) | `khoi_tao_cum_gia_lap()` chạy **mô phỏng đa worker trong cùng tiến trình**; chế độ mạng LAN vật lý qua `them_node_mang_vat_ly()` dùng TCP socket thật. |
+| `RedTeamSimulator`, `RedTeamAgent`, `BlueTeamAgent` | **Experimental / Orchestration** | `RedTeamSimulator`: không; `RedTeamAgent`/`BlueTeamAgent`: cần `llm` | `RedTeamSimulator` là bộ mô phỏng tấn công dựa trên bộ kịch bản tĩnh tự phát triển; xem chi tiết giới hạn trong [SECURITY.md](SECURITY.md). |
+| `ThucThiDocLap` (V-Sandbox) & `MoiTruongCachLy` | **Application-Level Sandbox** | Không (dùng Python `ast`, `subprocess`, `multiprocessing`) | Cách ly mức ứng dụng; production chạy mã không tin cậy **bắt buộc** kết hợp container/VM OS (Docker, seccomp, gVisor). |
+| `rust_core/` (`vietnamese_ai_rust.so`) | **Optional Native Rust** | `rustc`, `cargo`, `maturin` (khi build từ source) | Tự động fallback sang Python/NumPy thuần. |
 
 ---
 
@@ -341,15 +405,22 @@ pip install -e ".[all]"
 | `QuanLyMetrics` | Metrics: counter, gauge, histogram, Prometheus export |
 | `LamNongModel` | Model warm-up: pre-load, auto-refresh, pool management |
 
-### CLI
+### CLI (`vai`)
 
-```
-vai info                              Thông tin framework
-vai train --data FILE --model M       Huấn luyện mô hình
-vai predict --model M --input FILE    Dự đoán
-vai evaluate --model M --data FILE    Đánh giá
-vai serve --model M --port 8080       API server
-vai web --port 5000                   No-code web interface
+```text
+vai demo [all|legal-rag|edge-chat]       Trình diễn 1-Click trọn vẹn 4 trụ cột offline
+vai doctor / vai status-map              Chẩn đoán phần cứng & bản đồ minh bạch 3 tầng
+vai pull qwen2.5-3b                      Tải LLM GGUF tiếng Việt tự chọn lượng tử theo RAM
+vai run qwen2.5-3b --rag kb.vaidb --admin Chạy LLM Zero-GPU gắn thẳng kho .vaidb pháp lý
+vai rag --db kb.vaidb --docs ./luat --semantic-onnx --admin --query "..."
+vai legal-graph 45/2013/QH13 --mermaid   Truy vấn Đồ thị Tham chiếu Pháp lý Việt Nam
+vai contract-review hd.docx --template mau.docx --output-docx redline.docx
+vai studio --vaidb kb.vaidb --workspace-dir ./ws --port 8080
+vai mcp-server --transport stdio|sse     Cắm trực tiếp vào Cursor, VS Code & Claude Desktop
+vai connector both --solution phap-ly --workspace-dir ./ws
+vai export-dpo --workspace-dir ./ws      Xuất phản hồi người dùng sang DPO JSONL đã ẩn PII
+vai train-cloud --from-workspace ./ws --provider modal --eval-4-axis
+vai eval-gate / vai release-check        Kiểm định hồi quy 4 trục & cổng phát hành PyPI
 ```
 
 ---
@@ -662,20 +733,31 @@ ket_qua = studio.chay()
 print(ket_qua['trang_thai'])  # 'thanh_cong'
 ```
 
-### Vietnamese LLM & Agents
+### Vietnamese LLM & Agents (An toàn — Không dùng `eval()`)
+
+> ⚠️ **Cảnh báo bảo mật**: Tuyệt đối không dùng `eval()` trong `@cong_cu` vì gây lỗ hổng thực thi mã từ xa (RCE). Hãy dùng parser biểu thức AST an toàn (`danh_gia_bieu_thuc_toan` / `cong_cu_may_tinh`) cho phép toán, hoặc dùng hộp cát `ThucThiDocLap` (V-Sandbox) / `MoiTruongCachLy` (Agent Sandbox) khi cần chạy mã Python (xem thêm [SECURITY.md](SECURITY.md)).
 
 ```python
 from vietnamese_ai import VietnameseLLM
-from vietnamese_ai.agents import TacTu, cong_cu
+from vietnamese_ai.agents import TacTu, cong_cu, cong_cu_may_tinh, danh_gia_bieu_thuc_toan
 
 llm = VietnameseLLM(bac=3)
 
-@cong_cu(ten="may_tinh", mo_ta="Tính toán biểu thức")
-def tinh_toan(bieu_thuc: str):
-    return eval(bieu_thuc)
+@cong_cu(ten="tinh_toan_an_toan", mo_ta="Tính toán biểu thức toán học an toàn qua AST")
+def tinh_toan(bieu_thuc: str) -> str:
+    return str(danh_gia_bieu_thuc_toan(bieu_thuc))
 
-tac_tu = TacTu(llm=llm, danh_sach_cong_cu=[tinh_toan])
+tac_tu = TacTu(llm=llm, danh_sach_cong_cu=[cong_cu_may_tinh, tinh_toan])
 ket_qua = tac_tu.chay("Tính giúp tôi 15 nhân 8")
+```
+
+Nếu tác tử cần thực thi mã Python phức tạp, bắt buộc chạy qua Sandbox cách ly tiến trình:
+
+```python
+from vietnamese_ai.sandbox import ThucThiDocLap
+
+sandbox = ThucThiDocLap(timeout_giay=5)
+thanh_cong, ket_qua = sandbox.chay("ket_qua = sum(i * i for i in range(10))")
 ```
 
 ### Federated Learning
@@ -695,47 +777,57 @@ print(f"Điểm global: {ket_qua['diem_toan_cuc']:.4f}")
 Sau khi cài đặt, sử dụng lệnh `vai` trực tiếp trên Terminal:
 
 ```bash
-# 1. Chẩn đoán hệ thống & Thông tin Framework
+# 1. Trải nghiệm 5 phút, chẩn đoán hệ thống & bản đồ minh bạch 3 tầng
 vai info
 vai doctor
+vai status-map
+vai demo
 
-# 2. Suy Luận Bầy Đàn Phân Tán Trên CPU Văn Phòng & Xác Thực zkML (v31.0)
+# 2. RAG Pháp lý bền vững (.vaidb + ngữ nghĩa ONNX), Đồ thị Luật & Rà soát Hợp đồng
+vai rag --db cong_ty.vaidb --docs ./thu_muc_luat --semantic-onnx --admin --query "Thời hạn thông báo vi phạm dữ liệu cá nhân?"
+vai legal-graph 45/2013/QH13 --active-only --mermaid
+vai contract-review hop_dong_doi_tac.docx --template hop_dong_chuan.docx --output-md redline.md --output-docx redline.docx
+
+# 3. No-Code Web Studio Dashboard (gắn .vaidb, Workspace SQLite đa phòng ban & RBAC)
+vai studio --vaidb cong_ty.vaidb --workspace-dir ./studio_ws --port 8080
+
+# 4. Động cơ LLM Tiếng Việt Zero-GPU trên CPU (tự chọn lượng tử theo RAM + gắn .vaidb)
+vai pull --list
+vai pull qwen2.5-3b --dry-run
+vai run vgpt2 --prompt "Tương lai phát triển AI tại Việt Nam giai đoạn 2026-2030" --bench
+vai run qwen2.5-3b --rag cong_ty.vaidb --admin --prompt "Hợp đồng này có điều khoản hết hiệu lực không?"
+
+# 5. Kết nối MCP IDE (Cursor / VS Code / Claude Desktop) & Zalo OA / Telegram Bot
+vai mcp-server --print-config cursor --vaidb cong_ty.vaidb
+vai mcp-server --transport stdio --vaidb cong_ty.vaidb --plugin-dir ./plugins
+vai connector both --solution phap-ly --workspace-dir ./studio_ws --port 8095 --dry-run
+
+# 6. Vòng lặp DPO, Remote GPU Flywheel (Modal / SSH / Local) & Kiểm định 4 trục
+vai export-dpo --workspace-dir ./studio_ws --output studio_dpo.jsonl
+vai train-cloud --from-workspace ./studio_ws --provider modal --gpu T4 --eval-4-axis
+vai eval-gate --limit 8 --min-score 0.55
+vai release-check
+
+# 7. Suy Luận Bầy Đàn Swarm CPU, Xác Thực zkML & Benchmark Đối Đầu
 vai swarm --nodes 3 --layers 6 --prompt "Chuyển đổi số quốc gia" --bench
 vai verify --text "Văn bản xác thực bằng Merkle Tree"
-vai verify --tamper-check  # Thử nghiệm tự động phát hiện nút Byzantine gian lận
-
-# 3. Đo kiểm Đối đầu Khoa học vs LangChain / LlamaIndex (v30.2)
-vai benchmark --compare
+vai verify --tamper-check
 vai benchmark --compare --latex --output report_academic.tex
+vai tokenize "Ủy ban nhân dân thành phố Hà Nội triển khai chuyển đổi số" --unaccent
 
-# 3. Tách từ & Chuẩn hóa Tiếng Việt Siêu Tốc (v30.2)
-vai tokenize "Ủy ban nhân dân thành phố Hà Nội triển khai chuyển đổi số"
-vai tokenize "Toà án nhân dân tối cao" --unaccent
-
-# 4. Khởi chạy No-Code Web Studio Dashboard trực quan (cổng 8080)
-vai studio --port 8080
-
-# 5. Động cơ Suy luận Zero-GPU Native Streaming trên CPU
-vai run --prompt "Tương lai phát triển AI tại Việt Nam giai đoạn 2026-2030"
-vai run --benchmark  # Đo lường token/s và độ trễ First-Token
-
-# 6. Đóng gói 1-Click Desktop chạy 100% Offline (Windows .bat & Linux/macOS .sh)
+# 8. Đóng gói 1-Click Desktop, Tác tử Tự chủ & Bộ Giải pháp Doanh nghiệp
 vai pack --output ./desktop_bundle --mode studio --threads 4
+vai agent research "Quy định bảo vệ dữ liệu cá nhân Nghị định 13" --output baocao.md
+vai agent code "Viết hàm kiểm tra số nguyên tố bằng Python kèm docstring tiếng Việt"
+vai solution cskh --query "Kiểm tra giúp tôi đơn hàng DH1001"
+vai solution phap-ly --query "Khi xảy ra vi phạm dữ liệu cá nhân phải thông báo trong bao lâu?"
+vai solution trich-xuat --input "Số: 001095012345 Họ và tên: NGUYỄN VĂN AN" --type cccd
 
-# 7. Tác tử Tự chủ (Autonomous Agents)
-vai agent research --topic "Quy định bảo vệ dữ liệu cá nhân Nghị định 13" --output baocao.md
-vai agent code --file script_can_sua.py
-
-# 8. Bộ Giải pháp Doanh nghiệp (Enterprise Solutions)
-vai solution cskh --input "Tài khoản của tôi bị trừ tiền mà chưa nhận được hàng"
-vai solution phap-ly --file hop_dong_thuong_mai.txt
-vai solution trich-xuat --file can_cuoc.txt --loai cccd
-
-# 9. Quản lý Mô hình & Huấn luyện Cổ điển
+# 9. Học máy Cổ điển & API Server chuẩn OpenAI
 vai train --data data.csv --model logistic --output model.pkl --test-size 0.2
 vai predict --model model.pkl --input new_data.csv --output results.csv
 vai evaluate --model model.pkl --data test.csv
-vai serve --model model.pkl --port 8080
+vai serve --model model.pkl --port 8080 --backend fastapi
 ```
 
 ---
@@ -889,74 +981,84 @@ curl http://localhost:8080/suc_khoe
 ├── evonet_os/             # (v26.0) Hệ điều hành Web-based UI giao diện kéo thả (DAG Visual Builder)
 ├── vietnamese_ai/
 │   ├── extreme/           # (v27.0) The Hardware Extreme (C++ JIT, Kernel Fusion, CPU Kernel)
-│   ├── agents/            # (v12.0) Agentic Swarm, (v16.0) MemGPT, (v18.0) Experience Memory (HITL)
-│   ├── edge/              # (v13.0) DePIN Routing, (v17.1) ZKP, (v19.0) P2PTracker & TokenLedger
-│   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo
+│   ├── agents/            # StateGraph, MemGPT, DeepResearch, CodeHealing, MayChuMCPThucTe (stdio/SSE)
+│   ├── connectors/        # KetNoiZaloOA, KetNoiTelegram, MayChuWebhookKenh (lưu SQLite Workspace)
+│   ├── edge/              # QuanLyMoHinhEdge (8 GGUF VN), DongCoSuyLuanEdge, Swarm CPU, DePIN
+│   ├── core/              # Engine, Pipeline, KiemDinhCheo, TimKiemThamSo, QuyTrinhDauCuoi
 │   ├── models/            # PhanLoai, HoiQuy, PhanCum, MangNron, MoHinhTapHop
 │   ├── preprocessing/     # XuLyVanBan, XuLySo, TaoDacTrung
 │   ├── automl/            # AutoML, TimKiemKienTruc (NAS)
-│   ├── nlp/               # PhanTichCamXuc, PhoBERTWrapper
+│   ├── nlp/               # BoTachTuTiengVietSieuToc, BoNhungVanBanSieuToc, PhanTichCamXuc, PhoBERT
 │   ├── embeddings/        # Word2VecTiengViet, FastTextTiengViet
-│   ├── fine_tuning/       # HuanLuyenPyTorch, UnslothWrapper, HuggingFaceWrapper, PEFT, SFT, DPO, RLHF
-│   ├── transformer/       # MultiHeadAttention, TransformerModel, GPTModel, PreTrainer, TextDataset, VietnameseTokenizer
-│   ├── vision/            # PhanLoaiHinhAnh
+│   ├── fine_tuning/       # SFT, DPO, RLHF, LoRA/PEFT, BoDieuPhoiTinhChinhXa (Modal/SSH), CongKiemDinhMoHinh (4 trục)
+│   ├── transformer/       # MultiHeadAttention, TransformerModel, GPTModel, PreTrainer, VietnameseTokenizer
+│   ├── vision/            # PhanLoaiHinhAnh, OCR đa tầng
 │   ├── timeseries/        # DuDoanChuoiThoiGian
 │   ├── mobile/            # TriKhaiDiDong (TFLite, CoreML, ONNX Mobile)
 │   ├── federated/         # HocLienKet (FedAvg, Differential Privacy)
 │   ├── realtime/          # PipelineThoiGianThuc (Message Queue, Feature Store)
-│   ├── rag/               # (v10.0) VectorDB, Chunking, Retriever, (v20.0) Agentic Realtime RAG
-│   ├── ui/                # (v20.0) V-UI Zero-Dependency Web Native (PWA, WebGPU, WebXR, WebBluetooth)
+│   ├── rag/               # RAGPipeline, KhoTriThucVAIDB (.vaidb), BoNhungONNXTiengViet, legal/ (100 điều luật + hiệu lực + đồ thị + rà soát hợp đồng)
+│   ├── solutions/         # TroLyPhapLy, TongDaiCSKH, TrichXuatThongMinh
+│   ├── ui/                # StudioDashboard (6 tabs), QuanLyPhienChatWorkspace (SQLite + DPO), V-UI
 │   ├── studio/            # StudioKeoTha (No-code Studio)
-│   ├── llm/               # VietnameseLLM (Tích hợp Tường lửa v17.1), ModelConfig, LMEvalHarness, BenchmarkRunner
-│   ├── security/          # (v17.0) AI Firewall, Agent Sandbox, Identity-Aware RAG, DLP, (v17.1) Red Teaming, Watermarking
+│   ├── llm/               # VietnameseLLM, ModelConfig, LMEvalHarness, BenchmarkRunner
+│   ├── security/          # TuongLuaAI, DataSanitizer, KhienBaoVeHinhAnh, PhongThuDuLieu, CongAnToanDauRa, Verifiable AI
 │   ├── export/            # XuatONNX, XuatGGUF
 │   ├── registry/          # QuanLyMoHinh (Model Registry)
 │   ├── distributed/       # PhanTanHuanLuyen, MultiGPUTrainer
-│   ├── enterprise/        # HeThongXacThuc, NhatKyHoatDong
-│   ├── orchestrator/      # (v21.0) V-Orchestrator: Điều phối Cụm (Zero-Dependency)
-│   ├── monitor/           # (v21.0) V-Monitor: Theo dõi GPU và Tính Cost
-│   ├── datalake/          # (v21.0) V-DataLake: Quản lý version dữ liệu & Streaming
-│   ├── sandbox/           # (v21.0) V-Sandbox: Hộp cát bảo mật phân tích AST
-│   ├── workflow/          # (v21.0) V-Workflow: Động cơ DAG & Thực thi song song
-│   ├── plugin/            # (v21.0) V-Plugin: Hệ thống nạp gỡ nóng Plugin (Hot-Swap)
+│   ├── enterprise/        # HeThongXacThuc (RBAC), NhatKyHoatDong (Audit)
+│   ├── orchestrator/      # V-Orchestrator: Điều phối Cụm (NutChinh / DieuPhoiCum)
+│   ├── monitor/           # V-Monitor: Theo dõi GPU và Tính Cost
+│   ├── datalake/          # V-DataLake: Quản lý version dữ liệu & 16 bộ dữ liệu mẫu tiếng Việt
+│   ├── sandbox/           # V-Sandbox: Hộp cát bảo mật phân tích AST
+│   ├── workflow/          # V-Workflow: Động cơ DAG & Thực thi song song
+│   ├── plugin/            # V-Plugin 2.0: Hệ thống nạp gỡ nóng Plugin (tự gắn vào FastAPI & MCP)
 │   ├── interpretability/  # GiaiThichMoHinh
 │   ├── experiment_tracking/ # TheoDoiThiNghiem
-│   ├── utils/             # Logger, Metrics, Validator, LuuTai
+│   ├── utils/             # Logger, Metrics, LuuTai (HMAC), QuanLyPhuThuoc, QuanLyPhatHanhGoi, bao_cao_ranh_gioi_he_thong
+│   ├── extensions/        # Namespace tách biệt cho các phân hệ mở rộng tùy chọn (Lazy)
 │   ├── visualization/     # BieuDo
-│   ├── api/               # ServerDonGian
-│   └── cli/               # CLI (vai command)
-├── tests/                 # 1,176+ unit & integration tests (100% automated)
+│   ├── api/               # FastAPIServer (OpenAI SSE + Tool Calling + Prometheus), ServerDonGian
+│   └── cli/               # CLI (`vai` — 36 lệnh con + `vai demo`)
+├── benchmarks/            # Dockerfile.benchmark đa tầng tái lập + bộ dữ liệu đo kiểm pháp lý
+├── tests/                 # 1,265+ unit & integration tests (0 failed)
 ├── examples/              # Ví dụ sử dụng
+├── docs/                  # Tài liệu MkDocs Material (build strict 0 cảnh báo)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
 ├── setup.py
-├── requirements.txt
+├── requirements.txt       # Phụ thuộc lõi production tối thiểu (chỉ NumPy)
+├── requirements-dev.txt   # Phụ thuộc phát triển, test, lint, docs (tách biệt)
 ├── README.md
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── SECURITY.md
+├── CITATION.cff
 ├── LICENSE
 └── MANIFEST.in
 ```
 
 ---
 
-## Chạy test
+## Chạy kiểm thử & Kiểm định chất lượng
 
 ```bash
-# Chạy toàn bộ test
-pytest tests/ -v
+# Chạy toàn bộ bộ kiểm thử
+pytest tests/ -q --tb=short
 
-# Chạy với coverage
-pytest tests/ -v --cov=vietnamese_ai --cov-report=html
-
-# Chạy lint
-ruff check vietnamese_ai/ tests/
+# Kiểm tra lint, kiểu tĩnh mypy, tài liệu & cổng phát hành PyPI
+ruff check vietnamese_ai/ tests/ benchmarks/
+mypy vietnamese_ai/ --ignore-missing-imports
+mkdocs build --strict
+vai release-check
 ```
 
-```
-================= 1176 passed, 32 skipped in 232.96s =================
+```text
+================= 1265 passed, 32 skipped in 279.55s =================
+mypy: Success: no issues found in 327 source files
+ruff: All checks passed!
+vai release-check: SẴN SÀNG PHÁT HÀNH (316/316 type stubs, 9 tệp SemVer, 0 xung đột)
 ```
 
 ---
@@ -1002,7 +1104,8 @@ ruff check vietnamese_ai/ tests/
 | v30.1 | Đột phá Tác tử & Triển khai Độc lập: Agentic StateGraph (DoThiTrangThai, HITL, checkpointing), Tác tử Nghiên cứu Sâu (DeepResearchAgent), Tác tử Tự sửa Code (CodeHealingAgent), Động cơ Native C & Zero-GPU Inference (EdgeInferenceEngine, Q4 dequant, mmap streaming), 1-Click Desktop Packager (DesktopPackager), Giao diện Web Studio Dashboard (cổng 8080), và 3 Giải pháp Chuyên ngành Doanh nghiệp (CSKH, Pháp lý, Trích xuất Hồ sơ). |
 | v30.2 | Tối Ưu Hóa Thuần Việt & Benchmark Khoa Học Định Lượng: Native Fast Vietnamese Tokenizer (BoTachTuTiengVietSieuToc, chuẩn hóa dấu mới/cũ, Maximum Matching), Vector Hashing Embedder (BoNhungVanBanSieuToc, cosine similarity siêu tốc), RAG Hành chính & Pháp lý Việt Nam (BoToiUuNguCanhHanhChinh, Hierarchy-Preserving Chunking), và Bộ Đo lường Đối đầu Định lượng vs LangChain/LlamaIndex (BoDoLuongDoiDau, xuất bảng Markdown/LaTeX chuẩn IEEE/Elsevier). |
 | v31.0 | Suy Luận Bầy Đàn Phân Tán Trên CPU & Xác Thực Chứng Minh Mật Mã Học (Verifiable AI / zkML): Suy Luận Bầy Đàn Swarm CPU Pipeline Parallelism (`NutSwarmCPU`, `DieuPhoiSwarmCPU`) chia sẻ tải tính toán LLM qua mạng LAN trên các máy tính văn phòng/Mini PC, Xác thực Mật mã học Schnorr Fiat-Shamir NIZK modulo 256-bit kết hợp Merkle Tree O(log N) (`CayMerkleSuyLuan`, `XacThucSuyLuanMaoHiem`) kháng 100% nút Byzantine gian lận, CLI `vai swarm` và `vai verify`, phân rã độ trễ tính toán vs độ trễ mạng vật lý. |
-| v31.0.2 | Hệ Sinh Thái Khép Kín Tự Tối Ưu, Tự Chữa Lành & Đồng Tiến Hóa Đối Kháng (Closed-Loop Self-Evolving & Self-Healing Ecosystem): Bánh đà dữ liệu suy luận khép kín (DataLake DVC -> DPO Trainer -> Model Registry), Vận hành tự phục hồi Production (Circuit Breaker / Health Check -> Auto-Rollback HMAC), Đóng gói biên 1-click GGUF & Swarm CPU Pipeline Parallelism có chứng thực Merkle/zkML, Đồng tiến hóa đối kháng (Red Team Simulator -> Adversarial DPO Hardening), và Hợp nhất Đồ thị trạng thái DAG phân tán (Distributed StateGraph) kết nối Tác tử / Swarm / V-Orchestrator. Cầu nối hợp nhất `QuyTrinhDauCuoi` (`HeSinhThaiAI`). |
+| v31.0.2 | Hệ Sinh Thái Khép Kín Tự Tối Ưu, Tự Chữa Lành & Đồng Tiến Hóa Đối Kháng (Closed-Loop Self-Evolving & Self-Healing Ecosystem): Bánh đà dữ liệu suy luận khép kín (DataLake DVC -> DPO Trainer -> Model Registry), Vận hành tự phục hồi Production (Circuit Breaker / Health Check -> Auto-Rollback HMAC), Đóng gói biên 1-click GGUF & Swarm CPU Pipeline Parallelism có chứng thực Merkle/zkML, Đồng tiến hóa đối kháng (Red Team Simulator -> Adversarial DPO Hardening), và Hợp nhất Đồ thị trạng thái DAG phân tán (Distributed StateGraph). Cầu nối hợp nhất `QuyTrinhDauCuoi` (`HeSinhThaiAI`). |
+| v31.0.3 | **Open-Source Production Release (4 Hướng Chiến Lược + 5 Ưu Tiên + Khép Kín 9 Mối Nối)**: Kho tri thức đơn tệp `.vaidb` (SQLite WAL + FTS5 + Vector + đồng bộ SHA-256), Ngữ nghĩa đồng nghĩa ONNX (`onnx_viet`), 100 điều khoản pháp lý + 35 QA đóng gói sẵn trong wheel, Theo dõi hiệu lực & Đồ thị tham chiếu luật (`vai legal-graph`), Rà soát hợp đồng `.docx`/Redline (`vai contract-review`), Chat Workspace đa phòng ban & Studio 6 tabs (`vai studio --workspace-dir --auth`), MCP Server `stdio`/`SSE` tự nạp V-Plugin 2.0 (`vai mcp-server`), Zalo OA & Telegram Bot lưu SQLite Workspace (`vai connector`), LLM Zero-GPU CPU (`vai pull`/`vai run --rag .vaidb`), Remote GPU Flywheel (`vai train-cloud --from-workspace --eval-4-axis`), Cổng Kiểm Định 4 trục (`vai eval-gate`), Bản đồ minh bạch 3 tầng (`vai status-map`), và cổng phát hành PyPI OIDC (`vai release-check`). 316 public APIs, 1,265 tests passed, 0 mypy/ruff errors. |
 
 ### Tính liên kết của v31.0.2 với các phiên bản trước
 - **Khép kín Bánh đà Dữ liệu & DPO (v31.0.2)**: Kết nối trực tiếp dữ liệu suy luận từ **FastAPI / Serving (v10)** và cơ chế tự đánh giá **Self-Refine (v11)** vào **HoDuLieu DVC (v21)** để nuôi dưỡng và tái huấn luyện mô hình qua **DPOTrainer (v7)**, loại bỏ hoàn toàn sự phân mảnh dữ liệu.
@@ -1056,9 +1159,31 @@ Rất nhiều nhà phát triển lo ngại các lõi mới của v21.0 sẽ bị
 
 ---
 
+## Trích dẫn khoa học (Citation)
+
+Nếu bạn sử dụng **Vietnamese AI Framework** trong nghiên cứu khoa học hoặc sản phẩm, vui lòng trích dẫn theo `CITATION.cff` / Zenodo DOI:
+
+```bibtex
+@software{huynh2026vietnameseai,
+  author       = {Huynh, Duong Phong},
+  title        = {Vietnamese AI: A Lightweight, Zero-Dependency, and Verifiable Framework for Vietnamese-Centric AI and Distributed Swarm CPU Inference},
+  year         = {2026},
+  version      = {31.0.3},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.20357082},
+  url          = {https://github.com/phonghhd/vietnamese-ai}
+}
+```
+
+---
+
 ## Đóng góp
 
-Xem [CONTRIBUTING.md](CONTRIBUTING.md) để biết quy trình đóng góp.
+Xem [CONTRIBUTING.md](CONTRIBUTING.md) để biết quy trình đóng góp, chuẩn code tiếng Việt và checklist kiểm định trước khi gửi Pull Request.
+
+Xem [SECURITY.md](SECURITY.md) cho chính sách bảo mật và phạm vi tường lửa / hộp cát.
+
+Xem [ROADMAP.md](ROADMAP.md) cho định hướng phát triển mở rộng cộng đồng.
 
 ---
 

@@ -97,7 +97,10 @@ class MayChuStream:
         bat_dau = time.time()
 
         try:
-            ket_qua = self.ham_sinh(prompt, **kwargs)
+            ham_sinh = self.ham_sinh
+            if ham_sinh is None:
+                raise RuntimeError("Chưa cấu hình hàm sinh")
+            ket_qua = ham_sinh(prompt, **kwargs)
 
             if isinstance(ket_qua, str):
                 for ky_tu in ket_qua:

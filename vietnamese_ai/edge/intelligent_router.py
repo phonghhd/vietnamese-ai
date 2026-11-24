@@ -1,6 +1,6 @@
 import concurrent.futures
 import os
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from .node_llama import NodeLlamaEngine
 from .p2p_network import P2PTracker, TokenLedger
@@ -117,7 +117,7 @@ class EdgeRouter:
         except ImportError:
             raise ImportError("Cần cài đặt requests: pip install requests")
 
-        payload = {
+        payload: Dict[str, Any] = {
             "model": "evonet-large",
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": do_dai,

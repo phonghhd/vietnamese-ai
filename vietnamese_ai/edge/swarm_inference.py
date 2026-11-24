@@ -13,10 +13,11 @@ import hmac
 import json
 import logging
 import socket
+import ssl
 import struct
 import threading
 import time
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -27,8 +28,43 @@ from vietnamese_ai.edge.swarm_auth import (
 )
 from vietnamese_ai.nlp.native_tokenizer import BoNhungVanBanSieuToc, BoTachTuTiengVietSieuToc
 from vietnamese_ai.security.verifiable_inference import XacThucSuyLuanMaoHiem
+from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
 logger = logging.getLogger("VietnameseAI.SwarmCPU")
+
+
+def tao_ssl_context_server(
+    certfile: str,
+    keyfile: str,
+    cafile: Optional[str] = None,
+    yeu_cau_mtls: bool = False,
+) -> ssl.SSLContext:
+    """Khởi tạo `ssl.SSLContext` cho máy chủ TCP Swarm LAN với TLS 1.2+ (tùy chọn mTLS xác thực client)."""
+    if yeu_cau_mtls and not cafile:
+        raise ValueError("Chế độ mTLS yêu cầu cung cấp chứng chỉ CA (`cafile`) để xác thực client.")
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
+    if cafile:
+        ctx.load_verify_locations(cafile=cafile)
+    if yeu_cau_mtls:
+        ctx.verify_mode = ssl.CERT_REQUIRED
+    return ctx
+
+
+def tao_ssl_context_client(
+    cafile: Optional[str] = None,
+    certfile: Optional[str] = None,
+    keyfile: Optional[str] = None,
+    kiem_tra_hostname: bool = True,
+) -> ssl.SSLContext:
+    """Khởi tạo `ssl.SSLContext` cho client TCP Swarm LAN kết nối TLS/mTLS tới nút vật lý."""
+    ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=cafile)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.check_hostname = kiem_tra_hostname
+    if certfile and keyfile:
+        ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
+    return ctx
 
 
 class NutSwarmCPU:
@@ -52,6 +88,8 @@ class NutSwarmCPU:
         ma_pin: Optional[str] = None,
         yeu_cau_phe_duyet: bool = False,
         nen_fp16: bool = False,
+        d_model: int = 128,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ):
         self.node_id = node_id
         self.dai_layer = dai_layer  # (start_layer, end_layer)
@@ -69,6 +107,7 @@ class NutSwarmCPU:
         self.ma_pin = ma_pin
         self.yeu_cau_phe_duyet = yeu_cau_phe_duyet
         self.nen_fp16 = nen_fp16
+        self.ssl_context = ssl_context
         self.xac_thuc: Optional[XacThucCumSwarm] = (
             XacThucCumSwarm(ma_pin=ma_pin, yeu_cau_phe_duyet=yeu_cau_phe_duyet)
             if ma_pin is not None
@@ -83,7 +122,7 @@ class NutSwarmCPU:
         # Khởi tạo trọng số giả lập xác định (Deterministic Weights) cho các layer phụ trách
         seed = int(hashlib.sha256(f"{node_id}:{dai_layer}".encode("utf-8")).hexdigest()[:8], 16)
         rng = np.random.RandomState(seed)
-        self.d_model = 128
+        self.d_model = max(1, int(d_model))
         # Trọng số tuyến tính mô phỏng MLP / Self-Attention block
         self.w_proj = rng.randn(self.so_layer, self.d_model, self.d_model).astype(np.float32) * 0.05
         self.bias = np.zeros((self.so_layer, self.d_model), dtype=np.float32)
@@ -174,13 +213,18 @@ class NutSwarmCPU:
         port: int = 8890,
         ma_pin: Optional[str] = None,
         yeu_cau_phe_duyet: Optional[bool] = None,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ) -> None:
         """
-        Khởi động máy chủ TCP Socket lắng nghe suy luận phân tán trên máy vật lý LAN/Tailscale.
+        Khởi động máy chủ TCP Socket (tùy chọn mã hóa TLS/mTLS) lắng nghe suy luận phân tán trên LAN/Tailscale.
         Hoạt động phi đồng bộ trong luồng ngầm (background thread) kèm xác thực Zero-Trust.
         """
         if self._server_thread is not None and self._server_thread.is_alive():
             return
+
+        if ssl_context is not None:
+            self.ssl_context = ssl_context
+        server_ssl = self.ssl_context
 
         if ma_pin is not None:
             self.ma_pin = ma_pin
@@ -220,6 +264,7 @@ class NutSwarmCPU:
                         req_meta = json.loads(header_bytes.decode("utf-8"))
 
                         loai_req = req_meta.get("loai")
+                        res_meta: Dict[str, Any] = {}
 
                         if loai_req == "auth_challenge_req":
                             if self.xac_thuc is None:
@@ -339,7 +384,7 @@ class NutSwarmCPU:
                         pass
 
             async def _start():
-                self._server_lan = await asyncio.start_server(_handle_client, host, port)
+                self._server_lan = await asyncio.start_server(_handle_client, host, port, ssl=server_ssl)
 
             try:
                 self._server_loop.run_until_complete(_start())
@@ -385,15 +430,22 @@ class NutSwarmCPU:
         """Truyền tensor qua socket TCP tới máy tính vật lý trong mạng LAN/Tailscale."""
         t_net_start = time.perf_counter()
         endpoint = str(self.endpoint_url or "")
-        url = endpoint.replace("tcp://", "").replace("http://", "")
+        url = endpoint.replace("tls://", "").replace("tcp://", "").replace("http://", "")
         if ":" in url:
             host, port_str = url.split(":", 1)
             port = int(port_str)
         else:
             host, port = url, 8890
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.settimeout(timeout)
+        raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        raw_sock.settimeout(timeout)
+        sock_conn: Union[socket.socket, ssl.SSLSocket]
+        if self.ssl_context is not None:
+            sock_conn = self.ssl_context.wrap_socket(raw_sock, server_hostname=host)
+        else:
+            sock_conn = raw_sock
+
+        with sock_conn as sock:
             sock.connect((host, port))
 
             session_token: Optional[str] = None
@@ -569,6 +621,7 @@ class NutSwarmCPU:
             "endpoint_url": self.endpoint_url,
             "che_do": self.che_do,
             "la_node_mang_vat_ly": self.endpoint_url is not None or self.che_do == "mang_vat_ly_lan",
+            "ma_hoa_tls": self.ssl_context is not None,
         }
 
     def lan_truyen_tien(
@@ -585,6 +638,15 @@ class NutSwarmCPU:
         return x, p_dict
 
 
+@gan_nhan_tinh_nang(
+    trang_thai=TrangThaiTinhNang.EXPERIMENTAL,
+    mo_ta=(
+        "Điều phối Pipeline Parallelism trên CPU (hỗ trợ cả chế độ giả lập nội bộ và TCP LAN/Tailscale). "
+        "Tầng giải mã token mặc định hiện ở mức thử nghiệm dựa trên từ điển ghép."
+    ),
+    phu_thuoc_ngoai=["gguf (tùy chọn khi phân mảnh tệp GGUF lớn)", "tailscale CLI (tùy chọn cho mesh WAN)"],
+    nhom_extra="export",
+)
 class DieuPhoiSwarmCPU:
     """
     Bộ Điều Phối Suy Luận Đàn CPU (Distributed Swarm Inference Orchestrator):
@@ -602,6 +664,7 @@ class DieuPhoiSwarmCPU:
         ma_pin: Optional[str] = None,
         yeu_cau_phe_duyet: bool = False,
         nen_fp16: bool = False,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ):
         self.d_model = d_model
         self.tong_so_layer = tong_so_layer
@@ -610,6 +673,7 @@ class DieuPhoiSwarmCPU:
         self.ma_pin = ma_pin
         self.yeu_cau_phe_duyet = yeu_cau_phe_duyet
         self.nen_fp16 = nen_fp16
+        self.ssl_context = ssl_context
         self.xac_thuc: Optional[XacThucCumSwarm] = (
             XacThucCumSwarm(ma_pin=ma_pin, yeu_cau_phe_duyet=yeu_cau_phe_duyet)
             if ma_pin is not None
@@ -620,6 +684,10 @@ class DieuPhoiSwarmCPU:
         self.danh_sach_node: List[NutSwarmCPU] = []
         self.tokenizer = BoTachTuTiengVietSieuToc()
         self.embedder = BoNhungVanBanSieuToc(so_chieu=d_model, tokenizer=self.tokenizer)
+        self._vocab_tokens: List[str] = sorted(self.tokenizer.TU_DIEN_TU_GHEP_MAC_DINH)
+        self._lm_head_matrix: np.ndarray = np.vstack(
+            [self.embedder.nhung(tu) for tu in self._vocab_tokens]
+        ).astype(np.float32)
         self.nhat_ky_kiem_toan: List[Dict[str, Any]] = []
 
         if bat_tuong_lua:
@@ -700,6 +768,7 @@ class DieuPhoiSwarmCPU:
             private_key=private_key,
             che_do="gia_lap_cuc_bo",
             nen_fp16=self.nen_fp16 if nen_fp16 is None else nen_fp16,
+            d_model=self.d_model,
         )
         self.danh_sach_node.append(node)
         return node
@@ -715,6 +784,7 @@ class DieuPhoiSwarmCPU:
         do_tre_mang_co_dinh_ms: float = 1.5,
         ma_pin: Optional[str] = None,
         nen_fp16: Optional[bool] = None,
+        ssl_context: Optional[ssl.SSLContext] = None,
     ) -> NutSwarmCPU:
         """
         Đăng ký một nút mạng vật lý thực tế qua mạng LAN/Tailscale (Physical LAN/Tailscale Node):
@@ -740,6 +810,8 @@ class DieuPhoiSwarmCPU:
             do_tre_mang_co_dinh_ms=do_tre_mang_co_dinh_ms,
             ma_pin=pin_dung,
             nen_fp16=self.nen_fp16 if nen_fp16 is None else nen_fp16,
+            d_model=self.d_model,
+            ssl_context=ssl_context if ssl_context is not None else self.ssl_context,
         )
         self.danh_sach_node.append(node)
         return node
@@ -767,12 +839,18 @@ class DieuPhoiSwarmCPU:
                 so_core_cpu=so_core_cpu,
                 ram_mb=ram_mb,
                 nen_fp16=self.nen_fp16,
+                d_model=self.d_model,
             )
             self.danh_sach_node.append(node)
             curr = end_layer
 
         return self.danh_sach_node
 
+    @gan_nhan_tinh_nang(
+        trang_thai=TrangThaiTinhNang.SIMULATED,
+        mo_ta="Chế độ giả lập đa worker nội bộ (In-Process Simulation) chạy trong cùng 1 tiến trình Python.",
+        la_mo_phong=True,
+    )
     def khoi_tao_cum_gia_lap(
         self,
         so_node: int = 3,
@@ -794,6 +872,7 @@ class DieuPhoiSwarmCPU:
             "tong_ram_mb": tong_ram,
             "tong_so_layer": self.tong_so_layer,
             "nen_fp16": self.nen_fp16,
+            "ma_hoa_tls": self.ssl_context is not None,
             "xac_thuc_mat_ma": self.bat_xac_thuc_mat_ma,
             "danh_sach_node": [n.lay_thong_tin_cau_hinh() for n in self.danh_sach_node],
         }
@@ -903,13 +982,21 @@ class DieuPhoiSwarmCPU:
 
         dt = time.perf_counter() - t0
 
-        # 3. Giải mã tokens đầu ra
         ket_qua_sinh: List[str] = []
-        for i in range(so_token_sinh):
-            val_sum = float(np.sum(np.nan_to_num(np.abs(h_state), nan=0.0)))
-            idx_tu = (int(val_sum) + i * 7) % len(self.tokenizer.TU_DIEN_TU_GHEP_MAC_DINH)
-            tu = list(self.tokenizer.TU_DIEN_TU_GHEP_MAC_DINH)[idx_tu]
+        da_chon: List[int] = []
+        h_curr_dec = np.nan_to_num(h_state.reshape(-1).astype(np.float32), nan=0.0)
+        for _ in range(so_token_sinh):
+            norm_h = float(np.linalg.norm(h_curr_dec))
+            h_unit = h_curr_dec / (norm_h + 1e-9)
+            logits = (self._lm_head_matrix @ h_unit).astype(np.float64)
+            for idx_da in set(da_chon):
+                if 0 <= idx_da < len(logits):
+                    logits[idx_da] = logits[idx_da] / 1.5 if logits[idx_da] > 0 else logits[idx_da] * 1.5
+            idx_tu = int(np.argmax(logits))
+            da_chon.append(idx_tu)
+            tu = self._vocab_tokens[idx_tu]
             ket_qua_sinh.append(tu)
+            h_curr_dec = 0.7 * h_curr_dec + 0.3 * self._lm_head_matrix[idx_tu]
 
         cau_tra_loi = f"{prompt.strip()} -> " + " ".join(ket_qua_sinh[:so_token_sinh])
         tps = so_token_sinh / dt if dt > 0 else 0.0
@@ -975,7 +1062,6 @@ class DieuPhoiSwarmCPU:
         raw_tokens = parts[1].strip().split() if len(parts) > 1 else parts[0].split()
         tokens = raw_tokens[:so_token]
         for t in tokens:
-            time.sleep(0.01)
             yield t + " "
 
     def sinh_stream(self, prompt: str, do_dai_toi_da: int = 16) -> Generator[str, None, None]:

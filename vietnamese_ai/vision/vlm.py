@@ -42,7 +42,37 @@ class MoHinhThiGiacNgonNgu:
         )
         rng = np.random.default_rng(42)
         self.W_vision_proj = rng.normal(0, 0.1, (kich_thuoc_vision, 64)).astype(np.float32)
+        self._da_can_chinh_chieu = False
         self._bo_nho_anh: List[Dict[str, Any]] = []
+
+    def huan_luyen_chieu_lien_phuong_thuc(
+        self,
+        ds_cap_anh_van_ban: List[tuple],
+        he_so_chinh_quy: float = 1.0,
+    ) -> Dict[str, Any]:
+        """Huấn luyện ma trận chiếu `W_vision_proj` bằng hồi quy Ridge thực tế trên cặp `(ảnh, mô tả tiếng Việt)`."""
+        from vietnamese_ai.nlp.native_tokenizer import BoNhungVanBanSieuToc
+
+        if not ds_cap_anh_van_ban:
+            raise ValueError("Danh sách cặp (ảnh, văn bản) không được rỗng")
+
+        emb = BoNhungVanBanSieuToc(so_chieu=self.W_vision_proj.shape[1])
+        x_rows = [self._nhung_anh_vector(anh).astype(np.float64) for anh, _ in ds_cap_anh_van_ban]
+        y_rows = [emb.nhung(str(mo_ta)).astype(np.float64) for _, mo_ta in ds_cap_anh_van_ban]
+        x_mat = np.vstack(x_rows)
+        y_mat = np.vstack(y_rows)
+
+        reg = float(he_so_chinh_quy) * np.eye(x_mat.shape[1], dtype=np.float64)
+        w_moi = np.linalg.solve(x_mat.T @ x_mat + reg, x_mat.T @ y_mat)
+        self.W_vision_proj = w_moi.astype(np.float32)
+        self._da_can_chinh_chieu = True
+
+        mse = float(np.mean((x_mat @ w_moi - y_mat) ** 2))
+        return {
+            "so_cap_huan_luyen": len(ds_cap_anh_van_ban),
+            "mse_can_chinh": round(mse, 6),
+            "da_can_chinh_chieu": True,
+        }
 
     def _nhung_anh_vector(self, anh: Union[str, Path, np.ndarray, Any]) -> np.ndarray:
         """Trích xuất vector đặc trưng thị giác chuẩn hóa L2 có chiều `self.kich_thuoc_vision`."""
@@ -51,12 +81,12 @@ class MoHinhThiGiacNgonNgu:
         else:
             gray = self.ocr._tai_anh_xam(anh).astype(np.float32) / 255.0
             hist, _ = np.histogram(gray, bins=64, range=(0.0, 1.0))
-            hist = hist.astype(np.float32) / max(1.0, float(gray.size))
+            hist_f = hist.astype(np.float32) / max(1.0, float(gray.size))
             gx = np.diff(gray, axis=1, prepend=gray[:, :1])
             gy = np.diff(gray, axis=0, prepend=gray[:1, :])
             mag_hist, _ = np.histogram(np.hypot(gx, gy), bins=64, range=(0.0, 1.5))
-            mag_hist = mag_hist.astype(np.float32) / max(1.0, float(gray.size))
-            raw_vec = np.concatenate([hist, mag_hist])
+            mag_hist_f = mag_hist.astype(np.float32) / max(1.0, float(gray.size))
+            raw_vec = np.concatenate([hist_f, mag_hist_f])
 
         if raw_vec.shape[0] < self.kich_thuoc_vision:
             raw_vec = np.pad(raw_vec, (0, self.kich_thuoc_vision - raw_vec.shape[0]))

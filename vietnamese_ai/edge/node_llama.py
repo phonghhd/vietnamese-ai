@@ -28,12 +28,12 @@ class NodeLlamaEngine:
         self.server_process: Optional[subprocess.Popen] = None
 
         # v27.0.1: Edge Node Optimizer
-        self.jit_compiler = None
-        self.kv_quantizer = None
+        self.jit_compiler: Optional[Any] = None
+        self.kv_quantizer: Optional[str] = None
         if self.enable_extreme_hardware:
             try:
                 from vietnamese_ai.extreme.jit_engine import EvoJITCompiler
-                from vietnamese_ai.transformer.attention import QuantizedKVCache  # noqa: F401
+                from vietnamese_ai.serving.kv_cache import QuantizedKVCache  # noqa: F401
                 self.jit_compiler = EvoJITCompiler()
                 self.kv_quantizer = "QuantizedKVCache (INT8) Enabled"
             except ImportError:
@@ -145,7 +145,7 @@ class NodeLlamaEngine:
         except ImportError:
             raise ImportError("Cần cài đặt requests: pip install requests")
 
-        payload = {
+        payload: Dict[str, Any] = {
             "model": "edge-model",  # Tên model có thể là tuỳ ý vì đang trỏ thẳng local
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": do_dai,

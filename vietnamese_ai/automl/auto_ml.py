@@ -1,6 +1,6 @@
 """AutoML - Tự động chọn mô hình và tham số tốt nhất."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type, Union
 
 import numpy as np
 
@@ -91,6 +91,7 @@ class AutoML:
             self.logger.info("Đã chuẩn hóa dữ liệu (Z-Score)")
 
         # 3. Thử tất cả thuật算法
+        lop_mo_hinh: Union[Type[PhanLoai], Type[HoiQuy]]
         if self._nhiem_vu == "phan_loai":
             cac_thuat_toan = self.CAC_THUAT_TOAN_PHAN_LOAI
             lop_mo_hinh = PhanLoai

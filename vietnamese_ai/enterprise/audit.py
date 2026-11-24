@@ -121,8 +121,8 @@ class NhatKyHoatDong:
         """Thống kê tổng quan nhật ký."""
         tat_ca = self.tim_kiem(limit=10000)
 
-        dem_hanh_dong = {}
-        dem_nguoi_dung = {}
+        dem_hanh_dong: Dict[str, int] = {}
+        dem_nguoi_dung: Dict[str, int] = {}
         dem_muc_do = {"info": 0, "warning": 0, "error": 0}
 
         for bg in tat_ca:

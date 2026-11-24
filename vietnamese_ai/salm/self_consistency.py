@@ -56,7 +56,7 @@ class SelfConsistency:
             {dap_an, so_luong_paths, ty_le_dong_nhat, cac_paths, diem}
         """
         bat_dau = time.time()
-        cac_paths = []
+        cac_paths: List[Dict[str, Any]] = []
 
         for i in range(self.so_luong):
             if che_do == "cot":
