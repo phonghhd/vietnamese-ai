@@ -37,6 +37,225 @@ class HoSoHieuLucVanBan:
         return asdict(self)
 
 
+@dataclass
+class PhienBanDieuKhoan:
+    """Phiên bản hiệu lực theo mốc thời gian (Point-in-Time) của một Điều/Khoản cụ thể."""
+
+    so_hieu: str
+    dieu: str
+    noi_dung: str
+    hieu_luc_tu: str
+    het_hieu_luc_tu: Optional[str] = None
+    khoan: Optional[str] = None
+    diem: Optional[str] = None
+    sua_doi_boi: Optional[str] = None
+    trang_thai: str = "hieu_luc"
+    ghi_chu: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Chuyển phiên bản điều khoản sang dict thuần JSON."""
+        return asdict(self)
+
+
+def _chuan_hoa_dieu(dieu: str) -> str:
+    """Chuẩn hóa mã Điều luật (ví dụ: `dieu 9`, `9`, `Điều 09` -> `Điều 9`)."""
+    s = str(dieu or "").strip()
+    m = re.search(r"(\d+[a-zA-ZđĐ]?)", s)
+    if m:
+        num = m.group(1).lstrip("0") or "0"
+        return f"Điều {num}"
+    return s
+
+
+CO_SO_PHIEN_BAN_DIEU_KHOAN_VN: List[PhienBanDieuKhoan] = [
+    PhienBanDieuKhoan(
+        so_hieu="123/2020/NĐ-CP",
+        dieu="Điều 9",
+        khoan="Khoản 1",
+        noi_dung=(
+            "Thời điểm lập hóa đơn đối với bán hàng hóa là thời điểm chuyển giao quyền sở hữu hoặc quyền sử dụng "
+            "hàng hóa cho người mua, không phân biệt đã thu được tiền hay chưa thu được tiền."
+        ),
+        hieu_luc_tu="2022-07-01",
+        het_hieu_luc_tu="2025-06-01",
+        sua_doi_boi="70/2025/NĐ-CP",
+        trang_thai="bi_sua_doi",
+        ghi_chu="Bản gốc Nghị định 123/2020/NĐ-CP trước khi Nghị định 70/2025/NĐ-CP có hiệu lực.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="123/2020/NĐ-CP",
+        dieu="Điều 9",
+        khoan="Khoản 1",
+        noi_dung=(
+            "Thời điểm lập hóa đơn đối với bán hàng hóa (bao gồm cả bán, chuyển nhượng tài sản công và bán hàng "
+            "dự trữ quốc gia) là thời điểm chuyển giao quyền sở hữu hoặc quyền sử dụng; đối với xuất khẩu hàng hóa "
+            "do người bán tự xác định nhưng chậm nhất không quá ngày làm việc tiếp theo kể từ ngày hàng hóa được thông quan."
+        ),
+        hieu_luc_tu="2025-06-01",
+        het_hieu_luc_tu=None,
+        sua_doi_boi="70/2025/NĐ-CP",
+        trang_thai="da_sua_doi_bo_sung",
+        ghi_chu="Đã sửa đổi, bổ sung bởi Khoản 6 Điều 1 Nghị định 70/2025/NĐ-CP từ 01/06/2025.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="123/2020/NĐ-CP",
+        dieu="Điều 19",
+        noi_dung=(
+            "Xử lý hóa đơn có sai sót: cho phép hủy hóa đơn điện tử đã cấp mã chưa gửi người mua hoặc lập "
+            "hóa đơn điều chỉnh/thay thế đối với sai sót về mã số thuế, số tiền, thuế suất."
+        ),
+        hieu_luc_tu="2022-07-01",
+        het_hieu_luc_tu="2025-06-01",
+        sua_doi_boi="70/2025/NĐ-CP",
+        trang_thai="bi_sua_doi",
+        ghi_chu="Bản gốc Nghị định 123/2020/NĐ-CP trước 01/06/2025.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="123/2020/NĐ-CP",
+        dieu="Điều 19",
+        noi_dung=(
+            "Bãi bỏ quy định hủy hóa đơn đã lập sai; người nộp thuế thực hiện thông báo sai sót (mẫu 04/SS-HĐĐT) "
+            "hoặc lập hóa đơn điều chỉnh/thay thế kèm biên bản thỏa thuận giữa người bán và người mua."
+        ),
+        hieu_luc_tu="2025-06-01",
+        het_hieu_luc_tu=None,
+        sua_doi_boi="70/2025/NĐ-CP",
+        trang_thai="da_sua_doi_bo_sung",
+        ghi_chu="Sửa đổi theo Khoản 13 Điều 1 Nghị định 70/2025/NĐ-CP có hiệu lực từ 01/06/2025.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="58/2014/QH13",
+        dieu="Điều 54",
+        noi_dung=(
+            "Người lao động khi nghỉ việc có đủ 20 năm đóng bảo hiểm xã hội trở lên và đủ tuổi nghỉ hưu "
+            "thì được hưởng lương hưu hằng tháng."
+        ),
+        hieu_luc_tu="2016-01-01",
+        het_hieu_luc_tu="2025-07-01",
+        sua_doi_boi="41/2024/QH15",
+        trang_thai="bi_thay_the",
+        ghi_chu="Quy định 20 năm đóng BHXH của Luật BHXH 2014 trước khi Luật BHXH 2024 có hiệu lực.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="41/2024/QH15",
+        dieu="Điều 64",
+        noi_dung=(
+            "Người lao động khi nghỉ việc có thời gian đóng bảo hiểm xã hội bắt buộc từ đủ 15 năm trở lên "
+            "và đủ tuổi nghỉ hưu theo quy định của Bộ luật Lao động thì được hưởng lương hưu."
+        ),
+        hieu_luc_tu="2025-07-01",
+        het_hieu_luc_tu=None,
+        sua_doi_boi=None,
+        trang_thai="hieu_luc",
+        ghi_chu="Giảm điều kiện số năm đóng BHXH tối thiểu từ 20 năm xuống 15 năm kể từ 01/07/2025.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="13/2008/QH12",
+        dieu="Điều 12",
+        noi_dung=(
+            "Điều kiện khấu trừ thuế GTGT đầu vào: có chứng từ thanh toán không dùng tiền mặt đối với "
+            "hàng hóa, dịch vụ mua vào từ 20 triệu đồng trở lên."
+        ),
+        hieu_luc_tu="2009-01-01",
+        het_hieu_luc_tu="2025-07-01",
+        sua_doi_boi="48/2024/QH15",
+        trang_thai="bi_thay_the",
+        ghi_chu="Ngưỡng 20 triệu đồng theo Luật Thuế GTGT 2008 (hết hiệu lực từ 01/07/2025).",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="48/2024/QH15",
+        dieu="Điều 14",
+        noi_dung=(
+            "Điều kiện khấu trừ thuế GTGT đầu vào: phải có chứng từ thanh toán không dùng tiền mặt đối với "
+            "hàng hóa, dịch vụ mua vào, trừ một số trường hợp đặc thù theo quy định của Chính phủ."
+        ),
+        hieu_luc_tu="2025-07-01",
+        het_hieu_luc_tu=None,
+        sua_doi_boi=None,
+        trang_thai="hieu_luc",
+        ghi_chu="Siết chặt điều kiện thanh toán không dùng tiền mặt kể từ 01/07/2025 theo Luật Thuế GTGT 2024.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="45/2013/QH13",
+        dieu="Điều 114",
+        noi_dung=(
+            "Căn cứ nguyên tắc, phương pháp định giá đất và khung giá đất, UBND cấp tỉnh xây dựng "
+            "và trình HĐND cùng cấp thông qua bảng giá đất định kỳ 05 năm một lần."
+        ),
+        hieu_luc_tu="2014-07-01",
+        het_hieu_luc_tu="2024-08-01",
+        sua_doi_boi="31/2024/QH15",
+        trang_thai="bi_thay_the",
+        ghi_chu="Cơ chế khung giá đất và bảng giá đất 5 năm theo Luật Đất đai 2013 (hết hiệu lực từ 01/08/2024).",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="31/2024/QH15",
+        dieu="Điều 159",
+        noi_dung=(
+            "Bãi bỏ khung giá đất; UBND cấp tỉnh xây dựng, trình HĐND cùng cấp quyết định bảng giá đất "
+            "lần đầu để công bố và áp dụng từ ngày 01/01/2026 và điều chỉnh, sửa đổi, bổ sung hằng năm."
+        ),
+        hieu_luc_tu="2024-08-01",
+        het_hieu_luc_tu=None,
+        sua_doi_boi=None,
+        trang_thai="hieu_luc",
+        ghi_chu="Luật Đất đai 2024 bỏ khung giá đất và chuyển sang cập nhật bảng giá đất hằng năm.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="51/2005/QH11",
+        dieu="Điều 21",
+        noi_dung=(
+            "Chữ ký điện tử được tạo lập dưới dạng từ, chữ, số, ký hiệu, âm thanh hoặc các hình thức khác "
+            "bằng phương tiện điện tử, gắn liền hoặc kết hợp một cách lô gíc với thông điệp dữ liệu."
+        ),
+        hieu_luc_tu="2006-03-01",
+        het_hieu_luc_tu="2024-07-01",
+        sua_doi_boi="20/2023/QH15",
+        trang_thai="bi_thay_the",
+        ghi_chu="Quy định chữ ký điện tử theo Luật Giao dịch điện tử 2005 (hết hiệu lực từ 01/07/2024).",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="20/2023/QH15",
+        dieu="Điều 22",
+        noi_dung=(
+            "Phân loại chữ ký điện tử thành 03 nhóm: chữ ký điện tử chuyên dùng, chữ ký số công cộng "
+            "và chữ ký số chuyên dùng công vụ; bảo đảm tính xác thực và toàn vẹn dữ liệu."
+        ),
+        hieu_luc_tu="2024-07-01",
+        het_hieu_luc_tu=None,
+        sua_doi_boi=None,
+        trang_thai="hieu_luc",
+        ghi_chu="Luật Giao dịch điện tử 2023 có hiệu lực từ 01/07/2024.",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="65/2014/QH13",
+        dieu="Điều 118",
+        noi_dung=(
+            "Giao dịch mua bán, cho thuê mua, tặng cho, đổi, thế chấp, góp vốn bằng nhà ở phải có "
+            "Giấy chứng nhận theo quy định của pháp luật, trừ các trường hợp ngoại lệ luật định."
+        ),
+        hieu_luc_tu="2015-07-01",
+        het_hieu_luc_tu="2024-08-01",
+        sua_doi_boi="27/2023/QH15",
+        trang_thai="bi_thay_the",
+        ghi_chu="Điều kiện giao dịch nhà ở theo Luật Nhà ở 2014 (thay thế bởi Luật Nhà ở 2023 từ 01/08/2024).",
+    ),
+    PhienBanDieuKhoan(
+        so_hieu="27/2023/QH15",
+        dieu="Điều 160",
+        noi_dung=(
+            "Nhà ở tham gia giao dịch phải có Giấy chứng nhận, không thuộc diện tranh chấp, khiếu nại, "
+            "khiếu kiện về quyền sở hữu, không bị kê biên thi hành án và còn thời hạn sở hữu nhà ở."
+        ),
+        hieu_luc_tu="2024-08-01",
+        het_hieu_luc_tu=None,
+        sua_doi_boi=None,
+        trang_thai="hieu_luc",
+        ghi_chu="Luật Nhà ở 2023 có hiệu lực sớm từ 01/08/2024.",
+    ),
+]
+
+
 def _chuan_hoa_so_hieu(so_hieu: str) -> str:
     """Chuẩn hóa số hiệu văn bản pháp luật (ví dụ: `13/2023/nđ-cp` -> `13/2023/NĐ-CP`)."""
     sach = re.sub(r"\s+", "", str(so_hieu or "").strip())
@@ -275,6 +494,15 @@ CO_SO_HIEU_LUC_PHAP_LUAT_VN: List[HoSoHieuLucVanBan] = [
         thay_the_cho=["43/2013/QH13"],
     ),
     HoSoHieuLucVanBan(
+        so_hieu="43/2013/QH13",
+        ten_van_ban="Luật Đấu thầu 2013",
+        linh_vuc="Đấu thầu",
+        ngay_ban_hanh="2013-11-26",
+        ngay_hieu_luc="2014-07-01",
+        ngay_het_hieu_luc="2024-01-01",
+        bi_thay_the_boi=["22/2023/QH15"],
+    ),
+    HoSoHieuLucVanBan(
         so_hieu="27/2023/QH15",
         ten_van_ban="Luật Nhà ở 2023",
         linh_vuc="Nhà ở & Bất động sản",
@@ -283,12 +511,30 @@ CO_SO_HIEU_LUC_PHAP_LUAT_VN: List[HoSoHieuLucVanBan] = [
         thay_the_cho=["65/2014/QH13"],
     ),
     HoSoHieuLucVanBan(
+        so_hieu="65/2014/QH13",
+        ten_van_ban="Luật Nhà ở 2014",
+        linh_vuc="Nhà ở & Bất động sản",
+        ngay_ban_hanh="2014-11-25",
+        ngay_hieu_luc="2015-07-01",
+        ngay_het_hieu_luc="2024-08-01",
+        bi_thay_the_boi=["27/2023/QH15"],
+    ),
+    HoSoHieuLucVanBan(
         so_hieu="29/2023/QH15",
         ten_van_ban="Luật Kinh doanh bất động sản 2023",
         linh_vuc="Nhà ở & Bất động sản",
         ngay_ban_hanh="2023-11-28",
         ngay_hieu_luc="2024-08-01",
         thay_the_cho=["66/2014/QH13"],
+    ),
+    HoSoHieuLucVanBan(
+        so_hieu="66/2014/QH13",
+        ten_van_ban="Luật Kinh doanh bất động sản 2014",
+        linh_vuc="Nhà ở & Bất động sản",
+        ngay_ban_hanh="2014-11-25",
+        ngay_hieu_luc="2015-07-01",
+        ngay_het_hieu_luc="2024-08-01",
+        bi_thay_the_boi=["29/2023/QH15"],
     ),
     HoSoHieuLucVanBan(
         so_hieu="15/2012/QH13",
@@ -317,13 +563,116 @@ class BoTheoDoiHieuLucPhapLy:
         re.UNICODE,
     )
 
-    def __init__(self, du_lieu_bo_sung: Optional[List[HoSoHieuLucVanBan]] = None) -> None:
+    def __init__(
+        self,
+        du_lieu_bo_sung: Optional[List[HoSoHieuLucVanBan]] = None,
+        phien_ban_dieu_khoan_bo_sung: Optional[List[PhienBanDieuKhoan]] = None,
+    ) -> None:
         self._kho: Dict[str, HoSoHieuLucVanBan] = {}
+        self._kho_dieu_khoan: Dict[Tuple[str, str], List[PhienBanDieuKhoan]] = {}
         for item in CO_SO_HIEU_LUC_PHAP_LUAT_VN:
             self.dang_ky_van_ban(item)
         if du_lieu_bo_sung:
             for item in du_lieu_bo_sung:
                 self.dang_ky_van_ban(item)
+        for pb in CO_SO_PHIEN_BAN_DIEU_KHOAN_VN:
+            self.dang_ky_phien_ban_dieu_khoan(pb)
+        if phien_ban_dieu_khoan_bo_sung:
+            for pb in phien_ban_dieu_khoan_bo_sung:
+                self.dang_ky_phien_ban_dieu_khoan(pb)
+
+    def dang_ky_phien_ban_dieu_khoan(self, phien_ban: PhienBanDieuKhoan) -> None:
+        """Đăng ký một phiên bản hiệu lực theo mốc thời gian cho Điều/Khoản cụ thể."""
+        sh = _chuan_hoa_so_hieu(phien_ban.so_hieu)
+        dieu_norm = _chuan_hoa_dieu(phien_ban.dieu)
+        ban_sao = PhienBanDieuKhoan(
+            so_hieu=sh,
+            dieu=dieu_norm,
+            noi_dung=phien_ban.noi_dung,
+            hieu_luc_tu=phien_ban.hieu_luc_tu,
+            het_hieu_luc_tu=phien_ban.het_hieu_luc_tu,
+            khoan=phien_ban.khoan,
+            diem=phien_ban.diem,
+            sua_doi_boi=_chuan_hoa_so_hieu(phien_ban.sua_doi_boi) if phien_ban.sua_doi_boi else None,
+            trang_thai=phien_ban.trang_thai,
+            ghi_chu=phien_ban.ghi_chu,
+        )
+        ds = self._kho_dieu_khoan.setdefault((sh, dieu_norm), [])
+        ds.append(ban_sao)
+        ds.sort(key=lambda item: _phan_tich_ngay(item.hieu_luc_tu))
+
+    def tra_cuu_dieu_khoan_theo_ngay(
+        self,
+        so_hieu: str,
+        dieu: str,
+        ngay_tra_cuu: Optional[Union[str, date]] = None,
+        khoan: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Truy vấn chính xác phiên bản hiệu lực của một Điều/Khoản tại mốc thời gian `ngay_tra_cuu` (Point-in-Time Legal Lookup)."""
+        sh = _chuan_hoa_so_hieu(so_hieu)
+        dieu_norm = _chuan_hoa_dieu(dieu)
+        moc = _phan_tich_ngay(ngay_tra_cuu)
+        ds = self._kho_dieu_khoan.get((sh, dieu_norm), [])
+        if khoan is not None:
+            k_low = khoan.strip().lower()
+            ds_loc = [item for item in ds if item.khoan and k_low in item.khoan.lower()]
+            if ds_loc:
+                ds = ds_loc
+
+        if not ds:
+            hl_vb = self.kiem_tra_hieu_luc(sh, ngay_tra_cuu=moc)
+            return {
+                "so_hieu": sh,
+                "dieu": dieu_norm,
+                "khoan": khoan,
+                "ngay_tra_cuu": moc.isoformat(),
+                "tim_thay": False,
+                "trang_thai": hl_vb.get("trang_thai", "chua_co_du_lieu"),
+                "phien_ban_hieu_luc": None,
+                "lich_su_sua_doi": [],
+            }
+
+        hieu_luc_hien_hanh: Optional[PhienBanDieuKhoan] = None
+        for item in ds:
+            tu = _phan_tich_ngay(item.hieu_luc_tu)
+            den = _phan_tich_ngay(item.het_hieu_luc_tu) if item.het_hieu_luc_tu else None
+            if moc >= tu and (den is None or moc < den):
+                hieu_luc_hien_hanh = item
+
+        if hieu_luc_hien_hanh is not None:
+            trang_thai = hieu_luc_hien_hanh.trang_thai
+            if trang_thai == "bi_sua_doi":
+                trang_thai = "con_hieu_luc_ban_goc"
+            elif trang_thai == "bi_thay_the":
+                trang_thai = "con_hieu_luc_truoc_thay_the"
+            return {
+                "so_hieu": sh,
+                "dieu": dieu_norm,
+                "khoan": hieu_luc_hien_hanh.khoan,
+                "ngay_tra_cuu": moc.isoformat(),
+                "tim_thay": True,
+                "con_hieu_luc": True,
+                "trang_thai": trang_thai,
+                "phien_ban_hieu_luc": hieu_luc_hien_hanh.to_dict(),
+                "lich_su_sua_doi": [x.to_dict() for x in ds],
+            }
+
+        dau_tien = ds[0]
+        if moc < _phan_tich_ngay(dau_tien.hieu_luc_tu):
+            trang_thai = "chua_co_hieu_luc"
+        else:
+            trang_thai = "het_hieu_luc"
+        return {
+            "so_hieu": sh,
+            "dieu": dieu_norm,
+            "khoan": khoan,
+            "ngay_tra_cuu": moc.isoformat(),
+            "tim_thay": True,
+            "con_hieu_luc": False,
+            "trang_thai": trang_thai,
+            "phien_ban_hieu_luc": None,
+            "lich_su_sua_doi": [x.to_dict() for x in ds],
+        }
 
     def dang_ky_van_ban(self, ho_so: HoSoHieuLucVanBan) -> None:
         """Đăng ký hoặc cập nhật hồ sơ hiệu lực văn bản và tự liên kết hai chiều các quan hệ thay thế."""
@@ -348,6 +697,12 @@ class BoTheoDoiHieuLucPhapLy:
                     cu.bi_thay_the_boi.append(key)
                 if cu.ngay_het_hieu_luc is None:
                     cu.ngay_het_hieu_luc = ban_sao.ngay_hieu_luc
+        for ma_moi, hs_moi in self._kho.items():
+            if ma_moi != key and key in hs_moi.thay_the_cho:
+                if ma_moi not in ban_sao.bi_thay_the_boi:
+                    ban_sao.bi_thay_the_boi.append(ma_moi)
+                if ban_sao.ngay_het_hieu_luc is None:
+                    ban_sao.ngay_het_hieu_luc = hs_moi.ngay_hieu_luc
 
     def danh_sach_van_ban(self, linh_vuc: Optional[str] = None) -> List[Dict[str, Any]]:
         """Liệt kê tất cả văn bản pháp luật đang theo dõi trong cơ sở dữ liệu hiệu lực."""
@@ -526,12 +881,16 @@ class BoTheoDoiHieuLucPhapLy:
 
 
 LegalValidityRecord = HoSoHieuLucVanBan
+LegalClauseVersion = PhienBanDieuKhoan
 LegalValidityTracker = BoTheoDoiHieuLucPhapLy
 
 __all__ = [
     "HoSoHieuLucVanBan",
     "LegalValidityRecord",
+    "PhienBanDieuKhoan",
+    "LegalClauseVersion",
     "CO_SO_HIEU_LUC_PHAP_LUAT_VN",
+    "CO_SO_PHIEN_BAN_DIEU_KHOAN_VN",
     "BoTheoDoiHieuLucPhapLy",
     "LegalValidityTracker",
 ]

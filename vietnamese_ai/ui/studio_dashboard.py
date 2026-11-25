@@ -5,9 +5,9 @@ from __future__ import annotations
 import base64
 import json
 import platform
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -24,29 +24,51 @@ from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
 from vietnamese_ai.solutions.trich_xuat import TrichXuatThongMinh
 from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
 
+MAX_STUDIO_BODY_BYTES = 32 * 1024 * 1024
+
 
 class StudioDashboardHandler(BaseHTTPRequestHandler):
     """Bộ xử lý HTTP Server cho Web Studio Dashboard."""
 
     server_dashboard: Any = None
 
-    def _doc_json(self) -> Dict[str, Any]:
+    def _lay_cors_origin(self) -> Optional[str]:
+        if self.server_dashboard is None or not getattr(self.server_dashboard, "bat_xac_thuc", False):
+            return "*"
+        origin = self.headers.get("Origin", "").strip()
+        allowed = getattr(self.server_dashboard, "allowed_origins", ())
+        if origin and origin in allowed:
+            return origin
+        return None
+
+    def _doc_json(self) -> Tuple[Optional[Dict[str, Any]], int, str]:
+        raw_len = self.headers.get("Content-Length", "0")
         try:
-            content_length = int(self.headers.get("Content-Length", 0))
-            if content_length > 0:
-                raw = self.rfile.read(content_length).decode("utf-8")
-                return json.loads(raw)
+            content_length = int(raw_len)
+        except (TypeError, ValueError):
+            return None, 400, "Tiêu đề Content-Length không hợp lệ."
+        if content_length < 0:
+            return None, 400, "Tiêu đề Content-Length không được âm."
+        if content_length > MAX_STUDIO_BODY_BYTES:
+            return None, 413, f"Nội dung yêu cầu vượt quá giới hạn an toàn ({MAX_STUDIO_BODY_BYTES} bytes)."
+        if content_length == 0:
+            return {}, 200, ""
+        try:
+            raw = self.rfile.read(content_length).decode("utf-8")
+            parsed = json.loads(raw)
+            return (parsed if isinstance(parsed, dict) else {}), 200, ""
         except Exception:
-            pass
-        return {}
+            return {}, 200, ""
 
     def _tra_ve_json(self, data: Any, status: int = 200) -> None:
         payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        cors_origin = self._lay_cors_origin()
+        if cors_origin is not None:
+            self.send_header("Access-Control-Allow-Origin", cors_origin)
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
         self.wfile.write(payload)
 
@@ -68,15 +90,28 @@ class StudioDashboardHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        cors_origin = self._lay_cors_origin()
+        if cors_origin is not None:
+            self.send_header("Access-Control-Allow-Origin", cors_origin)
         self.end_headers()
         self.wfile.write(payload)
 
+    def _kiem_tra_quyen_studio(self, token: Optional[str], quyen: str) -> Optional[str]:
+        if self.server_dashboard is None or not getattr(self.server_dashboard, "bat_xac_thuc", False):
+            return None
+        try:
+            self.server_dashboard._lay_quan_ly_workspace()._kiem_tra_token(token, quyen=quyen)
+            return None
+        except PermissionError as exc:
+            return str(exc)
+
     def do_OPTIONS(self) -> None:
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        cors_origin = self._lay_cors_origin()
+        if cors_origin is not None:
+            self.send_header("Access-Control-Allow-Origin", cors_origin)
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def do_GET(self) -> None:
@@ -87,97 +122,138 @@ class StudioDashboardHandler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
         token = self.headers.get("Authorization", "").replace("Bearer ", "").strip() or None
 
-        if path in ("/", "/index.html"):
-            self._tra_ve_html(self.server_dashboard.HTML_TEMPLATE)
-        elif path == "/api/overview":
-            self._tra_ve_json(self.server_dashboard.lay_thong_tin_tong_quan())
-        elif path == "/api/system/diagnostics":
-            self._tra_ve_json(self.server_dashboard.chan_doan_he_thong_day_du())
-        elif path == "/api/system/status-map":
-            self._tra_ve_json(self.server_dashboard.ban_do_ranh_gioi_studio())
-        elif path == "/api/security/crypto-audit":
-            self._tra_ve_json(self.server_dashboard.kiem_toan_mat_ma())
-        elif path == "/api/metrics":
-            self._tra_ve_van_ban(self.server_dashboard.xuat_metrics_prometheus())
-        elif path == "/api/cloud-gpu/providers":
-            self._tra_ve_json(self.server_dashboard.danh_sach_nha_cung_cap_gpu())
-        elif path == "/api/edge/models":
-            self._tra_ve_json(self.server_dashboard.danh_sach_mo_hinh_edge())
-        elif path == "/api/rag/vaidb/stats":
-            self._tra_ve_json(self.server_dashboard.thong_ke_vaidb())
-        elif path == "/api/workspaces":
-            self._tra_ve_json(self.server_dashboard.danh_sach_workspaces_studio(token=token))
-        elif path == "/api/chat/sessions":
-            ws_id = qs.get("workspace", [None])[0]
-            self._tra_ve_json(self.server_dashboard.danh_sach_phien_chat_studio(ma_workspace=ws_id, token=token))
-        elif path == "/api/chat/messages":
-            sess_id = qs.get("session_id", [""])[0]
-            self._tra_ve_json(self.server_dashboard.lay_lich_su_chat_studio(sess_id, token=token))
-        else:
-            self.send_error(404, "Not Found")
+        try:
+            if path in ("/", "/index.html"):
+                self._tra_ve_html(self.server_dashboard.HTML_TEMPLATE)
+            elif path == "/api/overview":
+                self._tra_ve_json(self.server_dashboard.lay_thong_tin_tong_quan())
+            elif path == "/api/system/diagnostics":
+                self._tra_ve_json(self.server_dashboard.chan_doan_he_thong_day_du())
+            elif path == "/api/system/status-map":
+                self._tra_ve_json(self.server_dashboard.ban_do_ranh_gioi_studio())
+            elif path == "/api/security/crypto-audit":
+                self._tra_ve_json(self.server_dashboard.kiem_toan_mat_ma())
+            elif path == "/api/metrics":
+                self._tra_ve_van_ban(self.server_dashboard.xuat_metrics_prometheus())
+            elif path == "/api/cloud-gpu/providers":
+                self._tra_ve_json(self.server_dashboard.danh_sach_nha_cung_cap_gpu())
+            elif path == "/api/edge/models":
+                self._tra_ve_json(self.server_dashboard.danh_sach_mo_hinh_edge())
+            elif path == "/api/rag/vaidb/stats":
+                self._tra_ve_json(self.server_dashboard.thong_ke_vaidb())
+            elif path == "/api/workspaces":
+                self._tra_ve_json(self.server_dashboard.danh_sach_workspaces_studio(token=token))
+            elif path == "/api/chat/sessions":
+                ws_id = qs.get("workspace", [None])[0]
+                self._tra_ve_json(
+                    self.server_dashboard.danh_sach_phien_chat_studio(ma_workspace=ws_id, token=token)
+                )
+            elif path == "/api/chat/messages":
+                sess_id = qs.get("session_id", [""])[0]
+                self._tra_ve_json(self.server_dashboard.lay_lich_su_chat_studio(sess_id, token=token))
+            else:
+                self.send_error(404, "Not Found")
+        except PermissionError as exc:
+            self._tra_ve_json({"thanh_cong": False, "loi": str(exc)}, status=403)
 
     def do_POST(self) -> None:
         path = self.path.split("?")[0]
-        data = self._doc_json()
+        data, body_status, body_err = self._doc_json()
+        if data is None:
+            self._tra_ve_json({"thanh_cong": False, "loi": body_err}, status=body_status)
+            return
         token = self.headers.get("Authorization", "").replace("Bearer ", "").strip() or data.get("token")
 
-        if path == "/api/security/test_prompt":
-            prompt = str(data.get("prompt", ""))
-            self._tra_ve_json(self.server_dashboard.kiem_tra_prompt(prompt))
-        elif path == "/api/security/scan_image":
-            img_b64 = str(data.get("image_base64", ""))
-            self._tra_ve_json(self.server_dashboard.quet_va_khu_doc_anh(img_b64))
-        elif path == "/api/security/scan_dataset":
-            noi_dung = str(data.get("content", ""))
-            dinh_dang = str(data.get("format", "jsonl"))
-            self._tra_ve_json(self.server_dashboard.quet_dataset(noi_dung, dinh_dang))
-        elif path == "/api/rag/ingest":
-            doc_id = str(data.get("id", "doc_web"))
-            text = str(data.get("text", ""))
-            self._tra_ve_json(self.server_dashboard.nap_tai_lieu_rag(doc_id, text))
-        elif path == "/api/rag/upload-file":
-            self._tra_ve_json(self.server_dashboard.tai_len_tep_rag(data))
-        elif path == "/api/rag/query":
-            cau_hoi = str(data.get("question", ""))
-            self._tra_ve_json(self.server_dashboard.hoi_dap_rag(cau_hoi))
-        elif path == "/api/legal/check-validity":
-            self._tra_ve_json(self.server_dashboard.kiem_tra_hieu_luc_phap_ly(data))
-        elif path == "/api/legal/citation-graph":
-            self._tra_ve_json(self.server_dashboard.truy_van_do_thi_tham_chieu(data))
-        elif path == "/api/legal/contract-review":
-            self._tra_ve_json(self.server_dashboard.ra_soat_hop_dong_studio(data))
-        elif path == "/api/workspaces":
-            self._tra_ve_json(self.server_dashboard.tao_workspace_studio(data, token=token))
-        elif path == "/api/chat/sessions":
-            self._tra_ve_json(self.server_dashboard.tao_phien_chat_studio(data, token=token))
-        elif path == "/api/chat/messages":
-            self._tra_ve_json(self.server_dashboard.gui_tin_nhan_chat_studio(data, token=token))
-        elif path == "/api/chat/feedback":
-            self._tra_ve_json(self.server_dashboard.danh_gia_chat_studio(data, token=token))
-        elif path == "/api/flywheel/export-dpo":
-            self._tra_ve_json(self.server_dashboard.xuat_dpo_studio(data, token=token))
-        elif path == "/api/flywheel/eval-gate":
-            self._tra_ve_json(self.server_dashboard.chay_eval_gate_studio(data))
-        elif path == "/api/training/start":
-            self._tra_ve_json(self.server_dashboard.chay_huan_luyen(data))
-        elif path == "/api/solutions/phap_ly":
-            cau_hoi = str(data.get("question", ""))
-            self._tra_ve_json(self.server_dashboard.giai_phap_phap_ly(cau_hoi))
-        elif path == "/api/solutions/trich_xuat":
-            dau_vao = data.get("input", "")
-            loai = str(data.get("type", "cccd"))
-            self._tra_ve_json(self.server_dashboard.giai_phap_trich_xuat(dau_vao, loai))
-        elif path == "/api/solutions/cskh":
-            yeu_cau = str(data.get("request", ""))
-            self._tra_ve_json(self.server_dashboard.giai_phap_cskh(yeu_cau))
-        elif path == "/api/cloud-gpu/plan":
-            self._tra_ve_json(self.server_dashboard.tinh_chinh_gpu_xa_studio(data, chay_that=False))
-        elif path == "/api/cloud-gpu/run":
-            self._tra_ve_json(self.server_dashboard.tinh_chinh_gpu_xa_studio(data, chay_that=bool(data.get("apply", False))))
-        elif path == "/api/edge/pull":
-            self._tra_ve_json(self.server_dashboard.tai_mo_hinh_edge_studio(data))
-        else:
-            self.send_error(404, "Unknown API Endpoint")
+        quyen_bat_buoc: Dict[str, str] = {
+            "/api/rag/ingest": "manage",
+            "/api/rag/upload-file": "manage",
+            "/api/rag/vaidb/build-hnsw": "manage",
+            "/api/training/start": "train",
+            "/api/cloud-gpu/run": "train",
+            "/api/edge/pull": "train",
+        }
+        if path in quyen_bat_buoc:
+            loi_quyen = self._kiem_tra_quyen_studio(token, quyen_bat_buoc[path])
+            if loi_quyen is not None:
+                self._tra_ve_json({"thanh_cong": False, "loi": loi_quyen}, status=403)
+                return
+
+        try:
+            if path == "/api/security/test_prompt":
+                prompt = str(data.get("prompt", ""))
+                self._tra_ve_json(self.server_dashboard.kiem_tra_prompt(prompt))
+            elif path == "/api/security/scan_image":
+                img_b64 = str(data.get("image_base64", ""))
+                self._tra_ve_json(self.server_dashboard.quet_va_khu_doc_anh(img_b64))
+            elif path == "/api/security/scan_dataset":
+                noi_dung = str(data.get("content", ""))
+                dinh_dang = str(data.get("format", "jsonl"))
+                self._tra_ve_json(self.server_dashboard.quet_dataset(noi_dung, dinh_dang))
+            elif path == "/api/rag/ingest":
+                doc_id = str(data.get("id", "doc_web"))
+                text = str(data.get("text", ""))
+                self._tra_ve_json(self.server_dashboard.nap_tai_lieu_rag(doc_id, text))
+            elif path == "/api/rag/upload-file":
+                self._tra_ve_json(self.server_dashboard.tai_len_tep_rag(data))
+            elif path == "/api/rag/query":
+                cau_hoi = str(data.get("question", ""))
+                self._tra_ve_json(self.server_dashboard.hoi_dap_rag(cau_hoi))
+            elif path == "/api/rag/vaidb/build-hnsw":
+                self._tra_ve_json(self.server_dashboard.xay_dung_hnsw_vaidb_studio(data))
+            elif path == "/api/legal/check-validity":
+                self._tra_ve_json(self.server_dashboard.kiem_tra_hieu_luc_phap_ly(data))
+            elif path == "/api/legal/clause-version":
+                self._tra_ve_json(self.server_dashboard.tra_cuu_dieu_khoan_studio(data))
+            elif path == "/api/legal/citation-graph":
+                self._tra_ve_json(self.server_dashboard.truy_van_do_thi_tham_chieu(data))
+            elif path == "/api/legal/contract-review":
+                self._tra_ve_json(self.server_dashboard.ra_soat_hop_dong_studio(data))
+            elif path == "/api/nlp/tokenize":
+                self._tra_ve_json(self.server_dashboard.tach_tu_studio(data))
+            elif path == "/api/workspaces":
+                self._tra_ve_json(self.server_dashboard.tao_workspace_studio(data, token=token))
+            elif path == "/api/chat/sessions":
+                self._tra_ve_json(self.server_dashboard.tao_phien_chat_studio(data, token=token))
+            elif path == "/api/chat/messages":
+                self._tra_ve_json(self.server_dashboard.gui_tin_nhan_chat_studio(data, token=token))
+            elif path == "/api/chat/feedback":
+                self._tra_ve_json(self.server_dashboard.danh_gia_chat_studio(data, token=token))
+            elif path == "/api/flywheel/export-dpo":
+                self._tra_ve_json(self.server_dashboard.xuat_dpo_studio(data, token=token))
+            elif path == "/api/flywheel/eval-gate":
+                self._tra_ve_json(self.server_dashboard.chay_eval_gate_studio(data))
+            elif path == "/api/training/start":
+                self._tra_ve_json(self.server_dashboard.chay_huan_luyen(data))
+            elif path == "/api/solutions/phap_ly":
+                cau_hoi = str(data.get("question", ""))
+                ngay_tc = data.get("ngay_tra_cuu")
+                self._tra_ve_json(
+                    self.server_dashboard.giai_phap_phap_ly(
+                        cau_hoi,
+                        ngay_tra_cuu=str(ngay_tc).strip() if ngay_tc else None,
+                    )
+                )
+            elif path == "/api/solutions/trich_xuat":
+                dau_vao = data.get("input", "")
+                loai = str(data.get("type", "cccd"))
+                self._tra_ve_json(self.server_dashboard.giai_phap_trich_xuat(dau_vao, loai))
+            elif path == "/api/solutions/cskh":
+                yeu_cau = str(data.get("request", ""))
+                self._tra_ve_json(self.server_dashboard.giai_phap_cskh(yeu_cau))
+            elif path == "/api/cloud-gpu/plan":
+                self._tra_ve_json(self.server_dashboard.tinh_chinh_gpu_xa_studio(data, chay_that=False))
+            elif path == "/api/cloud-gpu/run":
+                self._tra_ve_json(
+                    self.server_dashboard.tinh_chinh_gpu_xa_studio(
+                        data, chay_that=bool(data.get("apply", False))
+                    )
+                )
+            elif path == "/api/edge/pull":
+                self._tra_ve_json(self.server_dashboard.tai_mo_hinh_edge_studio(data))
+            else:
+                self.send_error(404, "Unknown API Endpoint")
+        except PermissionError as exc:
+            self._tra_ve_json({"thanh_cong": False, "loi": str(exc)}, status=403)
 
     def log_message(self, format: str, *args: Any) -> None:
         # Tắt log stdout mặc định để terminal luôn sạch
@@ -264,7 +340,7 @@ class StudioDashboard:
             <div class="logo-badge">V</div>
             <div class="title">
                 <h1>Vietnamese AI Web Studio</h1>
-                <p>Nền tảng Trực quan Toàn năng (Version 31.0.3)</p>
+                <p>Nền tảng Trực quan Toàn năng (Version 31.0.4)</p>
             </div>
         </div>
         <div class="status-pill">Hệ thống Sẵn sàng (Micro-Core Active)</div>
@@ -357,6 +433,7 @@ class StudioDashboard:
                     </div>
                 </div>
                 <button class="btn btn-success" onclick="ingestRAGDoc()">Nạp vào RAG Pipeline</button>
+                <button class="btn btn-outline" style="margin-left:0.5rem;" onclick="buildVaidbHnsw()">⚡ Xây Chỉ mục HNSW Bền vững (.vaidb)</button>
                 <span id="rag-ingest-status" style="margin-left:1rem; font-size:0.85rem; color:#10b981;"></span>
             </div>
 
@@ -387,6 +464,45 @@ class StudioDashboard:
                 <button class="btn" onclick="queryLegalGraph()">🕸️ Truy vấn Đồ thị & Sơ đồ Mermaid</button>
                 <div class="result-box" id="legal-graph-result">Kết quả truy vết văn bản liên quan & sơ đồ Mermaid...</div>
             </div>
+
+            <div class="section-box">
+                <h2>4. Tra cứu Phiên bản Điều/Khoản Theo Mốc Thời Gian (Point-in-Time Legal)</h2>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.75rem;">
+                    <div>
+                        <label>Số hiệu văn bản:</label>
+                        <input type="text" id="clause-so-hieu" value="123/2020/NĐ-CP">
+                    </div>
+                    <div>
+                        <label>Điều luật:</label>
+                        <input type="text" id="clause-dieu" value="Điều 19">
+                    </div>
+                    <div>
+                        <label>Ngày tra cứu (YYYY-MM-DD):</label>
+                        <input type="text" id="clause-date" value="2025-07-01">
+                    </div>
+                </div>
+                <button class="btn" onclick="queryLegalClauseVersion()">🕒 Tra cứu Bản Luật Hiệu Lực Tại Ngày</button>
+                <div class="result-box" id="clause-version-result">Phiên bản điều khoản và lịch sử sửa đổi...</div>
+            </div>
+
+            <div class="section-box">
+                <h2>5. Chuẩn hóa Dấu Âm vị học FST & Tách từ Viterbi DAG (Rust Core)</h2>
+                <div style="display:grid; grid-template-columns: 3fr 1fr; gap:0.75rem;">
+                    <div>
+                        <label>Văn bản tiếng Việt:</label>
+                        <input type="text" id="nlp-tok-input" value="Ủy ban nhân dân tỉnh Hoà Bình gửi qùa qúy tới cơ quan nhà nước pháp quyền">
+                    </div>
+                    <div>
+                        <label>Thuật toán:</label>
+                        <select id="nlp-tok-method">
+                            <option value="viterbi">Viterbi DAG (Tối ưu toàn cục)</option>
+                            <option value="max_match">Maximum Matching</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="runStudioTokenize()">🔤 Chuẩn hóa Dấu & Tách Từ</button>
+                <div class="result-box" id="nlp-tok-result">Kết quả chuẩn hóa FST và tách từ...</div>
+            </div>
         </div>
 
         <!-- TAB 4: TRAINING MONITOR -->
@@ -405,7 +521,8 @@ class StudioDashboard:
                     <div>
                         <label>Nhiệm vụ:</label>
                         <select id="train-task">
-                            <option value="sft">SFT (Supervised Fine-Tuning)</option>
+                            <option value="sft">SFT (Supervised Fine-Tuning + Instruction Masking)</option>
+                            <option value="simpo">SimPO (Reference-Free DPO — Tiết kiệm 50% VRAM)</option>
                             <option value="dpo">DPO (Direct Preference Optimization)</option>
                             <option value="grpo">GRPO (Reasoning CoT Thinking)</option>
                         </select>
@@ -432,7 +549,8 @@ class StudioDashboard:
             <div class="section-box">
                 <h2>Vòng lặp Tự Cải Tiến (Xuất DPO Feedback & Cổng Kiểm Định Eval Gate 4 Trục)</h2>
                 <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.5rem;">
-                    <button class="btn" onclick="runStudioEvalGate()">⚖️ Chạy Eval Gate 4 Trục (Trợ lý Pháp lý)</button>
+                    <button class="btn" onclick="runStudioEvalGate()">⚖️ Chạy Eval Gate 4 Trục</button>
+                    <button class="btn btn-success" onclick="runStudioEvalGate(true)">📊 Eval Gate + Paired Bootstrap 95% CI</button>
                     <button class="btn btn-outline" onclick="exportWorkspaceDpo()">📦 Xuất DPO JSONL Từ Phản Hồi Workspace</button>
                 </div>
                 <div class="result-box" id="flywheel-gate-result">Chưa chạy kiểm định hoặc xuất DPO...</div>
@@ -443,8 +561,16 @@ class StudioDashboard:
         <div id="tab-solutions" class="tab-content">
             <div class="section-box">
                 <h2>⚖️ Giải pháp 1: Trợ lý Pháp lý & Doanh nghiệp (TroLyPhapLy)</h2>
-                <label>Câu hỏi pháp lý (Lao động, Dân sự, Doanh nghiệp, Thuế):</label>
-                <input type="text" id="sol-law-q" value="Lãi suất cho vay tối đa theo quy định là bao nhiêu?">
+                <div style="display:grid; grid-template-columns: 3fr 1fr; gap:0.75rem;">
+                    <div>
+                        <label>Câu hỏi pháp lý (Lao động, Dân sự, Doanh nghiệp, Thuế):</label>
+                        <input type="text" id="sol-law-q" value="Lãi suất cho vay tối đa theo quy định là bao nhiêu?">
+                    </div>
+                    <div>
+                        <label>Ngày hiệu lực (tùy chọn):</label>
+                        <input type="text" id="sol-law-date" placeholder="YYYY-MM-DD">
+                    </div>
+                </div>
                 <button class="btn" onclick="runLawSolution()">Tra cứu Căn cứ Pháp lý</button>
                 <div class="result-box" id="sol-law-res">Kết quả tra cứu pháp luật...</div>
             </div>
@@ -489,7 +615,12 @@ Có giá trị đến: 15/08/2035</textarea>
                 <label>Dự thảo hợp đồng đối tác gửi:</label>
                 <textarea id="contract-partner-text" rows="4">Điều 1. Đối tượng hợp đồng: Cung cấp dịch vụ phần mềm và hạ tầng.
 Điều 2. Phạt vi phạm: Bên B chịu mức phạt vi phạm 20% giá trị hợp đồng và miễn trừ toàn bộ trách nhiệm cho Bên A. Căn cứ Luật Đất đai 45/2013/QH13.</textarea>
-                <button class="btn" onclick="runContractReview()">Rà soát Rủi ro & Sinh Redline</button>
+                <label>Ngày kiểm toán hiệu lực luật (tùy chọn, YYYY-MM-DD):</label>
+                <input type="text" id="contract-audit-date" placeholder="Mặc định: hôm nay (VD: 2026-01-15)">
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                    <button class="btn" onclick="runContractReview()">Rà soát Rủi ro & Sinh Redline</button>
+                    <button class="btn btn-success" onclick="downloadContractTrackChangesDocx()">📝 Tải Word Track Changes + Comments (.docx)</button>
+                </div>
                 <div class="result-box" id="contract-review-res">Báo cáo rà soát hợp đồng sẽ hiển thị tại đây...</div>
             </div>
 
@@ -519,7 +650,7 @@ Có giá trị đến: 15/08/2035</textarea>
     </div>
 
     <footer>
-        Vietnamese AI Framework v31.0.3 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
+        Vietnamese AI Framework v31.0.4 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
     </footer>
 
     <script>
@@ -627,15 +758,48 @@ Có giá trị đến: 15/08/2035</textarea>
             document.getElementById('rag-query-result').innerText = JSON.stringify(res, null, 2);
         }
 
+        async function buildVaidbHnsw() {
+            const wsId = document.getElementById('rag-upload-workspace').value.trim();
+            const payload = wsId ? { ma_workspace: wsId } : {};
+            const res = await fetchAPI('rag/vaidb/build-hnsw', payload);
+            document.getElementById('rag-ingest-status').innerText = res.thanh_cong
+                ? ('HNSW OK: ' + (res.hnsw?.so_nut || 0) + ' nút, ' + (res.hnsw?.so_tang || 0) + ' tầng')
+                : ('Lỗi HNSW: ' + (res.loi || 'không xác định'));
+        }
+
         async function queryLegalGraph() {
             const sh = document.getElementById('legal-graph-input').value.trim();
             const res = await fetchAPI('legal/citation-graph', { so_hieu: sh, chi_lay_con_hieu_luc: true });
             document.getElementById('legal-graph-result').innerText = JSON.stringify(res, null, 2);
         }
 
-        async function runStudioEvalGate() {
+        async function queryLegalClauseVersion() {
+            const sh = document.getElementById('clause-so-hieu').value.trim();
+            const dieu = document.getElementById('clause-dieu').value.trim();
+            const ngay = document.getElementById('clause-date').value.trim();
+            const res = await fetchAPI('legal/clause-version', {
+                so_hieu: sh,
+                dieu: dieu,
+                ngay_tra_cuu: ngay || null
+            });
+            document.getElementById('clause-version-result').innerText = JSON.stringify(res, null, 2);
+        }
+
+        async function runStudioTokenize() {
+            const vb = document.getElementById('nlp-tok-input').value;
+            const pp = document.getElementById('nlp-tok-method').value;
+            const res = await fetchAPI('nlp/tokenize', { van_ban: vb, phuong_phap: pp, chuan_hoa_dau: true, noi_tu_ghep: true });
+            document.getElementById('nlp-tok-result').innerText = JSON.stringify(res, null, 2);
+        }
+
+        async function runStudioEvalGate(soSanhBanGoc) {
             document.getElementById('flywheel-gate-result').innerText = 'Đang chạy kiểm định hồi quy 4 trục...';
-            const res = await fetchAPI('flywheel/eval-gate', { gioi_han_mau: 6, nguong_dat: 0.50 });
+            const res = await fetchAPI('flywheel/eval-gate', {
+                gioi_han_mau: 6,
+                nguong_dat: 0.50,
+                so_sanh_ban_goc: Boolean(soSanhBanGoc),
+                bo_tan_cong_mo_rong: Boolean(soSanhBanGoc)
+            });
             document.getElementById('flywheel-gate-result').innerText = JSON.stringify(res, null, 2);
         }
 
@@ -692,7 +856,10 @@ Có giá trị đến: 15/08/2035</textarea>
 
         async function runLawSolution() {
             const q = document.getElementById('sol-law-q').value;
-            const res = await fetchAPI('solutions/phap_ly', { question: q });
+            const ngay = document.getElementById('sol-law-date').value.trim();
+            const payload = { question: q };
+            if (ngay) payload.ngay_tra_cuu = ngay;
+            const res = await fetchAPI('solutions/phap_ly', payload);
             document.getElementById('sol-law-res').innerText = JSON.stringify(res, null, 2);
         }
 
@@ -720,11 +887,38 @@ Có giá trị đến: 15/08/2035</textarea>
         async function runContractReview() {
             const chuan = document.getElementById('contract-template-text').value;
             const doiTac = document.getElementById('contract-partner-text').value;
+            const ngay = document.getElementById('contract-audit-date').value.trim();
             document.getElementById('contract-review-res').innerText = 'Đang so sánh điều khoản và quét rủi ro pháp lý...';
-            const res = await fetchAPI('legal/contract-review', {
+            const payload = { hop_dong_chuan: chuan, hop_dong_doi_tac: doiTac };
+            if (ngay) payload.ngay_tra_cuu = ngay;
+            const res = await fetchAPI('legal/contract-review', payload);
+            document.getElementById('contract-review-res').innerText = res.bao_cao_markdown || JSON.stringify(res, null, 2);
+        }
+
+        async function downloadContractTrackChangesDocx() {
+            const chuan = document.getElementById('contract-template-text').value;
+            const doiTac = document.getElementById('contract-partner-text').value;
+            const ngay = document.getElementById('contract-audit-date').value.trim();
+            document.getElementById('contract-review-res').innerText = 'Đang sinh tệp Word Track Changes + Comments (.docx)...';
+            const payload = {
                 hop_dong_chuan: chuan,
-                hop_dong_doi_tac: doiTac
-            });
+                hop_dong_doi_tac: doiTac,
+                xuat_track_changes_docx: true
+            };
+            if (ngay) payload.ngay_tra_cuu = ngay;
+            const res = await fetchAPI('legal/contract-review', payload);
+            if (res.track_changes_docx_base64) {
+                const raw = atob(res.track_changes_docx_base64);
+                const bytes = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = res.ten_tep_track_changes || 'hop_dong_track_changes.docx';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
             document.getElementById('contract-review-res').innerText = res.bao_cao_markdown || JSON.stringify(res, null, 2);
         }
 
@@ -780,6 +974,7 @@ Có giá trị đến: 15/08/2035</textarea>
         duong_dan_vaidb: Optional[str] = None,
         thu_muc_workspace: Optional[str] = None,
         bat_xac_thuc: bool = False,
+        allowed_origins: Optional[List[str]] = None,
     ):
         from vietnamese_ai.api.fastapi_server import BoThuThapTelemetryAPI
 
@@ -788,7 +983,17 @@ Có giá trị đến: 15/08/2035</textarea>
         self.duong_dan_vaidb = duong_dan_vaidb
         self.thu_muc_workspace = thu_muc_workspace
         self.bat_xac_thuc = bat_xac_thuc
-        self.httpd: Optional[HTTPServer] = None
+        self.allowed_origins: Tuple[str, ...] = tuple(
+            allowed_origins
+            if allowed_origins is not None
+            else [
+                f"http://127.0.0.1:{port}",
+                f"http://localhost:{port}",
+                "http://127.0.0.1:8080",
+                "http://localhost:8080",
+            ]
+        )
+        self.httpd: Optional[ThreadingHTTPServer] = None
         self.tuong_lua = TuongLuaBaoVeFramework(chan_khi_vi_pham=False)
         self.khien_anh = KhienBaoVeHinhAnh()
         self.rag = RAGPipeline(
@@ -837,7 +1042,7 @@ Có giá trị đến: 15/08/2035</textarea>
         chan_doan = QuanLyPhuThuoc.chan_doan_he_thong()
         import vietnamese_ai
 
-        ver = getattr(vietnamese_ai, "__version__", "31.0.3")
+        ver = getattr(vietnamese_ai, "__version__", "31.0.4")
         so_bieu_tuong = len(getattr(vietnamese_ai, "__all__", []))
         return {
             "trang_thai": "ONLINE",
@@ -981,12 +1186,20 @@ Có giá trị đến: 15/08/2035</textarea>
         }
 
     def quet_va_khu_doc_anh(self, image_base64: str) -> Dict[str, Any]:
-        """Quét và khử độc hình ảnh từ base64."""
+        """Quét và khử độc hình ảnh từ base64 bằng CDR thực tế."""
         if not image_base64:
             return {"an_toan": False, "loi": "Không có dữ liệu ảnh"}
         try:
             raw_bytes = base64.b64decode(image_base64)
             bc_quet = self.khien_anh.quet_anh(raw_bytes, chan_khi_nguy_hiem=False)
+            da_cdr = False
+            co_bomb = any("Decompression Bomb" in m for m in bc_quet.get("moi_de_doa", []))
+            if not co_bomb:
+                try:
+                    _, bc_cdr = self.khien_anh.khu_doc_anh_cdr(raw_bytes)
+                    da_cdr = bool(bc_cdr.get("da_khu_doc_cdr", False))
+                except Exception:
+                    da_cdr = False
             return {
                 "an_toan": bc_quet["an_toan"],
                 "dinh_dang": bc_quet["dinh_dang"],
@@ -994,7 +1207,7 @@ Có giá trị đến: 15/08/2035</textarea>
                 "moi_de_doa": bc_quet["moi_de_doa"],
                 "nghi_ngo_stego_lsb": bc_quet.get("nghi_ngo_stego_lsb", False),
                 "nghi_ngo_chu_tang_hinh": bc_quet.get("nghi_ngo_chu_tang_hinh", False),
-                "da_khu_doc_cdr": True,
+                "da_khu_doc_cdr": da_cdr,
             }
         except Exception as e:
             return {"an_toan": False, "loi": str(e)}
@@ -1134,11 +1347,79 @@ Có giá trị đến: 15/08/2035</textarea>
         return kq
 
     def thong_ke_vaidb(self) -> Dict[str, Any]:
-        """Trả về thống kê kho tri thức RAG hiện tại (gồm chi tiết `.vaidb` nếu đang bật chế độ bền vững)."""
+        """Trả về thống kê kho tri thức RAG hiện tại (gồm chi tiết `.vaidb` và HNSW nếu đang bật chế độ bền vững)."""
         return self.rag.thong_ke()
 
+    def xay_dung_hnsw_vaidb_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Xây dựng và lưu bền vững chỉ mục đồ thị HNSW trên kho `.vaidb` của Studio hoặc Workspace."""
+        ma_workspace = str(data.get("ma_workspace", "") or "").strip() or None
+        rag_dich = (
+            self._lay_quan_ly_workspace().lay_rag_workspace(ma_workspace)
+            if ma_workspace is not None
+            else self.rag
+        )
+        store = rag_dich.csdl_vector
+        if not hasattr(store, "xay_dung_chi_muc_hnsw"):
+            return {
+                "thanh_cong": False,
+                "loi": "Kho tri thức hiện tại dùng bộ nhớ RAM, cần khởi tạo Studio với `.vaidb` hoặc chỉ định `ma_workspace`.",
+            }
+        info = store.xay_dung_chi_muc_hnsw(
+            m=max(4, int(data.get("m", 12))),
+            ef_construction=max(16, int(data.get("ef_construction", 64))),
+            ef_search=max(16, int(data.get("ef_search", 48))),
+        )
+        return {
+            "thanh_cong": True,
+            "ma_workspace": ma_workspace,
+            "hnsw": info,
+            "thong_ke": store.thong_ke(),
+        }
+
+    def tra_cuu_dieu_khoan_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Tra cứu phiên bản Điều/Khoản luật Việt Nam theo mốc thời gian (Point-in-Time Legal Lookup)."""
+        so_hieu = str(data.get("so_hieu", "") or "").strip()
+        dieu = str(data.get("dieu", "") or "").strip()
+        if not so_hieu or not dieu:
+            return {"thanh_cong": False, "loi": "Vui lòng cung cấp đầy đủ 'so_hieu' và 'dieu'."}
+        ngay = str(data.get("ngay_tra_cuu", "") or "").strip() or None
+        khoan = str(data.get("khoan", "") or "").strip() or None
+        kq = self.tro_ly_phap_ly.tra_cuu_dieu_khoan_theo_ngay(
+            so_hieu=so_hieu,
+            dieu=dieu,
+            ngay_tra_cuu=ngay,
+            khoan=khoan,
+        )
+        return {"thanh_cong": True, **kq}
+
+    def tach_tu_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Chuẩn hóa dấu thanh âm vị học FST và tách từ ghép tiếng Việt (Viterbi DAG / MaxMatch) cho Studio."""
+        from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+        van_ban = str(data.get("van_ban", "") or "")
+        phuong_phap = str(data.get("phuong_phap", "viterbi") or "viterbi").strip().lower()
+        chuan_hoa_dau = bool(data.get("chuan_hoa_dau", True))
+        noi_tu_ghep = bool(data.get("noi_tu_ghep", True))
+
+        tok = BoTachTuTiengVietSieuToc()
+        vb_chuan = tok.chuan_hoa_dau_thanh(van_ban) if chuan_hoa_dau else tok.chuan_hoa_unicode(van_ban)
+        tokens = tok.tach_tu(
+            van_ban,
+            noi_tu_ghep=noi_tu_ghep,
+            chuan_hoa_dau=chuan_hoa_dau,
+            phuong_phap=phuong_phap,
+        )
+        return {
+            "thanh_cong": True,
+            "van_ban_goc": van_ban,
+            "van_ban_chuan_hoa": vb_chuan,
+            "phuong_phap": phuong_phap,
+            "so_token": len(tokens),
+            "tokens": tokens,
+        }
+
     def ra_soat_hop_dong_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """So sánh & rà soát rủi ro hợp đồng (chấp nhận văn bản thuần hoặc tệp `.docx`/`.pdf` base64) kèm xuất Markdown & `.docx`."""
+        """So sánh & rà soát rủi ro hợp đồng (chấp nhận văn bản thuần hoặc tệp `.docx`/`.pdf` base64) kèm xuất Markdown, `.docx` & Track Changes."""
         import tempfile
 
         from vietnamese_ai.rag.legal.contract_review import BoSoSanhRaSoatHopDong
@@ -1175,6 +1456,15 @@ Có giá trị đến: 15/08/2035</textarea>
                 docx_path = tmp_root / "bao_cao_ra_soat.docx"
                 self._bo_so_sanh_hd.xuat_bao_cao_docx(kq, docx_path)
                 kq["bao_cao_docx_base64"] = base64.b64encode(docx_path.read_bytes()).decode("ascii")
+            if bool(data.get("xuat_track_changes_docx", False)):
+                tc_path = tmp_root / "hop_dong_track_changes.docx"
+                self._bo_so_sanh_hd.xuat_bao_cao_track_changes_docx(
+                    kq,
+                    tc_path,
+                    tac_gia=str(data.get("tac_gia", "Vietnamese-AI Legal Auditor")),
+                )
+                kq["track_changes_docx_base64"] = base64.b64encode(tc_path.read_bytes()).decode("ascii")
+                kq["ten_tep_track_changes"] = tc_path.name
             return kq
 
     def danh_sach_workspaces_studio(self, token: Optional[str] = None) -> Dict[str, Any]:
@@ -1280,14 +1570,21 @@ Có giá trị đến: 15/08/2035</textarea>
             return {"thanh_cong": False, "loi": str(exc)}
 
     def chay_eval_gate_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Chạy Cổng Kiểm Định (`CongKiemDinhMoHinh`) đánh giá Trợ lý Pháp lý trước khi promote Production."""
-        from vietnamese_ai.fine_tuning.eval_gate import CongKiemDinhMoHinh
+        """Chạy Cổng Kiểm Định (`CongKiemDinhMoHinh`) đánh giá Trợ lý Pháp lý (tùy chọn so sánh bản gốc kèm Paired Bootstrap 95% CI)."""
+        from vietnamese_ai.fine_tuning.eval_gate import BO_TAN_CONG_MO_RONG, CongKiemDinhMoHinh
 
-        gate = CongKiemDinhMoHinh()
+        bo_atk = BO_TAN_CONG_MO_RONG if bool(data.get("bo_tan_cong_mo_rong", False)) else None
+        gate = CongKiemDinhMoHinh(bo_tan_cong=bo_atk)
         gioi_han = max(1, min(35, int(data.get("gioi_han_mau", 6))))
         nguong_dat = float(data.get("nguong_dat", 0.50))
+        ban_goc = None
+        if bool(data.get("so_sanh_ban_goc", False)):
+            from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
+
+            ban_goc = TroLyPhapLy(nap_kho_mo=True, dung_onnx_semantic=False)
         kq = gate.so_sanh_va_quyet_dinh(
             ung_vien=self.tro_ly_phap_ly,
+            ban_goc=ban_goc,
             gioi_han_mau=gioi_han,
             nguong_dat=nguong_dat,
         )
@@ -1322,6 +1619,52 @@ Có giá trị đến: 15/08/2035</textarea>
         model_name = str(config.get("model", "vgpt2"))
         task = str(config.get("task", "sft"))
         learning_rate = float(config.get("learning_rate", 0.05))
+
+        if task.strip().lower() == "simpo" or (
+            task.strip().lower() == "dpo" and str(config.get("che_do", "")).strip().lower() == "simpo"
+        ):
+            from vietnamese_ai.fine_tuning.dpo_trainer import DPOTrainer
+
+            pref_raw = config.get("du_lieu")
+            if isinstance(pref_raw, list) and pref_raw and isinstance(pref_raw[0], dict) and "chosen" in pref_raw[0]:
+                pref_data = pref_raw
+            else:
+                pref_data = [
+                    {
+                        "prompt": "Thời giờ làm việc bình thường tối đa theo Bộ luật Lao động 2019?",
+                        "chosen": "Không quá 08 giờ/ngày và 48 giờ/tuần theo Điều 105 Bộ luật Lao động 45/2019/QH14.",
+                        "rejected": "Không có giới hạn giờ làm việc.",
+                    },
+                    {
+                        "prompt": "Mức phạt vi phạm hợp đồng thương mại tối đa là bao nhiêu?",
+                        "chosen": "Không quá 8% giá trị phần nghĩa vụ bị vi phạm theo Điều 301 Luật Thương mại 36/2005/QH11.",
+                        "rejected": "Phạt bao nhiêu phần trăm tùy ý các bên.",
+                    },
+                ]
+            t0 = time.perf_counter()
+            trainer = DPOTrainer(
+                so_vong=epochs,
+                toc_do_hoc=max(learning_rate, 0.15),
+                beta=float(config.get("beta", 1.0)),
+                che_do="simpo",
+                gamma_simpo=float(config.get("gamma_simpo", 0.5)),
+            )
+            kq_simpo = trainer.huan_luyen(model=None, ref_model=None, preference_data=pref_data)
+            thoi_gian = round(time.perf_counter() - t0, 4)
+            lich_su = [round(float(v), 5) for v in kq_simpo["history"]["train_loss"]] or [0.0]
+            return {
+                "trang_thai": "HOAN_THANH",
+                "che_do_huan_luyen": "simpo_reference_free",
+                "mo_hinh": model_name,
+                "nhiem_vu": "simpo",
+                "epochs": epochs,
+                "so_mau_huan_luyen": len(pref_data),
+                "final_reward_margin": round(float(kq_simpo.get("final_reward_margin", 0.0)), 4),
+                "loss_khoi_tao": lich_su[0],
+                "loss_cuoi_cung": lich_su[-1],
+                "lich_su_loss": lich_su,
+                "thoi_gian_giay": thoi_gian,
+            }
 
         embedder = BoNhungVanBanSieuToc(so_chieu=32)
         ds_mau = config.get("du_lieu")
@@ -1368,8 +1711,8 @@ Có giá trị đến: 15/08/2035</textarea>
             "thoi_gian_giay": thoi_gian,
         }
 
-    def giai_phap_phap_ly(self, cau_hoi: str) -> Dict[str, Any]:
-        return self.tro_ly_phap_ly.tra_cuu(cau_hoi)
+    def giai_phap_phap_ly(self, cau_hoi: str, ngay_tra_cuu: Optional[str] = None) -> Dict[str, Any]:
+        return self.tro_ly_phap_ly.tra_cuu(cau_hoi, ngay_tra_cuu=ngay_tra_cuu)
 
     def giai_phap_trich_xuat(self, dau_vao: str, loai: str) -> Dict[str, Any]:
         if loai == "hoa_don":
@@ -1379,12 +1722,16 @@ Có giá trị đến: 15/08/2035</textarea>
     def giai_phap_cskh(self, yeu_cau: str) -> Dict[str, Any]:
         return self.cskh.xu_ly_yeu_cau(yeu_cau)
 
-    def tao_server(self, host: Optional[str] = None, port: Optional[int] = None) -> HTTPServer:
-        """Tạo đối tượng HTTPServer sẵn sàng khởi chạy."""
+    def tao_server(self, host: Optional[str] = None, port: Optional[int] = None) -> ThreadingHTTPServer:
+        """Tạo đối tượng ThreadingHTTPServer gắn riêng phiên bản Dashboard này."""
         h = host or self.host
         p = self.port if port is None else port
-        StudioDashboardHandler.server_dashboard = self
-        self.httpd = HTTPServer((h, p), StudioDashboardHandler)
+        dashboard_ref = self
+
+        class _BoundStudioHandler(StudioDashboardHandler):
+            server_dashboard = dashboard_ref
+
+        self.httpd = ThreadingHTTPServer((h, p), _BoundStudioHandler)
         return self.httpd
 
     def chay(self, host: Optional[str] = None, port: Optional[int] = None) -> None:

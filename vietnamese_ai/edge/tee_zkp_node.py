@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import os
 from typing import Any, Dict
 
@@ -149,7 +148,4 @@ class SecureEdgeNode:
             c = cls._fiat_shamir_challenge(r_hex, y_hex, payload)
             return xac_thuc_schnorr_rfc5114(r_int=r_int, s_int=s_int, y_int=y_int, thach_thuc=c)
 
-        expected_signature = hmac.new(
-            public_key.encode("utf-8"), payload, hashlib.sha256
-        ).hexdigest()
-        return hmac.compare_digest(proof, expected_signature)
+        return False

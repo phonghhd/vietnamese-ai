@@ -80,11 +80,14 @@ class EdgeRouter:
             if hasattr(self.edge_engine, "chay_suy_luan_an_toan"):
                 kq = self.edge_engine.chay_suy_luan_an_toan(prompt)
 
-                pub_key = getattr(
-                    self.edge_engine,
-                    "public_key",
-                    self.edge_engine.private_key.decode("utf-8"),
-                )
+                pub_key = getattr(self.edge_engine, "public_key", None)
+                if pub_key is None:
+                    raw_priv = getattr(self.edge_engine, "private_key", b"")
+                    pub_key = (
+                        raw_priv.decode("utf-8", errors="ignore")
+                        if isinstance(raw_priv, (bytes, bytearray))
+                        else str(raw_priv)
+                    )
                 is_valid = self.edge_engine.__class__.verify_proof(
                     node_id=kq["node_id"],
                     public_key=pub_key,
@@ -158,9 +161,14 @@ class EdgeRouter:
             if hasattr(edge_node, "chay_suy_luan_an_toan"):
                 kq = edge_node.chay_suy_luan_an_toan(prompt)
 
-                public_key = getattr(
-                    edge_node, "public_key", edge_node.private_key.decode("utf-8")
-                )
+                public_key = getattr(edge_node, "public_key", None)
+                if public_key is None:
+                    raw_priv = getattr(edge_node, "private_key", b"")
+                    public_key = (
+                        raw_priv.decode("utf-8", errors="ignore")
+                        if isinstance(raw_priv, (bytes, bytearray))
+                        else str(raw_priv)
+                    )
                 is_valid = edge_node.__class__.verify_proof(
                     node_id=kq["node_id"],
                     public_key=public_key,

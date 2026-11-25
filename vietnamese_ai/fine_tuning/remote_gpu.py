@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -359,7 +360,7 @@ image = (
         "peft>=0.7.0",
         "trl>=0.8.0",
         "datasets>=2.14.0",
-        "vietnamese-ai>=31.0.3",
+        "vietnamese-ai>=31.0.4",
     )
 )
 
@@ -552,6 +553,21 @@ class NhaCungCapSSH(NhaCungCapGPUXa):
     ten_nha_cung_cap = "ssh"
     la_dam_may_ngoai = False
 
+    _RE_SSH_HOST = re.compile(r"^[A-Za-z0-9\[][A-Za-z0-9._:\[\]-]{0,252}$")
+    _RE_SSH_USER = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,63}$")
+
+    @classmethod
+    def _kiem_tra_tham_so_ssh(cls, host: str, user: Optional[str], khoa_ssh: Optional[str]) -> None:
+        """Xác thực tham số SSH để chặn tiêm cờ lệnh OpenSSH (Option Injection)."""
+        if host:
+            if host.startswith("-") or not cls._RE_SSH_HOST.match(host):
+                raise ValueError(f"Địa chỉ máy chủ SSH không hợp lệ hoặc có nguy cơ tiêm cờ lệnh: '{host}'")
+        if user:
+            if user.startswith("-") or not cls._RE_SSH_USER.match(user):
+                raise ValueError(f"Tên người dùng SSH không hợp lệ: '{user}'")
+        if khoa_ssh and khoa_ssh.strip().startswith("-"):
+            raise ValueError(f"Đường dẫn khóa SSH không hợp lệ: '{khoa_ssh}'")
+
     def __init__(
         self,
         host: str = "",
@@ -564,13 +580,17 @@ class NhaCungCapSSH(NhaCungCapGPUXa):
     ) -> None:
         self.host = host.strip()
         self.user = user.strip() if user else None
+        self._kiem_tra_tham_so_ssh(self.host, self.user, khoa_ssh)
         self.port = int(port)
+        if not (1 <= self.port <= 65535):
+            raise ValueError(f"Cổng SSH phải nằm trong khoảng 1..65535, nhận được: {self.port}")
         self.khoa_ssh = khoa_ssh
         self.thu_muc_xa = thu_muc_xa
         self.python_xa = python_xa
         self.la_dam_may_ngoai = bool(la_dam_may_ngoai)
 
     def _dich_ssh(self) -> str:
+        self._kiem_tra_tham_so_ssh(self.host, self.user, self.khoa_ssh)
         return f"{self.user}@{self.host}" if self.user else self.host
 
     def _co_ssh_chung(self, la_scp: bool = False) -> List[str]:
@@ -614,15 +634,16 @@ class NhaCungCapSSH(NhaCungCapGPUXa):
         thu_muc_dich: Path,
         ma_tac_vu: str,
     ) -> Dict[str, List[str]]:
-        """Tạo chuỗi lệnh SSH/SCP an toàn (chống command injection bằng `shlex.quote`)."""
+        """Tạo chuỗi lệnh SSH/SCP an toàn (chống command injection và OpenSSH option injection)."""
         target = self._dich_ssh() or "gpu-server"
         remote_job_dir = f"{self.thu_muc_xa.rstrip('/')}/{ma_tac_vu}"
         remote_out_dir = f"{remote_job_dir}/out"
 
-        cmd_mkdir = ["ssh", *self._co_ssh_chung(False), target, f"mkdir -p {shlex.quote(remote_out_dir)}"]
+        cmd_mkdir = ["ssh", *self._co_ssh_chung(False), "--", target, f"mkdir -p {shlex.quote(remote_out_dir)}"]
         cmd_upload = [
             "scp",
             *self._co_ssh_chung(True),
+            "--",
             str(tep_du_lieu_sach),
             str(cfg_path),
             str(script_path),
@@ -634,11 +655,12 @@ class NhaCungCapSSH(NhaCungCapGPUXa):
             f"--config {shlex.quote(remote_job_dir + '/' + cfg_path.name)} "
             f"--out-dir {shlex.quote(remote_out_dir)}"
         )
-        cmd_train = ["ssh", *self._co_ssh_chung(False), target, remote_run]
+        cmd_train = ["ssh", *self._co_ssh_chung(False), "--", target, remote_run]
         cmd_download = [
             "scp",
             "-r",
             *self._co_ssh_chung(True),
+            "--",
             f"{target}:{remote_out_dir}/.",
             str(thu_muc_dich),
         ]

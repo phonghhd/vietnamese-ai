@@ -4,10 +4,17 @@ Sử dụng Abstract Syntax Tree (ast) để quét và chặn các câu lệnh n
 trước khi mã được đưa vào Executor.
 """
 
+from __future__ import annotations
+
 import ast
 import logging
+import re
 
 logger = logging.getLogger("V-Sandbox")
+
+_RE_FORMAT_ESCAPE = re.compile(
+    r"\{[^}]*(?:__|\b(?:gi_frame|gi_code|cr_frame|ag_frame|f_back|f_globals|f_locals|f_builtins|f_code|tb_frame|tb_next|func_globals|func_code)\b)"
+)
 
 
 class LoiAnNinh(Exception):
@@ -21,6 +28,8 @@ class ASTKhachViengTham(ast.NodeVisitor):
 
     MODULE_CAM = {
         "os",
+        "posix",
+        "nt",
         "sys",
         "subprocess",
         "shutil",
@@ -34,6 +43,20 @@ class ASTKhachViengTham(ast.NodeVisitor):
         "tempfile",
         "threading",
         "multiprocessing",
+        "io",
+        "pathlib",
+        "operator",
+        "inspect",
+        "gc",
+        "signal",
+        "resource",
+        "codecs",
+        "asyncio",
+        "pickle",
+        "marshal",
+        "shelve",
+        "linecache",
+        "pdb",
     }
 
     HAM_CAM = {
@@ -47,9 +70,35 @@ class ASTKhachViengTham(ast.NodeVisitor):
         "setattr",
         "delattr",
         "getattr",
+        "type",
+        "vars",
+        "dir",
+        "breakpoint",
+        "input",
+        "memoryview",
     }
 
-    def visit_Import(self, node):
+    THUOC_TINH_CAM = {
+        "gi_frame",
+        "gi_code",
+        "gi_yieldfrom",
+        "cr_frame",
+        "cr_code",
+        "cr_await",
+        "ag_frame",
+        "ag_code",
+        "f_back",
+        "f_globals",
+        "f_locals",
+        "f_builtins",
+        "f_code",
+        "tb_frame",
+        "tb_next",
+        "func_globals",
+        "func_code",
+    }
+
+    def visit_Import(self, node: ast.Import) -> None:
         """Bắt lỗi khi dùng lệnh import trực tiếp."""
         for alias in node.names:
             tu_khoa = alias.name.split(".")[0]
@@ -57,7 +106,7 @@ class ASTKhachViengTham(ast.NodeVisitor):
                 raise LoiAnNinh(f"Cấm sử dụng module nguy hiểm: '{alias.name}'")
         self.generic_visit(node)
 
-    def visit_ImportFrom(self, node):
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """Bắt lỗi khi dùng lệnh from ... import."""
         if node.module:
             tu_khoa = node.module.split(".")[0]
@@ -65,13 +114,12 @@ class ASTKhachViengTham(ast.NodeVisitor):
                 raise LoiAnNinh(f"Cấm sử dụng module nguy hiểm: '{node.module}'")
         self.generic_visit(node)
 
-    def visit_Call(self, node):
-        """Bắt lỗi khi gọi các hàm dựng sẵn (built-in) nguy hiểm."""
+    def visit_Call(self, node: ast.Call) -> None:
+        """Bắt lỗi khi gọi các hàm dựng sẵn (built-in) hoặc phương thức nguy hiểm."""
         if isinstance(node.func, ast.Name):
             if node.func.id in self.HAM_CAM:
                 raise LoiAnNinh(f"Cấm sử dụng hàm nguy hiểm: '{node.func.id}()'")
 
-        # Ngăn chặn sử dụng thuộc tính dunder như __class__, __subclasses__ (cho phép __init__ cho super().__init__)
         if isinstance(node.func, ast.Attribute):
             if (
                 node.func.attr.startswith("__")
@@ -79,13 +127,21 @@ class ASTKhachViengTham(ast.NodeVisitor):
                 and node.func.attr != "__init__"
             ):
                 raise LoiAnNinh(f"Cấm truy cập thuộc tính dunder: '{node.func.attr}'")
+            if node.func.attr in self.THUOC_TINH_CAM:
+                raise LoiAnNinh(f"Cấm truy cập thuộc tính nội bộ nguy hiểm: '{node.func.attr}'")
+            if node.func.attr in ("format", "format_map"):
+                if isinstance(node.func.value, ast.Constant) and isinstance(node.func.value.value, str):
+                    if _RE_FORMAT_ESCAPE.search(node.func.value.value):
+                        raise LoiAnNinh("Cấm dùng chuỗi định dạng truy cập thuộc tính nội bộ Python.")
 
         self.generic_visit(node)
 
-    def visit_Attribute(self, node):
-        """Chặn truy cập vào các dunder attributes để leo thang đặc quyền (cho phép __init__)."""
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        """Chặn truy cập vào các dunder và frame/generator attributes để leo thang đặc quyền."""
         if node.attr.startswith("__") and node.attr.endswith("__") and node.attr != "__init__":
             raise LoiAnNinh(f"Cấm truy cập thuộc tính hệ thống: '{node.attr}'")
+        if node.attr in self.THUOC_TINH_CAM:
+            raise LoiAnNinh(f"Cấm truy cập thuộc tính nội bộ nguy hiểm: '{node.attr}'")
         self.generic_visit(node)
 
 

@@ -43,7 +43,6 @@ class CauNoiCtypesNative:
         "llama-cli",
         "llama-simple",
         "llama",
-        "main",
     ]
 
     def __init__(
@@ -131,11 +130,12 @@ class CauNoiCtypesNative:
         self._fallback_engine = DongCoSuyLuanEdge(
             duong_dan_mo_hinh=self.duong_dan_mo_hinh,
             so_luong_thread=self.so_luong_thread,
+            _cho_phep_cau_noi_c=False,
         )
 
     def co_thu_vien_c(self) -> bool:
-        """Kiểm tra máy cục bộ có sẵn llama-cpp-python, binary native hay thư viện C++ không."""
-        return self._llama_py is not None or self._cdll is not None or self._binary_path is not None
+        """Kiểm tra máy cục bộ có sẵn backend native thực thi được (`llama-cpp-python` hoặc binary `llama-cli`)."""
+        return self._llama_py is not None or self._binary_path is not None
 
     def thong_tin_cau_noi(self) -> Dict[str, Any]:
         """Trả về thông tin kết nối chi tiết của cầu nối runtime native 3 tầng."""
@@ -151,6 +151,7 @@ class CauNoiCtypesNative:
             "co_native_c": self.co_thu_vien_c(),
             "che_do": che_do,
             "co_llama_cpp_python": self._llama_py is not None,
+            "co_ctypes_cdll": self._cdll is not None,
             "duong_dan_binary": self._binary_path,
             "so_thread": self.so_luong_thread,
             "n_ctx": self.n_ctx,
@@ -199,6 +200,7 @@ class CauNoiCtypesNative:
                 str(self.n_ctx),
                 "--no-display-prompt",
             ]
+            proc: Optional[subprocess.Popen[str]] = None
             try:
                 proc = subprocess.Popen(
                     cmd,
@@ -217,11 +219,23 @@ class CauNoiCtypesNative:
                 return
             except Exception:
                 pass
+            finally:
+                if proc is not None:
+                    if proc.poll() is None:
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=2)
+                        except subprocess.TimeoutExpired:
+                            proc.kill()
+                            proc.wait()
+                    if proc.stdout is not None:
+                        proc.stdout.close()
 
         if self._fallback_engine is None:
             self._fallback_engine = DongCoSuyLuanEdge(
                 duong_dan_mo_hinh=self.duong_dan_mo_hinh,
                 so_luong_thread=self.so_luong_thread,
+                _cho_phep_cau_noi_c=False,
             )
         yield from self._fallback_engine.sinh_stream(
             prompt, do_dai_toi_da=do_dai_toi_da, nhiet_do=nhiet_do

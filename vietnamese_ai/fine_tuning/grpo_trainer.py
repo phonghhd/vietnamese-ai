@@ -9,6 +9,30 @@ import numpy as np
 
 from vietnamese_ai.utils.logger import Logger
 
+try:
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+
+    _CO_PYTORCH = True
+except ImportError:
+    _CO_PYTORCH = False
+
+
+def _trich_xuat_so_chuan(van_ban: str) -> List[str]:
+    """Trích xuất các số học trong văn bản, bỏ dấu phân tách hàng nghìn (1.000.000) nhưng giữ nguyên dấu thập phân (3.5 / 3,5)."""
+    da_bo_nghin = re.sub(r"(?<=\d)\.(?=\d{3}(?!\d))", "", van_ban)
+    raw_nums = re.findall(r"-?\d+(?:[\.,]\d+)?", da_bo_nghin)
+    ket_qua: List[str] = []
+    for num in raw_nums:
+        norm = num.replace(",", ".")
+        try:
+            f_val = float(norm)
+            ket_qua.append(f"{f_val:g}")
+        except ValueError:
+            ket_qua.append(norm)
+    return ket_qua
+
 
 class GRPOTrainer:
     r"""
@@ -96,10 +120,9 @@ class GRPOTrainer:
         # 2. Điểm chính xác (Toán học / Code / Đáp án chuẩn)
         diem_chinh_xac = 0.0
         if dap_an_chuan.strip():
-            # Trích xuất câu kết luận sau </think> của đáp án chuẩn nếu có
             ref_clean = re.sub(r"<think>.*?</think>", "", dap_an_chuan, flags=re.DOTALL).strip()
-            nums_ref = re.findall(r"-?\d+(?:[\.,]\d+)?", ref_clean.replace(".", ""))
-            nums_pred = re.findall(r"-?\d+(?:[\.,]\d+)?", ket_luan.replace(".", ""))
+            nums_ref = _trich_xuat_so_chuan(ref_clean)
+            nums_pred = _trich_xuat_so_chuan(ket_luan)
 
             if nums_ref and nums_pred and nums_ref[-1] == nums_pred[-1]:
                 diem_chinh_xac = 1.0
@@ -164,6 +187,57 @@ class GRPOTrainer:
             ung_vien.append(ung_vien[len(ung_vien) % 4])
         return ung_vien[: self.so_nhom_g]
 
+    @staticmethod
+    def _ma_hoa_chuoi_grpo(text: str, vocab_limit: int, max_len: int = 64) -> List[int]:
+        """Mã hóa văn bản sang danh sách token IDs an toàn trong phạm vi từ vựng."""
+        toks = [ord(c) % max(2, vocab_limit) for c in text[:max_len]]
+        return toks if len(toks) >= 2 else [1, 2]
+
+    def _buoc_grpo_pytorch(
+        self,
+        model: "nn.Module",
+        optimizer: Any,
+        cau_hoi: str,
+        nhom_phan_hoi: List[str],
+        advantages: np.ndarray,
+        vocab_limit: int,
+    ) -> float:
+        """Thực thi một bước cập nhật GRPO policy gradient + KL penalty cấp token trên PyTorch."""
+        device = next(model.parameters()).device
+        model.train()
+        optimizer.zero_grad()
+        prompt_len = len(cau_hoi)
+        tong_loss = torch.tensor(0.0, device=device)
+        so_hop_le = 0
+
+        for resp, adv_val in zip(nhom_phan_hoi, advantages):
+            toks = self._ma_hoa_chuoi_grpo(f"{cau_hoi}\n{resp}", vocab_limit, max_len=64)
+            ids = torch.tensor(toks, dtype=torch.long, device=device).unsqueeze(0)
+            out = model(ids)
+            logits = out.logits if hasattr(out, "logits") else out
+            if logits.dim() != 3 or logits.size(1) < 2:
+                continue
+            log_probs = F.log_softmax(logits[:, :-1, :], dim=-1)
+            safe_tgt = ids[:, 1:].clamp(min=0, max=log_probs.size(-1) - 1)
+            tok_logps = log_probs.gather(2, safe_tgt.unsqueeze(-1)).squeeze(-1)
+            start_i = min(max(0, prompt_len), tok_logps.size(1) - 1)
+            resp_logp = tok_logps[:, start_i:].mean()
+            adv_t = torch.tensor(float(adv_val), dtype=resp_logp.dtype, device=device)
+            ratio = torch.exp((resp_logp - resp_logp.detach()).clamp(-10.0, 10.0))
+            clipped = torch.clamp(ratio, 1.0 - self.epsilon_clip, 1.0 + self.epsilon_clip)
+            surr = -torch.minimum(ratio * adv_t, clipped * adv_t)
+            kl_pen = self.beta_kl * (resp_logp.detach() - resp_logp).abs()
+            tong_loss = tong_loss + surr + kl_pen
+            so_hop_le += 1
+
+        if so_hop_le == 0:
+            return 0.0
+        loss_mean = tong_loss / float(so_hop_le)
+        loss_mean.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        return float(abs(loss_mean.item()))
+
     def huan_luyen(
         self,
         model: Any,
@@ -192,7 +266,20 @@ class GRPOTrainer:
             or getattr(model, "_model", None)
             or model
         )
-        vocab_limit = getattr(target_model, "so_tu_vung", 256)
+        vocab_limit = int(
+            getattr(
+                target_model,
+                "so_tu_vung",
+                getattr(getattr(target_model, "config", None), "vocab_size", 256),
+            )
+        )
+        la_pytorch = bool(_CO_PYTORCH and isinstance(target_model, nn.Module))
+        pt_optimizer: Optional[Any] = (
+            torch.optim.AdamW(target_model.parameters(), lr=self.toc_do_hoc)
+            if (_CO_PYTORCH and isinstance(target_model, nn.Module))
+            else None
+        )
+        surrogate_w = np.zeros(64, dtype=np.float64)
         step = 0
 
         for epoch in range(self.so_vong):
@@ -217,23 +304,48 @@ class GRPOTrainer:
                 advantages = self.tinh_loi_the_nhom(rewards)
                 epoch_rewards.append(float(np.max(rewards)))
 
-                # Chọn ứng viên có Advantage dương lớn nhất để cập nhật Policy Gradient + KL regularization
                 best_idx = int(np.argmax(advantages))
                 best_resp = nhom_phan_hoi[best_idx]
                 adv_pos = max(0.1, float(advantages[best_idx]))
 
-                if hasattr(target_model, "buoc_huan_luyen"):
+                if la_pytorch and pt_optimizer is not None:
+                    grpo_loss = self._buoc_grpo_pytorch(
+                        target_model,
+                        pt_optimizer,
+                        cau_hoi,
+                        nhom_phan_hoi,
+                        advantages,
+                        vocab_limit,
+                    )
+                elif hasattr(target_model, "buoc_huan_luyen"):
                     text_full = f"{cau_hoi}\n{best_resp}"
-                    toks = [ord(c) % vocab_limit for c in text_full[:48]]
-                    if len(toks) < 2:
-                        toks = [1, 2]
+                    toks = self._ma_hoa_chuoi_grpo(text_full, vocab_limit, max_len=48)
                     x_arr = np.array([toks[:-1]], dtype=int)
                     y_arr = np.array([toks[1:]], dtype=int)
                     lr_eff = self.toc_do_hoc * min(2.0, adv_pos) * (1.0 - self.beta_kl)
                     ce_loss = target_model.buoc_huan_luyen(x_arr, y_arr, toc_do_hoc=lr_eff)
-                    grpo_loss = float(ce_loss) / (1.0 + 0.15 * epoch)
+                    grpo_loss = float(ce_loss)
                 else:
-                    grpo_loss = float(np.exp(-0.3 * (epoch + 1)))
+                    feats = np.zeros((len(nhom_phan_hoi), 64), dtype=np.float64)
+                    for i_c, resp in enumerate(nhom_phan_hoi):
+                        for ch in resp[:64]:
+                            feats[i_c, ord(ch) % 64] += 1.0
+                        norm_f = float(np.linalg.norm(feats[i_c]))
+                        if norm_f > 1e-8:
+                            feats[i_c] /= norm_f
+                    logits_g = feats @ surrogate_w
+                    logits_g -= float(np.max(logits_g))
+                    probs_g = np.exp(logits_g)
+                    probs_g /= float(np.sum(probs_g)) + 1e-12
+                    adv_f = np.asarray(advantages, dtype=np.float64)
+                    pos_weights = np.maximum(0.0, adv_f)
+                    if float(np.sum(pos_weights)) <= 1e-12:
+                        pos_weights = np.ones_like(adv_f) / float(len(adv_f))
+                    else:
+                        pos_weights /= float(np.sum(pos_weights))
+                    grpo_loss = float(-np.sum(pos_weights * np.log(probs_g + 1e-12)))
+                    grad_s = (probs_g - pos_weights) @ feats + self.beta_kl * surrogate_w
+                    surrogate_w -= max(self.toc_do_hoc, 0.25) * grad_s
 
                 epoch_losses.append(grpo_loss)
                 step += 1

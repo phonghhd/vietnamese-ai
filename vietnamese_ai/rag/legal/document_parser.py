@@ -106,31 +106,46 @@ class BoDocTaiLieuPhapLy:
         return "\n".join(dong_md)
 
     def _doc_docx(self, duong_dan: Path) -> Tuple[str, int]:
-        """Đọc đoạn văn và bảng biểu từ tệp `.docx` (ưu tiên `python-docx`, dự phòng giải nén OOXML thuần Python)."""
+        """Đọc đoạn văn và bảng biểu từ tệp `.docx` theo đúng thứ tự xuất hiện kèm kiểm tra chống Zip Bomb."""
+        max_xml_bytes = 50 * 1024 * 1024
+        max_total_bytes = 100 * 1024 * 1024
+        with zipfile.ZipFile(str(duong_dan), "r") as zf_check:
+            if "word/document.xml" not in zf_check.namelist():
+                raise ValueError(f"Tệp DOCX không hợp lệ (thiếu word/document.xml): {duong_dan}")
+            doc_info = zf_check.getinfo("word/document.xml")
+            tong_giai_nen = sum(info.file_size for info in zf_check.infolist())
+            if doc_info.file_size > max_xml_bytes or tong_giai_nen > max_total_bytes:
+                raise ValueError(f"Tệp DOCX vượt giới hạn giải nén an toàn (nghi ngờ Zip Bomb): {duong_dan}")
+
         so_bang = 0
         docx_mod = QuanLyPhuThuoc.nhap_tuy_chon("docx", nhom_extra="legal-rag", tinh_nang="Đọc tài liệu DOCX")
         if docx_mod is not None:
             try:
+                from docx.table import Table
+                from docx.text.paragraph import Paragraph
+
                 tai_lieu = docx_mod.Document(str(duong_dan))
                 phan_doan: List[str] = []
-                for p in tai_lieu.paragraphs:
-                    if p.text and p.text.strip():
-                        phan_doan.append(p.text.strip())
-                for tbl in tai_lieu.tables:
-                    ma_tran = [[c.text.strip() for c in row.cells] for row in tbl.rows]
-                    md = self._dinh_dang_bang_markdown(ma_tran)
-                    if md:
-                        phan_doan.append(md)
-                        so_bang += 1
+                for child in tai_lieu.element.body.iterchildren():
+                    tag = str(child.tag)
+                    if tag.endswith("}p"):
+                        p = Paragraph(child, tai_lieu)
+                        if p.text and p.text.strip():
+                            phan_doan.append(p.text.strip())
+                    elif tag.endswith("}tbl"):
+                        tbl = Table(child, tai_lieu)
+                        ma_tran = [[c.text.strip() for c in row.cells] for row in tbl.rows]
+                        md = self._dinh_dang_bang_markdown(ma_tran)
+                        if md:
+                            phan_doan.append(md)
+                            so_bang += 1
                 return "\n".join(phan_doan), so_bang
             except Exception:
-                pass
+                so_bang = 0
 
         ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
         phan_doan_xml: List[str] = []
         with zipfile.ZipFile(str(duong_dan), "r") as zf:
-            if "word/document.xml" not in zf.namelist():
-                raise ValueError(f"Tệp DOCX không hợp lệ (thiếu word/document.xml): {duong_dan}")
             xml_data = zf.read("word/document.xml")
         root = ET.fromstring(xml_data)
         body = root.find(f"{ns}body")

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import heapq
 import json
+import math
 import re
 import sqlite3
 import threading
@@ -11,7 +13,7 @@ import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 
@@ -102,6 +104,7 @@ class KhoTriThucVAIDB:
         self._ids: List[str] = []
         self._vectors: Optional[np.ndarray] = None
         self._vector_norms: Optional[np.ndarray] = None
+        self._vectors_normed: Optional[np.ndarray] = None
         self._metadata: List[Dict[str, Any]] = []
         self._id_to_idx: Dict[str, int] = {}
         self._bo_nhung_mac_dinh: Optional[Any] = None
@@ -110,6 +113,14 @@ class KhoTriThucVAIDB:
         self._ivf_buckets: Dict[int, np.ndarray] = {}
         self._ivf_nprobe: int = 3
         self._ivf_dirty: bool = True
+
+        self._hnsw_layers: List[Dict[int, List[int]]] = []
+        self._hnsw_entry_point: Optional[int] = None
+        self._hnsw_max_level: int = -1
+        self._hnsw_m: int = 12
+        self._hnsw_ef_construction: int = 64
+        self._hnsw_ef_search: int = 48
+        self._hnsw_dirty: bool = True
 
         self._khoi_tao_luoc_do()
         self._nap_bo_nho_dem_vector()
@@ -159,6 +170,24 @@ class KhoTriThucVAIDB:
                 """
             )
             cur.execute("CREATE INDEX IF NOT EXISTS idx_vai_chunks_doc ON vai_chunks(ma_tai_lieu)")
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS vai_hnsw_meta (
+                    khoa TEXT PRIMARY KEY,
+                    gia_tri TEXT NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS vai_hnsw_nodes (
+                    nut_idx INTEGER NOT NULL,
+                    tang INTEGER NOT NULL,
+                    hang_xom_json TEXT NOT NULL,
+                    PRIMARY KEY (nut_idx, tang)
+                )
+                """
+            )
 
             try:
                 cur.execute(
@@ -217,6 +246,7 @@ class KhoTriThucVAIDB:
             if not rows:
                 self._vectors = None
                 self._vector_norms = None
+                self._vectors_normed = None
                 return
 
             vecs: List[np.ndarray] = []
@@ -234,6 +264,8 @@ class KhoTriThucVAIDB:
 
             self._vectors = np.vstack(vecs).astype(np.float32)
             self._vector_norms = np.asarray(norms, dtype=np.float32)
+            self._vectors_normed = None
+            self._nap_hnsw_sql()
 
     def _cap_nhat_kich_thuoc_meta(self, kich_thuoc_moi: int) -> None:
         """Đồng bộ kích thước vector mới vào bảng `vai_meta` khi kho còn trống."""
@@ -292,6 +324,7 @@ class KhoTriThucVAIDB:
                 self._cap_nhat_kich_thuoc_meta(int(vec.shape[0]))
                 self._vectors = None
                 self._vector_norms = None
+                self._vectors_normed = None
             if vec.shape[0] != self.kich_thuoc:
                 raise ValueError(f"Vector phải có {self.kich_thuoc} chiều, nhận được {vec.shape[0]}")
             if ma not in self._id_to_idx and len(self._ids) >= self.suc_chua_toi_da:
@@ -311,6 +344,7 @@ class KhoTriThucVAIDB:
                     self._vector_norms[idx] = vec_norm
                 self._metadata[idx] = meta
                 self._ivf_dirty = True
+                self._hnsw_dirty = True
                 return
 
             idx = len(self._ids)
@@ -318,6 +352,8 @@ class KhoTriThucVAIDB:
             self._metadata.append(meta)
             self._id_to_idx[ma] = idx
             self._ivf_dirty = True
+            self._hnsw_dirty = True
+            self._vectors_normed = None
 
             if self._vectors is None:
                 self._vectors = vec.reshape(1, -1)
@@ -482,6 +518,8 @@ class KhoTriThucVAIDB:
         with self._lock:
             self._conn.execute("DELETE FROM vai_chunks")
             self._conn.execute("DELETE FROM vai_documents")
+            self._conn.execute("DELETE FROM vai_hnsw_meta")
+            self._conn.execute("DELETE FROM vai_hnsw_nodes")
             if self._co_fts5:
                 self._conn.execute("DELETE FROM vai_chunks_fts")
             self._conn.commit()
@@ -493,6 +531,10 @@ class KhoTriThucVAIDB:
             self._ivf_centroids = None
             self._ivf_buckets.clear()
             self._ivf_dirty = True
+            self._hnsw_layers.clear()
+            self._hnsw_entry_point = None
+            self._hnsw_max_level = -1
+            self._hnsw_dirty = True
 
     def lay_metadata(self, ma: str) -> Optional[Dict[str, Any]]:
         """Lấy metadata của một chunk theo mã ID."""
@@ -619,6 +661,338 @@ class KhoTriThucVAIDB:
                 "so_vector": n_vecs,
             }
 
+    def _chu_ky_tap_ids(self) -> str:
+        """Tính mã băm xác định danh sách IDs hiện tại để phát hiện đồ thị HNSW cũ."""
+        h = hashlib.sha256()
+        for item_id in self._ids:
+            h.update(item_id.encode("utf-8"))
+            h.update(b"\x00")
+        return h.hexdigest()
+
+    def _khoang_cach_hnsw(self, query_chuan: np.ndarray, idx: int) -> float:
+        """Tính khoảng cách giảm dần theo độ tương đồng (nhỏ hơn là gần hơn) cho duyệt đồ thị HNSW."""
+        assert self._vectors is not None
+        v = self._vectors[idx]
+        if self.khoang_cach == "cosine":
+            v_norm = (
+                float(self._vector_norms[idx])
+                if self._vector_norms is not None
+                else float(np.linalg.norm(v))
+            )
+            if v_norm < 1e-10:
+                return 1.0
+            return float(1.0 - float(np.dot(query_chuan, v)) / v_norm)
+        if self.khoang_cach == "l2":
+            diff = v - query_chuan
+            return float(np.dot(diff, diff))
+        return float(-np.dot(query_chuan, v))
+
+    def _diem_tu_khoang_cach_hnsw(self, query: np.ndarray, idx: int) -> float:
+        """Tính điểm tương đồng chính xác của phần tử `idx` nhất quán với tìm kiếm vét cạn."""
+        assert self._vectors is not None
+        v = self._vectors[idx]
+        if self.khoang_cach == "cosine":
+            q_norm = float(np.linalg.norm(query))
+            v_norm = (
+                float(self._vector_norms[idx])
+                if self._vector_norms is not None
+                else float(np.linalg.norm(v))
+            )
+            if q_norm < 1e-10 or v_norm < 1e-10:
+                return 0.0
+            return float(np.dot(v, query) / (q_norm * v_norm))
+        if self.khoang_cach == "l2":
+            return float(1.0 / (1.0 + float(np.linalg.norm(v - query))))
+        return float(np.dot(v, query))
+
+    def _dam_bao_vectors_normed(self) -> Optional[np.ndarray]:
+        """Khởi tạo bộ đệm ma trận vector đã chuẩn hóa L2 cho truy vấn HNSW cosine dạng lô."""
+        if self.khoang_cach != "cosine" or self._vectors is None:
+            return None
+        if self._vectors_normed is None or self._vectors_normed.shape != self._vectors.shape:
+            norms = (
+                self._vector_norms
+                if self._vector_norms is not None and self._vector_norms.shape[0] == self._vectors.shape[0]
+                else np.linalg.norm(self._vectors, axis=1)
+            )
+            safe_norms = np.where(norms >= 1e-10, norms, 1.0).astype(np.float32)
+            normed = self._vectors / safe_norms[:, np.newaxis]
+            zero_mask = norms < 1e-10
+            if np.any(zero_mask):
+                normed[zero_mask] = 0.0
+            self._vectors_normed = np.ascontiguousarray(normed, dtype=np.float32)
+        return self._vectors_normed
+
+    def _khoang_cach_hnsw_batch(self, query_chuan: np.ndarray, indices: List[int]) -> np.ndarray:
+        """Tính khoảng cách HNSW dạng lô BLAS cho tập hàng xóm `indices` trong một lệnh NumPy duy nhất."""
+        assert self._vectors is not None
+        if self.khoang_cach == "cosine":
+            normed = self._dam_bao_vectors_normed()
+            assert normed is not None
+            return 1.0 - (normed[indices] @ query_chuan)
+        sub = self._vectors[indices]
+        if self.khoang_cach == "l2":
+            diff = sub - query_chuan
+            return np.sum(diff * diff, axis=1)
+        return -(sub @ query_chuan)
+
+    def _chuan_hoa_query_hnsw(self, query: np.ndarray) -> np.ndarray:
+        """Chuẩn hóa vector truy vấn theo chuẩn khoảng cách của đồ thị HNSW."""
+        if self.khoang_cach == "cosine":
+            q_norm = float(np.linalg.norm(query))
+            return (query / q_norm).astype(np.float32) if q_norm >= 1e-10 else query.astype(np.float32)
+        return query.astype(np.float32)
+
+    def _duyet_tang_hnsw(
+        self,
+        query_chuan: np.ndarray,
+        ep: int,
+        ef: int,
+        tang: int,
+    ) -> List[Tuple[float, int]]:
+        """Tìm kiếm chùm (beam search) trên tầng `tang` của đồ thị HNSW với tính khoảng cách hàng xóm dạng lô."""
+        da_tham: Set[int] = {ep}
+        d_ep = self._khoang_cach_hnsw(query_chuan, ep)
+        ung_vien: List[Tuple[float, int]] = [(d_ep, ep)]
+        ket_qua: List[Tuple[float, int]] = [(-d_ep, ep)]
+        layer_adj = self._hnsw_layers[tang]
+
+        while ung_vien:
+            c_dist, c_node = heapq.heappop(ung_vien)
+            f_dist = -ket_qua[0][0]
+            if c_dist > f_dist and len(ket_qua) >= ef:
+                break
+            chua_tham = [nb for nb in layer_adj.get(c_node, ()) if nb not in da_tham]
+            if not chua_tham:
+                continue
+            da_tham.update(chua_tham)
+            dists = self._khoang_cach_hnsw_batch(query_chuan, chua_tham)
+            for nb, d_val in zip(chua_tham, dists.tolist()):
+                d_nb = float(d_val)
+                if len(ket_qua) < ef or d_nb < -ket_qua[0][0]:
+                    heapq.heappush(ung_vien, (d_nb, nb))
+                    heapq.heappush(ket_qua, (-d_nb, nb))
+                    if len(ket_qua) > ef:
+                        heapq.heappop(ket_qua)
+
+        out = [(-neg_d, nid) for neg_d, nid in ket_qua]
+        out.sort(key=lambda x: x[0])
+        return out
+
+    def _luu_hnsw_sql(self) -> None:
+        """Lưu bền vững đồ thị HNSW vào 2 bảng `vai_hnsw_meta` và `vai_hnsw_nodes` trong tệp `.vaidb`."""
+        self._conn.execute("DELETE FROM vai_hnsw_meta")
+        self._conn.execute("DELETE FROM vai_hnsw_nodes")
+        if self._hnsw_entry_point is None or not self._hnsw_layers:
+            self._conn.commit()
+            return
+        meta_rows = [
+            ("entry_point", str(self._hnsw_entry_point)),
+            ("max_level", str(self._hnsw_max_level)),
+            ("m", str(self._hnsw_m)),
+            ("ef_construction", str(self._hnsw_ef_construction)),
+            ("ef_search", str(self._hnsw_ef_search)),
+            ("so_nut", str(len(self._ids))),
+            ("khoang_cach", self.khoang_cach),
+            ("chu_ky_du_lieu", self._chu_ky_tap_ids()),
+        ]
+        self._conn.executemany(
+            "INSERT OR REPLACE INTO vai_hnsw_meta(khoa, gia_tri) VALUES (?, ?)",
+            meta_rows,
+        )
+        node_rows: List[Tuple[int, int, str]] = []
+        for tang, adj in enumerate(self._hnsw_layers):
+            for nut_idx, hang_xom in adj.items():
+                node_rows.append((int(nut_idx), int(tang), json.dumps(hang_xom)))
+        if node_rows:
+            self._conn.executemany(
+                "INSERT OR REPLACE INTO vai_hnsw_nodes(nut_idx, tang, hang_xom_json) VALUES (?, ?, ?)",
+                node_rows,
+            )
+        self._conn.commit()
+
+    def _nap_hnsw_sql(self) -> bool:
+        """Tự động nạp lại đồ thị HNSW bền vững từ `.vaidb` khi mở lại tệp nếu chữ ký dữ liệu còn khớp."""
+        self._hnsw_layers = []
+        self._hnsw_entry_point = None
+        self._hnsw_max_level = -1
+        self._hnsw_dirty = True
+        if not self._ids:
+            return False
+        try:
+            meta_rows = self._conn.execute("SELECT khoa, gia_tri FROM vai_hnsw_meta").fetchall()
+        except sqlite3.OperationalError:
+            return False
+        if not meta_rows:
+            return False
+        meta = {str(r["khoa"]): str(r["gia_tri"]) for r in meta_rows}
+        if (
+            meta.get("so_nut") != str(len(self._ids))
+            or meta.get("khoang_cach") != self.khoang_cach
+            or meta.get("chu_ky_du_lieu") != self._chu_ky_tap_ids()
+        ):
+            return False
+        max_level = int(meta.get("max_level", "-1"))
+        entry_point = int(meta.get("entry_point", "-1"))
+        if max_level < 0 or not (0 <= entry_point < len(self._ids)):
+            return False
+        layers: List[Dict[int, List[int]]] = [{} for _ in range(max_level + 1)]
+        rows = self._conn.execute("SELECT nut_idx, tang, hang_xom_json FROM vai_hnsw_nodes").fetchall()
+        for r in rows:
+            t_idx = int(r["tang"])
+            n_idx = int(r["nut_idx"])
+            if 0 <= t_idx <= max_level and 0 <= n_idx < len(self._ids):
+                layers[t_idx][n_idx] = [int(x) for x in json.loads(str(r["hang_xom_json"]))]
+        if not layers[0]:
+            return False
+        self._hnsw_layers = layers
+        self._hnsw_entry_point = entry_point
+        self._hnsw_max_level = max_level
+        self._hnsw_m = int(meta.get("m", str(self._hnsw_m)))
+        self._hnsw_ef_construction = int(meta.get("ef_construction", str(self._hnsw_ef_construction)))
+        self._hnsw_ef_search = int(meta.get("ef_search", str(self._hnsw_ef_search)))
+        self._hnsw_dirty = False
+        return True
+
+    def xay_dung_chi_muc_hnsw(
+        self,
+        m: int = 12,
+        ef_construction: int = 64,
+        ef_search: int = 48,
+        seed: int = 42,
+        luu_xuong_dia: bool = True,
+    ) -> Dict[str, Any]:
+        """Xây dựng đồ thị chỉ mục đa tầng HNSW (Hierarchical Navigable Small World) và lưu bền vững trực tiếp vào `.vaidb`."""
+        with self._lock:
+            if self._vectors is None or len(self._ids) == 0:
+                self._hnsw_layers = []
+                self._hnsw_entry_point = None
+                self._hnsw_max_level = -1
+                self._hnsw_dirty = False
+                if luu_xuong_dia:
+                    self._luu_hnsw_sql()
+                return {"da_xay_dung": False, "so_nut": 0, "so_tang": 0}
+
+            n_vecs = len(self._ids)
+            m_val = max(4, int(m))
+            max_m0 = m_val * 2
+            ef_c = max(m_val * 2, int(ef_construction))
+            ef_s = max(m_val, int(ef_search))
+            m_l = 1.0 / math.log(float(m_val))
+            rng = np.random.RandomState(seed)
+
+            self._hnsw_m = m_val
+            self._hnsw_ef_construction = ef_c
+            self._hnsw_ef_search = ef_s
+            self._hnsw_layers = [{0: []}]
+            self._hnsw_entry_point = 0
+            self._hnsw_max_level = 0
+
+            for idx in range(1, n_vecs):
+                u_val = max(float(rng.uniform()), 1e-12)
+                level = int(-math.log(u_val) * m_l)
+                while len(self._hnsw_layers) <= level:
+                    self._hnsw_layers.append({})
+
+                q_vec = self._chuan_hoa_query_hnsw(self._vectors[idx])
+                ep = int(self._hnsw_entry_point)
+                curr_d = self._khoang_cach_hnsw(q_vec, ep)
+
+                for tang in range(self._hnsw_max_level, level, -1):
+                    changed = True
+                    while changed:
+                        changed = False
+                        for nb in self._hnsw_layers[tang].get(ep, ()):
+                            d_nb = self._khoang_cach_hnsw(q_vec, nb)
+                            if d_nb < curr_d:
+                                curr_d = d_nb
+                                ep = nb
+                                changed = True
+
+                for tang in range(min(level, self._hnsw_max_level), -1, -1):
+                    cands = self._duyet_tang_hnsw(q_vec, ep, ef_c, tang)
+                    if cands:
+                        ep = cands[0][1]
+                    cap = max_m0 if tang == 0 else m_val
+                    neighbors = [nid for _, nid in cands[:cap] if nid != idx]
+                    self._hnsw_layers[tang][idx] = neighbors
+                    for nb in neighbors:
+                        nb_list = self._hnsw_layers[tang].setdefault(nb, [])
+                        if idx not in nb_list:
+                            nb_list.append(idx)
+                        if len(nb_list) > cap:
+                            nb_q = self._chuan_hoa_query_hnsw(self._vectors[nb])
+                            scored_nb = [(self._khoang_cach_hnsw(nb_q, x), x) for x in nb_list]
+                            scored_nb.sort(key=lambda pair: pair[0])
+                            self._hnsw_layers[tang][nb] = [x for _, x in scored_nb[:cap]]
+
+                for tang in range(self._hnsw_max_level + 1, level + 1):
+                    self._hnsw_layers[tang][idx] = []
+
+                if level > self._hnsw_max_level:
+                    self._hnsw_max_level = level
+                    self._hnsw_entry_point = idx
+
+            self._hnsw_dirty = False
+            if luu_xuong_dia:
+                self._luu_hnsw_sql()
+
+            return {
+                "da_xay_dung": True,
+                "so_nut": n_vecs,
+                "so_tang": self._hnsw_max_level + 1,
+                "m": m_val,
+                "ef_construction": ef_c,
+                "ef_search": ef_s,
+                "da_luu_ben_vung": bool(luu_xuong_dia),
+            }
+
+    def _tim_kiem_hnsw(
+        self,
+        query: np.ndarray,
+        top_k: int,
+        bo_loc: Optional[Dict[str, Any]] = None,
+    ) -> Optional[List[Tuple[int, float]]]:
+        """Truy vấn trên đồ thị HNSW, hỗ trợ duyệt có nhận thức bộ lọc metadata (Pre-Filtered Search)."""
+        if (
+            self._hnsw_dirty
+            or self._hnsw_entry_point is None
+            or not self._hnsw_layers
+            or self._vectors is None
+        ):
+            return None
+
+        q_chuan = self._chuan_hoa_query_hnsw(query)
+        ep = int(self._hnsw_entry_point)
+        curr_d = self._khoang_cach_hnsw(q_chuan, ep)
+        for tang in range(self._hnsw_max_level, 0, -1):
+            changed = True
+            while changed:
+                changed = False
+                for nb in self._hnsw_layers[tang].get(ep, ()):
+                    d_nb = self._khoang_cach_hnsw(q_chuan, nb)
+                    if d_nb < curr_d:
+                        curr_d = d_nb
+                        ep = nb
+                        changed = True
+
+        ef = (
+            max(self._hnsw_ef_search * 2, top_k * 6)
+            if bo_loc is not None
+            else max(self._hnsw_ef_search, top_k * 2)
+        )
+        cands = self._duyet_tang_hnsw(q_chuan, ep, min(ef, len(self._ids)), 0)
+        scored: List[Tuple[int, float]] = []
+        for _, nid in cands:
+            if bo_loc is not None and not self._khop_bo_loc(self._metadata[nid], bo_loc):
+                continue
+            scored.append((nid, self._diem_tu_khoang_cach_hnsw(query, nid)))
+
+        if bo_loc is not None and len(scored) < top_k:
+            return None
+        scored.sort(key=lambda pair: pair[1], reverse=True)
+        return scored
+
     @staticmethod
     def _khop_bo_loc(meta: Dict[str, Any], bo_loc: Optional[Dict[str, Any]]) -> bool:
         """Kiểm tra metadata có thỏa điều kiện lọc key-value hay không."""
@@ -646,53 +1020,69 @@ class KhoTriThucVAIDB:
             if query.shape[0] != self.kich_thuoc:
                 raise ValueError(f"Query vector phải có {self.kich_thuoc} chiều, nhận được {query.shape[0]}")
 
-            cand_indices: Optional[np.ndarray] = None
-            if (
-                not self._ivf_dirty
-                and self._ivf_centroids is not None
-                and self._ivf_buckets
-                and bo_loc is None
-                and self.khoang_cach == "cosine"
-            ):
-                q_norm = float(np.linalg.norm(query))
-                q_unit = query / q_norm if q_norm > 1e-10 else query
-                c_sims = self._ivf_centroids @ q_unit
-                top_c = np.argsort(c_sims)[::-1][: self._ivf_nprobe]
-                picked = [self._ivf_buckets[int(c)] for c in top_c if int(c) in self._ivf_buckets]
-                if picked:
-                    cand_indices = np.concatenate(picked)
-
-            if cand_indices is not None and len(cand_indices) > 0:
-                sub_vecs = self._vectors[cand_indices]
-                q_norm = float(np.linalg.norm(query))
-                if q_norm < 1e-10:
-                    sub_scores = np.zeros(len(cand_indices), dtype=np.float32)
-                else:
-                    sub_norms = (
-                        self._vector_norms[cand_indices]
-                        if self._vector_norms is not None
-                        else np.linalg.norm(sub_vecs, axis=1)
-                    )
-                    sub_norms = np.maximum(sub_norms, 1e-10)
-                    sub_scores = (sub_vecs @ query) / (sub_norms * q_norm)
-                order = np.argsort(sub_scores)[::-1]
-                ranked_pairs = [(int(cand_indices[i]), float(sub_scores[i])) for i in order]
+            ranked_pairs: List[Tuple[int, float]] = []
+            hnsw_res = self._tim_kiem_hnsw(query, top_k=top_k, bo_loc=bo_loc)
+            if hnsw_res is not None:
+                ranked_pairs = hnsw_res
             else:
-                if self.khoang_cach == "cosine":
-                    if _rust_core is not None and hasattr(_rust_core, "tim_kiem_cosine_rust"):
-                        try:
-                            rust_res = _rust_core.tim_kiem_cosine_rust(
-                                query.astype(np.float32).tolist(),
-                                self._vectors.astype(np.float32).tolist(),
-                                min(len(self._ids), max(top_k * 4, top_k)),
-                            )
-                            ranked_pairs = [(int(idx), float(sc)) for idx, sc in rust_res]
-                        except Exception:
+                cand_indices: Optional[np.ndarray] = None
+                if (
+                    not self._ivf_dirty
+                    and self._ivf_centroids is not None
+                    and self._ivf_buckets
+                    and bo_loc is None
+                    and self.khoang_cach == "cosine"
+                ):
+                    q_norm = float(np.linalg.norm(query))
+                    q_unit = query / q_norm if q_norm > 1e-10 else query
+                    c_sims = self._ivf_centroids @ q_unit
+                    top_c = np.argsort(c_sims)[::-1][: self._ivf_nprobe]
+                    picked = [self._ivf_buckets[int(c)] for c in top_c if int(c) in self._ivf_buckets]
+                    if picked:
+                        cand_indices = np.concatenate(picked)
+
+                if cand_indices is not None and len(cand_indices) > 0:
+                    sub_vecs = self._vectors[cand_indices]
+                    q_norm = float(np.linalg.norm(query))
+                    if q_norm < 1e-10:
+                        sub_scores = np.zeros(len(cand_indices), dtype=np.float32)
+                    else:
+                        sub_norms = (
+                            self._vector_norms[cand_indices]
+                            if self._vector_norms is not None
+                            else np.linalg.norm(sub_vecs, axis=1)
+                        )
+                        sub_norms = np.maximum(sub_norms, 1e-10)
+                        sub_scores = (sub_vecs @ query) / (sub_norms * q_norm)
+                    order = np.argsort(sub_scores)[::-1]
+                    ranked_pairs = [(int(cand_indices[i]), float(sub_scores[i])) for i in order]
+                else:
+                    if self.khoang_cach == "cosine":
+                        q_norm = float(np.linalg.norm(query))
+                        if (
+                            bo_loc is None
+                            and q_norm >= 1e-10
+                            and _rust_core is not None
+                            and hasattr(_rust_core, "fast_top_k_cosine_bytes")
+                        ):
+                            try:
+                                q_bytes = np.ascontiguousarray(query, dtype="<f4").tobytes()
+                                mat_bytes = np.ascontiguousarray(self._vectors, dtype="<f4").tobytes()
+                                k_fetch = min(len(self._ids), max(top_k, 1))
+                                rust_res = _rust_core.fast_top_k_cosine_bytes(
+                                    q_bytes,
+                                    mat_bytes,
+                                    len(self._ids),
+                                    int(self._vectors.shape[1]),
+                                    k_fetch,
+                                )
+                                ranked_pairs = [(int(idx), float(sc)) for idx, sc in rust_res]
+                            except Exception:
+                                ranked_pairs = self._tinh_diem_toan_bo(query)
+                        else:
                             ranked_pairs = self._tinh_diem_toan_bo(query)
                     else:
                         ranked_pairs = self._tinh_diem_toan_bo(query)
-                else:
-                    ranked_pairs = self._tinh_diem_toan_bo(query)
 
             ket_qua: List[Dict[str, Any]] = []
             for idx, score in ranked_pairs:
@@ -772,15 +1162,15 @@ class KhoTriThucVAIDB:
                 if not rows:
                     return []
 
-                raw_scores = [abs(float(r["rank_bm25"])) for r in rows]
-                max_raw = max(raw_scores) if raw_scores else 1.0
+                raw_scores = [max(0.0, -float(r["rank_bm25"])) for r in rows]
+                max_raw = max(raw_scores) if raw_scores else 0.0
                 ket_qua: List[Dict[str, Any]] = []
                 for row, raw_s in zip(rows, raw_scores):
                     ma = str(row["ma_chunk"])
                     meta = self.lay_metadata(ma)
                     if meta is None or not self._khop_bo_loc(meta, bo_loc):
                         continue
-                    diem_chuan = float(1.0 / (1.0 + raw_s)) if max_raw <= 0 else float(max(0.05, 1.0 - (raw_s / (max_raw + 1.0))))
+                    diem_chuan = float(raw_s / max_raw) if max_raw > 0.0 else 1.0
                     if nguong is not None and diem_chuan < nguong:
                         continue
                     ket_qua.append(
@@ -914,6 +1304,8 @@ class KhoTriThucVAIDB:
                 "khoang_cach": self.khoang_cach,
                 "co_fts5": self._co_fts5,
                 "chi_muc_ivf": self._ivf_centroids is not None and not self._ivf_dirty,
+                "chi_muc_hnsw": self._hnsw_entry_point is not None and not self._hnsw_dirty,
+                "so_nut_hnsw": len(self._hnsw_layers[0]) if (self._hnsw_layers and not self._hnsw_dirty) else 0,
                 "kich_thuoc_tep_bytes": int(kich_thuoc_tep),
             }
 

@@ -33,13 +33,19 @@ except ImportError:
     GradientBoostingRegressor = _TuyenTinhNumPy
     HistGradientBoostingRegressor = _TuyenTinhNumPy
 
+_XGBRegressor: Any
 try:
-    from xgboost import XGBRegressor as _XGBRegressor  # type: ignore
+    from xgboost import XGBRegressor as _XGBRegressorImported  # type: ignore
+
+    _XGBRegressor = _XGBRegressorImported
 except ImportError:
     _XGBRegressor = HistGradientBoostingRegressor
 
+_LGBMRegressor: Any
 try:
-    from lightgbm import LGBMRegressor as _LGBMRegressor  # type: ignore
+    from lightgbm import LGBMRegressor as _LGBMRegressorImported  # type: ignore
+
+    _LGBMRegressor = _LGBMRegressorImported
 except ImportError:
     _LGBMRegressor = HistGradientBoostingRegressor
 

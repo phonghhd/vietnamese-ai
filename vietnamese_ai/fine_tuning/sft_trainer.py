@@ -52,6 +52,7 @@ class SFTTrainer:
         mixed_precision: bool = True,
         dung_torch_compile: bool = False,
         dung_chunked_ce: bool = False,
+        che_prompt_loss: bool = True,
     ):
         self.so_vong = so_vong
         self.kich_thuoc_batch = kich_thuoc_batch
@@ -67,6 +68,7 @@ class SFTTrainer:
         self.mixed_precision = mixed_precision
         self.dung_torch_compile = dung_torch_compile
         self.dung_chunked_ce = dung_chunked_ce
+        self.che_prompt_loss = che_prompt_loss
         self._thong_ke_gop: Dict[str, Any] = {}
         self.logger = Logger("SFTTrainer")
 
@@ -77,8 +79,24 @@ class SFTTrainer:
         self._global_step = 0
 
     @staticmethod
+    def _ma_hoa_doan(text: str, tokenizer: Any, max_len: int) -> List[int]:
+        """Mã hóa đoạn văn bản sang danh sách token IDs."""
+        if not text:
+            return []
+        if tokenizer is not None and hasattr(tokenizer, "ma_hoa"):
+            return [int(x) for x in tokenizer.ma_hoa(text)][:max_len]
+        if tokenizer is not None and hasattr(tokenizer, "encode"):
+            raw = tokenizer.encode(text)
+            if isinstance(raw, (list, tuple)):
+                return [int(x) for x in raw][:max_len]
+        return [int(b) for b in text.encode("utf-8")[: min(max_len, 64)]]
+
+    @staticmethod
     def _chuan_hoa_du_lieu_sft(
-        du_lieu: Any, tokenizer: Any = None, max_seq_length: int = 512
+        du_lieu: Any,
+        tokenizer: Any = None,
+        max_seq_length: int = 512,
+        che_prompt_loss: bool = True,
     ) -> List[Dict[str, Any]]:
         if du_lieu is None:
             return []
@@ -96,23 +114,40 @@ class SFTTrainer:
             if "input_ids" in mau and mau["input_ids"]:
                 ket_qua.append(mau)
                 continue
-            text = ""
             if "text" in mau:
                 text = str(mau["text"])
-            elif "instruction" in mau or "prompt" in mau:
-                inst = str(mau.get("instruction", mau.get("prompt", "")))
-                inp = str(mau.get("input", ""))
-                out = str(mau.get("output", mau.get("response", mau.get("chosen", ""))))
-                text = f"{inst} {inp} -> {out}".strip()
-            if not text:
+                if not text:
+                    continue
+                ids = SFTTrainer._ma_hoa_doan(text, tokenizer, max_seq_length)
+                if len(ids) < 2:
+                    ids = ids + [1]
+                ket_qua.append({"input_ids": ids[:-1], "labels": ids[1:]})
                 continue
-            if tokenizer is not None and hasattr(tokenizer, "ma_hoa"):
-                ids = [int(x) for x in tokenizer.ma_hoa(text)][:max_seq_length]
-            else:
-                ids = [int(b) for b in text.encode("utf-8")[: min(max_seq_length, 64)]]
-            if len(ids) < 2:
-                ids = ids + [1]
-            ket_qua.append({"input_ids": ids[:-1], "labels": ids[1:]})
+            if "instruction" in mau or "prompt" in mau:
+                inst = str(mau.get("instruction", mau.get("prompt", ""))).strip()
+                inp = str(mau.get("input", "")).strip()
+                out = str(mau.get("output", mau.get("response", mau.get("chosen", "")))).strip()
+                prefix_text = f"{inst} {inp} ->".strip() if inp else f"{inst} ->".strip()
+                if out and che_prompt_loss:
+                    prefix_ids = SFTTrainer._ma_hoa_doan(prefix_text + " ", tokenizer, max_seq_length - 1)
+                    resp_ids = SFTTrainer._ma_hoa_doan(out, tokenizer, max(1, max_seq_length - len(prefix_ids)))
+                    ids = (prefix_ids + resp_ids)[:max_seq_length]
+                    if len(ids) < 2:
+                        ids = ids + [1]
+                    in_ids = ids[:-1]
+                    lbl_ids = list(ids[1:])
+                    mask_end = min(max(0, len(prefix_ids) - 1), len(lbl_ids) - 1)
+                    for m_i in range(mask_end):
+                        lbl_ids[m_i] = -100
+                    ket_qua.append({"input_ids": in_ids, "labels": lbl_ids})
+                else:
+                    text = f"{prefix_text} {out}".strip()
+                    if not text:
+                        continue
+                    ids = SFTTrainer._ma_hoa_doan(text, tokenizer, max_seq_length)
+                    if len(ids) < 2:
+                        ids = ids + [1]
+                    ket_qua.append({"input_ids": ids[:-1], "labels": ids[1:]})
         return ket_qua
 
     def huan_luyen(
@@ -137,10 +172,12 @@ class SFTTrainer:
             Dict chứa training results
         """
         du_lieu_train_norm = self._chuan_hoa_du_lieu_sft(
-            du_lieu_train, tokenizer, self.max_seq_length
+            du_lieu_train, tokenizer, self.max_seq_length, che_prompt_loss=self.che_prompt_loss
         )
         du_lieu_val_norm = (
-            self._chuan_hoa_du_lieu_sft(du_lieu_val, tokenizer, self.max_seq_length)
+            self._chuan_hoa_du_lieu_sft(
+                du_lieu_val, tokenizer, self.max_seq_length, che_prompt_loss=self.che_prompt_loss
+            )
             if du_lieu_val
             else None
         )
@@ -200,6 +237,11 @@ class SFTTrainer:
             if (use_cuda_amp and hasattr(torch.cuda, "is_bf16_supported") and torch.cuda.is_bf16_supported())
             else torch.float16
         )
+        grad_scaler = (
+            torch.amp.GradScaler("cuda")
+            if (use_cuda_amp and amp_dtype == torch.float16 and hasattr(torch, "amp") and hasattr(torch.amp, "GradScaler"))
+            else None
+        )
 
         bat_dau = time.time()
 
@@ -226,8 +268,10 @@ class SFTTrainer:
 
                 input_ids = torch.tensor(collated["input_ids"], dtype=torch.long, device=device)
                 labels = torch.tensor(collated["labels"], dtype=torch.long, device=device)
+                attention_mask = (input_ids != 0).long()
+                position_ids = torch.tensor(collated["position_ids"], dtype=torch.long, device=device)
 
-                amp_ctx = (
+                amp_ctx: Any = (
                     torch.amp.autocast(device_type="cuda", dtype=amp_dtype)
                     if use_cuda_amp
                     else nullcontext()
@@ -236,14 +280,20 @@ class SFTTrainer:
                 try:
                     with amp_ctx:
                         if hasattr(active_model, "generate") and hasattr(active_model, "config"):
-                            outputs = active_model(input_ids=input_ids, labels=labels)
-                            if self.dung_chunked_ce and hasattr(outputs, "logits"):
-                                batch_loss = HamMatMatPhanManh.tinh_loss_pytorch(outputs.logits, labels)
-                            elif hasattr(outputs, "loss") and outputs.loss is not None:
-                                batch_loss = outputs.loss
+                            try:
+                                outputs = active_model(
+                                    input_ids=input_ids,
+                                    attention_mask=attention_mask,
+                                    position_ids=position_ids,
+                                )
+                            except TypeError:
+                                outputs = active_model(input_ids=input_ids, attention_mask=attention_mask)
+                            logits_hf = outputs.logits if hasattr(outputs, "logits") else outputs[0]
+                            if self.dung_chunked_ce:
+                                batch_loss = HamMatMatPhanManh.tinh_loss_pytorch(logits_hf, labels)
                             else:
                                 batch_loss = criterion(
-                                    outputs.logits.reshape(-1, outputs.logits.size(-1)),
+                                    logits_hf.reshape(-1, logits_hf.size(-1)),
                                     labels.reshape(-1),
                                 )
                         else:
@@ -255,7 +305,6 @@ class SFTTrainer:
                                     logits.reshape(-1, logits.size(-1)), labels.reshape(-1)
                                 )
                 except Exception:
-                    # Fallback từng mẫu nếu mô hình tùy biến không hỗ trợ kích thước batch động
                     batch_loss = torch.tensor(0.0, device=device, requires_grad=True)
                     valid_cnt = 0
                     for mau in batch_items:
@@ -277,16 +326,26 @@ class SFTTrainer:
                         batch_loss = batch_loss / valid_cnt
 
                 scaled_loss = batch_loss / self.gradient_accumulation
-                scaled_loss.backward()
+                if grad_scaler is not None:
+                    grad_scaler.scale(scaled_loss).backward()
+                else:
+                    scaled_loss.backward()
                 epoch_loss += float(batch_loss.item())
                 steps += 1
 
                 if steps % self.gradient_accumulation == 0 or (
                     batch_start + self.kich_thuoc_batch >= len(indices)
                 ):
-                    if self.gradient_clip > 0:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
-                    optimizer.step()
+                    if grad_scaler is not None:
+                        grad_scaler.unscale_(optimizer)
+                        if self.gradient_clip > 0:
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
+                        grad_scaler.step(optimizer)
+                        grad_scaler.update()
+                    else:
+                        if self.gradient_clip > 0:
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), self.gradient_clip)
+                        optimizer.step()
                     optimizer.zero_grad()
                     self._global_step += 1
 

@@ -18,13 +18,20 @@ python benchmarks/run_benchmarks.py \
 
 # Chạy nhanh cho CI/CD
 python benchmarks/run_benchmarks.py --suite extended --quick --output results/quick.json
+
+# Chạy bộ đo chiều sâu 6 trụ cột mới (FST/Viterbi, HNSW .vaidb, Rust Kernels, Freivalds, SimPO/EvalGate, Track Changes)
+python benchmarks/run_benchmarks.py \
+  --suite deep \
+  --seed 42 \
+  --output results/deep_benchmark.json \
+  --markdown results/deep_benchmark.md
 ```
 
 ## 2. Tái lập trong Docker Container cô lập
 
 ```bash
-docker build -f benchmarks/Dockerfile.benchmark -t vietnamese-ai-bench:31.0.3 .
-docker run --rm -v "$(pwd)/results:/results" vietnamese-ai-bench:31.0.3
+docker build -f benchmarks/Dockerfile.benchmark -t vietnamese-ai-bench:31.0.4 .
+docker run --rm -v "$(pwd)/results:/results" vietnamese-ai-bench:31.0.4
 ```
 
 Báo cáo JSON và Markdown kèm đầy đủ thông tin phần cứng (`x86_64`/`arm64`, số lõi, SIMD, Python, `seed`) sẽ được ghi vào `results/benchmark.json` và `results/benchmark.md`.

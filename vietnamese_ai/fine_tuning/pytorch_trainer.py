@@ -134,6 +134,8 @@ class HuanLuyenPyTorch:
 
     def _tao_scheduler(self, tong_steps: int) -> None:
         """Tạo learning rate scheduler."""
+        if self._optimizer is None:
+            return
         if self.scheduler_type == "cosine":
             self._scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 self._optimizer, T_max=tong_steps
@@ -191,8 +193,9 @@ class HuanLuyenPyTorch:
             if hasattr(model, "to_empty"):
                 self._model = model.to_empty(device=self.thiet_bi)
                 for m in self._model.modules():
-                    if hasattr(m, "reset_parameters"):
-                        m.reset_parameters()
+                    reset_fn = getattr(m, "reset_parameters", None)
+                    if callable(reset_fn):
+                        reset_fn()
             else:
                 self._model = model
         self._tao_optimizer(model)
@@ -395,8 +398,9 @@ class HuanLuyenPyTorch:
             if hasattr(model, "to_empty"):
                 self._model = model.to_empty(device=self.thiet_bi)
                 for m in self._model.modules():
-                    if hasattr(m, "reset_parameters"):
-                        m.reset_parameters()
+                    reset_fn = getattr(m, "reset_parameters", None)
+                    if callable(reset_fn):
+                        reset_fn()
             else:
                 self._model = model
         self._history = checkpoint.get("history", self._history)

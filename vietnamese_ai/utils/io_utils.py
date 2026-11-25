@@ -144,10 +144,22 @@ class LuuTai:
         return raw.encode("utf-8")
 
     @classmethod
+    def _tinh_hmac_streaming(cls, duong_dan: Path, khoa_bi_mat: Optional[str] = None) -> str:
+        """Tính chữ ký HMAC-SHA256 theo luồng khối 64 KB để hỗ trợ tệp mô hình lớn."""
+        mac = hmac.new(cls._khoa_hmac(khoa_bi_mat), digestmod=hashlib.sha256)
+        with open(duong_dan, "rb") as f:
+            while True:
+                khoi = f.read(65536)
+                if not khoi:
+                    break
+                mac.update(khoi)
+        return mac.hexdigest()
+
+    @classmethod
     def ky_file(cls, duong_dan: str, khoa_bi_mat: Optional[str] = None) -> str:
         """Tạo chữ ký toàn vẹn HMAC-SHA256 (`.sig`) cho file mô hình."""
         p = Path(duong_dan)
-        sig = hmac.new(cls._khoa_hmac(khoa_bi_mat), p.read_bytes(), hashlib.sha256).hexdigest()
+        sig = cls._tinh_hmac_streaming(p, khoa_bi_mat=khoa_bi_mat)
         sig_path = p.with_suffix(p.suffix + ".sig")
         sig_path.write_text(sig, encoding="utf-8")
         return sig
@@ -160,7 +172,7 @@ class LuuTai:
         if not sig_path.exists():
             return False
         expected = sig_path.read_text(encoding="utf-8").strip()
-        actual = hmac.new(cls._khoa_hmac(khoa_bi_mat), p.read_bytes(), hashlib.sha256).hexdigest()
+        actual = cls._tinh_hmac_streaming(p, khoa_bi_mat=khoa_bi_mat)
         return hmac.compare_digest(expected, actual)
 
     @staticmethod
@@ -213,8 +225,8 @@ class LuuTai:
     def tai_numpy(duong_dan: str) -> Dict[str, np.ndarray]:
         """Tải mảng numpy từ file .npz."""
         try:
-            data = np.load(duong_dan)
-            return dict(data)
+            with np.load(duong_dan) as data:
+                return dict(data)
         except FileNotFoundError:
             raise FileNotFoundError(f"Không tìm thấy file: {duong_dan}")
 

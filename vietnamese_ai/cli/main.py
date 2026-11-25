@@ -163,8 +163,13 @@ Ví dụ sử dụng:
     # === RAG ===
     rag_parser = subparsers.add_parser("rag", help="Truy vấn cơ sở tri thức RAG đa định dạng & kho bền vững .vaidb")
     rag_parser.add_argument("--docs", default=None, help="Đường dẫn tệp (.txt/.md/.docx/.pdf/.png/.json/.jsonl) hoặc thư mục tài liệu")
-    rag_parser.add_argument("--query", required=True, help="Câu hỏi cần truy vấn")
+    rag_parser.add_argument("--query", default=None, help="Câu hỏi cần truy vấn")
     rag_parser.add_argument("--db", default=None, help="Đường dẫn tệp kho tri thức bền vững `.vaidb` (SQLite + FTS5 + Vector)")
+    rag_parser.add_argument(
+        "--build-hnsw",
+        action="store_true",
+        help="Xây dựng và lưu bền vững đồ thị chỉ mục HNSW bên trong tệp `.vaidb`",
+    )
     rag_parser.add_argument(
         "--semantic-onnx",
         action="store_true",
@@ -200,6 +205,17 @@ Ví dụ sử dụng:
     tok_parser.add_argument("--no-compound", action="store_true", help="Không nối từ ghép bằng dấu gạch dưới")
     tok_parser.add_argument("--unaccent", action="store_true", help="Loại bỏ dấu tiếng Việt (unaccented / slugify)")
     tok_parser.add_argument("--encode", action="store_true", help="Mã hóa văn bản thành chuỗi Token IDs số nguyên")
+    tok_parser.add_argument(
+        "--method",
+        default="max_match",
+        choices=["max_match", "viterbi"],
+        help="Chiến lược tách từ: max_match hoặc viterbi (Word Lattice DAG tối ưu toàn cục)",
+    )
+    tok_parser.add_argument(
+        "--normalize-tone",
+        action="store_true",
+        help="Hiển thị văn bản sau khi chuẩn hóa dấu thanh âm vị học FST",
+    )
 
     # === SCAN ===
     scan_parser = subparsers.add_parser(
@@ -388,8 +404,19 @@ Ví dụ sử dụng:
     )
     lg_parser.add_argument("so_hieu", help="Số hiệu văn bản cần tra cứu (VD: 45/2013/QH13, 31/2024/QH15, 123/2020/NĐ-CP)")
     lg_parser.add_argument("--date", default=None, help="Ngày tra cứu hiệu lực dạng YYYY-MM-DD (mặc định: hôm nay)")
+    lg_parser.add_argument("--dieu", default=None, help="Tra cứu phiên bản Point-in-Time của một Điều cụ thể (VD: 'Điều 19')")
+    lg_parser.add_argument("--khoan", default=None, help="Lọc thêm theo Khoản cụ thể khi dùng `--dieu`")
     lg_parser.add_argument("--active-only", action="store_true", help="Chỉ hiển thị văn bản liên quan còn hiệu lực")
     lg_parser.add_argument("--mermaid", action="store_true", help="In thêm sơ đồ Mermaid flowchart LR")
+
+    li_parser = subparsers.add_parser(
+        "legal-ingest",
+        help="Nạp tự động văn bản pháp quy / văn bản hợp nhất (.docx/.pdf/.txt/.md hoặc thư mục) thành 1 tệp .vaidb HNSW + Point-in-Time",
+    )
+    li_parser.add_argument("source", help="Đường dẫn tệp hoặc thư mục văn bản pháp quy cần nạp")
+    li_parser.add_argument("--output", "-o", required=True, help="Đường dẫn tệp kho tri thức `.vaidb` đầu ra")
+    li_parser.add_argument("--no-hnsw", action="store_true", help="Không dựng chỉ mục HNSW bền vững trong tệp `.vaidb`")
+    li_parser.add_argument("--json", action="store_true", help="Xuất báo cáo nạp tự động dưới dạng JSON thuần")
 
     cr_parser = subparsers.add_parser(
         "contract-review",
@@ -400,6 +427,11 @@ Ví dụ sử dụng:
     cr_parser.add_argument("--date", default=None, help="Ngày kiểm toán hiệu lực luật dạng YYYY-MM-DD")
     cr_parser.add_argument("--output-md", default=None, help="Đường dẫn xuất báo cáo Redline định dạng Markdown (.md)")
     cr_parser.add_argument("--output-docx", default=None, help="Đường dẫn xuất báo cáo Redline định dạng Word (.docx)")
+    cr_parser.add_argument(
+        "--track-changes-docx",
+        default=None,
+        help="Đường dẫn xuất tệp Word (.docx) chứa Track Changes thực (<w:ins>/<w:del>) và chú thích lề comments.xml",
+    )
 
     mcp_parser = subparsers.add_parser(
         "mcp-server",
@@ -410,6 +442,11 @@ Ví dụ sử dụng:
     mcp_parser.add_argument("--port", type=int, default=8090, help="Cổng cho chế độ SSE (mặc định: 8090)")
     mcp_parser.add_argument("--vaidb", default=None, help="Đường dẫn tệp kho tri thức `.vaidb` gắn cho MCP tools")
     mcp_parser.add_argument("--plugin-dir", default=None, help="Thư mục V-Plugin 2.0 tự động nạp thêm vào MCP Server")
+    mcp_parser.add_argument(
+        "--extended-tools",
+        action="store_true",
+        help="Bật thêm các công cụ MCP chuyên sâu (Point-in-Time Điều luật, Viterbi NLP, HNSW .vaidb)",
+    )
     mcp_parser.add_argument(
         "--print-config",
         default=None,
@@ -443,6 +480,16 @@ Ví dụ sử dụng:
     )
     eg_parser.add_argument("--limit", type=int, default=8, help="Số câu hỏi pháp lý chuẩn cần chấm (mặc định: 8)")
     eg_parser.add_argument("--min-score", type=float, default=0.55, help="Ngưỡng điểm tổng hợp tối thiểu để đạt chuẩn")
+    eg_parser.add_argument(
+        "--compare-baseline",
+        action="store_true",
+        help="So sánh với mô hình nền và tính khoảng tin cậy Paired Bootstrap 95%% CI",
+    )
+    eg_parser.add_argument(
+        "--extended-attacks",
+        action="store_true",
+        help="Bật bộ kiểm thử tấn công mở rộng gồm cả Prompt Injection tiếng Việt không dấu",
+    )
     eg_parser.add_argument("--json", action="store_true", help="Xuất kết quả kiểm định dưới dạng JSON thuần")
 
     sm_parser = subparsers.add_parser(
@@ -873,8 +920,13 @@ def cmd_rag(args):
 
     docs_arg = getattr(args, "docs", None)
     db_arg = getattr(args, "db", None)
+    query_arg = getattr(args, "query", None)
+    build_hnsw = bool(getattr(args, "build_hnsw", False))
     if not docs_arg and not db_arg:
         print("Lỗi: Cần truyền ít nhất `--docs <tệp/thư mục>` hoặc `--db <file.vaidb>`.")
+        sys.exit(1)
+    if not query_arg and not build_hnsw:
+        print("Lỗi: Cần truyền `--query <câu hỏi>` hoặc `--build-hnsw`.")
         sys.exit(1)
 
     che_do_hc = bool(getattr(args, "admin", False))
@@ -905,7 +957,23 @@ def cmd_rag(args):
             else:
                 rag.them_tep(doc_path, ma=doc_path.name, che_do_hanh_chinh=che_do_hc)
 
-        kq = rag.hoi(args.query)
+        hnsw_info: Optional[Dict[str, Any]] = None
+        if build_hnsw:
+            if hasattr(rag.csdl_vector, "xay_dung_chi_muc_hnsw"):
+                hnsw_info = rag.csdl_vector.xay_dung_chi_muc_hnsw()
+                print(
+                    f"[VAIDB HNSW] Đã xây dựng chỉ mục bền vững: "
+                    f"{hnsw_info.get('so_nut', 0)} nút, {hnsw_info.get('so_tang', 0)} tầng."
+                )
+            else:
+                print("[VAIDB HNSW] Cảnh báo: Cần truyền `--db <file.vaidb>` để lưu đồ thị HNSW bền vững.")
+
+        if not query_arg:
+            return {"hnsw": hnsw_info, "thong_ke": rag.thong_ke()}
+
+        kq = rag.hoi(query_arg)
+        if hnsw_info is not None:
+            kq["hnsw"] = hnsw_info
         print(f"Trả lời: {kq.get('tra_loi', '')}")
         if che_do_hc and kq.get("trich_dan_phap_ly"):
             td = kq["trich_dan_phap_ly"]
@@ -1018,15 +1086,22 @@ def cmd_tokenize(args):
     text = getattr(args, "text", "Trí tuệ nhân tạo và chuyển đổi số tại Việt Nam")
     noi_tu = not getattr(args, "no_compound", False)
     xoa_dau = getattr(args, "unaccent", False)
+    phuong_phap = getattr(args, "method", "max_match")
+    chuan_dau = bool(getattr(args, "normalize_tone", False))
 
     print("=== TÁCH TỪ & CHUẨN HÓA TIẾNG VIỆT (NATIVE FAST TOKENIZER) ===")
     print(f"Văn bản gốc   : {text}")
+    print(f"Phương pháp   : {phuong_phap}")
+
+    if chuan_dau:
+        vb_dau = tok.chuan_hoa_dau_thanh(text)
+        print(f"Chuẩn hóa dấu : {vb_dau}")
 
     if xoa_dau:
         khong_dau = tok.xoa_dau_tieng_viet(text)
         print(f"Không dấu      : {khong_dau}")
 
-    tokens = tok.tach_tu(text, noi_tu_ghep=noi_tu)
+    tokens = tok.tach_tu(text, noi_tu_ghep=noi_tu, phuong_phap=phuong_phap)
     print(f"Số lượng tokens: {len(tokens)}")
     print(f"Tokens kết quả : {tokens}")
 
@@ -1921,6 +1996,18 @@ def cmd_legal_graph(args: Any) -> Any:
         print("  Văn bản sửa đổi, bổ sung:")
         for item in kq["van_ban_sua_doi_bo_sung"]:
             print(f"    - {item['so_hieu']} [{item['trang_thai']}]: {item['ten_van_ban']}")
+    if getattr(args, "dieu", None):
+        pb = do_thi.bo_theo_doi.tra_cuu_dieu_khoan_theo_ngay(
+            so_hieu=args.so_hieu,
+            dieu=str(args.dieu),
+            ngay_tra_cuu=getattr(args, "date", None),
+            khoan=getattr(args, "khoan", None),
+        )
+        kq["phien_ban_dieu_khoan"] = pb
+        print(f"\n--- PHIÊN BẢN ĐIỀU KHOẢN POINT-IN-TIME ({pb['dieu']} @ {pb['ngay_tra_cuu']}) ---")
+        print(f"  Trạng thái: {pb['trang_thai']}")
+        if pb.get("phien_ban_hieu_luc"):
+            print(f"  Nội dung:   {pb['phien_ban_hieu_luc']['noi_dung']}")
     if getattr(args, "mermaid", False):
         mmd = do_thi.xuat_do_thi_mermaid(so_hieu_trung_tam=args.so_hieu)
         kq["mermaid"] = mmd
@@ -1929,8 +2016,35 @@ def cmd_legal_graph(args: Any) -> Any:
     return kq
 
 
+def cmd_legal_ingest(args: Any) -> Any:
+    """Nạp tự động văn bản pháp quy / văn bản hợp nhất thành 1 tệp `.vaidb` HNSW + Point-in-Time (`vai legal-ingest`)."""
+    import json
+
+    from vietnamese_ai.rag.legal.auto_ingest import BoNapVanBanPhapQuyTuDong
+
+    pipeline = BoNapVanBanPhapQuyTuDong(che_do_nhung="onnx_viet")
+    kq = pipeline.dong_goi_kho_vaidb(
+        nguon_dau_vao=args.source,
+        duong_dan_vaidb=args.output,
+        xay_dung_hnsw=not bool(getattr(args, "no_hnsw", False)),
+    )
+    if getattr(args, "json", False):
+        print(json.dumps(kq, ensure_ascii=False, indent=2))
+        return kq
+    print(f"=== ĐÃ ĐÓNG GÓI KHO PHÁP QUY .VAIDB: {kq['duong_dan_vaidb']} ===")
+    print(
+        f"  Tệp đã nạp: {kq['so_tep_da_nap']} | Điều khoản: {kq['tong_dieu_khoan']} | "
+        f"Phiên bản Point-in-Time: {kq['so_phien_ban_point_in_time']} | Quan hệ đồ thị: {kq['so_quan_he_do_thi']}"
+    )
+    if kq.get("hnsw"):
+        print(
+            f"  HNSW bền vững: {kq['hnsw'].get('so_nut', 0)} nút, {kq['hnsw'].get('so_tang', 0)} tầng"
+        )
+    return kq
+
+
 def cmd_contract_review(args: Any) -> Any:
-    """Rà soát rủi ro & so sánh hợp đồng (`vai contract-review <partner> [--template ...] [--output-docx ...]`)."""
+    """Rà soát rủi ro & so sánh hợp đồng (`vai contract-review <partner> [--template ...] [--output-docx ...] [--track-changes-docx ...]`)."""
     from vietnamese_ai.rag.legal.contract_review import BoSoSanhRaSoatHopDong
 
     engine = BoSoSanhRaSoatHopDong()
@@ -1941,6 +2055,12 @@ def cmd_contract_review(args: Any) -> Any:
     )
     md = engine.xuat_bao_cao_markdown(kq)
     print(md)
+    if kq.get("cau_truc_tach_gop"):
+        tk = kq.get("thong_ke_so_sanh", {})
+        print(
+            f"Phát hiện cấu trúc tách/gộp điều khoản: "
+            f"tách={tk.get('tach_dieu_khoan', 0)}, gộp={tk.get('gop_dieu_khoan', 0)}"
+        )
     if getattr(args, "output_md", None):
         out_md = Path(args.output_md)
         out_md.parent.mkdir(parents=True, exist_ok=True)
@@ -1949,6 +2069,10 @@ def cmd_contract_review(args: Any) -> Any:
     if getattr(args, "output_docx", None):
         out_docx = engine.xuat_bao_cao_docx(kq, args.output_docx)
         print(f"Đã xuất báo cáo Word (.docx) tại: {out_docx}")
+    if getattr(args, "track_changes_docx", None):
+        out_tc = engine.xuat_bao_cao_track_changes_docx(kq, args.track_changes_docx)
+        kq["track_changes_docx_path"] = str(out_tc)
+        print(f"Đã xuất Word Track Changes + Comments (.docx) tại: {out_tc}")
     return kq
 
 
@@ -1980,7 +2104,11 @@ def cmd_mcp_server(args: Any) -> Any:
                     except Exception:
                         pass
 
-    server = MayChuMCPThucTe(duong_dan_vaidb=vaidb, quan_ly_plugin=quan_ly_plugin)
+    server = MayChuMCPThucTe(
+        duong_dan_vaidb=vaidb,
+        quan_ly_plugin=quan_ly_plugin,
+        bat_cong_cu_mo_rong=bool(getattr(args, "extended_tools", False)),
+    )
     try:
         if getattr(args, "transport", "stdio") == "sse":
             server.chay_sse(host=getattr(args, "host", "127.0.0.1"), port=int(getattr(args, "port", 8090)))
@@ -2097,13 +2225,16 @@ def cmd_eval_gate(args: Any) -> Any:
     """Chạy Cổng Kiểm Định tự động (`vai eval-gate`)."""
     import json
 
-    from vietnamese_ai.fine_tuning.eval_gate import CongKiemDinhMoHinh
+    from vietnamese_ai.fine_tuning.eval_gate import BO_TAN_CONG_MO_RONG, CongKiemDinhMoHinh
     from vietnamese_ai.solutions.phap_ly import TroLyPhapLy
 
     tro_ly = TroLyPhapLy(nap_kho_mo=True, dung_onnx_semantic=True)
-    gate = CongKiemDinhMoHinh()
+    ban_goc = TroLyPhapLy(nap_kho_mo=True, dung_onnx_semantic=False) if getattr(args, "compare_baseline", False) else None
+    bo_atk = BO_TAN_CONG_MO_RONG if getattr(args, "extended_attacks", False) else None
+    gate = CongKiemDinhMoHinh(bo_tan_cong=bo_atk)
     kq = gate.so_sanh_va_quyet_dinh(
         ung_vien=tro_ly,
+        ban_goc=ban_goc,
         gioi_han_mau=int(getattr(args, "limit", 8)),
         nguong_dat=float(getattr(args, "min_score", 0.55)),
     )
@@ -2114,6 +2245,13 @@ def cmd_eval_gate(args: Any) -> Any:
     print(f"=== CỔNG KIỂM ĐỊNH EVAL GATE [{out['quyet_dinh']}] ===")
     for k, v in out["diem_ung_vien"].items():
         print(f"  {k:<32s}: {v:.4f}")
+    ci = (out.get("chi_tiet_thong_ke") or {}).get("bootstrap_ci_95")
+    if ci:
+        print(
+            f"  Paired Bootstrap 95% CI         : "
+            f"[{ci['ci_duoi']:+.4f}, {ci['ci_tren']:+.4f}] "
+            f"(Δ={ci['chenh_lech_trung_binh']:+.4f}, ý nghĩa={ci['co_y_nghia_thong_ke']})"
+        )
     print(f"  Kết luận: {out['ly_do']}")
     return out
 
@@ -2182,6 +2320,7 @@ def main():
         "demo": lambda: cmd_demo(args),
         "release-check": lambda: cmd_release_check(args),
         "legal-graph": lambda: cmd_legal_graph(args),
+        "legal-ingest": lambda: cmd_legal_ingest(args),
         "contract-review": lambda: cmd_contract_review(args),
         "mcp-server": lambda: cmd_mcp_server(args),
         "connector": lambda: cmd_connector(args),

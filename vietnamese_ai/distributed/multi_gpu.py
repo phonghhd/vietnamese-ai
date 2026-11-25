@@ -42,7 +42,7 @@ class MultiGPUTrainer:
                         {
                             "id": i,
                             "ten": torch.cuda.get_device_name(i),
-                            "bo_nho": torch.cuda.get_device_properties(i).total_mem,
+                            "bo_nho": torch.cuda.get_device_properties(i).total_memory,
                         }
                     )
                 self.logger.info(f"Phát hiện {len(gpu_list)} GPU")

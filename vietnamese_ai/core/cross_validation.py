@@ -30,16 +30,22 @@ class KiemDinhCheo:
         self.seed = seed
         self.logger = Logger("KiemDinhCheo")
 
-    def _chia_fold(self, X: np.ndarray, y: np.ndarray, stratified: bool = True) -> List[tuple]:
-        """Chia dữ liệu thành K fold."""
+    def _chia_fold(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        stratified: bool = True,
+        lan: int = 0,
+    ) -> List[tuple]:
+        """Chia dữ liệu thành K fold với bộ sinh ngẫu nhiên cục bộ độc lập cho từng lần lặp."""
         n = len(X)
         indices = np.arange(n)
 
         if stratified:
-            return self._chia_fold_stratified(indices, y)
+            return self._chia_fold_stratified(indices, y, lan=lan)
 
-        np.random.seed(self.seed)
-        np.random.shuffle(indices)
+        rng = np.random.default_rng(self.seed + lan)
+        rng.shuffle(indices)
         fold_sizes = np.full(self.so_fold, n // self.so_fold)
         fold_sizes[: n % self.so_fold] += 1
 
@@ -53,14 +59,19 @@ class KiemDinhCheo:
 
         return folds
 
-    def _chia_fold_stratified(self, indices: np.ndarray, y: np.ndarray) -> List[tuple]:
-        """Chia fold giữ tỷ lệ lớp (stratified)."""
-        np.random.seed(self.seed)
+    def _chia_fold_stratified(
+        self,
+        indices: np.ndarray,
+        y: np.ndarray,
+        lan: int = 0,
+    ) -> List[tuple]:
+        """Chia fold giữ tỷ lệ lớp (stratified) với bộ sinh ngẫu nhiên độc lập theo lần lặp."""
+        rng = np.random.default_rng(self.seed + lan)
         folds_test: List[List[Any]] = [[] for _ in range(self.so_fold)]
 
         for lop in np.unique(y):
-            lop_idx = indices[y[indices] == lop]
-            np.random.shuffle(lop_idx)
+            lop_idx = indices[y[indices] == lop].copy()
+            rng.shuffle(lop_idx)
             for i, idx in enumerate(lop_idx):
                 folds_test[i % self.so_fold].append(idx)
 
@@ -99,7 +110,7 @@ class KiemDinhCheo:
         tat_ca_diem = []
 
         for lan in range(self.lap_lai):
-            folds = self._chia_fold(X, y, stratified)
+            folds = self._chia_fold(X, y, stratified, lan=lan)
 
             for fold_idx, (train_idx, test_idx) in enumerate(folds):
                 X_train, X_test = X[train_idx], X[test_idx]

@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 
@@ -43,6 +43,130 @@ def _giu_kieu_chu(tu_goc: str, tu_thay_the: str) -> str:
     if tu_goc[0].isupper():
         return tu_thay_the[0].upper() + tu_thay_the[1:]
     return tu_thay_the
+
+
+_BANG_NGUYEN_AM_VIET: Dict[str, Tuple[str, int]] = {
+    "a": ("a", 0), "à": ("a", 1), "á": ("a", 2), "ả": ("a", 3), "ã": ("a", 4), "ạ": ("a", 5),
+    "ă": ("ă", 0), "ằ": ("ă", 1), "ắ": ("ă", 2), "ẳ": ("ă", 3), "ẵ": ("ă", 4), "ặ": ("ă", 5),
+    "â": ("â", 0), "ầ": ("â", 1), "ấ": ("â", 2), "ẩ": ("â", 3), "ẫ": ("â", 4), "ậ": ("â", 5),
+    "e": ("e", 0), "è": ("e", 1), "é": ("e", 2), "ẻ": ("e", 3), "ẽ": ("e", 4), "ẹ": ("e", 5),
+    "ê": ("ê", 0), "ề": ("ê", 1), "ế": ("ê", 2), "ể": ("ê", 3), "ễ": ("ê", 4), "ệ": ("ê", 5),
+    "i": ("i", 0), "ì": ("i", 1), "í": ("i", 2), "ỉ": ("i", 3), "ĩ": ("i", 4), "ị": ("i", 5),
+    "o": ("o", 0), "ò": ("o", 1), "ó": ("o", 2), "ỏ": ("o", 3), "õ": ("o", 4), "ọ": ("o", 5),
+    "ô": ("ô", 0), "ồ": ("ô", 1), "ố": ("ô", 2), "ổ": ("ô", 3), "ỗ": ("ô", 4), "ộ": ("ô", 5),
+    "ơ": ("ơ", 0), "ờ": ("ơ", 1), "ớ": ("ơ", 2), "ở": ("ơ", 3), "ỡ": ("ơ", 4), "ợ": ("ơ", 5),
+    "u": ("u", 0), "ù": ("u", 1), "ú": ("u", 2), "ủ": ("u", 3), "ũ": ("u", 4), "ụ": ("u", 5),
+    "ư": ("ư", 0), "ừ": ("ư", 1), "ứ": ("ư", 2), "ử": ("ư", 3), "ữ": ("ư", 4), "ự": ("ư", 5),
+    "y": ("y", 0), "ỳ": ("y", 1), "ý": ("y", 2), "ỷ": ("y", 3), "ỹ": ("y", 4), "ỵ": ("y", 5),
+}
+
+_GHEP_DAU_VIET: Dict[Tuple[str, int], str] = {v: k for k, v in _BANG_NGUYEN_AM_VIET.items() if v[1] > 0}
+_PHU_AM_VIET: Set[str] = set("bcdđghklmnpqrstvx")
+_NGUYEN_AM_CO_MU: Set[str] = {"ă", "â", "ê", "ô", "ơ", "ư"}
+
+
+def _chuan_hoa_am_tiet_tieng_viet(tu_thuong: str) -> Optional[str]:
+    """Chuẩn hóa vị trí dấu thanh cho 1 âm tiết tiếng Việt theo quy tắc âm vị học hiện đại."""
+    if not tu_thuong or tu_thuong.isascii():
+        return None
+    stripped: List[str] = []
+    la_nguyen_am: List[bool] = []
+    dau = 0
+    so_dau = 0
+
+    for ch in tu_thuong:
+        info = _BANG_NGUYEN_AM_VIET.get(ch)
+        if info is not None:
+            base, t = info
+            stripped.append(base)
+            la_nguyen_am.append(True)
+            if t > 0:
+                dau = t
+                so_dau += 1
+        elif ch in _PHU_AM_VIET:
+            stripped.append(ch)
+            la_nguyen_am.append(False)
+        else:
+            return None
+
+    if so_dau != 1:
+        return None
+
+    n = len(stripped)
+    v_start: Optional[int] = None
+    v_end = 0
+    trong_cum = False
+    so_cum = 0
+    for idx in range(n):
+        if la_nguyen_am[idx]:
+            if not trong_cum:
+                so_cum += 1
+                if so_cum > 1:
+                    return None
+                v_start = idx
+                trong_cum = True
+            v_end = idx + 1
+        else:
+            trong_cum = False
+
+    if v_start is None:
+        return None
+    start = v_start
+    if start == 1 and stripped[0] == "q" and stripped[1] == "u" and v_end - start >= 2:
+        start = 2
+    elif start == 1 and stripped[0] == "g" and stripped[1] == "i" and v_end - start >= 2:
+        start = 2
+
+    v_len = v_end - start
+    if v_len == 0 or v_len > 3:
+        return None
+
+    nucleus = stripped[start:v_end]
+    co_am_cuoi = v_end < n
+
+    last_marked: Optional[int] = None
+    for rel, ch in enumerate(nucleus):
+        if ch in _NGUYEN_AM_CO_MU:
+            last_marked = rel
+
+    if last_marked is not None:
+        target_rel = last_marked
+    elif v_len == 1:
+        target_rel = 0
+    elif v_len == 3:
+        target_rel = 1
+    elif co_am_cuoi:
+        target_rel = 1
+    else:
+        target_rel = 0
+
+    vi_tri_dat = start + target_rel
+    stripped[vi_tri_dat] = _GHEP_DAU_VIET.get((stripped[vi_tri_dat], dau), stripped[vi_tri_dat])
+    ung_vien = "".join(stripped)
+    return None if ung_vien == tu_thuong else ung_vien
+
+
+def _chuan_hoa_dau_van_ban_py(van_ban: str) -> str:
+    """Chuẩn hóa dấu thanh âm vị học trên toàn bộ chuỗi văn bản (thuần Python, đồng nhất với Rust)."""
+    if not van_ban or van_ban.isascii():
+        return van_ban
+    ket_qua: List[str] = []
+    cur: List[str] = []
+    for ch in van_ban:
+        if ch.isalpha():
+            cur.append(ch)
+        else:
+            if cur:
+                tu = "".join(cur)
+                norm = _chuan_hoa_am_tiet_tieng_viet(tu.lower())
+                ket_qua.append(_giu_kieu_chu(tu, norm) if norm is not None else tu)
+                cur.clear()
+            ket_qua.append(ch)
+    if cur:
+        tu = "".join(cur)
+        norm = _chuan_hoa_am_tiet_tieng_viet(tu.lower())
+        ket_qua.append(_giu_kieu_chu(tu, norm) if norm is not None else tu)
+    return "".join(ket_qua)
 
 
 class BoTachTuTiengVietSieuToc:
@@ -307,6 +431,7 @@ class BoTachTuTiengVietSieuToc:
 
         self._tu_dien_theo_do_dai: Dict[int, Set[str]] = {}
         self._trie_tu_ghep: Dict[str, Any] = {}
+        self._trong_so_don_am: Dict[str, float] = {}
         self._max_word_len = 1
         for w in self._tu_dien:
             do_dai = len(w.split())
@@ -351,9 +476,13 @@ class BoTachTuTiengVietSieuToc:
         """Cho biết bộ tách từ có đang kích hoạt backend `underthesea` hay không."""
         return self._underthesea_tokenize is not None
 
-    def _chen_trie(self, cum_tu: str) -> None:
-        """Chèn từ ghép vào cây tiền tố (Prefix Trie) để khớp O(k) không cấp phát chuỗi tạm."""
+    def _chen_trie(self, cum_tu: str, trong_so: Optional[float] = None) -> None:
+        """Chèn từ ghép vào cây tiền tố (Prefix Trie) để khớp O(k) và lưu trọng số cho Viterbi DAG."""
         parts = cum_tu.split()
+        if len(parts) == 1:
+            if trong_so is not None:
+                self._trong_so_don_am[parts[0]] = float(trong_so)
+            return
         if len(parts) < 2:
             return
         node = self._trie_tu_ghep
@@ -363,11 +492,37 @@ class BoTachTuTiengVietSieuToc:
                 nxt = {}
                 node[p] = nxt
             node = nxt
-        node["\0"] = True
+        if trong_so is not None:
+            node["\0"] = float(trong_so)
+        elif "\0" not in node:
+            node["\0"] = float(len(parts)) * 2.2 + 0.5
+
+    def dat_trong_so_tu(self, trong_so: Dict[str, float]) -> None:
+        """Thiết lập trọng số log-xác suất tùy biến cho từ đơn/từ ghép dùng trong giải mã Viterbi Word Lattice."""
+        sach: Dict[str, float] = {}
+        for tu, diem in trong_so.items():
+            t = tu.strip().lower()
+            if not t:
+                continue
+            val = float(diem)
+            sach[t] = val
+            so_tieng = len(t.split())
+            if so_tieng >= 2:
+                self._tu_dien.add(t)
+                self._tu_dien_theo_do_dai.setdefault(so_tieng, set()).add(t)
+                if so_tieng > self._max_word_len:
+                    self._max_word_len = so_tieng
+            self._chen_trie(t, trong_so=val)
+        if sach and self._rust_tokenizer is not None and hasattr(self._rust_tokenizer, "set_word_weights"):
+            try:
+                self._rust_tokenizer.set_word_weights(sach)
+            except Exception:
+                pass
 
     def them_tu_dien(self, ds_tu: List[str]) -> None:
-        """Bổ sung thêm danh sách từ ghép vào từ điển phân tầng độ dài và cây tiền tố Trie."""
+        """Bổ sung thêm danh sách từ ghép vào từ điển phân tầng độ dài, cây tiền tố Trie và bảng từ vựng."""
         ds_sach: List[str] = []
+        next_id = max(self._id_to_vocab.keys(), default=len(self.SPECIAL_TOKENS) - 1) + 1
         for tu in ds_tu:
             t = tu.strip().lower()
             if t:
@@ -377,6 +532,13 @@ class BoTachTuTiengVietSieuToc:
                 if so_tieng > self._max_word_len:
                     self._max_word_len = so_tieng
                 self._chen_trie(t)
+                if t not in self._vocab:
+                    while next_id in self._id_to_vocab:
+                        next_id += 1
+                    self._vocab[t] = next_id
+                    self._vocab[t.replace(" ", "_")] = next_id
+                    self._id_to_vocab[next_id] = t
+                    next_id += 1
                 ds_sach.append(t)
         if ds_sach and self._rust_tokenizer is not None:
             try:
@@ -397,20 +559,20 @@ class BoTachTuTiengVietSieuToc:
             except Exception:
                 pass
         vb = van_ban if van_ban.isascii() else unicodedata.normalize("NFC", van_ban)
+        vb = re.sub(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\u00ad]+", "", vb)
         return self._re_spaces.sub(" ", vb).strip()
 
     def chuan_hoa_dau_thanh(self, van_ban: str) -> str:
-        """Chuẩn hóa vị trí dấu thanh tiếng Việt về dạng chuẩn hiện đại và bảo toàn kiểu chữ hoa/thường."""
+        """Chuẩn hóa vị trí dấu thanh tiếng Việt theo quy tắc âm vị học hiện đại (FST) và bảo toàn kiểu chữ hoa/thường."""
         vb = self.chuan_hoa_unicode(van_ban)
-        if not vb or self._re_dau_cu_nhanh.search(vb) is None:
+        if not vb or vb.isascii():
             return vb
-
-        def _thay_the(match: re.Match[str]) -> str:
-            goc = match.group(0)
-            thay = self.BANG_CHUAN_HOA_DAU.get(goc.lower(), goc)
-            return _giu_kieu_chu(goc, thay)
-
-        return self._re_dau_thanh.sub(_thay_the, vb)
+        if _rust_core is not None and hasattr(_rust_core, "fast_normalize_vietnamese_tone"):
+            try:
+                return str(_rust_core.fast_normalize_vietnamese_tone(vb))
+            except Exception:
+                pass
+        return _chuan_hoa_dau_van_ban_py(vb)
 
     def xoa_dau_tieng_viet(self, van_ban: str) -> str:
         """Chuyển đổi tiếng Việt có dấu sang không dấu siêu nhanh (Unaccented / Slugify)."""
@@ -421,27 +583,121 @@ class BoTachTuTiengVietSieuToc:
         vb = vb.replace("đ", "d").replace("Đ", "D")
         return unicodedata.normalize("NFC", vb)
 
-    def tach_tu(
+    def tach_tu_viterbi(
         self,
         van_ban: str,
         noi_tu_ghep: bool = False,
         ky_tu_noi: str = "_",
         chuan_hoa_dau: bool = True,
     ) -> List[str]:
+        """Tách từ tiếng Việt tối ưu toàn cục trên đồ thị lưới từ (Word Lattice DAG) bằng quy hoạch động Viterbi."""
+        if not van_ban:
+            return []
+        if (
+            self._underthesea_tokenize is None
+            and _rust_core is not None
+            and self._rust_tokenizer is not None
+            and hasattr(self._rust_tokenizer, "segment_viterbi")
+        ):
+            try:
+                vb_nfc = (
+                    van_ban
+                    if (van_ban.isascii() or unicodedata.is_normalized("NFC", van_ban))
+                    else unicodedata.normalize("NFC", van_ban)
+                )
+                return list(
+                    self._rust_tokenizer.segment_viterbi(
+                        vb_nfc, noi_tu_ghep, ky_tu_noi, chuan_hoa_dau
+                    )
+                )
+            except Exception:
+                pass
+
+        vb_sach = self.chuan_hoa_dau_thanh(van_ban) if chuan_hoa_dau else self.chuan_hoa_unicode(van_ban)
+        van_ban_phan_tich = self._re_punct.sub(r" \1 ", vb_sach)
+        cac_tieng = van_ban_phan_tich.split()
+        n = len(cac_tieng)
+        if n == 0:
+            return []
+        cac_tieng_thuong = [t.lower() for t in cac_tieng]
+
+        neg_inf = float("-inf")
+        dp: List[float] = [neg_inf] * (n + 1)
+        back: List[int] = [0] * (n + 1)
+        dp[0] = 0.0
+        trie = self._trie_tu_ghep
+        uni_weights = self._trong_so_don_am
+
+        for i in range(n):
+            if dp[i] == neg_inf:
+                continue
+            cand_uni = dp[i] + uni_weights.get(cac_tieng_thuong[i], 0.0)
+            if cand_uni > dp[i + 1]:
+                dp[i + 1] = cand_uni
+                back[i + 1] = i
+
+            node = trie.get(cac_tieng_thuong[i])
+            j = i + 1
+            while node is not None and j < n:
+                nxt = node.get(cac_tieng_thuong[j])
+                if nxt is None:
+                    break
+                node = nxt
+                j += 1
+                if "\0" in node:
+                    cand = dp[i] + float(node["\0"])
+                    if cand > dp[j]:
+                        dp[j] = cand
+                        back[j] = i
+
+        spans: List[Tuple[int, int]] = []
+        pos = n
+        while pos > 0:
+            prev = back[pos]
+            spans.append((prev, pos))
+            pos = prev
+        spans.reverse()
+
+        joiner = ky_tu_noi if noi_tu_ghep else " "
+        ket_qua: List[str] = []
+        for s, e in spans:
+            if e > s + 1:
+                ket_qua.append(joiner.join(cac_tieng[s:e]))
+            else:
+                ket_qua.append(cac_tieng[s])
+        return ket_qua
+
+    def tach_tu(
+        self,
+        van_ban: str,
+        noi_tu_ghep: bool = False,
+        ky_tu_noi: str = "_",
+        chuan_hoa_dau: bool = True,
+        phuong_phap: str = "max_match",
+    ) -> List[str]:
         """
-        Tách từ tiếng Việt chuyên sâu theo thuật toán Maximum Matching (hoặc `underthesea` nếu được bật).
+        Tách từ tiếng Việt chuyên sâu theo thuật toán Maximum Matching hoặc Viterbi DAG (hoặc `underthesea` nếu được bật).
 
         Tham số:
             van_ban: Chuỗi văn bản tiếng Việt cần tách.
             noi_tu_ghep: Nếu True, từ ghép sẽ được nối lại bằng `ky_tu_noi` (vd: `trí_tuệ_nhân_tạo`).
             ky_tu_noi: Ký tự dùng để nối từ ghép (mặc định là `_`).
             chuan_hoa_dau: Tự động chuẩn hóa dấu thanh và Unicode trước khi tách.
+            phuong_phap: Chiến lược tách từ (`"max_match"` mặc định hoặc `"viterbi"` tối ưu toàn cục trên đồ thị từ).
 
         Trả về:
             Danh sách các token từ đơn và từ ghép.
         """
         if not van_ban:
             return []
+
+        if phuong_phap.strip().lower() == "viterbi":
+            return self.tach_tu_viterbi(
+                van_ban,
+                noi_tu_ghep=noi_tu_ghep,
+                ky_tu_noi=ky_tu_noi,
+                chuan_hoa_dau=chuan_hoa_dau,
+            )
 
         if (
             self._underthesea_tokenize is None

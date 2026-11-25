@@ -92,7 +92,7 @@ class QdrantVectorStore:
 
         qdrant_filter = None
         if bo_loc:
-            conditions = []
+            conditions: List[Any] = []
             for k, v in bo_loc.items():
                 conditions.append(FieldCondition(key=k, match=MatchValue(value=v)))
             qdrant_filter = Filter(must=conditions)

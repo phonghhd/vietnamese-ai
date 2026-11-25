@@ -215,10 +215,17 @@ Hoặc tra cứu tức thì trên dòng lệnh CLI:
 
 ```bash
 vai legal-graph 45/2013/QH13 --active-only --mermaid
-vai rag --db kho_luat.vaidb --docs thu_muc_luat/ --admin --semantic-onnx --query "lộ dữ liệu cá nhân báo ai?"
-# Lần truy vấn sau mở thẳng .vaidb không cần nạp lại --docs:
+vai legal-graph 123/2020/NĐ-CP --dieu "Điều 19" --date 2025-07-01
+vai rag --db kho_luat.vaidb --docs thu_muc_luat/ --admin --semantic-onnx --build-hnsw --query "lộ dữ liệu cá nhân báo ai?"
+# Lần truy vấn sau mở thẳng .vaidb (tự nạp lại đồ thị HNSW bền vững) không cần nạp lại --docs:
 vai rag --db kho_luat.vaidb --admin --semantic-onnx --query "lộ dữ liệu cá nhân báo ai?"
 ```
+
+### Tra Cứu Phiên Bản Điều/Khoản Theo Mốc Ngày (Point-in-Time) & Chỉ Mục HNSW Bền Vững
+
+- **Phiên bản Điều/Khoản theo ngày (`PhienBanDieuKhoan`)**: `BoTheoDoiHieuLucPhapLy.tra_cuu_dieu_khoan_theo_ngay(so_hieu, dieu, ngay_tra_cuu, khoan)` và `TroLyPhapLy.tra_cuu(cau_hoi, ngay_tra_cuu="2025-07-01")` trả về đúng phiên bản quy định có hiệu lực tại ngày quá khứ hoặc hiện hành (ví dụ Điều 9 & Điều 19 Nghị định `123/2020/NĐ-CP` trước và sau `01/06/2025` khi Nghị định `70/2025/NĐ-CP` sửa đổi).
+- **Chỉ mục HNSW bền vững trong `.vaidb`**: `KhoTriThucVAIDB.xay_dung_chi_muc_hnsw(m=12, ef_construction=64, ef_search=48)` lưu đồ thị đa tầng vào 2 bảng SQLite (`vai_hnsw_meta`, `vai_hnsw_nodes`), tự nạp lại khi mở tệp và hỗ trợ lọc metadata trước khi trả kết quả (`bo_loc={"nhom": "..."}`).
+- **Pipeline Nạp Tự Động Văn Bản Pháp Quy / Văn Bản Hợp Nhất (`BoNapVanBanPhapQuyTuDong` / `vai legal-ingest`)**: tự động bóc tách số hiệu, ngày hiệu lực, cước chú hợp nhất `[N]` → sinh chuỗi `PhienBanDieuKhoan` Point-in-Time + cạnh `QuanHePhapLy`, dựng sẵn HNSW vào 1 tệp `.vaidb` và tự phục hồi khi mở bằng `TroLyPhapLy(duong_dan_vaidb=...)`. Kết hợp cùng Cross-Encoder Reranker `che_do_rerank="bge_reranker"` / `"phoranker"` (`BoSapXepLaiONNXTiengViet`).
 
 ---
 

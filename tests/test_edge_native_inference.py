@@ -55,10 +55,10 @@ def test_bo_giai_luong_tu_q4_va_q8():
 
     dequant_q4 = BoGiaiLuongTuQ4.giai_q4_0(raw_q4, so_phan_tu=32)
     assert len(dequant_q4) == 32
-    # low nibbles (index chẵn) = (8 - 8) * 2.0 = 0.0
     assert abs(dequant_q4[0] - 0.0) < 1e-4
-    # high nibbles (index lẻ) = (5 - 8) * 2.0 = -6.0
-    assert abs(dequant_q4[1] - (-6.0)) < 1e-4
+    assert abs(dequant_q4[15] - 0.0) < 1e-4
+    assert abs(dequant_q4[16] - (-6.0)) < 1e-4
+    assert abs(dequant_q4[31] - (-6.0)) < 1e-4
 
     # 3. Kiểm tra F16
     f16_arr = np.array([1.5, -2.5, 3.0], dtype=np.float16)
@@ -194,7 +194,7 @@ def test_goi_doc_lap_desktop_packager(tmp_path: Path):
     # 4. Kiểm tra file cấu hình JSON
     cfg_data = json.loads(cfg_file.read_text(encoding="utf-8"))
     assert cfg_data["app_name"] == "Vietnamese AI Desktop"
-    assert cfg_data["version"] in ("31.0.0", "31.0.2", "31.0.3")
+    assert cfg_data["version"] in ("31.0.0", "31.0.2", "31.0.3", "31.0.4")
     assert cfg_data["offline_only"] is True
 
 

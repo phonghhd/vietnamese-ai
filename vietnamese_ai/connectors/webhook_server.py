@@ -10,6 +10,8 @@ from vietnamese_ai.connectors.telegram_bot import KetNoiTelegram
 from vietnamese_ai.connectors.zalo_oa import KetNoiZaloOA
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
+MAX_WEBHOOK_BODY_BYTES = 4 * 1024 * 1024
+
 
 @gan_nhan_tinh_nang(
     trang_thai=TrangThaiTinhNang.CORE,
@@ -68,7 +70,18 @@ class MayChuWebhookKenh:
 
             def do_POST(self) -> None:
                 path = self.path.split("?")[0]
-                length = int(self.headers.get("Content-Length", 0))
+                raw_len = self.headers.get("Content-Length", "0")
+                try:
+                    length = int(raw_len)
+                except (TypeError, ValueError):
+                    self._gui_json({"thanh_cong": False, "loi": "Content-Length không hợp lệ."}, status=400)
+                    return
+                if length < 0 or length > MAX_WEBHOOK_BODY_BYTES:
+                    self._gui_json(
+                        {"thanh_cong": False, "loi": "Kích thước gói tin Webhook vượt giới hạn cho phép."},
+                        status=413 if length > MAX_WEBHOOK_BODY_BYTES else 400,
+                    )
+                    return
                 raw = self.rfile.read(length) if length > 0 else b"{}"
 
                 if path == "/webhook/zalo":

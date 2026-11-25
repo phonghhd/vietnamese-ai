@@ -52,7 +52,8 @@ class BoNhungVanBan:
 
             model = SentenceTransformer(self.ten_model)
             self._model = model
-            dim = int(model.get_sentence_embedding_dimension())
+            dim_raw = model.get_sentence_embedding_dimension()
+            dim = int(dim_raw) if dim_raw is not None else self.kich_thuoc
             self.kich_thuoc = dim
             self._che_do = "sentence_transformers"
             self.logger.info(f"Đã tải sentence-transformers: {self.ten_model} ({dim} chiều)")

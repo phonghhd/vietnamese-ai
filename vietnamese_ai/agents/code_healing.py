@@ -58,22 +58,27 @@ class _KiemTraASTAnToan:
     }
 
     def kiem_tra(self, code: str) -> Tuple[bool, str]:
-        """Phân tích AST để phát hiện import độc hại, hàm thực thi động hoặc truy cập dunder."""
+        """Phân tích AST để phát hiện import độc hại, hàm thực thi động, truy cập dunder hoặc frame escape."""
+        from vietnamese_ai.sandbox.ast_analyzer import _RE_FORMAT_ESCAPE, ASTKhachViengTham
+
+        goi_cam = self.CAC_GOI_NGUY_HIEM | ASTKhachViengTham.MODULE_CAM
+        ham_cam = self.CAC_HAM_NGUY_HIEM | ASTKhachViengTham.HAM_CAM
+        thuoc_tinh_cam = ASTKhachViengTham.THUOC_TINH_CAM
         try:
             tree = ast.parse(code)
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
                     for name in node.names:
                         base_mod = name.name.split(".")[0]
-                        if base_mod in self.CAC_GOI_NGUY_HIEM:
+                        if base_mod in goi_cam:
                             return False, f"Bảo mật chặn import nguy hiểm '{name.name}'"
                 elif isinstance(node, ast.ImportFrom):
                     if node.module:
                         base_mod = node.module.split(".")[0]
-                        if base_mod in self.CAC_GOI_NGUY_HIEM:
+                        if base_mod in goi_cam:
                             return False, f"Bảo mật chặn import nguy hiểm '{node.module}'"
                 elif isinstance(node, ast.Call):
-                    if isinstance(node.func, ast.Name) and node.func.id in self.CAC_HAM_NGUY_HIEM:
+                    if isinstance(node.func, ast.Name) and node.func.id in ham_cam:
                         return False, f"Bảo mật chặn hàm thực thi động '{node.func.id}'"
                     elif isinstance(node.func, ast.Attribute):
                         if node.func.attr in ("system", "popen", "spawn"):
@@ -87,6 +92,20 @@ class _KiemTraASTAnToan:
                                 False,
                                 f"Bảo mật chặn truy cập thuộc tính hệ thống '{node.func.attr}'",
                             )
+                        if node.func.attr in thuoc_tinh_cam:
+                            return (
+                                False,
+                                f"Bảo mật chặn truy cập thuộc tính nội bộ '{node.func.attr}'",
+                            )
+                        if node.func.attr in ("format", "format_map"):
+                            if isinstance(node.func.value, ast.Constant) and isinstance(
+                                node.func.value.value, str
+                            ):
+                                if _RE_FORMAT_ESCAPE.search(node.func.value.value):
+                                    return (
+                                        False,
+                                        "Bảo mật chặn chuỗi định dạng truy cập thuộc tính nội bộ.",
+                                    )
                 elif isinstance(node, ast.Attribute):
                     if (
                         node.attr.startswith("__")
@@ -94,6 +113,8 @@ class _KiemTraASTAnToan:
                         and node.attr != "__init__"
                     ):
                         return False, f"Bảo mật chặn truy cập thuộc tính hệ thống '{node.attr}'"
+                    if node.attr in thuoc_tinh_cam:
+                        return False, f"Bảo mật chặn truy cập thuộc tính nội bộ '{node.attr}'"
             return True, ""
         except SyntaxError as e:
             return False, f"Lỗi cú pháp (SyntaxError): {e}"

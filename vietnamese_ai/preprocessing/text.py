@@ -149,7 +149,7 @@ class XuLyVanBan:
         self.tu_dung = tu_dung or self.TU_DUNG_TIENG_VIET
         self._tu_dien: Dict[str, int] = {}
         self._idf: Optional[np.ndarray] = None
-        self._su_dung_underthesea = su_dung_underthesea and _CO_UNDERTHESEA
+        self._su_dung_underthesea = su_dung_underthesea and _CO_UNDERTHESEA and not dung_native_tokenizer
         self.dung_native_tokenizer = dung_native_tokenizer
         if self.dung_native_tokenizer:
             from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc

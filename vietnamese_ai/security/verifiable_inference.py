@@ -545,5 +545,106 @@ class XacThucSuyLuanMaoHiem:
         return lhs == rhs
 
 
+class KiemChungFreivalds:
+    """
+    Bộ Kiểm Chứng Phép Nhân Ma Trận Xác Suất Freivalds (Probabilistic O(n^2) Linear Layer Verifier).
+
+    Kiểm chứng đầu ra tầng tuyến tính `Y = X @ W + b` mà không cần tính lại toàn bộ `X @ W` tốn O(n^3):
+    sinh `t` vector Rademacher ngẫu nhiên `r ∈ {-1, +1}^n` và đối chiếu `X @ (W @ r) + b^T r ≈ Y @ r`.
+    Xác suất bỏ lọt gian lận bị chặn trên bởi `2^{-t}` (với `t=16`, xác suất bỏ lọt < 1.5e-5).
+    """
+
+    @staticmethod
+    def _sinh_ma_tran_rademacher(n_out: int, so_vong: int, seed: Optional[int] = None) -> np.ndarray:
+        """Sinh ma trận thăm dò Rademacher `{-1, +1}` kích thước `(n_out, so_vong)` bằng CSPRNG hoặc seed xác định."""
+        if seed is not None:
+            rng = np.random.default_rng(int(seed))
+            bits = rng.integers(0, 2, size=(n_out, so_vong), dtype=np.int8)
+            return (bits * 2 - 1).astype(np.float64)
+        tong_bits = n_out * so_vong
+        raw = secrets.token_bytes((tong_bits + 7) // 8)
+        arr_bits = np.unpackbits(np.frombuffer(raw, dtype=np.uint8))[:tong_bits]
+        return (arr_bits.reshape(n_out, so_vong).astype(np.float64) * 2.0 - 1.0)
+
+    @classmethod
+    def xac_minh_nhan_ma_tran(
+        cls,
+        x: np.ndarray,
+        w: np.ndarray,
+        y: np.ndarray,
+        b: Optional[np.ndarray] = None,
+        so_vong: int = 16,
+        rtol: float = 2e-5,
+        atol: float = 1e-3,
+        seed: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Kiểm chứng xác suất `Y ≈ X @ W + b` trong thời gian O(t * n^2) và trả về báo cáo kiểm toán chi tiết."""
+        t0 = time.perf_counter()
+        use_f32 = (
+            np.asarray(x).dtype == np.float32
+            and np.asarray(w).dtype == np.float32
+            and np.asarray(y).dtype == np.float32
+        )
+        calc_dtype: Any = np.float32 if use_f32 else np.float64
+        x_2d: np.ndarray = np.asarray(x, dtype=calc_dtype)
+        w_2d: np.ndarray = np.asarray(w, dtype=calc_dtype)
+        y_2d: np.ndarray = np.asarray(y, dtype=calc_dtype)
+        if x_2d.ndim == 1:
+            x_2d = x_2d.reshape(1, -1)
+        if y_2d.ndim == 1:
+            y_2d = y_2d.reshape(1, -1)
+
+        if w_2d.ndim != 2 or x_2d.shape[1] != w_2d.shape[0] or y_2d.shape != (x_2d.shape[0], w_2d.shape[1]):
+            return {
+                "hop_le": False,
+                "ly_do": "Kích thước ma trận X, W, Y không tương thích cho kiểm chứng Freivalds",
+                "so_vong": int(so_vong),
+                "sai_so_toi_da": float("inf"),
+                "nguong_cho_phep": float(atol),
+                "xac_suat_bo_lot_toi_da": 1.0,
+                "thoi_gian_ms": round((time.perf_counter() - t0) * 1000.0, 4),
+            }
+
+        t_rounds = max(1, int(so_vong))
+        r_mat = cls._sinh_ma_tran_rademacher(w_2d.shape[1], t_rounds, seed=seed).astype(calc_dtype, copy=False)
+        wr = w_2d @ r_mat
+        lhs: np.ndarray = x_2d @ wr
+        if b is not None:
+            b_vec = np.asarray(b, dtype=calc_dtype).reshape(1, -1)
+            if b_vec.shape[1] == w_2d.shape[1]:
+                lhs = lhs + (b_vec @ r_mat)
+        rhs = y_2d @ r_mat
+
+        diff = np.abs(lhs.astype(np.float64) - rhs.astype(np.float64))
+        sai_so_toi_da = float(np.max(diff)) if diff.size > 0 else 0.0
+        scale_ref = float(
+            max(
+                np.max(np.abs(lhs)) if lhs.size > 0 else 0.0,
+                np.max(np.abs(rhs)) if rhs.size > 0 else 0.0,
+            )
+        )
+        nguong = float(atol + rtol * scale_ref)
+        hop_le = bool(np.all(np.isfinite(diff)) and sai_so_toi_da <= nguong)
+
+        return {
+            "hop_le": hop_le,
+            "so_vong": t_rounds,
+            "sai_so_toi_da": round(sai_so_toi_da, 8),
+            "nguong_cho_phep": round(nguong, 8),
+            "xac_suat_bo_lot_toi_da": float(2.0 ** (-t_rounds)),
+            "thoi_gian_ms": round((time.perf_counter() - t0) * 1000.0, 4),
+        }
+
+
 VerifiableInference = XacThucSuyLuanMaoHiem
 InferenceMerkleTree = CayMerkleSuyLuan
+FreivaldsVerifier = KiemChungFreivalds
+
+__all__ = [
+    "CayMerkleSuyLuan",
+    "InferenceMerkleTree",
+    "XacThucSuyLuanMaoHiem",
+    "VerifiableInference",
+    "KiemChungFreivalds",
+    "FreivaldsVerifier",
+]

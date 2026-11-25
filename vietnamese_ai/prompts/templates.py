@@ -33,7 +33,7 @@ class MauPrompt:
 
     def render(self, **kwargs: Any) -> str:
         """
-        Render template với các biến.
+        Render template với các biến an toàn một lượt (không lỗi ký tự escape hay thay thế vòng hai).
 
         Args:
             **kwargs: Giá trị cho các biến
@@ -41,22 +41,19 @@ class MauPrompt:
         Returns:
             Prompt đã render
         """
-        ket_qua = self.mau
-
-        # Gộp default values
         gia_tri = {**self.bien_mac_dinh, **kwargs}
-
-        for bien, gia_tri_val in gia_tri.items():
-            pattern = r"\{\{\s*" + re.escape(bien) + r"\s*\}\}"
-            ket_qua = re.sub(pattern, str(gia_tri_val), ket_qua)
-
-        # Kiểm tra biến chưa được điền
-        chua_dien = self._trich_bien(ket_qua)
+        chua_dien = self._bien - set(gia_tri.keys())
         if chua_dien:
-            missing = ", ".join(chua_dien)
+            missing = ", ".join(sorted(chua_dien))
             raise ValueError(f"Chưa điền giá trị cho biến: {missing}")
 
-        return ket_qua
+        def _thay_bien(match: re.Match) -> str:
+            ten_bien = match.group(1)
+            if ten_bien in gia_tri:
+                return str(gia_tri[ten_bien])
+            return match.group(0)
+
+        return re.sub(r"\{\{\s*(\w+)\s*\}\}", _thay_bien, self.mau)
 
     def danh_sach_bien(self) -> List[str]:
         """Danh sách biến trong template."""

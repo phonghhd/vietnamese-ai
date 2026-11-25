@@ -66,7 +66,7 @@ class MangSau(BaseModel):
 
     def _tao_model_pytorch(self, kich_thuoc_dau_vao: int, so_lop: int) -> Any:
         """Tạo mô hình PyTorch."""
-        layers = []
+        layers: List[Any] = []
         prev_size = kich_thuoc_dau_vao
 
         for size in self.lop_an:

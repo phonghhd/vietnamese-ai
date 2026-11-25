@@ -12,7 +12,7 @@ Tự động đọc `.docx`, `.pdf`, `.txt`, so sánh từng điều khoản gi�
 - Miễn trừ trách nhiệm một chiều, bồi thường không giới hạn, chấm dứt không cần báo trước, tự động gia hạn ẩn.
 - Thiếu điều khoản bắt buộc (đối tượng, thanh toán, bảo mật dữ liệu, bất khả kháng, giải quyết tranh chấp).
 - Viện dẫn văn bản pháp luật **hết hiệu lực / đã sửa đổi** (`BoTheoDoiHieuLucPhapLy` + `DoThiThamChieuPhapLy`).
-- Xuất trực tiếp báo cáo Redline định dạng **Markdown (`.md`)** và **Microsoft Word (`.docx`)**.
+- **Phát hiện tách/gộp điều khoản** (1 điều mẫu bị đối tác tách thành 2 điều hoặc ngược lại) và xuất trực tiếp báo cáo Redline định dạng **Markdown (`.md`)**, **Word (`.docx`)** hoặc **Word Track Changes + Comments chuẩn OOXML** (`<w:del>`, `<w:ins>`, `word/comments.xml`).
 
 ### Chạy qua CLI
 
@@ -20,7 +20,8 @@ Tự động đọc `.docx`, `.pdf`, `.txt`, so sánh từng điều khoản gi�
 vai contract-review hop_dong_doi_tac.docx \
   --template hop_dong_chuan.docx \
   --output-md bao_cao_ra_soat.md \
-  --output-docx bao_cao_redline.docx
+  --output-docx bao_cao_redline.docx \
+  --track-changes-docx hop_dong_track_changes.docx
 ```
 
 ### Chạy qua Python API
@@ -35,6 +36,7 @@ kq = engine.so_sanh_va_ra_soat(
 )
 print("Điểm an toàn:", kq["diem_an_toan_phap_ly"], "| Rủi ro:", kq["xep_loai_rui_ro"])
 engine.xuat_bao_cao_docx(kq, "bao_cao_redline.docx")
+engine.xuat_bao_cao_track_changes_docx(kq, "hop_dong_track_changes.docx")
 ```
 
 ---
@@ -83,11 +85,11 @@ vai mcp-server --print-config cursor --vaidb tri_thuc_cong_ty.vaidb
 vai mcp-server --print-config claude
 vai mcp-server --print-config vscode
 
-# Chạy giao vận stdio kèm tự nạp V-Plugin 2.0 (cho Cursor / Claude Desktop)
-vai mcp-server --transport stdio --vaidb tri_thuc_cong_ty.vaidb --plugin-dir ./plugins
+# Chạy giao vận stdio kèm tự nạp V-Plugin 2.0 và bật 3 công cụ mở rộng (Point-in-Time Điều luật, Viterbi NLP, HNSW .vaidb)
+vai mcp-server --transport stdio --vaidb tri_thuc_cong_ty.vaidb --plugin-dir ./plugins --extended-tools
 
 # Hoặc chạy giao vận HTTP + SSE (cho Open WebUI / mạng nội bộ)
-vai mcp-server --transport sse --host 127.0.0.1 --port 8090 --plugin-dir ./plugins
+vai mcp-server --transport sse --host 127.0.0.1 --port 8090 --plugin-dir ./plugins --extended-tools
 ```
 
 ---

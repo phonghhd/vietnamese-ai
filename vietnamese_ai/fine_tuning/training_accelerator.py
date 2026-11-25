@@ -104,6 +104,7 @@ class BoGopChuoi:
                 b["input_ids"].extend(seg_in)
                 b["labels"].extend(seg_lbl)
                 b["doc_ids"].extend([doc_id] * seg_len)
+                b["position_ids"].extend(range(seg_len))
                 b["next_doc_id"] = doc_id + 1
             else:
                 bins.append(
@@ -111,6 +112,7 @@ class BoGopChuoi:
                         "input_ids": list(seg_in),
                         "labels": list(seg_lbl),
                         "doc_ids": [0] * seg_len,
+                        "position_ids": list(range(seg_len)),
                         "next_doc_id": 1,
                     }
                 )
@@ -127,6 +129,7 @@ class BoGopChuoi:
                     "input_ids": b["input_ids"],
                     "labels": b["labels"],
                     "doc_ids": b["doc_ids"],
+                    "position_ids": b["position_ids"],
                     "so_mau_trong_chuoi": b["next_doc_id"],
                     "attention_mask_2d": mask_2d,
                 }
@@ -177,7 +180,9 @@ class BoGopChuoi:
                 lbl_clean = lbl_clean[:L]
 
             if in_clean:
-                valid_items.append((in_clean, lbl_clean, mau.get("attention_mask_2d")))
+                raw_pos = mau.get("position_ids")
+                pos_clean = [int(p) for p in raw_pos[: len(in_clean)]] if raw_pos is not None else list(range(len(in_clean)))
+                valid_items.append((in_clean, lbl_clean, mau.get("attention_mask_2d"), pos_clean))
 
         if not valid_items:
             return None
@@ -186,15 +191,17 @@ class BoGopChuoi:
         T_max = max(len(item[0]) for item in valid_items)
         in_batch = np.full((B, T_max), pad_token_id, dtype=int)
         lbl_batch = np.full((B, T_max), -100, dtype=int)
+        pos_batch = np.zeros((B, T_max), dtype=int)
         mask_batch = np.zeros((B, T_max, T_max), dtype=bool)
         # Đặt đường chéo bằng True để tránh chia 0 trong softmax tại các vị trí padding (-100 sẽ triệt tiêu gradient)
         diag_idx = np.arange(T_max)
         mask_batch[:, diag_idx, diag_idx] = True
 
-        for b_idx, (seq_in, seq_lbl, mask_2d) in enumerate(valid_items):
+        for b_idx, (seq_in, seq_lbl, mask_2d, seq_pos) in enumerate(valid_items):
             L = len(seq_in)
             in_batch[b_idx, :L] = seq_in
             lbl_batch[b_idx, :L] = seq_lbl
+            pos_batch[b_idx, :L] = seq_pos
             if mask_2d is not None and mask_2d.shape[0] >= L:
                 mask_batch[b_idx, :L, :L] = mask_2d[:L, :L]
             else:
@@ -203,6 +210,7 @@ class BoGopChuoi:
         return {
             "input_ids": in_batch,
             "labels": lbl_batch,
+            "position_ids": pos_batch,
             "attention_mask": mask_batch,
         }
 

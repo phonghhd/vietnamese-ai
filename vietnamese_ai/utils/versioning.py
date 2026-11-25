@@ -21,7 +21,7 @@ _SEMVER_RE = re.compile(
     r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
 )
 
-PHIEN_BAN_CHUAN = "31.0.3"
+PHIEN_BAN_CHUAN = "31.0.4"
 
 DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
     "vietnamese-ai": {

@@ -72,10 +72,10 @@ THONG_SO_NHOM_SCHNORR: Dict[str, Any] = {
 
 def luy_thua_modulo_rfc5114(co_so: int, so_mu: int) -> int:
     """Tính `co_so^so_mu mod RFC5114_P`, tự động dùng nhân Montgomery 2048-bit Rust nếu sẵn sàng."""
-    if _rust_core is not None and hasattr(_rust_core, "fast_rfc5114_modpow"):
+    if _rust_core is not None and hasattr(_rust_core, "fast_rfc5114_modpow") and 0 <= so_mu < (1 << 256):
         try:
             co_so_bytes = (co_so % RFC5114_P).to_bytes(256, "big")
-            so_mu_bytes = (so_mu % RFC5114_Q if so_mu < RFC5114_Q else so_mu).to_bytes(32, "big")
+            so_mu_bytes = so_mu.to_bytes(32, "big")
             kq_bytes = bytes(_rust_core.fast_rfc5114_modpow(co_so_bytes, so_mu_bytes))
             return int.from_bytes(kq_bytes, "big")
         except Exception:
@@ -103,9 +103,9 @@ def kiem_tra_thanh_vien_nhom_con(phan_tu: int) -> bool:
 
 
 def sinh_nonce_hedged(secret_bytes: bytes, payload: bytes, tien_to_mien: bytes = b"zkml1-nonce:") -> int:
-    """Sinh nonce k đều trong `[1, q - 1]` kết hợp OS CSPRNG (`secrets`) và HMAC-SHA256."""
+    """Sinh nonce k đều trong `[1, q - 1]` kết hợp OS CSPRNG (`secrets`) và HMAC-SHA512 giảm thiên lệch modulo."""
     entropy = secrets.token_bytes(32)
-    digest = hmac.new(secret_bytes, tien_to_mien + payload + entropy, hashlib.sha256).digest()
+    digest = hmac.new(secret_bytes, tien_to_mien + payload + entropy, hashlib.sha512).digest()
     return (int.from_bytes(digest, "big") % (RFC5114_Q - 1)) + 1
 
 

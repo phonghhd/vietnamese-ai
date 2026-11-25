@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai-legal"
-version = "31.0.3"
+version = "31.0.4"
 description = "RAG Hành chính & Pháp lý Việt Nam: Hierarchy-Preserving Chunking, OCR/PDF/DOCX Parser & Legal Prompts"
 license = {text = "MIT"}
 requires-python = ">=3.8"

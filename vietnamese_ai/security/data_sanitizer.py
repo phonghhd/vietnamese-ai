@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from typing import Any, Dict, List, Tuple
 
@@ -11,11 +13,22 @@ class DataSanitizer:
     """
 
     MAU_PII = {
-        "so_dien_thoai": r"(?:\+84|0)[1-9]\d{8}\b",
+        "so_dien_thoai": r"(?<!\d)(?:\+84|0)(?:(?:3|5|7|8|9)(?:[\s.\-]?\d){8}|2\d(?:[\s.\-]?\d){8,9})(?!\d)",
         "email": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
-        "cmnd_cccd": r"\b\d{9}(?:\d{3})?\b",
+        "cmnd_cccd": r"\b0(?:0[1-9]|[1-8]\d|9[0-6])\d{9}\b",
         "the_ngan_hang": r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b",
     }
+
+    _RE_SO_9_12 = re.compile(r"\b(\d{9}|\d{12})\b")
+    _RE_NGU_CANH_CCCD = re.compile(
+        r"(?:cccd|cmnd|căn\s*cước|can\s*cuoc|chứng\s*minh|chung\s*minh|định\s*danh|dinh\s*danh|số\s*giấy\s*tờ)\s*(?:công\s*dân|nhân\s*dân|cá\s*nhân)?\s*(?:số|so|no\.?)?\s*[:#\-]?\s*$",
+        re.IGNORECASE | re.UNICODE,
+    )
+    _RE_DON_VI_TIEN_TE = re.compile(
+        r"^\s*(?:vnđ|vnd|đồng|dong|đ\b|usd|eur|triệu|trieu|tỷ|ty|ngàn|nghìn|kwh|kg|m2|%)",
+        re.IGNORECASE | re.UNICODE,
+    )
+    _RE_MA_TINH_CCCD_12 = re.compile(r"^0(?:0[1-9]|[1-8]\d|9[0-6])\d{9}$")
 
     MAU_BI_MAT = {
         "api_key": r"\b(?:vai_[a-fA-F0-9]{16,64}|sk-[a-zA-Z0-9_-]{16,128}|hf_[a-zA-Z0-9]{16,64}|AIza[0-9A-Za-z_-]{20,60})\b",
@@ -36,6 +49,40 @@ class DataSanitizer:
     }
 
     @classmethod
+    def _la_cccd_hop_le(cls, van_ban: str, start: int, end: int, so: str) -> bool:
+        """Phân biệt CCCD/CMND thực tế với số tiền tệ (`100000000 VNĐ`) hoặc mã số kỹ thuật."""
+        hau_to = van_ban[end : min(len(van_ban), end + 16)]
+        if cls._RE_DON_VI_TIEN_TE.match(hau_to):
+            return False
+        tien_to = van_ban[max(0, start - 36) : start]
+        if cls._RE_NGU_CANH_CCCD.search(tien_to):
+            return True
+        if len(so) == 12 and cls._RE_MA_TINH_CCCD_12.match(so):
+            return True
+        return False
+
+    @classmethod
+    def _tim_cccd_ngu_canh(cls, van_ban: str) -> List[str]:
+        """Tìm toàn bộ chuỗi CCCD/CMND hợp lệ có xét ngữ cảnh và loại trừ số tiền tệ."""
+        ket_qua: List[str] = []
+        for match in cls._RE_SO_9_12.finditer(van_ban):
+            so = match.group(1)
+            if cls._la_cccd_hop_le(van_ban, match.start(1), match.end(1), so):
+                ket_qua.append(so)
+        return ket_qua
+
+    @classmethod
+    def _an_cccd_ngu_canh(cls, van_ban: str) -> str:
+        """Thay thế có chọn lọc các số CCCD/CMND hợp lệ mà không làm hỏng số tiền VNĐ/đồng."""
+        def _thay(match: re.Match[str]) -> str:
+            so = match.group(1)
+            if cls._la_cccd_hop_le(van_ban, match.start(1), match.end(1), so):
+                return cls.THAY_THE["cmnd_cccd"]
+            return so
+
+        return cls._RE_SO_9_12.sub(_thay, van_ban)
+
+    @classmethod
     def quet_ro_ri(cls, van_ban: str) -> Dict[str, List[str]]:
         """
         Quét và trả về danh sách các thông tin nhạy cảm (PII & Khóa bí mật) phát hiện được.
@@ -44,7 +91,10 @@ class DataSanitizer:
             return {}
         phat_hien: Dict[str, List[str]] = {}
         for loai, mau in {**cls.MAU_PII, **cls.MAU_BI_MAT}.items():
-            ket_qua = re.findall(mau, van_ban)
+            if loai == "cmnd_cccd":
+                ket_qua = cls._tim_cccd_ngu_canh(van_ban)
+            else:
+                ket_qua = re.findall(mau, van_ban)
             if ket_qua:
                 phat_hien[loai] = ket_qua
         return phat_hien
@@ -62,8 +112,11 @@ class DataSanitizer:
         cac_mau.update(cls.MAU_PII)
 
         for loai, mau in cac_mau.items():
-            chuoi_thay_the = cls.THAY_THE[loai]
-            ket_qua = re.sub(mau, chuoi_thay_the, ket_qua)
+            if loai == "cmnd_cccd":
+                ket_qua = cls._an_cccd_ngu_canh(ket_qua)
+            else:
+                chuoi_thay_the = cls.THAY_THE[loai]
+                ket_qua = re.sub(mau, chuoi_thay_the, ket_qua)
 
         return ket_qua
 

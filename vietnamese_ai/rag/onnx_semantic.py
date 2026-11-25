@@ -8,7 +8,7 @@ import re
 import unicodedata
 from collections import Counter
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -207,6 +207,25 @@ TU_DIEN_DONG_NGHIA_VIET: Dict[str, Tuple[str, ...]] = {
 
 _RE_TRICH_DAN_SO_HIEU = re.compile(r"\b\d{1,4}/\d{4}/[A-Za-zĐđ0-9\-]+\b", re.UNICODE)
 _RE_DIEU_LUAT = re.compile(r"\bđiều\s+\d+\b", re.IGNORECASE | re.UNICODE)
+_CUM_KHAI_NIEM_CHI_CO_DAU = frozenset({"vat"})
+
+
+def _bien_dich_bieu_thuc_khai_niem() -> Dict[str, Tuple[List[re.Pattern[str]], List[re.Pattern[str]]]]:
+    """Biên dịch sẵn regex ranh giới từ cho từng khái niệm tiếng Việt (phân biệt cụm chỉ khớp có dấu)."""
+    kq: Dict[str, Tuple[List[re.Pattern[str]], List[re.Pattern[str]]]] = {}
+    for ma_khai_niem, danh_sach_cum in TU_DIEN_DONG_NGHIA_VIET.items():
+        mau_co_dau: List[re.Pattern[str]] = []
+        mau_khong_dau: List[re.Pattern[str]] = []
+        for cum in danh_sach_cum:
+            pattern = re.compile(rf"(?<!\w){re.escape(cum)}(?!\w)", re.UNICODE)
+            mau_co_dau.append(pattern)
+            if cum not in _CUM_KHAI_NIEM_CHI_CO_DAU:
+                mau_khong_dau.append(pattern)
+        kq[ma_khai_niem] = (mau_co_dau, mau_khong_dau)
+    return kq
+
+
+_RE_KHAI_NIEM_VIET = _bien_dich_bieu_thuc_khai_niem()
 
 
 def _chuan_khong_dau(van_ban: str) -> str:
@@ -217,17 +236,17 @@ def _chuan_khong_dau(van_ban: str) -> str:
 
 
 def _trich_xuat_khai_niem_viet(van_ban: str) -> List[str]:
-    """Ánh xạ văn bản tiếng Việt sang các nhãn khái niệm đồng nghĩa chuẩn hóa."""
+    """Ánh xạ văn bản tiếng Việt sang các nhãn khái niệm đồng nghĩa chuẩn hóa theo ranh giới từ."""
     if not van_ban:
         return []
     thuong = van_ban.lower()
     khong_dau = _chuan_khong_dau(van_ban)
     ket_qua: List[str] = []
-    for ma_khai_niem, danh_sach_cum in TU_DIEN_DONG_NGHIA_VIET.items():
-        for cum in danh_sach_cum:
-            if cum in thuong or cum in khong_dau:
-                ket_qua.append(ma_khai_niem)
-                break
+    for ma_khai_niem, (mau_co_dau, mau_khong_dau) in _RE_KHAI_NIEM_VIET.items():
+        if any(p.search(thuong) is not None for p in mau_co_dau) or any(
+            p.search(khong_dau) is not None for p in mau_khong_dau
+        ):
+            ket_qua.append(ma_khai_niem)
     return ket_qua
 
 
@@ -385,6 +404,9 @@ class BoNhungONNXTiengViet:
                 input_ids[i, :n] = enc.ids[:n]
                 attention_mask[i, :n] = enc.attention_mask[:n]
         else:
+            self.logger.warning(
+                "Chưa cung cấp tệp tokenizer tương ứng cho mô hình ONNX; đang dùng bộ mã hóa băm dự phòng."
+            )
             input_ids, attention_mask = _ma_hoa_token_ids_don_gian(texts, do_dai_toi_da=self.do_dai_toi_da)
 
         feed: Dict[str, Any] = {}
@@ -534,11 +556,36 @@ class BoNhungONNXTiengViet:
         }
 
 
+PRESET_CROSS_ENCODER_VN: Dict[str, Dict[str, Any]] = {
+    "bge-reranker-v2-m3": {
+        "repo_id": "BAAI/bge-reranker-v2-m3",
+        "loai_kien_truc": "xlm_roberta",
+        "sep_token": "</s></s>",
+        "can_tach_tu_viet": False,
+        "do_dai_toi_da": 512,
+    },
+    "phoranker": {
+        "repo_id": "itdainb/PhoRanker",
+        "loai_kien_truc": "phobert",
+        "sep_token": "</s></s>",
+        "can_tach_tu_viet": True,
+        "do_dai_toi_da": 256,
+    },
+    "multilingual-mini": {
+        "repo_id": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+        "loai_kien_truc": "xlm_roberta",
+        "sep_token": "</s></s>",
+        "can_tach_tu_viet": False,
+        "do_dai_toi_da": 256,
+    },
+}
+
+
 @gan_nhan_tinh_nang(
     trang_thai=TrangThaiTinhNang.CORE,
     mo_ta=(
-        "Bộ sắp xếp lại Cross-Encoder tiếng Việt hỗ trợ ONNX Runtime INT8 trên CPU và chấm điểm tương tác "
-        "chéo câu hỏi–tài liệu (tách từ ghép, đồng nghĩa pháp lý, trích dẫn Điều/Số hiệu)."
+        "Bộ sắp xếp lại Cross-Encoder tiếng Việt hỗ trợ ONNX Runtime INT8 (BGE-Reranker-v2-m3 / PhoRanker) "
+        "trên CPU theo lô và chấm điểm tương tác chéo câu hỏi–tài liệu (tách từ ghép, đồng nghĩa, proximity, Điều/Số hiệu)."
     ),
     nhom_extra="export",
 )
@@ -546,21 +593,33 @@ class BoSapXepLaiONNXTiengViet:
     """
     Cross-Encoder Reranker tối ưu cho tiếng Việt:
 
-    - Tầng 1 (`onnx_cross_encoder`): Chạy cặp `(câu hỏi, đoạn văn)` qua mô hình ONNX Cross-Encoder.
+    - Tầng 1 (`onnx_cross_encoder`): Chạy theo lô cặp `(câu hỏi, đoạn văn)` qua mô hình ONNX Cross-Encoder
+      (hỗ trợ trực tiếp cấu hình `bge-reranker-v2-m3`, `phoranker`, `multilingual-mini`, `tokenizer.json` và đầu ra 1 hoặc 2 logits).
     - Tầng 2 (`vietnamese_cross_interaction`): Chấm điểm tương tác chéo đa đặc trưng (từ ghép tiếng Việt,
-      không dấu, cầu nối khái niệm đồng nghĩa, khớp số hiệu văn bản & số Điều) chuẩn hóa sigmoid.
+      bigram, khoảng cách gần kề proximity, không dấu, cầu nối khái niệm đồng nghĩa, khớp số hiệu & số Điều) chuẩn hóa sigmoid.
     """
 
     def __init__(
         self,
         duong_dan_onnx: Optional[Union[str, Path]] = None,
+        duong_dan_tokenizer: Optional[Union[str, Path]] = None,
+        preset: Optional[str] = None,
         so_luong_thread: int = 4,
-        do_dai_toi_da: int = 256,
+        do_dai_toi_da: Optional[int] = None,
+        kich_thuoc_batch: int = 16,
     ) -> None:
+        preset_key = str(preset or "").strip().lower() or None
+        cau_hinh_preset = PRESET_CROSS_ENCODER_VN.get(preset_key, {}) if preset_key else {}
+        self.preset = preset_key
+        self.sep_token: str = str(cau_hinh_preset.get("sep_token", "[SEP]"))
+        self.can_tach_tu_viet: bool = bool(cau_hinh_preset.get("can_tach_tu_viet", False))
         self.duong_dan_onnx = Path(duong_dan_onnx) if duong_dan_onnx else None
+        self.duong_dan_tokenizer = Path(duong_dan_tokenizer) if duong_dan_tokenizer else None
         self.so_luong_thread = max(1, int(so_luong_thread))
-        self.do_dai_toi_da = int(do_dai_toi_da)
+        self.do_dai_toi_da = int(do_dai_toi_da if do_dai_toi_da is not None else cau_hinh_preset.get("do_dai_toi_da", 256))
+        self.kich_thuoc_batch = max(1, int(kich_thuoc_batch))
         self._tokenizer_viet = BoTachTuTiengVietSieuToc()
+        self._hf_tokenizer: Optional[Any] = None
         self._ort_session: Optional[Any] = None
         self._che_do = "vietnamese_cross_interaction"
 
@@ -570,12 +629,17 @@ class BoSapXepLaiONNXTiengViet:
                 try:
                     sess_opts = ort.SessionOptions()
                     sess_opts.intra_op_num_threads = self.so_luong_thread
+                    sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
                     self._ort_session = ort.InferenceSession(
                         str(self.duong_dan_onnx),
                         sess_options=sess_opts,
                         providers=["CPUExecutionProvider"],
                     )
                     self._che_do = "onnx_cross_encoder"
+                    if self.duong_dan_tokenizer is not None and self.duong_dan_tokenizer.is_file():
+                        tok_mod = QuanLyPhuThuoc.nhap_tuy_chon("tokenizers", "dl", "nạp tokenizer Cross-Encoder ONNX")
+                        if tok_mod is not None:
+                            self._hf_tokenizer = tok_mod.Tokenizer.from_file(str(self.duong_dan_tokenizer))
                 except Exception:
                     self._ort_session = None
 
@@ -584,31 +648,81 @@ class BoSapXepLaiONNXTiengViet:
         """Chế độ chấm điểm reranker hiện hành."""
         return self._che_do
 
-    def cham_diem(self, cau_hoi: str, tai_lieu: str) -> float:
-        """Chấm điểm mức độ liên quan trong đoạn `[0.0, 1.0]` giữa một câu hỏi và một đoạn văn bản."""
-        if not cau_hoi or not tai_lieu:
-            return 0.0
+    def _chuan_bi_van_ban_cap(self, cau_hoi: str, tai_lieu: str) -> Tuple[str, str]:
+        """Tiền xử lý cặp `(câu hỏi, đoạn văn)` theo kiến trúc (tách từ ghép `_` nếu dùng PhoRanker)."""
+        if self.can_tach_tu_viet:
+            q_seg = " ".join(self._tokenizer_viet.tach_tu(cau_hoi, noi_tu_ghep=True, ky_tu_noi="_"))
+            d_seg = " ".join(self._tokenizer_viet.tach_tu(tai_lieu, noi_tu_ghep=True, ky_tu_noi="_"))
+            return q_seg, d_seg
+        return cau_hoi, tai_lieu
 
-        if self._ort_session is not None:
-            pair_text = f"{cau_hoi} [SEP] {tai_lieu}"
-            input_ids, attention_mask = _ma_hoa_token_ids_don_gian([pair_text], do_dai_toi_da=self.do_dai_toi_da)
-            input_names = [inp.name for inp in self._ort_session.get_inputs()]
-            feed: Dict[str, Any] = {}
-            if "input_ids" in input_names:
-                feed["input_ids"] = input_ids
-            if "attention_mask" in input_names:
-                feed["attention_mask"] = attention_mask
-            if "token_type_ids" in input_names:
-                feed["token_type_ids"] = np.zeros_like(input_ids, dtype=np.int64)
-            if not feed and input_names:
-                feed[input_names[0]] = input_ids
-            logits = np.asarray(self._ort_session.run(None, feed)[0], dtype=np.float32).ravel()
-            logit = float(logits[0]) if logits.size > 0 else 0.0
-            return float(1.0 / (1.0 + math.exp(-max(-20.0, min(20.0, logit)))))
+    def _ma_hoa_lo_cap(self, cau_hoi: str, danh_sach_tai_lieu: Sequence[str]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Mã hóa lô cặp `(câu hỏi, đoạn văn)` thành `input_ids`, `attention_mask`, `token_type_ids` cho ONNX."""
+        cap_list = [self._chuan_bi_van_ban_cap(cau_hoi, tl) for tl in danh_sach_tai_lieu]
+        if self._hf_tokenizer is not None:
+            ids_rows: List[List[int]] = []
+            mask_rows: List[List[int]] = []
+            type_rows: List[List[int]] = []
+            max_len = 1
+            for q_s, d_s in cap_list:
+                enc = self._hf_tokenizer.encode(q_s, d_s)
+                ids = list(enc.ids)[: self.do_dai_toi_da]
+                msk = list(enc.attention_mask)[: self.do_dai_toi_da]
+                tids = list(getattr(enc, "type_ids", [0] * len(ids)))[: self.do_dai_toi_da]
+                max_len = max(max_len, len(ids))
+                ids_rows.append(ids)
+                mask_rows.append(msk)
+                type_rows.append(tids)
+            bsz = len(ids_rows)
+            arr_ids = np.zeros((bsz, max_len), dtype=np.int64)
+            arr_msk = np.zeros((bsz, max_len), dtype=np.int64)
+            arr_tid = np.zeros((bsz, max_len), dtype=np.int64)
+            for i, (r_id, r_mk, r_ty) in enumerate(zip(ids_rows, mask_rows, type_rows)):
+                arr_ids[i, : len(r_id)] = r_id
+                arr_msk[i, : len(r_mk)] = r_mk
+                arr_tid[i, : len(r_ty)] = r_ty
+            return arr_ids, arr_msk, arr_tid
 
-        q_toks = {t.lower() for t in self._tokenizer_viet.tach_tu(cau_hoi, noi_tu_ghep=True) if len(t) >= 2}
-        d_toks = {t.lower() for t in self._tokenizer_viet.tach_tu(tai_lieu, noi_tu_ghep=True) if len(t) >= 2}
+        pair_texts = [f"{q_s} {self.sep_token} {d_s}" for q_s, d_s in cap_list]
+        input_ids, attention_mask = _ma_hoa_token_ids_don_gian(pair_texts, do_dai_toi_da=self.do_dai_toi_da)
+        token_type_ids = np.zeros_like(input_ids, dtype=np.int64)
+        return input_ids, attention_mask, token_type_ids
+
+    @staticmethod
+    def _logits_sang_diem(raw_logits: np.ndarray) -> List[float]:
+        """Chuyển đổi logits đầu ra ONNX (1 cột sigmoid hoặc 2 cột softmax `[neg, pos]`) sang điểm `[0.0, 1.0]`."""
+        arr = np.asarray(raw_logits, dtype=np.float32)
+        if arr.ndim == 1:
+            arr = arr.reshape(-1, 1)
+        scores: List[float] = []
+        for row in arr:
+            if row.shape[0] >= 2:
+                diff = float(row[1] - row[0])
+                scores.append(float(round(1.0 / (1.0 + math.exp(-max(-20.0, min(20.0, diff)))), 6)))
+            else:
+                val = float(row[0]) if row.shape[0] == 1 else 0.0
+                scores.append(float(round(1.0 / (1.0 + math.exp(-max(-20.0, min(20.0, val)))), 6)))
+        return scores
+
+    def _cham_diem_tuong_tac_cheo_cpu(self, cau_hoi: str, tai_lieu: str) -> float:
+        """Chấm điểm tương tác chéo câu hỏi–tài liệu tiếng Việt thuần CPU (từ ghép, bigram, proximity, đồng nghĩa, Điều/Số hiệu)."""
+        q_list = [t.lower() for t in self._tokenizer_viet.tach_tu(cau_hoi, noi_tu_ghep=True) if len(t) >= 2]
+        d_list = [t.lower() for t in self._tokenizer_viet.tach_tu(tai_lieu, noi_tu_ghep=True) if len(t) >= 2]
+        q_toks = set(q_list)
+        d_toks = set(d_list)
         overlap_tok = len(q_toks & d_toks) / max(len(q_toks), 1)
+
+        q_bi = {f"{q_list[i]}_{q_list[i + 1]}" for i in range(len(q_list) - 1)}
+        d_bi = {f"{d_list[i]}_{d_list[i + 1]}" for i in range(len(d_list) - 1)}
+        bigram_score = len(q_bi & d_bi) / max(len(q_bi), 1) if q_bi else 0.0
+
+        matched_pos = [idx for idx, tok in enumerate(d_list) if tok in q_toks]
+        proximity_score = 0.0
+        if len(matched_pos) >= 2:
+            span = max(1, matched_pos[-1] - matched_pos[0] + 1)
+            proximity_score = min(1.0, len(matched_pos) / float(span))
+        elif len(matched_pos) == 1:
+            proximity_score = 0.35
 
         q_kd = set(re.findall(r"[0-9a-z_]{2,}", _chuan_khong_dau(cau_hoi)))
         d_kd = set(re.findall(r"[0-9a-z_]{2,}", _chuan_khong_dau(tai_lieu)))
@@ -628,8 +742,47 @@ class BoSapXepLaiONNXTiengViet:
         if q_dieu and (q_dieu & d_dieu):
             legal_boost += 0.25
 
-        raw = 0.32 * overlap_tok + 0.25 * overlap_kd + 0.48 * concept_score + legal_boost
+        raw = (
+            0.28 * overlap_tok
+            + 0.20 * overlap_kd
+            + 0.14 * bigram_score
+            + 0.10 * proximity_score
+            + 0.45 * concept_score
+            + legal_boost
+        )
         return float(round(1.0 / (1.0 + math.exp(-4.0 * (raw - 0.35))), 6))
+
+    def cham_diem_lo(self, cau_hoi: str, danh_sach_tai_lieu: Sequence[str]) -> List[float]:
+        """Chấm điểm hàng loạt cặp `(cau_hoi, tai_lieu)` theo batch trên ONNX Runtime hoặc CPU fallback."""
+        if not cau_hoi or not danh_sach_tai_lieu:
+            return [0.0 for _ in danh_sach_tai_lieu]
+
+        if self._ort_session is not None:
+            ket_qua: List[float] = []
+            input_names = [inp.name for inp in self._ort_session.get_inputs()]
+            for start in range(0, len(danh_sach_tai_lieu), self.kich_thuoc_batch):
+                lo_docs = danh_sach_tai_lieu[start : start + self.kich_thuoc_batch]
+                input_ids, attention_mask, token_type_ids = self._ma_hoa_lo_cap(cau_hoi, lo_docs)
+                feed: Dict[str, Any] = {}
+                if "input_ids" in input_names:
+                    feed["input_ids"] = input_ids
+                if "attention_mask" in input_names:
+                    feed["attention_mask"] = attention_mask
+                if "token_type_ids" in input_names:
+                    feed["token_type_ids"] = token_type_ids
+                if not feed and input_names:
+                    feed[input_names[0]] = input_ids
+                raw_out = self._ort_session.run(None, feed)[0]
+                ket_qua.extend(self._logits_sang_diem(raw_out))
+            return ket_qua
+
+        return [self._cham_diem_tuong_tac_cheo_cpu(cau_hoi, tl) for tl in danh_sach_tai_lieu]
+
+    def cham_diem(self, cau_hoi: str, tai_lieu: str) -> float:
+        """Chấm điểm mức độ liên quan trong đoạn `[0.0, 1.0]` giữa một câu hỏi và một đoạn văn bản."""
+        if not cau_hoi or not tai_lieu:
+            return 0.0
+        return self.cham_diem_lo(cau_hoi, [tai_lieu])[0]
 
     def sap_xep_lai(
         self,
@@ -637,18 +790,19 @@ class BoSapXepLaiONNXTiengViet:
         ket_qua: List[Dict[str, Any]],
         top_k: int = 5,
     ) -> List[Dict[str, Any]]:
-        """Sắp xếp lại danh sách ứng viên truy hồi bằng điểm Cross-Encoder tiếng Việt."""
+        """Sắp xếp lại danh sách ứng viên truy hồi bằng điểm Cross-Encoder tiếng Việt theo batch."""
         if not ket_qua:
             return []
 
+        noi_dung_list = [
+            str(item.get("noi_dung") or item.get("metadata", {}).get("noi_dung", ""))
+            for item in ket_qua
+        ]
+        diem_ce_list = self.cham_diem_lo(cau_hoi, noi_dung_list)
+
         kq_moi: List[Dict[str, Any]] = []
-        for item in ket_qua:
+        for item, diem_ce in zip(ket_qua, diem_ce_list):
             ban_sao = dict(item)
-            noi_dung = str(
-                ban_sao.get("noi_dung")
-                or ban_sao.get("metadata", {}).get("noi_dung", "")
-            )
-            diem_ce = self.cham_diem(cau_hoi, noi_dung)
             diem_goc = float(ban_sao.get("diem", 0.0))
             ban_sao["diem_cross_encoder"] = diem_ce
             ban_sao["diem_rerank"] = round(0.65 * diem_ce + 0.35 * max(0.0, diem_goc), 6)
@@ -661,7 +815,11 @@ class BoSapXepLaiONNXTiengViet:
         """Trả về thông tin cấu hình của bộ reranker."""
         return {
             "che_do": self._che_do,
+            "preset": self.preset,
+            "can_tach_tu_viet": self.can_tach_tu_viet,
             "duong_dan_onnx": str(self.duong_dan_onnx) if self.duong_dan_onnx else None,
+            "duong_dan_tokenizer": str(self.duong_dan_tokenizer) if self.duong_dan_tokenizer else None,
+            "kich_thuoc_batch": self.kich_thuoc_batch,
         }
 
 
@@ -670,6 +828,7 @@ VietnameseONNXReranker = BoSapXepLaiONNXTiengViet
 
 __all__ = [
     "TU_DIEN_DONG_NGHIA_VIET",
+    "PRESET_CROSS_ENCODER_VN",
     "BoNhungONNXTiengViet",
     "VietnameseONNXEmbedder",
     "BoSapXepLaiONNXTiengViet",

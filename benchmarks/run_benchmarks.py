@@ -34,6 +34,9 @@ def chay_tu_dong(args: argparse.Namespace) -> Dict[str, Any]:
     if args.suite == "core":
         ket_qua: Dict[str, Any] = suite.chay_benchmark_toan_dien()
         bao_cao_md = suite.xuat_bang_so_sanh_markdown(ket_qua)
+    elif args.suite == "deep":
+        ket_qua = suite.do_chieu_sau_loi_he_thong(nhanh=args.quick, seed=args.seed)
+        bao_cao_md = suite.xuat_bao_cao_chieu_sau_markdown(ket_qua)
     else:
         ket_qua = suite.chay_benchmark_mo_rong(
             nhanh=args.quick,
@@ -69,13 +72,13 @@ def chay_tu_dong(args: argparse.Namespace) -> Dict[str, Any]:
 def tao_parser() -> argparse.ArgumentParser:
     """Khởi tạo bộ phân tích tham số dòng lệnh cho benchmark tái lập."""
     parser = argparse.ArgumentParser(
-        description="Bộ chạy Benchmark Tái Lập cho Vietnamese AI Framework (v31.0.3)"
+        description="Bộ chạy Benchmark Tái Lập cho Vietnamese AI Framework (v31.0.4)"
     )
     parser.add_argument(
         "--suite",
-        choices=("core", "extended"),
+        choices=("core", "extended", "deep"),
         default="extended",
-        help="Chọn bộ đo 'core' hoặc 'extended' (mặc định: extended)",
+        help="Chọn bộ đo 'core', 'extended' hoặc 'deep' (6 trụ cột kiến trúc chiều sâu, mặc định: extended)",
     )
     parser.add_argument(
         "--quick",

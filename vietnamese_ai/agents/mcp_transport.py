@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import json
+import queue
 import sys
+import threading
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TextIO, Union
+from urllib.parse import parse_qs, urlparse
 
 from vietnamese_ai.agents.mcp import MCPServer
 from vietnamese_ai.agents.tools import CongCu
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
+
+MAX_MCP_BODY_BYTES = 16 * 1024 * 1024
 
 
 @gan_nhan_tinh_nang(
@@ -38,12 +44,13 @@ class MayChuMCPThucTe(MCPServer):
     def __init__(
         self,
         ten: str = "vietnamese-ai-mcp",
-        phien_ban: str = "31.0.3",
+        phien_ban: str = "31.0.4",
         duong_dan_vaidb: Optional[Union[str, Path]] = None,
         nap_kho_phap_ly_mo: bool = True,
         bat_tuong_lua: bool = True,
         quan_ly_plugin: Optional[Any] = None,
         tro_ly_phap_ly: Optional[Any] = None,
+        bat_cong_cu_mo_rong: bool = False,
     ) -> None:
         super().__init__(ten=ten, phien_ban=phien_ban, bat_tuong_lua=bat_tuong_lua)
         self.duong_dan_vaidb = str(duong_dan_vaidb) if duong_dan_vaidb else None
@@ -53,6 +60,8 @@ class MayChuMCPThucTe(MCPServer):
         self._bo_so_sanh_hd: Optional[Any] = None
         self._dong_co_edge: Optional[Any] = None
         self._dang_ky_cong_cu_mac_dinh()
+        if bat_cong_cu_mo_rong:
+            self.dang_ky_cong_cu_nang_cao()
         if quan_ly_plugin is not None:
             self.gan_quan_ly_plugin(quan_ly_plugin)
         self._dang_ky_tai_nguyen_mac_dinh()
@@ -120,13 +129,28 @@ class MayChuMCPThucTe(MCPServer):
     def _dang_ky_cong_cu_mac_dinh(self) -> None:
         """Đăng ký 6 công cụ MCP cốt lõi của hệ sinh thái Vietnamese AI."""
 
-        def _tra_cuu_phap_ly(cau_hoi: str) -> str:
-            kq = self._lay_tro_ly_phap_ly().tra_cuu(cau_hoi)
+        def _tra_cuu_phap_ly(cau_hoi: str, ngay_tra_cuu: str = "") -> str:
+            ngay = ngay_tra_cuu.strip() or None
+            kq = self._lay_tro_ly_phap_ly().tra_cuu(cau_hoi, ngay_tra_cuu=ngay)
             return json.dumps(kq, ensure_ascii=False)
 
-        def _kiem_tra_hieu_luc(so_hieu_hoac_van_ban: str, ngay_tra_cuu: str = "") -> str:
+        def _kiem_tra_hieu_luc(
+            so_hieu_hoac_van_ban: str,
+            ngay_tra_cuu: str = "",
+            dieu: str = "",
+            khoan: str = "",
+        ) -> str:
             ngay = ngay_tra_cuu.strip() or None
-            kq = self._lay_tro_ly_phap_ly().kiem_tra_hieu_luc(so_hieu_hoac_van_ban, ngay_tra_cuu=ngay)
+            tl = self._lay_tro_ly_phap_ly()
+            if dieu.strip():
+                kq = tl.tra_cuu_dieu_khoan_theo_ngay(
+                    so_hieu=so_hieu_hoac_van_ban,
+                    dieu=dieu.strip(),
+                    ngay_tra_cuu=ngay,
+                    khoan=khoan.strip() or None,
+                )
+            else:
+                kq = tl.kiem_tra_hieu_luc(so_hieu_hoac_van_ban, ngay_tra_cuu=ngay)
             return json.dumps(kq, ensure_ascii=False)
 
         def _do_thi_tham_chieu_luat(
@@ -144,12 +168,23 @@ class MayChuMCPThucTe(MCPServer):
             kq["mermaid"] = tl.do_thi_tham_chieu.xuat_do_thi_mermaid(so_hieu_trung_tam=so_hieu)
             return json.dumps(kq, ensure_ascii=False)
 
-        def _ra_soat_hop_dong(hop_dong_doi_tac: str, hop_dong_chuan: str = "") -> str:
+        def _ra_soat_hop_dong(
+            hop_dong_doi_tac: str,
+            hop_dong_chuan: str = "",
+            ngay_tra_cuu: str = "",
+            xuat_track_changes_docx: str = "",
+        ) -> str:
             chuan = hop_dong_chuan if hop_dong_chuan.strip() else None
-            kq = self._lay_bo_so_sanh_hd().so_sanh_va_ra_soat(
+            ngay = ngay_tra_cuu.strip() or None
+            engine = self._lay_bo_so_sanh_hd()
+            kq = engine.so_sanh_va_ra_soat(
                 hop_dong_doi_tac=hop_dong_doi_tac,
                 hop_dong_chuan=chuan,
+                ngay_tra_cuu=ngay,
             )
+            if xuat_track_changes_docx.strip():
+                out_p = engine.xuat_bao_cao_track_changes_docx(kq, xuat_track_changes_docx.strip())
+                kq["track_changes_docx_path"] = str(out_p)
             return json.dumps(kq, ensure_ascii=False)
 
         def _quet_bao_mat_du_lieu(van_ban: str) -> str:
@@ -219,6 +254,97 @@ class MayChuMCPThucTe(MCPServer):
             )
         )
 
+    def dang_ky_cong_cu_nang_cao(self) -> int:
+        """Đăng ký thêm 3 công cụ MCP chuyên sâu Hướng B (Point-in-Time Điều luật, Tách từ Viterbi/FST, HNSW .vaidb)."""
+        da_them = 0
+
+        def _tra_cuu_dieu_khoan(
+            so_hieu: str,
+            dieu: str,
+            ngay_tra_cuu: str = "",
+            khoan: str = "",
+        ) -> str:
+            kq = self._lay_tro_ly_phap_ly().tra_cuu_dieu_khoan_theo_ngay(
+                so_hieu=so_hieu,
+                dieu=dieu,
+                ngay_tra_cuu=ngay_tra_cuu.strip() or None,
+                khoan=khoan.strip() or None,
+            )
+            return json.dumps(kq, ensure_ascii=False)
+
+        def _tach_tu_tieng_viet(
+            van_ban: str,
+            phuong_phap: str = "viterbi",
+            chuan_hoa_dau: bool = True,
+            noi_tu_ghep: bool = True,
+        ) -> str:
+            from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+            tok = BoTachTuTiengVietSieuToc()
+            vb_chuan = tok.chuan_hoa_dau_thanh(van_ban) if chuan_hoa_dau else tok.chuan_hoa_unicode(van_ban)
+            tokens = tok.tach_tu(
+                van_ban,
+                noi_tu_ghep=bool(noi_tu_ghep),
+                chuan_hoa_dau=bool(chuan_hoa_dau),
+                phuong_phap=phuong_phap,
+            )
+            return json.dumps(
+                {
+                    "van_ban_chuan_hoa": vb_chuan,
+                    "phuong_phap": phuong_phap,
+                    "so_token": len(tokens),
+                    "tokens": tokens,
+                },
+                ensure_ascii=False,
+            )
+
+        def _xay_dung_hnsw_vaidb(
+            duong_dan_vaidb: str = "",
+            m: int = 12,
+            ef_construction: int = 64,
+            ef_search: int = 48,
+        ) -> str:
+            path_db = duong_dan_vaidb.strip() or self.duong_dan_vaidb
+            if path_db:
+                from vietnamese_ai.rag.vaidb_store import KhoTriThucVAIDB
+
+                with KhoTriThucVAIDB(duong_dan=path_db) as db:
+                    info = db.xay_dung_chi_muc_hnsw(
+                        m=int(m),
+                        ef_construction=int(ef_construction),
+                        ef_search=int(ef_search),
+                    )
+                    return json.dumps({"hnsw": info, "thong_ke": db.thong_ke()}, ensure_ascii=False)
+            info_tl = self._lay_tro_ly_phap_ly().xay_dung_chi_muc_hnsw(
+                m=int(m),
+                ef_construction=int(ef_construction),
+                ef_search=int(ef_search),
+            )
+            return json.dumps({"hnsw": info_tl}, ensure_ascii=False)
+
+        ds_moi = [
+            CongCu(
+                ten="tra_cuu_dieu_khoan_theo_ngay",
+                mo_ta="Tra cứu chính xác phiên bản hiệu lực theo mốc thời gian (Point-in-Time) của một Điều/Khoản luật Việt Nam.",
+                ham_thuc_thi=_tra_cuu_dieu_khoan,
+            ),
+            CongCu(
+                ten="tach_tu_tieng_viet",
+                mo_ta="Chuẩn hóa dấu thanh âm vị học tiếng Việt (FST) và tách từ ghép tối ưu toàn cục Viterbi DAG.",
+                ham_thuc_thi=_tach_tu_tieng_viet,
+            ),
+            CongCu(
+                ten="xay_dung_chi_muc_hnsw_vaidb",
+                mo_ta="Xây dựng và lưu bền vững đồ thị chỉ mục vector HNSW bên trong tệp kho tri thức `.vaidb`.",
+                ham_thuc_thi=_xay_dung_hnsw_vaidb,
+            ),
+        ]
+        for cc in ds_moi:
+            if cc.ten not in self._cong_cu:
+                self.dang_ky_cong_cu(cc)
+                da_them += 1
+        return da_them
+
     def _dang_ky_tai_nguyen_mac_dinh(self) -> None:
         """Đăng ký các tài nguyên MCP cơ bản cung cấp siêu dữ liệu hệ thống."""
         self.dang_ky_tai_nguyen(
@@ -252,35 +378,84 @@ class MayChuMCPThucTe(MCPServer):
             return {}
         return super().xu_ly_jsonrpc(request)
 
+    @staticmethod
+    def _doc_chinh_xac_bytes_text(src: TextIO, so_byte: int) -> str:
+        """Đọc đúng `so_byte` byte UTF-8 từ luồng văn bản (hỗ trợ cả `StringIO` đa byte tiếng Việt)."""
+        if so_byte <= 0:
+            return ""
+        chunks: List[str] = []
+        da_doc_bytes = 0
+        while da_doc_bytes < so_byte:
+            ch = src.read(1)
+            if not ch:
+                break
+            chunks.append(ch)
+            da_doc_bytes += len(ch.encode("utf-8"))
+        return "".join(chunks)
+
     def chay_stdio(
         self,
         in_stream: Optional[TextIO] = None,
         out_stream: Optional[TextIO] = None,
     ) -> int:
-        """Chạy vòng lặp giao vận MCP chuẩn `stdio` (hỗ trợ cả JSON-RPC từng dòng lẫn khung `Content-Length`)."""
+        """Chạy vòng lặp giao vận MCP chuẩn `stdio` (hỗ trợ cả JSON-RPC từng dòng lẫn khung `Content-Length` chuẩn UTF-8 bytes)."""
         src = in_stream or sys.stdin
         dst = out_stream or sys.stdout
         da_xu_ly = 0
+        bin_in = getattr(src, "buffer", None)
 
         while True:
-            line = src.readline()
-            if not line:
-                break
-            stripped = line.strip()
-            if not stripped:
-                continue
-
             use_content_length = False
-            if stripped.lower().startswith("content-length:"):
-                use_content_length = True
-                length = int(stripped.split(":", 1)[1].strip())
-                while True:
-                    hdr = src.readline()
-                    if not hdr or hdr.strip() == "":
-                        break
-                raw_payload = src.read(length)
+            if bin_in is not None:
+                raw_line = bin_in.readline()
+                if not raw_line:
+                    break
+                stripped_b = raw_line.strip()
+                if not stripped_b:
+                    continue
+                if stripped_b.lower().startswith(b"content-length:"):
+                    use_content_length = True
+                    try:
+                        length = int(stripped_b.split(b":", 1)[1].strip())
+                    except ValueError:
+                        continue
+                    while True:
+                        hdr_b = bin_in.readline()
+                        if not hdr_b or hdr_b.strip() == b"":
+                            break
+                    if length < 0 or length > MAX_MCP_BODY_BYTES:
+                        continue
+                    buf = bytearray()
+                    while len(buf) < length:
+                        piece = bin_in.read(length - len(buf))
+                        if not piece:
+                            break
+                        buf.extend(piece)
+                    raw_payload = bytes(buf).decode("utf-8", errors="replace")
+                else:
+                    raw_payload = stripped_b.decode("utf-8", errors="replace")
             else:
-                raw_payload = stripped
+                line = src.readline()
+                if not line:
+                    break
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if stripped.lower().startswith("content-length:"):
+                    use_content_length = True
+                    try:
+                        length = int(stripped.split(":", 1)[1].strip())
+                    except ValueError:
+                        continue
+                    while True:
+                        hdr = src.readline()
+                        if not hdr or hdr.strip() == "":
+                            break
+                    if length < 0 or length > MAX_MCP_BODY_BYTES:
+                        continue
+                    raw_payload = self._doc_chinh_xac_bytes_text(src, length)
+                else:
+                    raw_payload = stripped
 
             try:
                 req = json.loads(raw_payload)
@@ -314,6 +489,8 @@ class MayChuMCPThucTe(MCPServer):
     def tao_http_server(self, host: str = "127.0.0.1", port: int = 8090) -> ThreadingHTTPServer:
         """Tạo máy chủ HTTP + SSE (`GET /sse`, `POST /messages`, `POST /rpc`, `GET /health`) chuẩn MCP."""
         mcp_instance = self
+        sse_sessions: Dict[str, queue.Queue[Optional[str]]] = {}
+        sse_lock = threading.Lock()
 
         class _MCPHTTPHandler(BaseHTTPRequestHandler):
             def _gui_json(self, obj: Dict[str, Any], status: int = 200) -> None:
@@ -326,7 +503,9 @@ class MayChuMCPThucTe(MCPServer):
                 self.wfile.write(data)
 
             def do_GET(self) -> None:
-                path = self.path.split("?")[0]
+                parsed = urlparse(self.path)
+                path = parsed.path
+                qs = parse_qs(parsed.query)
                 if path == "/health":
                     self._gui_json(
                         {
@@ -339,24 +518,75 @@ class MayChuMCPThucTe(MCPServer):
                     )
                     return
                 if path == "/sse":
-                    payload = b"event: endpoint\ndata: /messages\n\n"
+                    accept = self.headers.get("Accept", "").lower()
+                    yeu_cau_stream = "text/event-stream" in accept or qs.get("stream", [""])[0] == "1"
+                    if not yeu_cau_stream:
+                        payload = b"event: endpoint\ndata: /messages\n\n"
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                        self.send_header("Cache-Control", "no-cache")
+                        self.send_header("Access-Control-Allow-Origin", "*")
+                        self.send_header("Content-Length", str(len(payload)))
+                        self.end_headers()
+                        self.wfile.write(payload)
+                        self.wfile.flush()
+                        return
+
+                    session_id = uuid.uuid4().hex
+                    ev_queue: queue.Queue[Optional[str]] = queue.Queue()
+                    with sse_lock:
+                        sse_sessions[session_id] = ev_queue
                     self.send_response(200)
                     self.send_header("Content-Type", "text/event-stream; charset=utf-8")
                     self.send_header("Cache-Control", "no-cache")
+                    self.send_header("Connection", "keep-alive")
                     self.send_header("Access-Control-Allow-Origin", "*")
-                    self.send_header("Content-Length", str(len(payload)))
                     self.end_headers()
-                    self.wfile.write(payload)
-                    self.wfile.flush()
+                    try:
+                        ep_msg = f"event: endpoint\ndata: /messages?session_id={session_id}\n\n".encode("utf-8")
+                        self.wfile.write(ep_msg)
+                        self.wfile.flush()
+                        while True:
+                            try:
+                                item = ev_queue.get(timeout=15.0)
+                            except queue.Empty:
+                                self.wfile.write(b": keepalive\n\n")
+                                self.wfile.flush()
+                                continue
+                            if item is None:
+                                break
+                            self.wfile.write(f"event: message\ndata: {item}\n\n".encode("utf-8"))
+                            self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        pass
+                    finally:
+                        with sse_lock:
+                            sse_sessions.pop(session_id, None)
                     return
                 self.send_error(404, "Not Found")
 
             def do_POST(self) -> None:
-                path = self.path.split("?")[0]
+                parsed = urlparse(self.path)
+                path = parsed.path
+                qs = parse_qs(parsed.query)
                 if path not in ("/messages", "/rpc"):
                     self.send_error(404, "Not Found")
                     return
-                length = int(self.headers.get("Content-Length", 0))
+                raw_len = self.headers.get("Content-Length", "0")
+                try:
+                    length = int(raw_len)
+                except (TypeError, ValueError):
+                    self._gui_json(
+                        {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Content-Length không hợp lệ"}},
+                        status=400,
+                    )
+                    return
+                if length < 0 or length > MAX_MCP_BODY_BYTES:
+                    self._gui_json(
+                        {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Kích thước gói tin vượt giới hạn"}},
+                        status=413 if length > MAX_MCP_BODY_BYTES else 400,
+                    )
+                    return
                 raw = self.rfile.read(length) if length > 0 else b"{}"
                 try:
                     req = json.loads(raw.decode("utf-8"))
@@ -367,12 +597,29 @@ class MayChuMCPThucTe(MCPServer):
                     )
                     return
                 resp = mcp_instance.xu_ly_jsonrpc(req)
-                self._gui_json(resp if resp else {"jsonrpc": "2.0", "result": {"ok": True}})
+                out_obj = resp if resp else {"jsonrpc": "2.0", "result": {"ok": True}}
+                session_id = qs.get("session_id", [""])[0]
+                if session_id:
+                    with sse_lock:
+                        q_ref = sse_sessions.get(session_id)
+                    if q_ref is not None and resp:
+                        q_ref.put(json.dumps(resp, ensure_ascii=False))
+                self._gui_json(out_obj)
 
             def log_message(self, format: str, *args: Any) -> None:
                 return
 
-        return ThreadingHTTPServer((host, int(port)), _MCPHTTPHandler)
+        server = ThreadingHTTPServer((host, int(port)), _MCPHTTPHandler)
+        orig_shutdown = server.shutdown
+
+        def _shutdown_with_sse() -> None:
+            with sse_lock:
+                for q_ref in list(sse_sessions.values()):
+                    q_ref.put(None)
+            orig_shutdown()
+
+        server.shutdown = _shutdown_with_sse  # type: ignore[method-assign]
+        return server
 
     def chay_sse(self, host: str = "127.0.0.1", port: int = 8090) -> None:
         """Khởi động máy chủ MCP HTTP/SSE lắng nghe lâu dài."""

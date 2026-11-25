@@ -1,5 +1,5 @@
 import math
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -71,7 +71,7 @@ def cong_cu_quet_radar_3d() -> str:
     """
     Thu thập đám mây điểm 3D và nạp trực tiếp các thực thể không gian vào SpatialVectorStore.
     """
-    vat_the: List[tuple[str, tuple[float, float, float], str]] = [
+    vat_the: List[Tuple[str, Tuple[float, float, float], str]] = [
         ("lidar_obj_1", (1.2, 0.5, 0.0), "Bàn làm việc phía trước"),
         ("lidar_obj_2", (-0.8, 1.5, 0.2), "Ghế xoay bên trái"),
         ("lidar_obj_3", (0.0, 2.8, 1.0), "Màn hình hiển thị trung tâm"),

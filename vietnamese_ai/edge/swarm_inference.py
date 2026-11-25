@@ -27,7 +27,7 @@ from vietnamese_ai.edge.swarm_auth import (
     tao_ma_pin_ngau_nhien,
 )
 from vietnamese_ai.nlp.native_tokenizer import BoNhungVanBanSieuToc, BoTachTuTiengVietSieuToc
-from vietnamese_ai.security.verifiable_inference import XacThucSuyLuanMaoHiem
+from vietnamese_ai.security.verifiable_inference import KiemChungFreivalds, XacThucSuyLuanMaoHiem
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
 logger = logging.getLogger("VietnameseAI.SwarmCPU")
@@ -118,6 +118,14 @@ class NutSwarmCPU:
         self._server_lan: Optional[asyncio.Server] = None
         self._server_thread: Optional[threading.Thread] = None
         self._server_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._pool_lock = threading.Lock()
+        self._pool_sock: Optional[Union[socket.socket, ssl.SSLSocket]] = None
+        self._pool_token: Optional[str] = None
+        self._pool_endpoint: Optional[str] = None
+        self._so_lan_tai_su_dung_ket_noi: int = 0
+        self._transformer_shard: Optional[Any] = None
+        self._kv_phien: Dict[str, Tuple[List[List[np.ndarray]], List[List[np.ndarray]]]] = {}
+        self._kv_lock = threading.Lock()
 
         # Khởi tạo trọng số giả lập xác định (Deterministic Weights) cho các layer phụ trách
         seed = int(hashlib.sha256(f"{node_id}:{dai_layer}".encode("utf-8")).hexdigest()[:8], 16)
@@ -190,6 +198,110 @@ class NutSwarmCPU:
             "duong_dan_gguf": self.duong_dan_gguf_shard,
         }
 
+    def nap_phan_manh_transformer_gguf(
+        self,
+        streamer: Any,
+        so_dau: int = 4,
+        so_dau_kv: Optional[int] = None,
+        d_ff: Optional[int] = None,
+        giu_luong_tu: bool = True,
+    ) -> Dict[str, Any]:
+        """Nạp phân mảnh khối Transformer thực tế (`BoGiaiMaTransformerEdge` với RMSNorm + RoPE + GQA + SwiGLU) cho dải layer của nút."""
+        from vietnamese_ai.edge.native_inference import BoGiaiMaTransformerEdge
+
+        chieu_ff = int(d_ff) if d_ff is not None else self.d_model * 2
+        bo_giai_ma = BoGiaiMaTransformerEdge(
+            d_model=self.d_model,
+            so_dau=so_dau,
+            d_ff=chieu_ff,
+            so_dau_kv=so_dau_kv,
+            so_lop=self.so_layer,
+        )
+        anh_xa = (
+            ("attn_q.weight", "w_q"),
+            ("attn_k.weight", "w_k"),
+            ("attn_v.weight", "w_v"),
+            ("attn_output.weight", "w_o"),
+            ("ffn_gate.weight", "w_gate"),
+            ("ffn_up.weight", "w_up"),
+            ("ffn_down.weight", "w_down"),
+        )
+        da_nap = 0
+        for rel_idx, abs_idx in enumerate(range(self.dai_layer[0], self.dai_layer[1])):
+            if rel_idx >= bo_giai_ma.so_lop:
+                break
+            lop = bo_giai_ma._cac_lop[rel_idx]
+            for ten_hau_to, ten_attr in anh_xa:
+                ten_gguf = f"blk.{abs_idx}.{ten_hau_to}"
+                target = lop[ten_attr]
+                in_dim, out_dim = int(target.shape[0]), int(target.shape[1])
+                if giu_luong_tu and hasattr(streamer, "doc_tensor_tho"):
+                    tho = streamer.doc_tensor_tho(ten_gguf)
+                    if tho is not None:
+                        from vietnamese_ai.edge.native_inference import THONG_SO_LUONG_TU
+
+                        dims = tho["dims"]
+                        loai_q = str(tho["loai_quant"])
+                        block_size, _ = THONG_SO_LUONG_TU.get(loai_q, (1, 4))
+                        khop_ggml = len(dims) == 2 and int(dims[0]) == in_dim and int(dims[1]) == out_dim
+                        khop_c = len(dims) == 2 and int(dims[0]) == out_dim and int(dims[1]) == in_dim
+                        if (khop_ggml or khop_c) and loai_q not in ("f16", "f32", "bf16") and in_dim % block_size == 0:
+                            bo_giai_ma._trong_so_luong_tu[f"{rel_idx}:{ten_attr}"] = {
+                                "raw_bytes": tho["raw_bytes"],
+                                "shape": (out_dim, in_dim),
+                                "loai_quant": loai_q,
+                            }
+                            da_nap += 1
+                            continue
+                tensor = streamer.doc_tensor(ten_gguf) if hasattr(streamer, "doc_tensor") else None
+                if tensor is not None and tensor.ndim == 2:
+                    if tensor.shape == (out_dim, in_dim):
+                        tensor = tensor.T
+                    r = min(target.shape[0], tensor.shape[0])
+                    c = min(target.shape[1], tensor.shape[1])
+                    target[:r, :c] = tensor[:r, :c].astype(np.float32)
+                    da_nap += 1
+            for ten_norm, attr_norm in (("attn_norm.weight", "norm_attn"), ("ffn_norm.weight", "norm_ffn")):
+                t_norm = streamer.doc_tensor(f"blk.{abs_idx}.{ten_norm}") if hasattr(streamer, "doc_tensor") else None
+                if t_norm is not None:
+                    flat_n = t_norm.ravel().astype(np.float32)
+                    n_copy = min(lop[attr_norm].shape[0], flat_n.shape[0])
+                    lop[attr_norm][:n_copy] = flat_n[:n_copy]
+                    da_nap += 1
+
+        self._transformer_shard = bo_giai_ma
+        self.xoa_kv_phien()
+        return {
+            "node_id": self.node_id,
+            "dai_layer": self.dai_layer,
+            "so_lop": self.so_layer,
+            "so_tensor_nap": da_nap,
+            "so_tensor_luong_tu": len(bo_giai_ma._trong_so_luong_tu),
+            "che_do_transformer_thuc": True,
+        }
+
+    def xoa_kv_phien(self, session_id: Optional[str] = None) -> None:
+        """Xóa bộ đệm KV-Cache của một phiên hoặc toàn bộ phiên suy luận trên nút."""
+        with self._kv_lock:
+            if session_id is None:
+                self._kv_phien.clear()
+            else:
+                self._kv_phien.pop(session_id, None)
+        if self._transformer_shard is not None:
+            self._transformer_shard.xoa_kv_cache()
+
+    def dong_ket_noi_lan(self) -> None:
+        """Đóng kết nối TCP/TLS keep-alive đang lưu trong pool của nút."""
+        with self._pool_lock:
+            if self._pool_sock is not None:
+                try:
+                    self._pool_sock.close()
+                except Exception:
+                    pass
+                self._pool_sock = None
+                self._pool_token = None
+                self._pool_endpoint = None
+
     def xuat_phan_manh_gguf(self, duong_dan_xuat: str, quantization: str = "q8_0") -> str:
         """Xuất riêng phân mảnh trọng số của nút này ra một tệp GGUF độc lập."""
         from vietnamese_ai.export.gguf import XuatGGUF
@@ -255,12 +367,18 @@ class NutSwarmCPU:
                 client_authenticated = (self.xac_thuc is None)
 
                 try:
+                    max_header_bytes = 2 * 1024 * 1024
+                    max_tensor_bytes = 64 * 1024 * 1024
                     while True:
-                        raw_header_len = await reader.read(4)
-                        if not raw_header_len or len(raw_header_len) < 4:
-                            break
+                        raw_header_len = await asyncio.wait_for(reader.readexactly(4), timeout=30.0)
                         header_len = struct.unpack("!I", raw_header_len)[0]
-                        header_bytes = await reader.readexactly(header_len)
+                        if header_len == 0 or header_len > max_header_bytes:
+                            err_meta = {"trang_thai": "that_bai", "ly_do": "Kích thước tiêu đề vượt giới hạn an toàn"}
+                            err_b = json.dumps(err_meta, ensure_ascii=False).encode("utf-8")
+                            writer.write(struct.pack("!I", len(err_b)) + err_b)
+                            await writer.drain()
+                            break
+                        header_bytes = await asyncio.wait_for(reader.readexactly(header_len), timeout=30.0)
                         req_meta = json.loads(header_bytes.decode("utf-8"))
 
                         loai_req = req_meta.get("loai")
@@ -337,10 +455,16 @@ class NutSwarmCPU:
                                 writer.close()
                                 return
 
-                        tensor_len = req_meta.get("tensor_bytes", 0)
+                        tensor_len = int(req_meta.get("tensor_bytes", 0))
+                        if tensor_len < 0 or tensor_len > max_tensor_bytes:
+                            err_meta = {"trang_thai": "that_bai", "ly_do": "Kích thước tensor vượt giới hạn an toàn"}
+                            err_b = json.dumps(err_meta, ensure_ascii=False).encode("utf-8")
+                            writer.write(struct.pack("!I", len(err_b)) + err_b)
+                            await writer.drain()
+                            break
                         shape = tuple(req_meta.get("shape", [1, self.d_model]))
                         dtype_str = req_meta.get("dtype", "float32")
-                        raw_tensor = await reader.readexactly(tensor_len)
+                        raw_tensor = await asyncio.wait_for(reader.readexactly(tensor_len), timeout=30.0)
 
                         if dtype_str == "float16":
                             input_tensor = np.frombuffer(raw_tensor, dtype=np.float16).astype(np.float32).reshape(shape)
@@ -350,7 +474,29 @@ class NutSwarmCPU:
                         t_comp_start = time.perf_counter()
                         tao_proof = req_meta.get("tao_proof", True)
                         tra_ve_fp16 = req_meta.get("nen_fp16", False) or (dtype_str == "float16") or self.nen_fp16
-                        output_tensor, proof = self._tinh_toan_cuc_bo(input_tensor, tao_proof=tao_proof, nen_fp16=tra_ve_fp16)
+                        req_session = req_meta.get("session_id")
+                        req_vi_tri = int(req_meta.get("vi_tri", 0))
+                        if req_session is not None or req_vi_tri != 0:
+                            try:
+                                output_tensor, proof = self._tinh_toan_cuc_bo(
+                                    input_tensor,
+                                    tao_proof=tao_proof,
+                                    nen_fp16=tra_ve_fp16,
+                                    session_id=str(req_session) if req_session is not None else None,
+                                    vi_tri=req_vi_tri,
+                                )
+                            except TypeError:
+                                output_tensor, proof = self._tinh_toan_cuc_bo(
+                                    input_tensor,
+                                    tao_proof=tao_proof,
+                                    nen_fp16=tra_ve_fp16,
+                                )
+                        else:
+                            output_tensor, proof = self._tinh_toan_cuc_bo(
+                                input_tensor,
+                                tao_proof=tao_proof,
+                                nen_fp16=tra_ve_fp16,
+                            )
                         t_comp_ms = (time.perf_counter() - t_comp_start) * 1000.0
 
                         if tra_ve_fp16:
@@ -414,6 +560,7 @@ class NutSwarmCPU:
         if self._server_thread is not None:
             self._server_thread.join(timeout=1.0)
             self._server_thread = None
+        self.dong_ket_noi_lan()
 
     def phe_duyet_nut(self, nut_id: str, cho_phep: bool = True) -> bool:
         """Phê duyệt hoặc từ chối thiết bị đang chờ gia nhập cụm (One-Click Approval)."""
@@ -421,22 +568,25 @@ class NutSwarmCPU:
             return self.xac_thuc.phe_duyet_nut(nut_id, cho_phep)
         return False
 
-    def _truyen_tai_qua_socket_lan(
-        self,
-        hidden_states: np.ndarray,
-        tao_proof: bool = True,
-        timeout: float = 5.0,
-    ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
-        """Truyền tensor qua socket TCP tới máy tính vật lý trong mạng LAN/Tailscale."""
-        t_net_start = time.perf_counter()
-        endpoint = str(self.endpoint_url or "")
-        url = endpoint.replace("tls://", "").replace("tcp://", "").replace("http://", "")
-        if ":" in url:
-            host, port_str = url.split(":", 1)
-            port = int(port_str)
-        else:
-            host, port = url, 8890
+    @staticmethod
+    def _recv_exact(sock: Union[socket.socket, ssl.SSLSocket], n_bytes: int) -> bytes:
+        """Đọc chính xác `n_bytes` từ TCP/TLS socket, xử lý các gói tin bị phân mảnh."""
+        buf = bytearray()
+        while len(buf) < n_bytes:
+            chunk = sock.recv(min(65536, n_bytes - len(buf)))
+            if not chunk:
+                raise ConnectionResetError(f"Socket ngắt kết nối sớm (nhận {len(buf)}/{n_bytes} bytes)")
+            buf.extend(chunk)
+        return bytes(buf)
 
+    def _mo_va_xac_thuc_socket_lan(
+        self,
+        host: str,
+        port: int,
+        timeout: float,
+        max_header_bytes: int,
+    ) -> Tuple[Union[socket.socket, ssl.SSLSocket], Optional[str]]:
+        """Mở kết nối TCP/TLS mới tới nút LAN và hoàn tất bắt tay HMAC PIN nếu được cấu hình."""
         raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         raw_sock.settimeout(timeout)
         sock_conn: Union[socket.socket, ssl.SSLSocket]
@@ -445,27 +595,21 @@ class NutSwarmCPU:
         else:
             sock_conn = raw_sock
 
-        with sock_conn as sock:
-            sock.connect((host, port))
-
+        try:
+            sock_conn.connect((host, port))
             session_token: Optional[str] = None
-
-            # Bắt tay xác thực HMAC nếu nút này hoặc cụm được cấu hình mã PIN
             if self.ma_pin is not None:
-                # 1. Yêu cầu Challenge
                 auth_req = {"loai": "auth_challenge_req"}
                 auth_req_b = json.dumps(auth_req).encode("utf-8")
-                sock.sendall(struct.pack("!I", len(auth_req_b)) + auth_req_b)
+                sock_conn.sendall(struct.pack("!I", len(auth_req_b)) + auth_req_b)
 
-                raw_len = sock.recv(4)
-                if not raw_len or len(raw_len) < 4:
-                    raise ConnectionResetError("Máy chủ ngắt kết nối khi đang bắt tay xác thực")
-                h_len = struct.unpack("!I", raw_len)[0]
-                ch_meta = json.loads(sock.recv(h_len).decode("utf-8"))
+                h_len = struct.unpack("!I", self._recv_exact(sock_conn, 4))[0]
+                if h_len == 0 or h_len > max_header_bytes:
+                    raise ValueError("Tiêu đề challenge từ máy chủ vượt giới hạn an toàn")
+                ch_meta = json.loads(self._recv_exact(sock_conn, h_len).decode("utf-8"))
 
                 if ch_meta.get("trang_thai") == "challenge":
                     nonce = ch_meta["nonce"]
-                    # Tính chữ ký HMAC với mã PIN
                     key = str(self.ma_pin).encode("utf-8")
                     msg = nonce.encode("utf-8")
                     chu_ky = hmac.new(key, msg, hashlib.sha256).hexdigest()
@@ -478,88 +622,202 @@ class NutSwarmCPU:
                         "thong_tin": {"so_core_cpu": self.so_core_cpu, "ram_mb": self.ram_mb},
                     }
                     resp_req_b = json.dumps(resp_req).encode("utf-8")
-                    sock.sendall(struct.pack("!I", len(resp_req_b)) + resp_req_b)
+                    sock_conn.sendall(struct.pack("!I", len(resp_req_b)) + resp_req_b)
 
-                    raw_len = sock.recv(4)
-                    if not raw_len or len(raw_len) < 4:
-                        raise ConnectionResetError("Máy chủ từ chối phản hồi xác thực")
-                    h_len = struct.unpack("!I", raw_len)[0]
-                    res_auth = json.loads(sock.recv(h_len).decode("utf-8"))
+                    h_len = struct.unpack("!I", self._recv_exact(sock_conn, 4))[0]
+                    if h_len == 0 or h_len > max_header_bytes:
+                        raise ValueError("Tiêu đề phản hồi xác thực vượt giới hạn an toàn")
+                    res_auth = json.loads(self._recv_exact(sock_conn, h_len).decode("utf-8"))
 
                     if res_auth.get("trang_thai") != "thanh_cong":
                         raise PermissionError(f"Xác thực cụm Swarm thất bại: {res_auth.get('ly_do')}")
                     session_token = res_auth.get("token")
+            return sock_conn, session_token
+        except Exception:
+            try:
+                sock_conn.close()
+            except Exception:
+                pass
+            raise
 
-            if self.nen_fp16:
-                x_arr = np.asarray(hidden_states, dtype=np.float16)
-                raw_x = x_arr.tobytes()
-                dtype_str = "float16"
-            else:
-                x_arr = np.asarray(hidden_states, dtype=np.float32)
-                raw_x = x_arr.tobytes()
-                dtype_str = "float32"
+    def _truyen_tai_qua_socket_lan(
+        self,
+        hidden_states: np.ndarray,
+        tao_proof: bool = True,
+        timeout: float = 5.0,
+        session_id: Optional[str] = None,
+        vi_tri: int = 0,
+        giu_ket_noi: bool = True,
+    ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
+        """Truyền tensor qua socket TCP/TLS tới máy tính vật lý LAN/Tailscale (hỗ trợ keep-alive connection pool)."""
+        t_net_start = time.perf_counter()
+        max_header_bytes = 2 * 1024 * 1024
+        max_tensor_bytes = 64 * 1024 * 1024
+        endpoint = str(self.endpoint_url or "")
+        url = endpoint.replace("tls://", "").replace("tcp://", "").replace("http://", "")
+        if ":" in url:
+            host, port_str = url.split(":", 1)
+            port = int(port_str)
+        else:
+            host, port = url, 8890
 
-            req_meta = {
-                "loai": "forward",
-                "node_id": self.node_id,
-                "shape": list(x_arr.shape),
-                "tensor_bytes": len(raw_x),
-                "dtype": dtype_str,
-                "nen_fp16": self.nen_fp16,
-                "tao_proof": tao_proof,
-                "token": session_token,
-            }
-            meta_bytes = json.dumps(req_meta).encode("utf-8")
-            sock.sendall(struct.pack("!I", len(meta_bytes)) + meta_bytes + raw_x)
+        if self.nen_fp16:
+            x_arr = np.asarray(hidden_states, dtype=np.float16)
+            raw_x = x_arr.tobytes()
+            dtype_str = "float16"
+        else:
+            x_arr = np.asarray(hidden_states, dtype=np.float32)
+            raw_x = x_arr.tobytes()
+            dtype_str = "float32"
 
-            raw_len = sock.recv(4)
-            if not raw_len or len(raw_len) < 4:
-                raise ConnectionResetError(f"Máy chủ {host}:{port} ngắt kết nối khi đang nhận phản hồi")
-            resp_header_len = struct.unpack("!I", raw_len)[0]
-            resp_meta_bytes = sock.recv(resp_header_len)
-            resp_meta = json.loads(resp_meta_bytes.decode("utf-8"))
+        with self._pool_lock:
+            for lan_thu in range(2):
+                reused = False
+                if giu_ket_noi and self._pool_sock is not None and self._pool_endpoint == endpoint:
+                    sock = self._pool_sock
+                    session_token = self._pool_token
+                    sock.settimeout(timeout)
+                    reused = True
+                else:
+                    if self._pool_sock is not None:
+                        try:
+                            self._pool_sock.close()
+                        except Exception:
+                            pass
+                        self._pool_sock = None
+                        self._pool_token = None
+                        self._pool_endpoint = None
+                    sock, session_token = self._mo_va_xac_thuc_socket_lan(
+                        host=host,
+                        port=port,
+                        timeout=timeout,
+                        max_header_bytes=max_header_bytes,
+                    )
 
-            if resp_meta.get("trang_thai") != "thanh_cong":
-                raise RuntimeError(f"Lỗi suy luận từ node vật lý {self.node_id}: {resp_meta.get('ly_do', 'Không xác định')}")
+                try:
+                    req_meta: Dict[str, Any] = {
+                        "loai": "forward",
+                        "node_id": self.node_id,
+                        "shape": list(x_arr.shape),
+                        "tensor_bytes": len(raw_x),
+                        "dtype": dtype_str,
+                        "nen_fp16": self.nen_fp16,
+                        "tao_proof": tao_proof,
+                        "token": session_token,
+                        "vi_tri": int(vi_tri),
+                    }
+                    if session_id is not None:
+                        req_meta["session_id"] = session_id
+                    meta_bytes = json.dumps(req_meta).encode("utf-8")
+                    sock.sendall(struct.pack("!I", len(meta_bytes)) + meta_bytes + raw_x)
 
-            tensor_len = resp_meta.get("tensor_bytes", 0)
-            tensor_shape = tuple(resp_meta.get("shape", list(x_arr.shape)))
-            raw_tensor = bytearray()
-            while len(raw_tensor) < tensor_len:
-                chunk = sock.recv(min(65536, tensor_len - len(raw_tensor)))
-                if not chunk:
-                    break
-                raw_tensor.extend(chunk)
+                    resp_header_len = struct.unpack("!I", self._recv_exact(sock, 4))[0]
+                    if resp_header_len == 0 or resp_header_len > max_header_bytes:
+                        raise ValueError("Tiêu đề phản hồi từ máy chủ vượt giới hạn an toàn")
+                    resp_meta_bytes = self._recv_exact(sock, resp_header_len)
+                    resp_meta = json.loads(resp_meta_bytes.decode("utf-8"))
 
-            resp_dtype = resp_meta.get("dtype", "float32")
-            if resp_dtype == "float16":
-                out_tensor = np.frombuffer(raw_tensor, dtype=np.float16).astype(np.float32).reshape(tensor_shape)
-            else:
-                out_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(tensor_shape)
+                    if resp_meta.get("trang_thai") != "thanh_cong":
+                        raise RuntimeError(
+                            f"Lỗi suy luận từ node vật lý {self.node_id}: {resp_meta.get('ly_do', 'Không xác định')}"
+                        )
 
-            self.thoi_gian_tinh_toan_gan_nhat_ms = float(resp_meta.get("thoi_gian_cpu_ms", 0.0))
-            self.thoi_gian_mang_gan_nhat_ms = (time.perf_counter() - t_net_start) * 1000.0 - self.thoi_gian_tinh_toan_gan_nhat_ms
-            return out_tensor, resp_meta.get("proof")
+                    tensor_len = int(resp_meta.get("tensor_bytes", 0))
+                    if tensor_len < 0 or tensor_len > max_tensor_bytes:
+                        raise ValueError("Kích thước tensor phản hồi vượt giới hạn an toàn")
+                    tensor_shape = tuple(resp_meta.get("shape", list(x_arr.shape)))
+                    raw_tensor = self._recv_exact(sock, tensor_len)
+
+                    resp_dtype = resp_meta.get("dtype", "float32")
+                    if resp_dtype == "float16":
+                        out_tensor = np.frombuffer(raw_tensor, dtype=np.float16).astype(np.float32).reshape(tensor_shape)
+                    else:
+                        out_tensor = np.frombuffer(raw_tensor, dtype=np.float32).reshape(tensor_shape)
+
+                    if reused:
+                        self._so_lan_tai_su_dung_ket_noi += 1
+                    if giu_ket_noi:
+                        self._pool_sock = sock
+                        self._pool_token = session_token
+                        self._pool_endpoint = endpoint
+                    else:
+                        try:
+                            sock.close()
+                        except Exception:
+                            pass
+
+                    self.thoi_gian_tinh_toan_gan_nhat_ms = float(resp_meta.get("thoi_gian_cpu_ms", 0.0))
+                    self.thoi_gian_mang_gan_nhat_ms = (
+                        (time.perf_counter() - t_net_start) * 1000.0 - self.thoi_gian_tinh_toan_gan_nhat_ms
+                    )
+                    return out_tensor, resp_meta.get("proof")
+                except (OSError, ConnectionResetError, BrokenPipeError, EOFError):
+                    try:
+                        sock.close()
+                    except Exception:
+                        pass
+                    if self._pool_sock is sock:
+                        self._pool_sock = None
+                        self._pool_token = None
+                        self._pool_endpoint = None
+                    if reused and lan_thu == 0:
+                        continue
+                    raise
+                except Exception:
+                    try:
+                        sock.close()
+                    except Exception:
+                        pass
+                    if self._pool_sock is sock:
+                        self._pool_sock = None
+                        self._pool_token = None
+                        self._pool_endpoint = None
+                    raise
+            raise RuntimeError(f"Không thể gửi tensor qua kết nối LAN tới nút {self.node_id}")
 
     def _tinh_toan_cuc_bo(
         self,
         hidden_states: np.ndarray,
         tao_proof: bool = True,
         nen_fp16: Optional[bool] = None,
+        session_id: Optional[str] = None,
+        vi_tri: int = 0,
     ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
-        """Thực thi forward pass cục bộ trên CPU."""
+        """Thực thi forward pass cục bộ trên CPU (ưu tiên phân mảnh Transformer GGUF + KV-Cache theo phiên nếu đã nạp)."""
         t_start = time.perf_counter()
         ap_dung_fp16 = self.nen_fp16 if nen_fp16 is None else nen_fp16
         x = hidden_states.copy()
         if x.ndim == 1:
             x = x.reshape(1, -1)
 
-        for l_idx in range(self.so_layer):
-            w = self.w_proj[l_idx]
-            b = self.bias[l_idx]
-            x_next = np.dot(x, w) + b
-            x_next = np.clip(x_next, -50.0, 50.0)
-            x = np.clip(x + 0.1 * x_next, -100.0, 100.0)
+        if self._transformer_shard is not None:
+            with self._kv_lock:
+                shard = self._transformer_shard
+                if session_id is not None:
+                    saved = self._kv_phien.get(session_id)
+                    if saved is None:
+                        shard.xoa_kv_cache()
+                    else:
+                        shard._kv_local.k_caches = [list(c) for c in saved[0]]
+                        shard._kv_local.v_caches = [list(c) for c in saved[1]]
+                elif vi_tri == 0:
+                    shard.xoa_kv_cache()
+
+                ket_qua_rows: List[np.ndarray] = []
+                for row_idx in range(x.shape[0]):
+                    ket_qua_rows.append(shard.buoc_suy_luan(x[row_idx], vi_tri=int(vi_tri) + row_idx))
+                x = np.vstack(ket_qua_rows).astype(np.float32)
+
+                if session_id is not None:
+                    k_cur, v_cur = shard._lay_kv_caches_luong()
+                    self._kv_phien[session_id] = ([list(c) for c in k_cur], [list(c) for c in v_cur])
+        else:
+            for l_idx in range(self.so_layer):
+                w = self.w_proj[l_idx]
+                b = self.bias[l_idx]
+                x_next = np.dot(x, w) + b
+                x_next = np.clip(x_next, -50.0, 50.0)
+                x = np.clip(x + 0.1 * x_next, -100.0, 100.0)
 
         if ap_dung_fp16:
             x = x.astype(np.float16).astype(np.float32)
@@ -587,15 +845,22 @@ class NutSwarmCPU:
         self,
         hidden_states: np.ndarray,
         tao_proof: bool = True,
+        session_id: Optional[str] = None,
+        vi_tri: int = 0,
     ) -> Tuple[np.ndarray, Optional[Dict[str, Any]]]:
         """
         Thực hiện tính toán chuyển tiếp (Forward Pass) qua các layer phụ trách trên CPU:
-        - Nếu cấu hình là nút mạng LAN vật lý (`endpoint_url`), gửi tensor qua TCP socket thực tế.
+        - Nếu cấu hình là nút mạng LAN vật lý (`endpoint_url`), gửi tensor qua TCP socket thực tế (keep-alive pool).
         - Nếu chạy cục bộ, tính toán trực tiếp trên CPU.
         """
         if self.endpoint_url is not None and self.che_do == "mang_vat_ly_lan":
             try:
-                return self._truyen_tai_qua_socket_lan(hidden_states, tao_proof=tao_proof)
+                return self._truyen_tai_qua_socket_lan(
+                    hidden_states,
+                    tao_proof=tao_proof,
+                    session_id=session_id,
+                    vi_tri=vi_tri,
+                )
             except PermissionError:
                 raise
             except Exception as e:
@@ -604,9 +869,19 @@ class NutSwarmCPU:
                     self.endpoint_url,
                     e,
                 )
-                return self._tinh_toan_cuc_bo(hidden_states, tao_proof=tao_proof)
+                return self._tinh_toan_cuc_bo(
+                    hidden_states,
+                    tao_proof=tao_proof,
+                    session_id=session_id,
+                    vi_tri=vi_tri,
+                )
 
-        return self._tinh_toan_cuc_bo(hidden_states, tao_proof=tao_proof)
+        return self._tinh_toan_cuc_bo(
+            hidden_states,
+            tao_proof=tao_proof,
+            session_id=session_id,
+            vi_tri=vi_tri,
+        )
 
     def lay_thong_tin_cau_hinh(self) -> Dict[str, Any]:
         """Trả về thông tin cấu hình phần cứng và dải layer của Node."""
@@ -622,6 +897,9 @@ class NutSwarmCPU:
             "che_do": self.che_do,
             "la_node_mang_vat_ly": self.endpoint_url is not None or self.che_do == "mang_vat_ly_lan",
             "ma_hoa_tls": self.ssl_context is not None,
+            "che_do_transformer_thuc": self._transformer_shard is not None,
+            "so_phien_kv_cache": len(self._kv_phien),
+            "so_lan_tai_su_dung_ket_noi": self._so_lan_tai_su_dung_ket_noi,
         }
 
     def lan_truyen_tien(
@@ -629,9 +907,15 @@ class NutSwarmCPU:
         hidden_states: np.ndarray,
         buoc: int = 0,
         tao_proof: bool = True,
+        session_id: Optional[str] = None,
     ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """Alias phương thức lan truyền tiến (Forward Pass) cho Node."""
-        x, proof = self.thuc_thi_layer(hidden_states, tao_proof=tao_proof)
+        x, proof = self.thuc_thi_layer(
+            hidden_states,
+            tao_proof=tao_proof,
+            session_id=session_id,
+            vi_tri=buoc,
+        )
         p_dict = proof.copy() if proof else {}
         if "chuoi_cam_ket" not in p_dict and "proof_zk" in p_dict:
             p_dict["chuoi_cam_ket"] = p_dict["proof_zk"]
@@ -877,14 +1161,63 @@ class DieuPhoiSwarmCPU:
             "danh_sach_node": [n.lay_thong_tin_cau_hinh() for n in self.danh_sach_node],
         }
 
+    @staticmethod
+    def _xac_minh_danh_tinh_proof_node(node: NutSwarmCPU, proof: Optional[Dict[str, Any]]) -> bool:
+        """Đảm bảo proof tồn tại và khóa công khai khớp với danh tính đã ghim của node."""
+        if not isinstance(proof, dict) or not proof:
+            return False
+        pub_trong_proof = str(proof.get("public_key", "")).lower()
+        if not pub_trong_proof:
+            return False
+        if node.che_do != "mang_vat_ly_lan":
+            return hmac.compare_digest(pub_trong_proof, node.verifier.public_key.lower())
+        pinned = getattr(node, "_pinned_public_key", None)
+        if pinned is None:
+            setattr(node, "_pinned_public_key", pub_trong_proof)
+            return True
+        return hmac.compare_digest(pub_trong_proof, str(pinned).lower())
+
+    @staticmethod
+    def xac_minh_freivalds_nut(
+        node: NutSwarmCPU,
+        h_in: np.ndarray,
+        h_out: np.ndarray,
+        so_vong: int = 12,
+    ) -> Dict[str, Any]:
+        """Kiểm chứng xác suất Freivalds cho phép chiếu tuyến tính của một nút đơn tầng không bão hòa."""
+        if node._transformer_shard is not None or node.so_layer != 1:
+            return {"hop_le": True, "bo_qua": True, "ly_do": "Nút nhiều tầng hoặc Transformer phi tuyến"}
+        x_2d = np.asarray(h_in, dtype=np.float64)
+        if x_2d.ndim == 1:
+            x_2d = x_2d.reshape(1, -1)
+        y_2d = np.asarray(h_out, dtype=np.float64)
+        if y_2d.ndim == 1:
+            y_2d = y_2d.reshape(1, -1)
+        y_delta = (y_2d - x_2d) * 10.0
+        rtol = 2e-2 if node.nen_fp16 else 1e-3
+        atol = 5e-2 if node.nen_fp16 else 1e-3
+        return KiemChungFreivalds.xac_minh_nhan_ma_tran(
+            x=x_2d,
+            w=node.w_proj[0],
+            y=y_delta,
+            b=node.bias[0],
+            so_vong=so_vong,
+            rtol=rtol,
+            atol=atol,
+        )
+
     def lan_truyen_pipeline(
         self,
         hidden_states: np.ndarray,
         tao_proof: Optional[bool] = None,
+        session_id: Optional[str] = None,
+        vi_tri: int = 0,
+        kiem_chung_freivalds: bool = False,
     ) -> Tuple[np.ndarray, List[Dict[str, Any]]]:
         """
         Lan truyền tensor trạng thái ẩn qua toàn bộ chuỗi Pipeline Parallelism:
-        - Kiểm tra cam kết chứng thực mật mã học ở mỗi node.
+        - Kiểm tra cam kết chứng thực mật mã học ở mỗi node (bắt buộc có proof & khớp khóa công khai).
+        - Hỗ trợ kiểm chứng tính toán tuyến tính Freivalds O(n^2) khi `kiem_chung_freivalds=True`.
         - Ném ngoại lệ ValueError nếu phát hiện nút Byzantine gian lận.
         """
         if not self.danh_sach_node:
@@ -898,19 +1231,45 @@ class DieuPhoiSwarmCPU:
         cam_kets: List[Dict[str, Any]] = []
 
         for node in self.danh_sach_node:
-            h_next, proof = node.lan_truyen_tien(h_curr, tao_proof=ap_dung_proof)
-            if ap_dung_proof and proof:
+            if session_id is not None or vi_tri != 0:
+                try:
+                    h_next, proof = node.lan_truyen_tien(
+                        h_curr,
+                        buoc=vi_tri,
+                        tao_proof=ap_dung_proof,
+                        session_id=session_id,
+                    )
+                except TypeError:
+                    h_next, proof = node.lan_truyen_tien(h_curr, tao_proof=ap_dung_proof)
+            else:
+                h_next, proof = node.lan_truyen_tien(h_curr, tao_proof=ap_dung_proof)
+            if ap_dung_proof:
+                if not proof:
+                    raise ValueError(f"Nút {node.node_id} không gửi bằng chứng chứng thực mật mã (Byzantine)")
                 if "chuoi_cam_ket" in proof:
                     proof["proof_zk"] = proof["chuoi_cam_ket"]
 
-                hop_le = XacThucSuyLuanMaoHiem.xac_minh_cam_ket(
+                hop_le = self._xac_minh_danh_tinh_proof_node(node, proof) and XacThucSuyLuanMaoHiem.xac_minh_cam_ket(
                     cam_ket=proof,
                     tensor_dau_vao=h_curr,
                     tensor_dau_ra=h_next,
                 )
                 if not hop_le:
                     raise ValueError(f"Phát hiện nút gian lận Byzantine trong cụm Swarm: {node.node_id}")
+                if kiem_chung_freivalds:
+                    fv = self.xac_minh_freivalds_nut(node, h_curr, h_next)
+                    proof["freivalds"] = fv
+                    if not fv.get("hop_le", False):
+                        raise ValueError(
+                            f"Phát hiện sai lệch tính toán ma trận qua kiểm chứng Freivalds tại nút {node.node_id}"
+                        )
                 cam_kets.append(proof)
+            elif kiem_chung_freivalds:
+                fv = self.xac_minh_freivalds_nut(node, h_curr, h_next)
+                if not fv.get("hop_le", False):
+                    raise ValueError(
+                        f"Phát hiện sai lệch tính toán ma trận qua kiểm chứng Freivalds tại nút {node.node_id}"
+                    )
             h_curr = h_next
 
         return h_curr, cam_kets
@@ -964,10 +1323,11 @@ class DieuPhoiSwarmCPU:
         for node in self.danh_sach_node:
             h_next, proof = node.thuc_thi_layer(h_state, tao_proof=xac_minh_proof)
 
-            if xac_minh_proof and proof:
-                # Xác thực tính trung thực của Node
+            if xac_minh_proof:
+                if not proof:
+                    raise PermissionError(f"Node {node.node_id} không gửi bằng chứng chứng thực (Byzantine)")
                 t_ver_start = time.perf_counter()
-                hop_le = XacThucSuyLuanMaoHiem.xac_minh_cam_ket(
+                hop_le = self._xac_minh_danh_tinh_proof_node(node, proof) and XacThucSuyLuanMaoHiem.xac_minh_cam_ket(
                     cam_ket=proof,
                     tensor_dau_vao=h_state,
                     tensor_dau_ra=h_next,

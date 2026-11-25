@@ -121,14 +121,12 @@ class XacThucCumSwarm:
         self.so_lan_sai_toi_da = so_lan_sai_toi_da
         self.thoi_gian_khoa_giay = thoi_gian_khoa_giay
 
-        # IP -> timestamp hết hạn khóa
         self._ip_bi_khoa: Dict[str, float] = {}
-        # IP -> Danh sách timestamp các lần thử sai trong 60 giây gần nhất
         self._lich_su_that_bai: Dict[str, List[float]] = {}
-        # Session token -> Thông tin nút được ủy quyền
         self._phien_hoat_dong: Dict[str, Dict[str, Any]] = {}
-        # nut_id -> Thông tin chờ duyệt kèm asyncio.Future
         self._hang_doi_phe_duyet: Dict[str, Dict[str, Any]] = {}
+        self._nonces_da_cap: Dict[str, float] = {}
+        self.thoi_gian_song_nonce_giay: float = 120.0
 
     def kiem_tra_ip_bi_khoa(self, ip: str) -> bool:
         """Kiểm tra xem địa chỉ IP này có đang nằm trong danh sách đen tạm thời hay không."""
@@ -164,9 +162,26 @@ class XacThucCumSwarm:
         self._lich_su_that_bai.pop(ip, None)
         self._ip_bi_khoa.pop(ip, None)
 
+    def _don_dep_nonces_het_han(self, bay_gio: float) -> None:
+        het_han = [
+            n
+            for n, ts in self._nonces_da_cap.items()
+            if (bay_gio - ts) > self.thoi_gian_song_nonce_giay
+        ]
+        for n in het_han:
+            self._nonces_da_cap.pop(n, None)
+
     def tao_thach_thuc(self) -> str:
-        """Tạo một chuỗi số ngẫu nhiên ngẫu nhiên (Nonce) dùng cho một lượt bắt tay duy nhất."""
-        return secrets.token_hex(16)
+        """Tạo một chuỗi Nonce dùng một lần kèm thời hạn sống chống tấn công phát lại (Replay Attack)."""
+        bay_gio = time.time()
+        self._don_dep_nonces_het_han(bay_gio)
+        if len(self._nonces_da_cap) >= 4096:
+            cu_nhat = sorted(self._nonces_da_cap.items(), key=lambda x: x[1])[:512]
+            for n, _ in cu_nhat:
+                self._nonces_da_cap.pop(n, None)
+        nonce = secrets.token_hex(16)
+        self._nonces_da_cap[nonce] = bay_gio
+        return nonce
 
     def ky_thach_thuc(self, nonce: str, pin: Optional[str] = None) -> str:
         """
@@ -179,8 +194,13 @@ class XacThucCumSwarm:
 
     def xac_minh_thach_thuc(self, nonce: str, chu_ky_nhan_duoc: str, pin: Optional[str] = None) -> bool:
         """
-        Xác minh chữ ký thách thức từ máy đối tác qua hmac.compare_digest chống timing attack.
+        Xác minh chữ ký thách thức dùng một lần từ máy đối tác qua hmac.compare_digest chống timing & replay attack.
         """
+        bay_gio = time.time()
+        self._don_dep_nonces_het_han(bay_gio)
+        ts = self._nonces_da_cap.pop(nonce, None)
+        if ts is None or (bay_gio - ts) > self.thoi_gian_song_nonce_giay:
+            return False
         chu_ky_mong_doi = self.ky_thach_thuc(nonce, pin=pin)
         return hmac.compare_digest(chu_ky_mong_doi, chu_ky_nhan_duoc)
 

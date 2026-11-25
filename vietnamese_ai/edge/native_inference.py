@@ -28,12 +28,17 @@ except ImportError:
 THONG_SO_LUONG_TU: Dict[str, Tuple[int, int]] = {
     "q4_0": (32, 18),
     "q4_1": (32, 20),
+    "q5_0": (32, 22),
+    "q5_1": (32, 24),
     "q8_0": (32, 34),
     "q2_k": (256, 84),
     "q3_k": (256, 110),
     "q4_k": (256, 144),
     "q4_k_m": (256, 144),
     "q4_k_s": (256, 144),
+    "q5_k": (256, 176),
+    "q6_k": (256, 210),
+    "bf16": (1, 2),
     "f16": (1, 2),
     "f32": (1, 4),
 }
@@ -56,10 +61,15 @@ _GGML_TYPE_MAP: Dict[int, str] = {
     1: "f16",
     2: "q4_0",
     3: "q4_1",
+    6: "q5_0",
+    7: "q5_1",
     8: "q8_0",
     10: "q2_k",
     11: "q3_k",
     12: "q4_k",
+    13: "q5_k",
+    14: "q6_k",
+    30: "bf16",
 }
 
 
@@ -202,6 +212,7 @@ class BoGiaiMaTransformerEdge:
         self.w_down = lop_0["w_down"]
         self.norm_attn = lop_0["norm_attn"]
         self.norm_ffn = lop_0["norm_ffn"]
+        self.norm_output = np.ones(d_model, dtype=np.float32)
 
         self._trong_so_luong_tu: Dict[str, Dict[str, Any]] = {}
         self._kv_local = threading.local()
@@ -222,9 +233,47 @@ class BoGiaiMaTransformerEdge:
 
     @staticmethod
     def rms_norm(x: np.ndarray, gamma: np.ndarray, eps: float = 1e-6) -> np.ndarray:
-        """Chuẩn hóa RMSNorm theo chiều đặc trưng cuối."""
-        rms = np.sqrt(np.mean(x * x, axis=-1, keepdims=True) + eps)
-        return (x / rms) * gamma
+        """Chuẩn hóa RMSNorm theo chiều đặc trưng cuối (ưu tiên kernel Rust khi khả dụng)."""
+        x_f32 = np.asarray(x, dtype=np.float32)
+        g_f32 = np.asarray(gamma, dtype=np.float32).ravel()
+        if (
+            _rust_core is not None
+            and x_f32.ndim >= 1
+            and x_f32.shape[-1] == g_f32.shape[0]
+            and x_f32.size >= 64
+        ):
+            fn_rms_b = getattr(_rust_core, "fast_rmsnorm_f32_bytes", None)
+            if fn_rms_b is not None:
+                try:
+                    dim = int(x_f32.shape[-1])
+                    rows = int(x_f32.size // dim)
+                    raw_out = fn_rms_b(
+                        np.ascontiguousarray(x_f32, dtype="<f4").tobytes(),
+                        np.ascontiguousarray(g_f32, dtype="<f4").tobytes(),
+                        rows,
+                        dim,
+                        float(eps),
+                    )
+                    return np.frombuffer(raw_out, dtype="<f4").copy().reshape(x_f32.shape)
+                except Exception:
+                    pass
+            fn_rms = getattr(_rust_core, "fast_rmsnorm_f32", None)
+            if fn_rms is not None:
+                try:
+                    dim = int(x_f32.shape[-1])
+                    rows = int(x_f32.size // dim)
+                    out = fn_rms(
+                        np.ascontiguousarray(x_f32, dtype="<f4").tobytes(),
+                        np.ascontiguousarray(g_f32, dtype="<f4").tobytes(),
+                        rows,
+                        dim,
+                        float(eps),
+                    )
+                    return np.asarray(out, dtype=np.float32).reshape(x_f32.shape)
+                except Exception:
+                    pass
+        rms = np.sqrt(np.mean(x_f32 * x_f32, axis=-1, keepdims=True) + eps)
+        return (x_f32 / rms) * g_f32
 
     @staticmethod
     def ap_dung_rope(x: np.ndarray, vi_tri: int) -> np.ndarray:
@@ -293,11 +342,11 @@ class BoGiaiMaTransformerEdge:
                         dims = tho["dims"]
                         loai_q = str(tho["loai_quant"])
                         block_size, _ = THONG_SO_LUONG_TU.get(loai_q, (1, 4))
+                        khop_ggml = len(dims) == 2 and int(dims[0]) == in_dim and int(dims[1]) == out_dim
+                        khop_c_order = len(dims) == 2 and int(dims[0]) == out_dim and int(dims[1]) == in_dim
                         if (
-                            len(dims) == 2
-                            and int(dims[0]) == out_dim
-                            and int(dims[1]) == in_dim
-                            and loai_q not in ("f16", "f32")
+                            (khop_ggml or khop_c_order)
+                            and loai_q not in ("f16", "f32", "bf16")
                             and in_dim % block_size == 0
                         ):
                             self._trong_so_luong_tu[khoa_quant] = {
@@ -312,10 +361,30 @@ class BoGiaiMaTransformerEdge:
                 if tensor is None:
                     continue
                 if tensor.ndim == 2:
+                    if tensor.shape == (out_dim, in_dim):
+                        tensor = tensor.T
                     r = min(target.shape[0], tensor.shape[0])
                     c = min(target.shape[1], tensor.shape[1])
                     target[:r, :c] = tensor[:r, :c].astype(np.float32)
                     da_nap += 1
+
+            for ten_norm, attr_norm in (
+                ("attn_norm.weight", "norm_attn"),
+                ("ffn_norm.weight", "norm_ffn"),
+            ):
+                t_norm = streamer.doc_tensor(f"blk.{lop_idx}.{ten_norm}")
+                if t_norm is not None:
+                    flat_n = t_norm.ravel().astype(np.float32)
+                    n_copy = min(lop[attr_norm].shape[0], flat_n.shape[0])
+                    lop[attr_norm][:n_copy] = flat_n[:n_copy]
+                    da_nap += 1
+
+        t_out_norm = streamer.doc_tensor("output_norm.weight")
+        if t_out_norm is not None:
+            flat_on = t_out_norm.ravel().astype(np.float32)
+            n_copy = min(self.norm_output.shape[0], flat_on.shape[0])
+            self.norm_output[:n_copy] = flat_on[:n_copy]
+            da_nap += 1
         return da_nap
 
     def buoc_suy_luan(self, x_step: np.ndarray, vi_tri: int = 0) -> np.ndarray:
@@ -357,11 +426,46 @@ class BoGiaiMaTransformerEdge:
             h_ffn = self.rms_norm(x, lop["norm_ffn"])
             gate = self._chieu_tuyen_tinh(h_ffn, f"{lop_idx}:w_gate", lop["w_gate"])
             up = self._chieu_tuyen_tinh(h_ffn, f"{lop_idx}:w_up", lop["w_up"])
-            silu = gate / (1.0 + np.exp(-np.clip(gate, -20.0, 20.0)))
-            ffn_out = self._chieu_tuyen_tinh(silu * up, f"{lop_idx}:w_down", lop["w_down"])
+            ffn_act = self.swiglu(gate, up)
+            ffn_out = self._chieu_tuyen_tinh(ffn_act, f"{lop_idx}:w_down", lop["w_down"])
             x = x + ffn_out
 
         return x.astype(np.float32)
+
+    @staticmethod
+    def swiglu(gate: np.ndarray, up: np.ndarray) -> np.ndarray:
+        """Tính hàm kích hoạt hợp nhất SwiGLU (`SiLU(gate) * up`), ưu tiên kernel Rust khi khả dụng."""
+        g_f32 = np.asarray(gate, dtype=np.float32)
+        u_f32 = np.asarray(up, dtype=np.float32)
+        if (
+            _rust_core is not None
+            and g_f32.shape == u_f32.shape
+            and g_f32.size >= 64
+        ):
+            fn_swi_b = getattr(_rust_core, "fast_swiglu_f32_bytes", None)
+            if fn_swi_b is not None:
+                try:
+                    raw_out = fn_swi_b(
+                        np.ascontiguousarray(g_f32, dtype="<f4").tobytes(),
+                        np.ascontiguousarray(u_f32, dtype="<f4").tobytes(),
+                        int(g_f32.size),
+                    )
+                    return np.frombuffer(raw_out, dtype="<f4").copy().reshape(g_f32.shape)
+                except Exception:
+                    pass
+            fn_swi = getattr(_rust_core, "fast_swiglu_f32", None)
+            if fn_swi is not None:
+                try:
+                    out = fn_swi(
+                        np.ascontiguousarray(g_f32, dtype="<f4").tobytes(),
+                        np.ascontiguousarray(u_f32, dtype="<f4").tobytes(),
+                        int(g_f32.size),
+                    )
+                    return np.asarray(out, dtype=np.float32).reshape(g_f32.shape)
+                except Exception:
+                    pass
+        silu = g_f32 / (1.0 + np.exp(-np.clip(g_f32, -20.0, 20.0)))
+        return silu * u_f32
 
     @staticmethod
     def lay_mau_logit(
@@ -370,8 +474,9 @@ class BoGiaiMaTransformerEdge:
         top_k: int = 8,
         da_sinh: Optional[List[int]] = None,
         phat_lap: float = 1.25,
+        rng: Optional[np.random.Generator] = None,
     ) -> int:
-        """Áp dụng phạt lặp, lọc top-k và tính xác suất softmax trên vector logit thực tế."""
+        """Áp dụng phạt lặp, lọc top-k và lấy mẫu theo phân phối softmax thực tế khi `nhiet_do > 0`."""
         vec = np.asarray(logits, dtype=np.float64).ravel().copy()
         if da_sinh:
             for idx in set(da_sinh):
@@ -385,9 +490,12 @@ class BoGiaiMaTransformerEdge:
         top_vals = vec[top_indices]
         top_vals -= np.max(top_vals)
         probs = np.exp(top_vals)
-        probs /= np.sum(probs)
-        chon_cuc_bo = int(np.argmax(probs))
-        return int(top_indices[chon_cuc_bo])
+        tong = float(np.sum(probs))
+        if not np.isfinite(tong) or tong <= 0.0:
+            return int(top_indices[int(np.argmax(top_vals))])
+        probs /= tong
+        gen = rng if rng is not None else np.random.default_rng()
+        return int(gen.choice(top_indices, p=probs))
 
     def sinh_tu_gguf_bpe(
         self,
@@ -433,7 +541,8 @@ class BoGiaiMaTransformerEdge:
         generated_ids: List[int] = []
         pos_cur = len(input_ids)
         for _ in range(max(1, so_token_toi_da)):
-            logits = (h_last[0] @ lm_head.T).astype(np.float32)
+            h_norm = self.rms_norm(h_last, self.norm_output)
+            logits = (h_norm[0] @ lm_head.T).astype(np.float32)
             next_id = self.lay_mau_logit(logits, nhiet_do=nhiet_do, top_k=8, da_sinh=generated_ids)
             if next_id == bpe.eos_id and bpe.eos_id != bpe.bos_id and generated_ids:
                 break
@@ -497,7 +606,8 @@ class BoGiaiMaTransformerEdge:
         pos_cur = len(input_ids)
         so_piece_da_xuat = 0
         for _ in range(max(1, so_token_toi_da)):
-            logits = (h_last[0] @ lm_head.T).astype(np.float32)
+            h_norm = self.rms_norm(h_last, self.norm_output)
+            logits = (h_norm[0] @ lm_head.T).astype(np.float32)
             next_id = self.lay_mau_logit(logits, nhiet_do=nhiet_do, top_k=8, da_sinh=generated_ids)
             if next_id == bpe.eos_id and bpe.eos_id != bpe.bos_id and generated_ids:
                 break
@@ -547,8 +657,8 @@ class BoGiaiLuongTuQ4:
     @staticmethod
     def giai_q4_0(raw_bytes: bytes, so_phan_tu: int) -> np.ndarray:
         """
-        Giải lượng tử Q4_0: Mỗi block 32 phần tử gồm 2 bytes float16 scale + 16 bytes (32 nibbles 4-bit).
-        Tổng kích thước block = 18 bytes. Công thức: v_i = (nibble - 8) * scale.
+        Giải lượng tử Q4_0 chuẩn GGML: Mỗi block 32 phần tử gồm 2 bytes float16 scale + 16 bytes nibbles
+        (16 phần tử đầu lấy 4-bit thấp, 16 phần tử sau lấy 4-bit cao). Công thức: v_i = (nibble - 8) * scale.
         """
         block_size = 32
         so_block = so_phan_tu // block_size
@@ -561,10 +671,10 @@ class BoGiaiLuongTuQ4:
 
         low_nibbles = (nibbles_raw & 0x0F).astype(np.int8) - 8
         high_nibbles = ((nibbles_raw >> 4) & 0x0F).astype(np.int8) - 8
-
-        weights = np.empty((so_block, 32), dtype=np.float32)
-        weights[:, 0::2] = low_nibbles.astype(np.float32)
-        weights[:, 1::2] = high_nibbles.astype(np.float32)
+        weights = np.concatenate(
+            [low_nibbles.astype(np.float32), high_nibbles.astype(np.float32)],
+            axis=1,
+        )
 
         kq = (weights * scales).reshape(-1)
         if len(kq) < so_phan_tu:
@@ -746,6 +856,145 @@ class BoGiaiLuongTuQ4:
         return kq[:so_phan_tu]
 
     @staticmethod
+    def giai_q5_0(raw_bytes: bytes, so_phan_tu: int) -> np.ndarray:
+        """Giải lượng tử Q5_0 chuẩn GGML (32 phần tử / 22 bytes: f16 d + uint32 qh + 16B qs)."""
+        block_size = 32
+        block_bytes = 22
+        so_block = so_phan_tu // block_size
+        if so_block == 0 or len(raw_bytes) < so_block * block_bytes:
+            return np.zeros(so_phan_tu, dtype=np.float32)
+        data = np.frombuffer(raw_bytes[: so_block * block_bytes], dtype=np.uint8).reshape((so_block, block_bytes))
+        d = data[:, 0:2].copy().view(np.float16).astype(np.float32).reshape(-1, 1)
+        qh = data[:, 2:6].copy().view(np.uint32).reshape(-1, 1)
+        qs = data[:, 6:22]
+        shifts_lo = np.arange(16, dtype=np.uint32).reshape(1, 16)
+        shifts_hi = np.arange(16, 32, dtype=np.uint32).reshape(1, 16)
+        xh_lo = ((qh >> shifts_lo) & 1).astype(np.int16) << 4
+        xh_hi = ((qh >> shifts_hi) & 1).astype(np.int16) << 4
+        lo = ((qs & 0x0F).astype(np.int16) | xh_lo) - 16
+        hi = (((qs >> 4) & 0x0F).astype(np.int16) | xh_hi) - 16
+        weights = np.concatenate([lo.astype(np.float32), hi.astype(np.float32)], axis=1)
+        kq = (weights * d).reshape(-1)
+        if len(kq) < so_phan_tu:
+            kq = np.pad(kq, (0, so_phan_tu - len(kq)))
+        return kq[:so_phan_tu]
+
+    @staticmethod
+    def giai_q5_1(raw_bytes: bytes, so_phan_tu: int) -> np.ndarray:
+        """Giải lượng tử Q5_1 chuẩn GGML (32 phần tử / 24 bytes: f16 d + f16 m + uint32 qh + 16B qs)."""
+        block_size = 32
+        block_bytes = 24
+        so_block = so_phan_tu // block_size
+        if so_block == 0 or len(raw_bytes) < so_block * block_bytes:
+            return np.zeros(so_phan_tu, dtype=np.float32)
+        data = np.frombuffer(raw_bytes[: so_block * block_bytes], dtype=np.uint8).reshape((so_block, block_bytes))
+        d = data[:, 0:2].copy().view(np.float16).astype(np.float32).reshape(-1, 1)
+        m = data[:, 2:4].copy().view(np.float16).astype(np.float32).reshape(-1, 1)
+        qh = data[:, 4:8].copy().view(np.uint32).reshape(-1, 1)
+        qs = data[:, 8:24]
+        shifts_lo = np.arange(16, dtype=np.uint32).reshape(1, 16)
+        shifts_hi = np.arange(16, 32, dtype=np.uint32).reshape(1, 16)
+        xh_lo = ((qh >> shifts_lo) & 1).astype(np.uint16) << 4
+        xh_hi = ((qh >> shifts_hi) & 1).astype(np.uint16) << 4
+        lo = (qs & 0x0F).astype(np.uint16) | xh_lo
+        hi = ((qs >> 4) & 0x0F).astype(np.uint16) | xh_hi
+        weights = np.concatenate([lo.astype(np.float32), hi.astype(np.float32)], axis=1)
+        kq = (weights * d + m).reshape(-1)
+        if len(kq) < so_phan_tu:
+            kq = np.pad(kq, (0, so_phan_tu - len(kq)))
+        return kq[:so_phan_tu]
+
+    @staticmethod
+    def giai_q5_k(raw_bytes: bytes, so_phan_tu: int) -> np.ndarray:
+        """Giải lượng tử siêu khối Q5_K chuẩn GGML (`QK_K = 256`, 176 bytes/block)."""
+        block_size = 256
+        block_bytes = 176
+        so_block = so_phan_tu // block_size
+        if so_block == 0 or len(raw_bytes) < so_block * block_bytes:
+            return np.zeros(so_phan_tu, dtype=np.float32)
+        data = np.frombuffer(raw_bytes[: so_block * block_bytes], dtype=np.uint8).reshape((so_block, block_bytes))
+        d = data[:, 0:2].copy().view(np.float16).astype(np.float32).reshape(so_block, 1)
+        dmin = data[:, 2:4].copy().view(np.float16).astype(np.float32).reshape(so_block, 1)
+        sc_raw = data[:, 4:16]
+        qh = data[:, 16:48]
+        qs = data[:, 48:176]
+
+        sc = np.empty((so_block, 8), dtype=np.float32)
+        mn = np.empty((so_block, 8), dtype=np.float32)
+        sc[:, 0:4] = (sc_raw[:, 0:4] & 0x3F).astype(np.float32)
+        mn[:, 0:4] = (sc_raw[:, 4:8] & 0x3F).astype(np.float32)
+        sc[:, 4:8] = ((sc_raw[:, 8:12] & 0x0F) | ((sc_raw[:, 0:4] >> 6) << 4)).astype(np.float32)
+        mn[:, 4:8] = ((sc_raw[:, 8:12] >> 4) | ((sc_raw[:, 4:8] >> 6) << 4)).astype(np.float32)
+        sc *= d
+        mn *= dmin
+
+        out = np.empty((so_block, 256), dtype=np.float32)
+        for g in range(4):
+            q_grp = qs[:, g * 32 : (g + 1) * 32]
+            u1 = 1 << (2 * g)
+            u2 = 1 << (2 * g + 1)
+            low = (q_grp & 0x0F).astype(np.float32) + np.where((qh & u1) != 0, 16.0, 0.0)
+            high = ((q_grp >> 4) & 0x0F).astype(np.float32) + np.where((qh & u2) != 0, 16.0, 0.0)
+            out[:, g * 64 : g * 64 + 32] = low * sc[:, 2 * g : 2 * g + 1] - mn[:, 2 * g : 2 * g + 1]
+            out[:, g * 64 + 32 : (g + 1) * 64] = (
+                high * sc[:, 2 * g + 1 : 2 * g + 2] - mn[:, 2 * g + 1 : 2 * g + 2]
+            )
+        kq = out.reshape(-1)
+        if len(kq) < so_phan_tu:
+            kq = np.pad(kq, (0, so_phan_tu - len(kq)))
+        return kq[:so_phan_tu]
+
+    @staticmethod
+    def giai_q6_k(raw_bytes: bytes, so_phan_tu: int) -> np.ndarray:
+        """Giải lượng tử siêu khối Q6_K chuẩn GGML (`QK_K = 256`, 210 bytes/block)."""
+        block_size = 256
+        block_bytes = 210
+        so_block = so_phan_tu // block_size
+        if so_block == 0 or len(raw_bytes) < so_block * block_bytes:
+            return np.zeros(so_phan_tu, dtype=np.float32)
+        data = np.frombuffer(raw_bytes[: so_block * block_bytes], dtype=np.uint8).reshape((so_block, block_bytes))
+        ql = data[:, 0:128]
+        qh = data[:, 128:192]
+        sc = data[:, 192:208].copy().view(np.int8).astype(np.float32)
+        d = data[:, 208:210].copy().view(np.float16).astype(np.float32).reshape(so_block, 1)
+
+        out = np.empty((so_block, 256), dtype=np.float32)
+        for h in range(2):
+            ql_h = ql[:, h * 64 : (h + 1) * 64]
+            qh_h = qh[:, h * 32 : (h + 1) * 32]
+            sc_h = sc[:, h * 8 : (h + 1) * 8]
+            q1 = ((ql_h[:, 0:32] & 0x0F) | (((qh_h >> 0) & 0x03) << 4)).astype(np.int16) - 32
+            q2 = ((ql_h[:, 32:64] & 0x0F) | (((qh_h >> 2) & 0x03) << 4)).astype(np.int16) - 32
+            q3 = (((ql_h[:, 0:32] >> 4) & 0x0F) | (((qh_h >> 4) & 0x03) << 4)).astype(np.int16) - 32
+            q4 = (((ql_h[:, 32:64] >> 4) & 0x0F) | (((qh_h >> 6) & 0x03) << 4)).astype(np.int16) - 32
+            base = h * 128
+            for sub in range(2):
+                sl = slice(sub * 16, (sub + 1) * 16)
+                out[:, base + sub * 16 : base + (sub + 1) * 16] = d * sc_h[:, sub : sub + 1] * q1[:, sl]
+                out[:, base + 32 + sub * 16 : base + 32 + (sub + 1) * 16] = (
+                    d * sc_h[:, sub + 2 : sub + 3] * q2[:, sl]
+                )
+                out[:, base + 64 + sub * 16 : base + 64 + (sub + 1) * 16] = (
+                    d * sc_h[:, sub + 4 : sub + 5] * q3[:, sl]
+                )
+                out[:, base + 96 + sub * 16 : base + 96 + (sub + 1) * 16] = (
+                    d * sc_h[:, sub + 6 : sub + 7] * q4[:, sl]
+                )
+        kq = out.reshape(-1)
+        if len(kq) < so_phan_tu:
+            kq = np.pad(kq, (0, so_phan_tu - len(kq)))
+        return kq[:so_phan_tu]
+
+    @staticmethod
+    def giai_bf16(raw_bytes: bytes, so_phan_tu: int) -> np.ndarray:
+        """Giải nén mảng bfloat16 sang float32."""
+        bytes_can = so_phan_tu * 2
+        if len(raw_bytes) < bytes_can:
+            return np.zeros(so_phan_tu, dtype=np.float32)
+        u16 = np.frombuffer(raw_bytes[:bytes_can], dtype=np.uint16).astype(np.uint32)
+        return (u16 << 16).view(np.float32).copy()
+
+    @staticmethod
     def giai_f16(raw_bytes: bytes, so_phan_tu: int) -> np.ndarray:
         """Giải nén mảng float16 sang float32."""
         bytes_can = so_phan_tu * 2
@@ -764,17 +1013,22 @@ class BoGiaiLuongTuQ4:
 
     @classmethod
     def giai_luong_tu(cls, raw_bytes: bytes, so_phan_tu: int, loai_quant: str) -> np.ndarray:
-        """Điều phối giải lượng tử hóa thống nhất theo tên chuẩn GGML (`q4_0`, `q4_1`, `q8_0`, `q2_k`, `q3_k`, `q4_k`, `f16`, `f32`)."""
+        """Điều phối giải lượng tử hóa thống nhất theo tên chuẩn GGML."""
         loai = loai_quant.strip().lower()
         bang_ham = {
             "q4_0": cls.giai_q4_0,
             "q4_1": cls.giai_q4_1,
+            "q5_0": cls.giai_q5_0,
+            "q5_1": cls.giai_q5_1,
             "q8_0": cls.giai_q8_0,
             "q2_k": cls.giai_q2_k,
             "q3_k": cls.giai_q3_k,
             "q4_k": cls.giai_q4_k,
             "q4_k_m": cls.giai_q4_k,
             "q4_k_s": cls.giai_q4_k,
+            "q5_k": cls.giai_q5_k,
+            "q6_k": cls.giai_q6_k,
+            "bf16": cls.giai_bf16,
             "f16": cls.giai_f16,
             "f32": cls.giai_f32,
         }
@@ -820,13 +1074,43 @@ class BoGiaiLuongTuQ4:
         if len(raw_bytes) < out_features * bytes_moi_hang:
             raise ValueError("Bộ đệm trọng số lượng tử không đủ kích thước cho shape yêu cầu")
 
-        if _rust_core is not None and loai in ("q4_0", "q8_0", "q4_k", "q4_k_m", "q4_k_s"):
+        if _rust_core is not None and loai in (
+            "q4_0",
+            "q8_0",
+            "q4_k",
+            "q4_k_m",
+            "q4_k_s",
+            "q5_k",
+            "q6_k",
+        ):
+            raw_fn_map = {
+                "q5_k": "fast_q5_k_matmul_f32_bytes",
+                "q6_k": "fast_q6_k_matmul_f32_bytes",
+            }
+            if loai in raw_fn_map:
+                fn_raw_b = getattr(_rust_core, raw_fn_map[loai], None)
+                if fn_raw_b is not None:
+                    try:
+                        x_bytes = np.ascontiguousarray(x_2d, dtype="<f4").tobytes()
+                        raw_out = fn_raw_b(
+                            x_bytes,
+                            int(x_2d.shape[0]),
+                            int(in_features),
+                            raw_bytes,
+                            int(out_features),
+                        )
+                        ket_qua_rs = np.frombuffer(raw_out, dtype="<f4").copy().reshape(x_2d.shape[0], out_features)
+                        return ket_qua_rs[0] if la_1d else ket_qua_rs
+                    except Exception:
+                        pass
             bytes_fn_map = {
                 "q4_0": "fast_q4_0_matmul_bytes",
                 "q8_0": "fast_q8_0_matmul_bytes",
                 "q4_k": "fast_q4_k_matmul_bytes",
                 "q4_k_m": "fast_q4_k_matmul_bytes",
                 "q4_k_s": "fast_q4_k_matmul_bytes",
+                "q5_k": "fast_q5_k_matmul_bytes",
+                "q6_k": "fast_q6_k_matmul_bytes",
             }
             fn_bytes = getattr(_rust_core, bytes_fn_map[loai], None)
             if fn_bytes is not None:
@@ -895,7 +1179,11 @@ class GGUFMemoryMappedStreamer:
 
         self.kich_thuoc_tep = self.duong_dan.stat().st_size
         self._tep = open(self.duong_dan, "rb")
-        self._mmap = mmap.mmap(self._tep.fileno(), 0, access=mmap.ACCESS_READ)
+        try:
+            self._mmap = mmap.mmap(self._tep.fileno(), 0, access=mmap.ACCESS_READ)
+        except Exception:
+            self._tep.close()
+            raise
 
         self.metadata: Dict[str, Any] = {}
         self.tensors_info: Dict[str, Dict[str, Any]] = {}
@@ -904,7 +1192,11 @@ class GGUFMemoryMappedStreamer:
         self.metadata_count = 0
         self._data_offset = 0
 
-        self._doc_header_va_metadata()
+        try:
+            self._doc_header_va_metadata()
+        except Exception:
+            self.close()
+            raise
 
     def _doc_string(self, offset: int) -> Tuple[str, int]:
         """Đọc chuỗi độ dài uint64 từ mmap."""
@@ -962,7 +1254,7 @@ class GGUFMemoryMappedStreamer:
         self.metadata_count = struct.unpack_from("<Q", self._mmap, 16)[0]
 
         offset = 24
-        for _ in range(min(self.metadata_count, 512)):
+        for _ in range(int(self.metadata_count)):
             if offset >= len(self._mmap):
                 break
             key, offset = self._doc_string(offset)
@@ -1004,7 +1296,7 @@ class GGUFMemoryMappedStreamer:
             self.tensors_info[ten] = {
                 "dims": tuple(dims),
                 "ggml_type": ggml_type,
-                "loai_quant": _GGML_TYPE_MAP.get(ggml_type, "f32"),
+                "loai_quant": _GGML_TYPE_MAP.get(ggml_type, f"unsupported_{ggml_type}"),
                 "offset": tensor_offset,
             }
         rem = cursor % alignment
@@ -1051,7 +1343,8 @@ class GGUFMemoryMappedStreamer:
             loai_quant=str(tho["loai_quant"]),
         )
         dims = tho["dims"]
-        return arr.reshape(dims) if dims else arr
+        c_shape = dims[::-1] if dims else ()
+        return arr.reshape(c_shape) if c_shape else arr
 
     def _lay_tham_so_kien_truc(self, kien_truc: str, ten_truong: str, mac_dinh: Any) -> Any:
         """Truy vấn metadata theo kiến trúc thực tế và dự phòng các tên kiến trúc phổ biến."""
@@ -1090,10 +1383,18 @@ class GGUFMemoryMappedStreamer:
 
     def close(self) -> None:
         """Đóng bộ nhớ ánh xạ mmap và handle tệp."""
-        if hasattr(self, "_mmap") and self._mmap is not None:
-            self._mmap.close()
-        if hasattr(self, "_tep") and self._tep is not None:
-            self._tep.close()
+        mm = getattr(self, "_mmap", None)
+        if mm is not None and not mm.closed:
+            try:
+                mm.close()
+            except Exception:
+                pass
+        tep = getattr(self, "_tep", None)
+        if tep is not None and not tep.closed:
+            try:
+                tep.close()
+            except Exception:
+                pass
 
     def __del__(self) -> None:
         self.close()
@@ -1128,6 +1429,7 @@ class DongCoSuyLuanEdge:
         n_ctx: int = 4096,
         chat_template: Optional[str] = None,
         rag_pipeline: Optional[Any] = None,
+        _cho_phep_cau_noi_c: bool = True,
     ) -> None:
         self._ten_mo_hinh_yeu_cau = str(duong_dan_mo_hinh) if duong_dan_mo_hinh else None
         self.duong_dan = self._phan_giai_duong_dan_mo_hinh(duong_dan_mo_hinh)
@@ -1136,6 +1438,7 @@ class DongCoSuyLuanEdge:
         self.do_dai_toi_da = do_dai_toi_da
         self.nhiet_do = nhiet_do
         self.uu_tien_native_c = uu_tien_native_c
+        self._cho_phep_cau_noi_c = _cho_phep_cau_noi_c
         self.n_ctx = max(256, int(n_ctx))
         self.chat_template = chat_template
         self.rag_pipeline: Optional[Any] = rag_pipeline
@@ -1267,7 +1570,7 @@ class DongCoSuyLuanEdge:
                 self._bpe_gguf = None
 
             mo_hinh_lon = self.duong_dan.stat().st_size >= 50 * 1024 * 1024
-            if self.uu_tien_native_c or mo_hinh_lon:
+            if self._cho_phep_cau_noi_c and (self.uu_tien_native_c or mo_hinh_lon):
                 try:
                     from vietnamese_ai.edge.c_bridge import CauNoiCtypesNative
 

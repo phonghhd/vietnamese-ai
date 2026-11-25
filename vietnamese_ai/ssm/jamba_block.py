@@ -75,6 +75,8 @@ if _CO_TORCH:
             self.is_attn_layer = layer_idx % attn_layer_freq == 0
             self.norm1 = nn.LayerNorm(d_model)
             self.norm2 = nn.LayerNorm(d_model)
+            self.mixer: nn.Module
+            self.mlp: nn.Module
             if self.is_attn_layer:
                 self.mixer = nn.MultiheadAttention(embed_dim=d_model, num_heads=4, batch_first=True)
                 self.mlp = SparseMoE(d_model=d_model, num_experts=num_experts)

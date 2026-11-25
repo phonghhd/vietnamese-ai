@@ -26,6 +26,8 @@ __all__ = [
     "InferenceMerkleTree",
     "XacThucSuyLuanMaoHiem",
     "VerifiableInference",
+    "KiemChungFreivalds",
+    "FreivaldsVerifier",
 ]
 
 __getattr__ = tao_lazy_getattr(
@@ -60,6 +62,8 @@ __getattr__ = tao_lazy_getattr(
         "InferenceMerkleTree": ("vietnamese_ai.security.verifiable_inference", "InferenceMerkleTree"),
         "XacThucSuyLuanMaoHiem": ("vietnamese_ai.security.verifiable_inference", "XacThucSuyLuanMaoHiem"),
         "VerifiableInference": ("vietnamese_ai.security.verifiable_inference", "VerifiableInference"),
+        "KiemChungFreivalds": ("vietnamese_ai.security.verifiable_inference", "KiemChungFreivalds"),
+        "FreivaldsVerifier": ("vietnamese_ai.security.verifiable_inference", "FreivaldsVerifier"),
     },
     globals(),
 )

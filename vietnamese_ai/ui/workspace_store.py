@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from vietnamese_ai.rag.rag_pipeline import RAGPipeline
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
+
+_RE_MA_WORKSPACE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 
 
 @gan_nhan_tinh_nang(
@@ -126,16 +129,43 @@ class QuanLyPhienChatWorkspace:
                     chu_so_huu="system",
                 )
 
-    def _kiem_tra_token(self, token: Optional[str], quyen: str = "view") -> str:
-        """Xác thực token nếu bật chế độ phân quyền doanh nghiệp và trả về tên người dùng."""
+    def _chuan_hoa_ma_workspace(self, ma_workspace: str) -> str:
+        """Xác thực mã workspace hợp lệ và đảm bảo đường dẫn tệp `.vaidb` nằm trong thư mục dữ liệu."""
+        ma = str(ma_workspace or "").strip().lower()
+        if not _RE_MA_WORKSPACE.match(ma):
+            raise ValueError(
+                f"Mã workspace không hợp lệ: '{ma_workspace}'. "
+                "Chỉ chấp nhận chữ thường, số, gạch dưới hoặc gạch ngang (tối đa 64 ký tự)."
+            )
+        base_dir = self.thu_muc.resolve()
+        target_path = (base_dir / f"{ma}.vaidb").resolve()
+        if target_path.parent != base_dir:
+            raise ValueError(f"Phát hiện đường dẫn workspace bất hợp lệ: '{ma_workspace}'.")
+        return ma
+
+    def _lay_thong_tin_token(self, token: Optional[str], quyen: str = "view") -> Tuple[str, str]:
+        """Xác thực token nếu bật chế độ phân quyền doanh nghiệp và trả về `(ten_dang_nhap, vai_tro)`."""
         if not self.bat_xac_thuc or self.xac_thuc is None:
-            return "local"
+            return "local", "admin"
         if not token:
             raise PermissionError("Yêu cầu token xác thực để truy cập Workspace.")
         info = self.xac_thuc.xac_thuc(token)
         if not self.xac_thuc.kiem_tra_quyen(token, quyen):
             raise PermissionError(f"Tài khoản '{info['ten_dang_nhap']}' không có quyền '{quyen}'.")
-        return str(info["ten_dang_nhap"])
+        return str(info["ten_dang_nhap"]), str(info.get("vai_tro", "viewer"))
+
+    def _kiem_tra_token(self, token: Optional[str], quyen: str = "view") -> str:
+        """Xác thực token nếu bật chế độ phân quyền doanh nghiệp và trả về tên người dùng."""
+        user, _ = self._lay_thong_tin_token(token, quyen=quyen)
+        return user
+
+    def _kiem_tra_quyen_phien(self, nguoi_tao: str, user: str, vai_tro: str, ma_phien: str) -> None:
+        """Kiểm tra quyền sở hữu phiên chat để chặn IDOR giữa các tài khoản khi bật xác thực."""
+        if not self.bat_xac_thuc:
+            return
+        if vai_tro == "admin" or nguoi_tao == user or nguoi_tao in ("local", "connector", "system"):
+            return
+        raise PermissionError(f"Tài khoản '{user}' không có quyền truy cập phiên chat '{ma_phien}'.")
 
     def _ghi_audit(self, hanh_dong: str, nguoi_dung: str, mo_ta: str, du_lieu: Optional[Dict[str, Any]] = None) -> None:
         """Ghi nhận hoạt động vào `NhatKyHoatDong` nếu đang bật."""
@@ -152,7 +182,7 @@ class QuanLyPhienChatWorkspace:
     ) -> Dict[str, Any]:
         """Tạo mới một Không gian làm việc có tệp `.vaidb` tách biệt."""
         user = chu_so_huu if chu_so_huu == "system" else self._kiem_tra_token(token, quyen="manage")
-        ma = (ma_workspace or f"ws_{uuid.uuid4().hex[:8]}").strip().lower()
+        ma = self._chuan_hoa_ma_workspace(ma_workspace or f"ws_{uuid.uuid4().hex[:8]}")
         vaidb_file = self.thu_muc / f"{ma}.vaidb"
         now_iso = datetime.now(timezone.utc).isoformat()
         with self._lock:
@@ -185,6 +215,7 @@ class QuanLyPhienChatWorkspace:
 
     def lay_rag_workspace(self, ma_workspace: str = "mac_dinh") -> RAGPipeline:
         """Lấy hoặc mở `RAGPipeline` gắn tệp `.vaidb` riêng của một Workspace."""
+        ma_workspace = self._chuan_hoa_ma_workspace(ma_workspace)
         with self._lock:
             if ma_workspace in self._rag_cache:
                 return self._rag_cache[ma_workspace]
@@ -218,6 +249,7 @@ class QuanLyPhienChatWorkspace:
     ) -> Dict[str, Any]:
         """Tạo một phiên hội thoại mới gắn với Workspace."""
         user = self._kiem_tra_token(token, quyen="view")
+        ma_workspace = self._chuan_hoa_ma_workspace(ma_workspace)
         ma_phien = f"chat_{uuid.uuid4().hex[:10]}"
         now_iso = datetime.now(timezone.utc).isoformat()
         with self._lock:
@@ -244,7 +276,7 @@ class QuanLyPhienChatWorkspace:
         token: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Liệt kê các phiên chat đã lưu (tùy chọn lọc theo `ma_workspace`)."""
-        self._kiem_tra_token(token, quyen="view")
+        user, vai_tro = self._lay_thong_tin_token(token, quyen="view")
         with self._lock:
             if ma_workspace:
                 rows = self._conn.execute(
@@ -261,7 +293,14 @@ class QuanLyPhienChatWorkspace:
                     FROM chat_sessions ORDER BY cap_nhat_luc DESC
                     """
                 ).fetchall()
-            return [dict(r) for r in rows]
+            ds = [dict(r) for r in rows]
+            if self.bat_xac_thuc and vai_tro != "admin":
+                ds = [
+                    r
+                    for r in ds
+                    if r["nguoi_tao"] == user or r["nguoi_tao"] in ("local", "connector", "system")
+                ]
+            return ds
 
     def gui_tin_nhan(
         self,
@@ -271,14 +310,15 @@ class QuanLyPhienChatWorkspace:
         rag_override: Optional[RAGPipeline] = None,
     ) -> Dict[str, Any]:
         """Gửi câu hỏi vào phiên chat, chạy truy xuất RAG kèm trích dẫn nổi bật và lưu bền vững hai chiều."""
-        user = self._kiem_tra_token(token, quyen="predict")
+        user, vai_tro = self._lay_thong_tin_token(token, quyen="predict")
         with self._lock:
             sess = self._conn.execute(
-                "SELECT ma_workspace FROM chat_sessions WHERE ma_phien = ?",
+                "SELECT ma_workspace, nguoi_tao FROM chat_sessions WHERE ma_phien = ?",
                 (ma_phien,),
             ).fetchone()
             if sess is None:
                 raise KeyError(f"Không tìm thấy phiên chat '{ma_phien}'.")
+            self._kiem_tra_quyen_phien(str(sess["nguoi_tao"]), user, vai_tro, ma_phien)
             ma_ws = str(sess["ma_workspace"])
 
         rag = rag_override if rag_override is not None else self.lay_rag_workspace(ma_ws)
@@ -365,6 +405,7 @@ class QuanLyPhienChatWorkspace:
         hieu_luc_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Ghi bền vững một lượt hội thoại từ kênh ngoài (Zalo OA / Telegram) vào SQLite Workspace để đồng bộ lịch sử và gom DPO."""
+        ma_workspace = self._chuan_hoa_ma_workspace(ma_workspace)
         now_iso = datetime.now(timezone.utc).isoformat()
         with self._lock:
             sess = self._conn.execute(
@@ -442,8 +483,14 @@ class QuanLyPhienChatWorkspace:
 
     def lay_lich_su_phien(self, ma_phien: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Đọc toàn bộ lịch sử tin nhắn cùng trích dẫn nguồn của một phiên chat."""
-        self._kiem_tra_token(token, quyen="view")
+        user, vai_tro = self._lay_thong_tin_token(token, quyen="view")
         with self._lock:
+            sess = self._conn.execute(
+                "SELECT nguoi_tao FROM chat_sessions WHERE ma_phien = ?",
+                (ma_phien,),
+            ).fetchone()
+            if sess is not None:
+                self._kiem_tra_quyen_phien(str(sess["nguoi_tao"]), user, vai_tro, ma_phien)
             rows = self._conn.execute(
                 """
                 SELECT id, ma_phien, vai_tro, noi_dung, trich_dan_json, hieu_luc_json, danh_gia, cau_tra_loi_sua, tao_luc
@@ -478,8 +525,21 @@ class QuanLyPhienChatWorkspace:
         """Ghi nhận phản hồi `thumbs_up` / `thumbs_down` (kèm câu trả lời đúng nếu sửa) để gom tập dữ liệu DPO."""
         if danh_gia not in ("thumbs_up", "thumbs_down"):
             raise ValueError("danh_gia phải là 'thumbs_up' hoặc 'thumbs_down'")
-        user = self._kiem_tra_token(token, quyen="predict")
+        user, vai_tro = self._lay_thong_tin_token(token, quyen="predict")
         with self._lock:
+            owner_row = self._conn.execute(
+                """
+                SELECT m.ma_phien, s.nguoi_tao
+                FROM chat_messages m
+                JOIN chat_sessions s ON m.ma_phien = s.ma_phien
+                WHERE m.id = ?
+                """,
+                (int(id_tin_nhan),),
+            ).fetchone()
+            if owner_row is not None:
+                self._kiem_tra_quyen_phien(
+                    str(owner_row["nguoi_tao"]), user, vai_tro, str(owner_row["ma_phien"])
+                )
             cur = self._conn.execute(
                 "UPDATE chat_messages SET danh_gia = ?, cau_tra_loi_sua = ? WHERE id = ?",
                 (danh_gia, cau_tra_loi_sua, int(id_tin_nhan)),

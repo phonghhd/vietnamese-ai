@@ -9,7 +9,7 @@ on:
 jobs:
   quality-and-security-gates:
     name: Lint, Type Check, SemVer, Crypto & Docs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -62,13 +62,58 @@ jobs:
       - name: Build MkDocs documentation (strict mode)
         run: mkdocs build --strict
 
+      - name: Verify release readiness gate
+        run: vai release-check
+
+  rust-core-parity:
+    name: Rust Core Build & Native Parity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build vietnamese_ai_rust native library
+        run: |
+          cargo build --release --manifest-path rust_core/Cargo.toml
+          cp rust_core/target/release/libvietnamese_ai_rust.so vietnamese_ai_rust.so
+
+      - name: Install core & dev tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Verify Rust Core native parity & red-team suite
+        run: |
+          python -c "from vietnamese_ai.nlp.native_tokenizer import co_ho_tro_rust; assert co_ho_tro_rust(), 'Rust Core not loaded'"
+          pytest tests/test_rust_acceleration.py \
+            tests/test_direction_b_deep_architecture.py \
+            tests/test_direction_c1_c3_benchmark_and_redteam.py \
+            -v --tb=short
+
   test:
     name: Pytest Suite (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        include:
+          - python-version: "3.9"
+            os: ubuntu-22.04
+          - python-version: "3.10"
+            os: ubuntu-24.04
+          - python-version: "3.11"
+            os: ubuntu-24.04
+          - python-version: "3.12"
+            os: ubuntu-24.04
+          - python-version: "3.13"
+            os: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4

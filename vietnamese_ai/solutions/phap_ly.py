@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -124,6 +125,14 @@ class TroLyPhapLy:
         )
         self.rag._bo_theo_doi_hieu_luc = self.bo_theo_doi_hieu_luc
         self.rag._do_thi_tham_chieu = self.do_thi_tham_chieu
+        if duong_dan_vaidb is not None:
+            from vietnamese_ai.rag.legal.auto_ingest import BoNapVanBanPhapQuyTuDong
+
+            BoNapVanBanPhapQuyTuDong.nap_sieu_du_lieu_phap_ly_tu_vaidb(
+                duong_dan_vaidb,
+                self.bo_theo_doi_hieu_luc,
+                self.do_thi_tham_chieu,
+            )
         self.kho_tai_lieu = list(bo_du_lieu_luat or self.DU_LIEU_LUAT_MAC_DINH)
         if duong_dan_vaidb is None or self.rag.csdl_vector.so_luong() == 0:
             self._nap_du_lieu_luat()
@@ -178,6 +187,42 @@ class TroLyPhapLy:
             return self.bo_theo_doi_hieu_luc.kiem_tra_hieu_luc(text, ngay_tra_cuu=ngay_tra_cuu)
         return self.bo_theo_doi_hieu_luc.kiem_tra_hieu_luc_trong_van_ban(text, ngay_tra_cuu=ngay_tra_cuu)
 
+    def tra_cuu_dieu_khoan_theo_ngay(
+        self,
+        so_hieu: str,
+        dieu: str,
+        ngay_tra_cuu: Optional[str] = None,
+        khoan: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Tra cứu phiên bản Điều/Khoản có hiệu lực tại mốc thời gian `ngay_tra_cuu` (Point-in-Time Legal Lookup)."""
+        return self.bo_theo_doi_hieu_luc.tra_cuu_dieu_khoan_theo_ngay(
+            so_hieu=so_hieu,
+            dieu=dieu,
+            ngay_tra_cuu=ngay_tra_cuu,
+            khoan=khoan,
+        )
+
+    def xay_dung_chi_muc_hnsw(
+        self,
+        m: int = 12,
+        ef_construction: int = 64,
+        ef_search: int = 48,
+    ) -> Dict[str, Any]:
+        """Xây dựng chỉ mục đồ thị HNSW bền vững nếu kho tri thức đang sử dụng `.vaidb`."""
+        store = self.rag.csdl_vector
+        if hasattr(store, "xay_dung_chi_muc_hnsw"):
+            return dict(
+                store.xay_dung_chi_muc_hnsw(
+                    m=m,
+                    ef_construction=ef_construction,
+                    ef_search=ef_search,
+                )
+            )
+        return {
+            "da_xay_dung": False,
+            "ly_do": "Kho tri thức hiện tại dùng bộ nhớ RAM, cần khởi tạo với `duong_dan_vaidb` để lưu HNSW bền vững.",
+        }
+
     def _nap_du_lieu_luat(self) -> None:
         """Nạp các tài liệu luật vào RAG pipeline với cấu trúc Điều/Khoản bảo toàn."""
         for item in self.kho_tai_lieu:
@@ -210,9 +255,15 @@ class TroLyPhapLy:
             che_do_hanh_chinh=True,
         )
 
-    def tra_cuu(self, cau_hoi: str, trich_dan_chi_tiet: bool = True) -> Dict[str, Any]:
+    def tra_cuu(
+        self,
+        cau_hoi: str,
+        trich_dan_chi_tiet: bool = True,
+        ngay_tra_cuu: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Tra cứu quy định pháp luật và sinh câu trả lời kèm trích dẫn văn bản luật chuẩn xác.
+        Tra cứu quy định pháp luật và sinh câu trả lời kèm trích dẫn văn bản luật chuẩn xác
+        (hỗ trợ mốc thời gian hiệu lực `ngay_tra_cuu` và tra cứu phiên bản Điều/Khoản Point-in-Time).
         """
         cau_hoi_sach = str(cau_hoi or "").strip()
         kt_dau_vao = self.tuong_lua.kiem_tra_dau_vao(cau_hoi_sach)
@@ -225,6 +276,18 @@ class TroLyPhapLy:
                 "an_toan": False,
                 "diem_bam_sat_nguon": 0.0,
             }
+
+        phien_ban_dieu: Optional[Dict[str, Any]] = None
+        ds_sh_hoi = self.bo_theo_doi_hieu_luc.trich_xuat_so_hieu(cau_hoi_sach)
+        m_dieu = re.search(r"điều\s+(\d+[a-zA-ZđĐ]?)", cau_hoi_sach, re.IGNORECASE | re.UNICODE)
+        if ds_sh_hoi and m_dieu:
+            kq_pb = self.tra_cuu_dieu_khoan_theo_ngay(
+                so_hieu=ds_sh_hoi[0],
+                dieu=f"Điều {m_dieu.group(1)}",
+                ngay_tra_cuu=ngay_tra_cuu,
+            )
+            if kq_pb.get("tim_thay"):
+                phien_ban_dieu = kq_pb
 
         ket_qua_rag = self.rag.hoi(cau_hoi_sach, top_k=3, co_kem_nguon=True)
         nguon_list = ket_qua_rag.get("nguon", [])
@@ -261,8 +324,29 @@ class TroLyPhapLy:
                     can_cu.append(dk)
 
         tra_loi_goc = ket_qua_rag.get("tra_loi", "")
-        # Nếu chưa có câu trả lời rõ ràng từ RAG đơn giản, định dạng văn phong chuẩn pháp lý
-        if trich_dan and ("Không tìm thấy" in tra_loi_goc or len(tra_loi_goc.strip()) < 20):
+        if phien_ban_dieu is not None and phien_ban_dieu.get("phien_ban_hieu_luc"):
+            pb_hl = phien_ban_dieu["phien_ban_hieu_luc"]
+            nhan_pb = f"{pb_hl['dieu']} - {pb_hl['so_hieu']}"
+            if nhan_pb not in can_cu:
+                can_cu.insert(0, nhan_pb)
+            tra_loi = (
+                f"Tại ngày {phien_ban_dieu['ngay_tra_cuu']}, theo {pb_hl['dieu']} ({pb_hl['so_hieu']} "
+                f"- hiệu lực từ {pb_hl['hieu_luc_tu']}):\n{pb_hl['noi_dung']}"
+            )
+            if pb_hl.get("ghi_chu"):
+                tra_loi += f"\nGhi chú hiệu lực: {pb_hl['ghi_chu']}"
+            trich_dan.insert(
+                0,
+                {
+                    "van_ban": str(pb_hl["so_hieu"]),
+                    "dieu": str(pb_hl["dieu"]),
+                    "tieu_de": str(pb_hl.get("khoan") or "Phiên bản hiệu lực theo ngày"),
+                    "noi_dung": str(pb_hl["noi_dung"]),
+                    "trich_doan": str(pb_hl["noi_dung"])[:200],
+                },
+            )
+            nguon_list = [{"noi_dung": str(pb_hl["noi_dung"]), "metadata": pb_hl}] + list(nguon_list)
+        elif trich_dan and ("Không tìm thấy" in tra_loi_goc or len(tra_loi_goc.strip()) < 20):
             nguon_chinh = trich_dan[0]
             tra_loi = (
                 f"Căn cứ theo quy định tại {nguon_chinh['dieu']} ({nguon_chinh['tieu_de']}) thuộc {nguon_chinh['van_ban']}:\n"
@@ -274,11 +358,10 @@ class TroLyPhapLy:
         if trich_dan_chi_tiet and can_cu:
             tra_loi += f"\n\nCăn cứ pháp lý tham chiếu: {'; '.join(can_cu)}."
 
-        # Kiểm định đầu ra bằng CongAnToanDauRa
         kt_dau_ra = CongAnToanDauRa.kiem_tra_va_lam_sach(tra_loi, nguon_ngu_canh=nguon_list)
         tra_loi_sach = kt_dau_ra["van_ban_sach"]
 
-        return {
+        ket_qua: Dict[str, Any] = {
             "cau_hoi": cau_hoi_sach,
             "tra_loi": tra_loi_sach,
             "can_cu_phap_ly": can_cu,
@@ -288,6 +371,11 @@ class TroLyPhapLy:
             "nghi_ngo_ao_giac": kt_dau_ra.get("nghi_ngo_ao_giac", False),
             "an_toan": kt_dau_ra["an_toan"],
         }
+        if ngay_tra_cuu is not None:
+            ket_qua["ngay_tra_cuu"] = ngay_tra_cuu
+        if phien_ban_dieu is not None:
+            ket_qua["phien_ban_dieu_khoan"] = phien_ban_dieu
+        return ket_qua
 
 
 # English alias

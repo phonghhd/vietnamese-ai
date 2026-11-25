@@ -5,7 +5,7 @@ import threading
 import time
 import uuid
 from contextlib import nullcontext
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
 
 try:
     from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -161,6 +161,35 @@ class FeedbackItem(BaseModel):
     metadata: Dict[str, Any] = {}
 
 
+class LegalClauseVersionRequest(BaseModel):
+    so_hieu: str
+    dieu: str
+    ngay_tra_cuu: Optional[str] = None
+    khoan: Optional[str] = None
+
+
+class ContractReviewRequest(BaseModel):
+    hop_dong_doi_tac: str
+    hop_dong_chuan: Optional[str] = None
+    ngay_tra_cuu: Optional[str] = None
+    xuat_track_changes_docx: bool = False
+    tac_gia: str = "Vietnamese-AI Legal Auditor"
+
+
+class TokenizeRequest(BaseModel):
+    van_ban: str
+    phuong_phap: str = "viterbi"
+    noi_tu_ghep: bool = True
+    chuan_hoa_dau: bool = True
+
+
+class VAIDBHnswRequest(BaseModel):
+    m: int = 12
+    ef_construction: int = 64
+    ef_search: int = 48
+    chi_thong_ke: bool = False
+
+
 # --- FastAPI Server ---
 class FastAPIServer:
     """
@@ -314,30 +343,28 @@ class FastAPIServer:
 
     def _xu_ly_logic_truc_tiep(self, request: ChatCompletionRequest) -> str:
         """Xử lý request với core xử lý bên dưới."""
+        if not request.messages:
+            raise ValueError("Danh sách tin nhắn `messages` không được để trống.")
+        truy_van_cuoi = request.messages[-1].content
         if getattr(request, "model", "") in ("swarm", "edge") or getattr(request, "che_do", "") == "swarm":
-            truy_van = request.messages[-1].content
             if hasattr(self.bo_xu_ly, "suy_luan_edge"):
-                res = self.bo_xu_ly.suy_luan_edge(truy_van)
+                res = self.bo_xu_ly.suy_luan_edge(truy_van_cuoi)
                 return str(res.get("cau_tra_loi", res))
             elif hasattr(self.bo_xu_ly, "suy_luan_swarm"):
-                res = self.bo_xu_ly.suy_luan_swarm(truy_van)
+                res = self.bo_xu_ly.suy_luan_swarm(truy_van_cuoi)
                 return str(res.get("cau_tra_loi", res))
 
         if hasattr(self.bo_xu_ly, "chay"):
-            truy_van = request.messages[-1].content
-            return self.bo_xu_ly.chay(truy_van)
+            return self.bo_xu_ly.chay(truy_van_cuoi)
         elif hasattr(self.bo_xu_ly, "tra_cuu"):
-            truy_van = request.messages[-1].content
-            kq = self.bo_xu_ly.tra_cuu(truy_van)
+            kq = self.bo_xu_ly.tra_cuu(truy_van_cuoi)
             return str(kq.get("tra_loi", kq) if isinstance(kq, dict) else kq)
         elif hasattr(self.bo_xu_ly, "xu_ly_yeu_cau"):
-            truy_van = request.messages[-1].content
-            kq = self.bo_xu_ly.xu_ly_yeu_cau(truy_van)
+            kq = self.bo_xu_ly.xu_ly_yeu_cau(truy_van_cuoi)
             return str(kq.get("tra_loi", kq) if isinstance(kq, dict) else kq)
         elif hasattr(self.bo_xu_ly, "sinh_kem_thong_ke"):
-            truy_van = request.messages[-1].content
             kq = self.bo_xu_ly.sinh_kem_thong_ke(
-                truy_van,
+                truy_van_cuoi,
                 do_dai_toi_da=request.max_tokens,
                 nhiet_do=request.temperature,
             )
@@ -348,8 +375,7 @@ class FastAPIServer:
                 prompt, nhiet_do=request.temperature, do_dai=request.max_tokens
             )
         elif hasattr(self.bo_xu_ly, "hoi"):
-            truy_van = request.messages[-1].content
-            kq = self.bo_xu_ly.hoi(truy_van)
+            kq = self.bo_xu_ly.hoi(truy_van_cuoi)
             return str(kq.get("tra_loi", kq))
         else:
             raise ValueError(
@@ -366,7 +392,7 @@ class FastAPIServer:
         """Khám phá tự động danh sách công cụ từ `TacTu`, `QuyTrinhDauCuoi` và `QuanLyPlugin` sang lược đồ OpenAI JSON Schema."""
         schemas: List[Dict[str, Any]] = []
         executors: Dict[str, Callable[..., Any]] = {}
-        seen: set[str] = set()
+        seen: Set[str] = set()
 
         cac_nguon_cong_cu: List[Dict[str, Any]] = []
         if isinstance(getattr(self.bo_xu_ly, "cong_cu", None), dict):
@@ -736,6 +762,83 @@ class FastAPIServer:
                 "status": "received",
                 "message": "Đã nhận phản hồi (DataLake chưa được cấu hình)",
             }
+
+        @self.app.post("/v1/legal/clause-version")
+        async def legal_clause_version(req: LegalClauseVersionRequest):
+            """Tra cứu phiên bản hiệu lực theo mốc thời gian (Point-in-Time) của một Điều/Khoản luật Việt Nam."""
+            from vietnamese_ai.rag.legal.validity_tracker import BoTheoDoiHieuLucPhapLy
+
+            tracker = getattr(self.bo_xu_ly, "bo_theo_doi_hieu_luc", None) or BoTheoDoiHieuLucPhapLy()
+            return tracker.tra_cuu_dieu_khoan_theo_ngay(
+                so_hieu=req.so_hieu,
+                dieu=req.dieu,
+                ngay_tra_cuu=req.ngay_tra_cuu,
+                khoan=req.khoan,
+            )
+
+        @self.app.post("/v1/legal/contract-review")
+        async def legal_contract_review(req: ContractReviewRequest):
+            """So sánh hợp đồng (tách/gộp điều khoản), quét rủi ro pháp lý và tùy chọn xuất Word Track Changes + Comments (.docx)."""
+            import base64
+            import tempfile
+            from pathlib import Path
+
+            from vietnamese_ai.rag.legal.contract_review import BoSoSanhRaSoatHopDong
+
+            engine = BoSoSanhRaSoatHopDong()
+            kq = engine.so_sanh_va_ra_soat(
+                hop_dong_doi_tac=req.hop_dong_doi_tac,
+                hop_dong_chuan=req.hop_dong_chuan,
+                ngay_tra_cuu=req.ngay_tra_cuu,
+            )
+            kq["bao_cao_markdown"] = engine.xuat_bao_cao_markdown(kq)
+            if req.xuat_track_changes_docx:
+                with tempfile.TemporaryDirectory(prefix="vai_api_tc_") as tmp_dir:
+                    out_path = Path(tmp_dir) / "hop_dong_track_changes.docx"
+                    engine.xuat_bao_cao_track_changes_docx(kq, out_path, tac_gia=req.tac_gia)
+                    kq["track_changes_docx_base64"] = base64.b64encode(out_path.read_bytes()).decode("ascii")
+            return kq
+
+        @self.app.post("/v1/nlp/tokenize")
+        async def nlp_tokenize(req: TokenizeRequest):
+            """Chuẩn hóa dấu thanh âm vị học FST và tách từ ghép tiếng Việt bằng Viterbi DAG hoặc MaxMatch."""
+            from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
+
+            tok = BoTachTuTiengVietSieuToc()
+            vb_chuan = tok.chuan_hoa_dau_thanh(req.van_ban) if req.chuan_hoa_dau else tok.chuan_hoa_unicode(req.van_ban)
+            tokens = tok.tach_tu(
+                req.van_ban,
+                noi_tu_ghep=req.noi_tu_ghep,
+                chuan_hoa_dau=req.chuan_hoa_dau,
+                phuong_phap=req.phuong_phap,
+            )
+            return {
+                "van_ban_chuan_hoa": vb_chuan,
+                "phuong_phap": req.phuong_phap,
+                "so_token": len(tokens),
+                "tokens": tokens,
+            }
+
+        @self.app.post("/v1/vaidb/hnsw")
+        async def vaidb_hnsw(req: VAIDBHnswRequest):
+            """Xem thống kê hoặc xây dựng chỉ mục đồ thị HNSW bền vững trên kho `.vaidb` gắn với bộ xử lý."""
+            store = getattr(self.bo_xu_ly, "csdl_vector", None)
+            if store is None:
+                rag_obj = getattr(self.bo_xu_ly, "rag", None)
+                store = getattr(rag_obj, "csdl_vector", None) if rag_obj is not None else None
+            if store is None or not hasattr(store, "xay_dung_chi_muc_hnsw"):
+                return {
+                    "ho_tro": False,
+                    "thong_bao": "Bộ xử lý hiện tại chưa gắn kho tri thức bền vững KhoTriThucVAIDB.",
+                }
+            if req.chi_thong_ke:
+                return {"ho_tro": True, "thong_ke": store.thong_ke()}
+            info = store.xay_dung_chi_muc_hnsw(
+                m=req.m,
+                ef_construction=req.ef_construction,
+                ef_search=req.ef_search,
+            )
+            return {"ho_tro": True, "hnsw": info, "thong_ke": store.thong_ke()}
 
         @self.app.post("/v1/chat/completions")
         async def chat_completions(request: ChatCompletionRequest):

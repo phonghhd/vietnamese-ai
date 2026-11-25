@@ -67,15 +67,15 @@ def _ma_hoa_q8_0_blocks(weights: np.ndarray) -> bytes:
 
 
 def _ma_hoa_q4_0_blocks(weights: np.ndarray) -> bytes:
-    """Mã hóa mảng float32 có số phần tử chia hết cho 32 sang khối nhị phân chuẩn GGML Q4_0 (18B/32)."""
+    """Mã hóa mảng float32 có số phần tử chia hết cho 32 sang khối nhị phân chuẩn GGML Q4_0 (18B/32, tách nửa 0..15 / 16..31)."""
     flat = np.asarray(weights, dtype=np.float32).reshape(-1, 32)
     max_abs = np.max(np.abs(flat), axis=1, keepdims=True)
     scales_f32 = np.where(max_abs > 0, max_abs / 7.0, 1.0).astype(np.float32)
     scales_f16 = scales_f32.astype(np.float16)
     inv_scales = np.where(scales_f16.astype(np.float32) > 0, 1.0 / scales_f16.astype(np.float32), 0.0)
     q_int = np.clip(np.round(flat * inv_scales) + 8, 0, 15).astype(np.uint8)
-    lo = q_int[:, 0::2] & 0x0F
-    hi = (q_int[:, 1::2] & 0x0F) << 4
+    lo = q_int[:, :16] & 0x0F
+    hi = (q_int[:, 16:] & 0x0F) << 4
     packed = (lo | hi).astype(np.uint8)
     scale_u8 = scales_f16.view(np.uint8).reshape(-1, 2)
     return np.concatenate([scale_u8, packed], axis=1).tobytes()
@@ -256,7 +256,7 @@ class XuatGGUF:
             ),
             "general.alignment": 32,
             "general.author": "Vietnamese AI Framework",
-            "general.version": "31.0.3",
+            "general.version": "31.0.4",
             "general.description": thong_tin.get(
                 "description", "Model from Vietnamese AI Framework"
             ),
@@ -303,7 +303,7 @@ class XuatGGUF:
 
             header.extend(_dong_goi_chuoi(ten))
             header.extend(struct.pack("<I", arr.ndim))
-            for dim in arr.shape:
+            for dim in reversed(arr.shape):
                 header.extend(struct.pack("<Q", int(dim)))
             header.extend(struct.pack("<IQ", ggml_type, rel_offset))
 
@@ -461,7 +461,21 @@ class XuatGGUF:
         if raw_data[:4] != GGUF_MAGIC:
             raise ValueError(f"Không phải file GGUF: {duong_dan}")
 
-        type_to_name = {0: "f32", 1: "f16", 2: "q4_0", 3: "q4_1", 8: "q8_0", 10: "q2_k", 11: "q3_k", 12: "q4_k"}
+        type_to_name = {
+            0: "f32",
+            1: "f16",
+            2: "q4_0",
+            3: "q4_1",
+            6: "q5_0",
+            7: "q5_1",
+            8: "q8_0",
+            10: "q2_k",
+            11: "q3_k",
+            12: "q4_k",
+            13: "q5_k",
+            14: "q6_k",
+            30: "bf16",
+        }
         try:
             _, _, tensor_infos, data_start = self._doc_gguf_v3_noi_bo(raw_data)
             tensors_v3: Dict[str, np.ndarray] = {}
@@ -470,7 +484,10 @@ class XuatGGUF:
                 if loc_tien_to and not any(ten.startswith(p) for p in loc_tien_to):
                     continue
                 dims = tuple(int(d) for d in tinfo["dims"])
-                loai_q = type_to_name.get(int(tinfo["ggml_type"]), "f32")
+                ggml_t = int(tinfo["ggml_type"])
+                loai_q = type_to_name.get(ggml_t)
+                if loai_q is None:
+                    raise ValueError(f"Định dạng tensor GGML không hỗ trợ: {ggml_t}")
                 n_elems = 1
                 for d in dims:
                     n_elems *= d
@@ -479,7 +496,8 @@ class XuatGGUF:
                 start = data_start + int(tinfo["offset"])
                 end = start + so_blk * blk_bytes
                 arr = BoGiaiLuongTuQ4.giai_luong_tu(raw_data[start:end], so_phan_tu=n_elems, loai_quant=loai_q)
-                tensors_v3[ten] = arr.reshape(dims) if dims else arr
+                c_shape = dims[::-1] if dims else ()
+                tensors_v3[ten] = arr.reshape(c_shape) if c_shape else arr
             return tensors_v3
         except Exception:
             pass

@@ -4,7 +4,7 @@ import ast
 import dataclasses
 import json
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, get_type_hints
 
 
 class PhanTichDauRa:
@@ -162,18 +162,22 @@ class PhanTichDauRa:
                 return getattr(schema, "model_validate")(coerced)
             return getattr(schema, "parse_obj")(coerced)
 
-        # 2. Nếu là Python @dataclass
         if isinstance(schema, type) and dataclasses.is_dataclass(schema):
+            try:
+                resolved_hints: Dict[str, Any] = get_type_hints(schema)
+            except Exception:
+                resolved_hints = {}
             coerced_dc: Dict[str, Any] = {}
             for f in dataclasses.fields(schema):
+                ftype = resolved_hints.get(f.name, f.type)
                 if f.name in raw_data:
-                    coerced_dc[f.name] = self._ep_kieu_gia_tri(raw_data[f.name], f.type)
+                    coerced_dc[f.name] = self._ep_kieu_gia_tri(raw_data[f.name], ftype)
                 elif f.default is not dataclasses.MISSING:
                     coerced_dc[f.name] = f.default
                 elif f.default_factory is not dataclasses.MISSING:  # type: ignore
                     coerced_dc[f.name] = f.default_factory()  # type: ignore
                 else:
-                    coerced_dc[f.name] = self._ep_kieu_gia_tri(van_ban, f.type)
+                    coerced_dc[f.name] = self._ep_kieu_gia_tri(van_ban, ftype)
             return schema(**coerced_dc)
 
         # 3. Nếu là dict định nghĩa kiểu {"ten": str, "tuoi": int} hoặc JSON Schema {"properties": ...}

@@ -2,7 +2,7 @@
   <h1>Vietnamese AI Framework</h1>
   <p>Hệ sinh thái Trí tuệ Nhân tạo thuần tiếng Việt cho Python. Thiết kế theo triết lý Zero-Dependency Micro-Core, tích hợp Kho tri thức `.vaidb`, RAG Pháp lý 100 điều khoản, Rà soát hợp đồng Redline, MCP IDE Server, Zalo/Telegram Connectors, Zero-GPU Edge LLM và Remote GPU Flywheel.</p>
   <div class="hero-badges">
-    <span class="badge-pill">🚀 Phiên bản 31.0.3</span>
+    <span class="badge-pill">🚀 Phiên bản 31.0.4</span>
     <span class="badge-pill">🐍 Python 3.8 – 3.14</span>
     <span class="badge-pill">✅ 1,265 Tests Passed</span>
     <span class="badge-pill">📦 316 Public APIs (.pyi)</span>
@@ -69,7 +69,7 @@
 
 ## 📊 Bảng Đo Lường So Sánh Toàn Diện
 
-| Chỉ số Đo lường | LangChain + HF | LlamaIndex Core | vLLM (CPU) | Vietnamese AI Framework (v31.0.3) |
+| Chỉ số Đo lường | LangChain + HF | LlamaIndex Core | vLLM (CPU) | Vietnamese AI Framework (v31.0.4) |
 | :--- | :---: | :---: | :---: | :---: |
 | **Khởi động lạnh (Cold Start)** | 3,420 ms | 2,850 ms | 6,100 ms | **1.2 ms (nhanh gấp 2,000x)** |
 | **Dung lượng RAM Nền** | 485 MB | 360 MB | 1,250 MB | **14.2 MB (tiết kiệm 96%)** |

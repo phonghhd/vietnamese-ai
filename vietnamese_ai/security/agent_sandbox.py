@@ -33,33 +33,52 @@ class MoiTruongCachLy:
             with open(cls.CONFIG_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         return {
-            "module_cam": ["os", "sys", "subprocess", "shutil", "socket", "requests", "urllib"],
-            "ham_cam": ["eval", "exec", "open", "__import__"],
+            "module_cam": [
+                "os",
+                "posix",
+                "nt",
+                "sys",
+                "subprocess",
+                "shutil",
+                "socket",
+                "requests",
+                "urllib",
+                "pty",
+                "ctypes",
+                "io",
+                "pathlib",
+                "inspect",
+                "pickle",
+                "marshal",
+            ],
+            "ham_cam": ["eval", "exec", "open", "__import__", "compile", "globals", "locals", "breakpoint"],
         }
 
     @classmethod
     def _kiem_tra_ast(cls, ma_nguon: str) -> Tuple[bool, str]:
-        """Phân tích AST để tìm các module hoặc hàm cấm."""
+        """Phân tích AST để tìm các module, hàm, thuộc tính frame/generator hoặc chuỗi format cấm."""
+        from vietnamese_ai.sandbox.ast_analyzer import _RE_FORMAT_ESCAPE, ASTKhachViengTham
+
         cau_hinh = cls._tai_cau_hinh()
+        module_cam = set(cau_hinh.get("module_cam", []))
+        ham_cam = set(cau_hinh.get("ham_cam", []))
+        thuoc_tinh_cam = ASTKhachViengTham.THUOC_TINH_CAM
         try:
             cay = ast.parse(ma_nguon)
         except SyntaxError as e:
             return False, f"Lỗi cú pháp: {e}"
 
         for node in ast.walk(cay):
-            # Chặn import statement
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name.split(".")[0] in cau_hinh.get("module_cam", []):
+                    if alias.name.split(".")[0] in module_cam:
                         return False, f"Bảo mật: Không được phép import module '{alias.name}'"
             elif isinstance(node, ast.ImportFrom):
-                if node.module and node.module.split(".")[0] in cau_hinh.get("module_cam", []):
+                if node.module and node.module.split(".")[0] in module_cam:
                     return False, f"Bảo mật: Không được phép import từ module '{node.module}'"
-
-            # Chặn các built-in nguy hiểm (vd: eval, exec, open)
             elif isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name):
-                    if node.func.id in cau_hinh.get("ham_cam", []):
+                    if node.func.id in ham_cam:
                         return False, f"Bảo mật: Không được phép sử dụng hàm '{node.func.id}'"
                 elif isinstance(node.func, ast.Attribute):
                     if node.func.attr.startswith("__") and node.func.attr.endswith("__"):
@@ -67,13 +86,30 @@ class MoiTruongCachLy:
                             False,
                             f"Bảo mật: Không được phép truy cập thuộc tính hệ thống '{node.func.attr}'",
                         )
-
-            # Chặn truy cập thuộc tính dunder (__class__, __subclasses__, __globals__)
+                    if node.func.attr in thuoc_tinh_cam:
+                        return (
+                            False,
+                            f"Bảo mật: Không được phép truy cập thuộc tính nội bộ '{node.func.attr}'",
+                        )
+                    if node.func.attr in ("format", "format_map"):
+                        if isinstance(node.func.value, ast.Constant) and isinstance(
+                            node.func.value.value, str
+                        ):
+                            if _RE_FORMAT_ESCAPE.search(node.func.value.value):
+                                return (
+                                    False,
+                                    "Bảo mật: Không được phép truy cập thuộc tính nội bộ qua format.",
+                                )
             elif isinstance(node, ast.Attribute):
                 if node.attr.startswith("__") and node.attr.endswith("__"):
                     return (
                         False,
                         f"Bảo mật: Không được phép truy cập thuộc tính hệ thống '{node.attr}'",
+                    )
+                if node.attr in thuoc_tinh_cam:
+                    return (
+                        False,
+                        f"Bảo mật: Không được phép truy cập thuộc tính nội bộ '{node.attr}'",
                     )
 
         return True, "An toàn"

@@ -1,7 +1,7 @@
 import hashlib
 import os
 import re
-from typing import List, Union
+from typing import Any, List, Optional, Union
 
 import numpy as np
 
@@ -26,7 +26,7 @@ class ImageEmbedder:
         self.dung_clip = dung_clip
         self.seed = seed
         self._da_tai_model = False
-        self._clip_model = None
+        self._clip_model: Optional[Any] = None
 
     def _tai_model(self) -> None:
         """Tải CLIP thật nếu `dung_clip=True` và dependency có sẵn."""

@@ -80,13 +80,36 @@ class DoThiThucThi:
         self.interrupt_before: Set[str] = set(interrupt_before or [])
         self.interrupt_after: Set[str] = set(interrupt_after or [])
 
-        # Trạng thái phiên hiện tại
         self._trang_thai_hien_tai: Dict[str, Any] = {}
         self._nut_hien_tai: Optional[str] = None
         self._session_id: str = f"sess_{uuid.uuid4().hex[:8]}"
         self._so_buoc: int = 0
         self._dang_tam_dung: bool = False
         self._nut_bi_dung: Optional[str] = None
+        self._phien_state: Dict[str, Dict[str, Any]] = {}
+
+    def _luu_trang_thai_phien(
+        self,
+        sid: str,
+        trang_thai: Dict[str, Any],
+        nut_hien_tai: Optional[str],
+        so_buoc: int,
+        dang_tam_dung: bool,
+        nut_bi_dung: Optional[str],
+    ) -> None:
+        self._phien_state[sid] = {
+            "trang_thai": copy.deepcopy(trang_thai),
+            "nut_hien_tai": nut_hien_tai,
+            "so_buoc": so_buoc,
+            "dang_tam_dung": dang_tam_dung,
+            "nut_bi_dung": nut_bi_dung,
+        }
+        self._session_id = sid
+        self._trang_thai_hien_tai = self._phien_state[sid]["trang_thai"]
+        self._nut_hien_tai = nut_hien_tai
+        self._so_buoc = so_buoc
+        self._dang_tam_dung = dang_tam_dung
+        self._nut_bi_dung = nut_bi_dung
 
     def lay_trang_thai(
         self, session_id: Optional[str] = None, thread_id: Optional[str] = None
@@ -130,85 +153,71 @@ class DoThiThucThi:
         gioi_han_buoc: int = 25,
     ) -> Dict[str, Any]:
         """
-        Khởi chạy đồ thị trạng thái từ điểm bắt đầu.
+        Khởi chạy đồ thị trạng thái từ điểm bắt đầu (cô lập trạng thái theo từng `session_id`).
         """
-        self._session_id = session_id or f"sess_{uuid.uuid4().hex[:8]}"
-        self._trang_thai_hien_tai = copy.deepcopy(trang_thai_khoi_tao)
-        self._so_buoc = 0
-        self._dang_tam_dung = False
-        self._nut_bi_dung = None
+        sid = session_id or f"sess_{uuid.uuid4().hex[:8]}"
+        state = copy.deepcopy(trang_thai_khoi_tao)
+        so_buoc = 0
 
-        # Lưu snapshot điểm bắt đầu (buoc 0)
-        self.checkpointer.luu_snapshot(
-            self._session_id, 0, START, self._trang_thai_hien_tai
-        )
+        self.checkpointer.luu_snapshot(sid, 0, START, state)
 
         nut_ke_tiep = self.diem_bat_dau
         nhat_ky_buoc: List[Dict[str, Any]] = []
 
-        while nut_ke_tiep != END and self._so_buoc < gioi_han_buoc:
-            # 1. Kiểm tra ngắt trước nút (Human-In-The-Loop interrupt_before)
-            if nut_ke_tiep in self.interrupt_before and self._so_buoc > 0:
-                self._dang_tam_dung = True
-                self._nut_bi_dung = nut_ke_tiep
-                self._nut_hien_tai = nut_ke_tiep
+        while nut_ke_tiep != END and so_buoc < gioi_han_buoc:
+            if nut_ke_tiep in self.interrupt_before and so_buoc > 0:
+                self._luu_trang_thai_phien(sid, state, nut_ke_tiep, so_buoc, True, nut_ke_tiep)
                 return {
-                    "trang_thai": self._trang_thai_hien_tai,
+                    "trang_thai": copy.deepcopy(state),
                     "dang_tam_dung": True,
                     "nut_tam_dung": nut_ke_tiep,
                     "loai_tam_dung": "interrupt_before",
-                    "so_buoc": self._so_buoc,
-                    "session_id": self._session_id,
+                    "so_buoc": so_buoc,
+                    "session_id": sid,
                     "nhat_ky_buoc": nhat_ky_buoc,
                 }
 
             if nut_ke_tiep not in self.cac_nut:
                 raise ValueError(f"Nút '{nut_ke_tiep}' không tồn tại trong Đồ thị Trạng thái.")
 
-            self._so_buoc += 1
+            so_buoc += 1
             ham_nut = self.cac_nut[nut_ke_tiep]
-            delta = ham_nut(self._trang_thai_hien_tai)
-            self._trang_thai_hien_tai = self._cap_nhat_state(self._trang_thai_hien_tai, delta)
+            delta = ham_nut(state)
+            state = self._cap_nhat_state(state, delta)
 
-            # Lưu snapshot trạng thái vào Checkpointer
-            self.checkpointer.luu_snapshot(
-                self._session_id, self._so_buoc, nut_ke_tiep, self._trang_thai_hien_tai
-            )
+            self.checkpointer.luu_snapshot(sid, so_buoc, nut_ke_tiep, state)
 
             nhat_ky_buoc.append(
                 {
-                    "buoc": self._so_buoc,
+                    "buoc": so_buoc,
                     "nut": nut_ke_tiep,
                     "ket_qua": delta,
                 }
             )
 
-            # 2. Kiểm tra ngắt sau nút (Human-In-The-Loop interrupt_after)
             if nut_ke_tiep in self.interrupt_after:
-                nut_sau_do = self._tim_nut_tiep_theo(nut_ke_tiep, self._trang_thai_hien_tai)
-                self._dang_tam_dung = True
-                self._nut_bi_dung = nut_ke_tiep
-                self._nut_hien_tai = nut_sau_do
+                nut_sau_do = self._tim_nut_tiep_theo(nut_ke_tiep, state)
+                self._luu_trang_thai_phien(sid, state, nut_sau_do, so_buoc, True, nut_ke_tiep)
                 return {
-                    "trang_thai": self._trang_thai_hien_tai,
+                    "trang_thai": copy.deepcopy(state),
                     "dang_tam_dung": True,
                     "nut_tam_dung": nut_ke_tiep,
                     "nut_tiep_theo": nut_sau_do,
                     "loai_tam_dung": "interrupt_after",
-                    "so_buoc": self._so_buoc,
-                    "session_id": self._session_id,
+                    "so_buoc": so_buoc,
+                    "session_id": sid,
                     "nhat_ky_buoc": nhat_ky_buoc,
                 }
 
-            # 3. Chuyển sang nút kế tiếp
-            nut_ke_tiep = self._tim_nut_tiep_theo(nut_ke_tiep, self._trang_thai_hien_tai)
+            nut_ke_tiep = self._tim_nut_tiep_theo(nut_ke_tiep, state)
 
+        self._luu_trang_thai_phien(sid, state, nut_ke_tiep, so_buoc, False, None)
         return {
-            "trang_thai": self._trang_thai_hien_tai,
+            "trang_thai": copy.deepcopy(state),
             "dang_tam_dung": False,
             "nut_tam_dung": None,
-            "so_buoc": self._so_buoc,
-            "session_id": self._session_id,
+            "so_buoc": so_buoc,
+            "session_id": sid,
             "nhat_ky_buoc": nhat_ky_buoc,
             "hoan_tat": nut_ke_tiep == END,
         }
@@ -249,36 +258,39 @@ class DoThiThucThi:
         gioi_han_buoc: int = 25,
     ) -> Dict[str, Any]:
         """
-        Tiếp tục thực thi đồ thị sau khi con người can thiệp hoặc điều chỉnh State.
+        Tiếp tục thực thi đồ thị cho đúng phiên (`session_id`/`thread_id`) sau khi con người can thiệp hoặc điều chỉnh State.
         """
-        if not self._dang_tam_dung or not self._nut_hien_tai:
-            raise RuntimeError("Đồ thị không ở trạng thái tạm dừng để có thể tiếp tục.")
-
-        if thread_id or session_id:
-            self._session_id = thread_id or session_id or self._session_id
+        sid = thread_id or session_id or self._session_id
+        phien = self._phien_state.get(sid)
+        if phien is None:
+            if not self._dang_tam_dung or not self._nut_hien_tai:
+                raise RuntimeError("Đồ thị không ở trạng thái tạm dừng để có thể tiếp tục.")
+            state = copy.deepcopy(self._trang_thai_hien_tai)
+            nut_ke_tiep = self._nut_hien_tai
+            so_buoc = self._so_buoc
+        else:
+            if not phien["dang_tam_dung"] or not phien["nut_hien_tai"]:
+                raise RuntimeError(f"Phiên '{sid}' không ở trạng thái tạm dừng để có thể tiếp tục.")
+            state = copy.deepcopy(phien["trang_thai"])
+            nut_ke_tiep = str(phien["nut_hien_tai"])
+            so_buoc = int(phien["so_buoc"])
 
         if trang_thai_cap_nhat:
-            self._trang_thai_hien_tai = self._cap_nhat_state(
-                self._trang_thai_hien_tai, trang_thai_cap_nhat
-            )
+            state = self._cap_nhat_state(state, trang_thai_cap_nhat)
 
-        self._dang_tam_dung = False
-        self._nut_bi_dung = None
-        nut_ke_tiep = self._nut_hien_tai
         nhat_ky_buoc: List[Dict[str, Any]] = []
         da_bo_qua_ngat_dau = False
 
-        while nut_ke_tiep != END and self._so_buoc < gioi_han_buoc:
+        while nut_ke_tiep != END and so_buoc < gioi_han_buoc:
             if nut_ke_tiep in self.interrupt_before and da_bo_qua_ngat_dau:
-                self._dang_tam_dung = True
-                self._nut_bi_dung = nut_ke_tiep
-                self._nut_hien_tai = nut_ke_tiep
-                out = copy.deepcopy(self._trang_thai_hien_tai)
+                self._luu_trang_thai_phien(sid, state, nut_ke_tiep, so_buoc, True, nut_ke_tiep)
+                out = copy.deepcopy(state)
                 out["__dang_tam_dung__"] = True
                 out["__tam_dung__"] = True
                 out["__nut_hien_tai__"] = nut_ke_tiep
-                out["__buoc__"] = self._so_buoc
-                out["trang_thai"] = self._trang_thai_hien_tai
+                out["__buoc__"] = so_buoc
+                out["__session_id__"] = sid
+                out["trang_thai"] = copy.deepcopy(state)
                 return out
 
             da_bo_qua_ngat_dau = True
@@ -286,39 +298,36 @@ class DoThiThucThi:
             if nut_ke_tiep not in self.cac_nut:
                 raise ValueError(f"Nút '{nut_ke_tiep}' không tồn tại trong Đồ thị.")
 
-            self._so_buoc += 1
+            so_buoc += 1
             ham_nut = self.cac_nut[nut_ke_tiep]
-            delta = ham_nut(self._trang_thai_hien_tai)
-            self._trang_thai_hien_tai = self._cap_nhat_state(self._trang_thai_hien_tai, delta)
+            delta = ham_nut(state)
+            state = self._cap_nhat_state(state, delta)
 
-            self.checkpointer.luu_snapshot(
-                self._session_id, self._so_buoc, nut_ke_tiep, self._trang_thai_hien_tai
-            )
-
-            nhat_ky_buoc.append({"buoc": self._so_buoc, "nut": nut_ke_tiep, "ket_qua": delta})
+            self.checkpointer.luu_snapshot(sid, so_buoc, nut_ke_tiep, state)
+            nhat_ky_buoc.append({"buoc": so_buoc, "nut": nut_ke_tiep, "ket_qua": delta})
 
             if nut_ke_tiep in self.interrupt_after:
-                nut_sau_do = self._tim_nut_tiep_theo(nut_ke_tiep, self._trang_thai_hien_tai)
-                self._dang_tam_dung = True
-                self._nut_bi_dung = nut_ke_tiep
-                self._nut_hien_tai = nut_sau_do
-                out = copy.deepcopy(self._trang_thai_hien_tai)
+                nut_sau_do = self._tim_nut_tiep_theo(nut_ke_tiep, state)
+                self._luu_trang_thai_phien(sid, state, nut_sau_do, so_buoc, True, nut_ke_tiep)
+                out = copy.deepcopy(state)
                 out["__dang_tam_dung__"] = True
                 out["__tam_dung__"] = True
                 out["__nut_hien_tai__"] = nut_sau_do
-                out["__buoc__"] = self._so_buoc
-                out["trang_thai"] = self._trang_thai_hien_tai
+                out["__buoc__"] = so_buoc
+                out["__session_id__"] = sid
+                out["trang_thai"] = copy.deepcopy(state)
                 return out
 
-            nut_ke_tiep = self._tim_nut_tiep_theo(nut_ke_tiep, self._trang_thai_hien_tai)
+            nut_ke_tiep = self._tim_nut_tiep_theo(nut_ke_tiep, state)
 
-        out = copy.deepcopy(self._trang_thai_hien_tai)
+        self._luu_trang_thai_phien(sid, state, END if nut_ke_tiep == END else nut_ke_tiep, so_buoc, False, None)
+        out = copy.deepcopy(state)
         out["__dang_tam_dung__"] = False
         out["__tam_dung__"] = False
-        out["__nut_hien_tai__"] = END
-        out["__buoc__"] = self._so_buoc
-        out["__session_id__"] = self._session_id
-        out["trang_thai"] = self._trang_thai_hien_tai
+        out["__nut_hien_tai__"] = END if nut_ke_tiep == END else nut_ke_tiep
+        out["__buoc__"] = so_buoc
+        out["__session_id__"] = sid
+        out["trang_thai"] = copy.deepcopy(state)
         out["hoan_tat"] = nut_ke_tiep == END
         return out
 

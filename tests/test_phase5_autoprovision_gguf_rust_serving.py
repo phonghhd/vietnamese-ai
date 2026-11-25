@@ -36,14 +36,17 @@ def test_tu_dong_cap_phat_3_tang_va_vai_setup(tmp_path: Path, monkeypatch: pytes
     assert any("python-docx" in g for g in QuanLyPhuThuoc.NHOM_PHU_THUOC["legal-rag"]["goi"])
     assert any("pdfplumber" in g for g in QuanLyPhuThuoc.NHOM_PHU_THUOC["legal-rag"]["goi"])
 
+    from vietnamese_ai.nlp.native_tokenizer import co_ho_tro_rust
+
+    co_rust = co_ho_tro_rust()
     hw = QuanLyPhuThuoc.phat_hien_phan_cung_cai_dat()
     assert hw["so_nhan_cpu"] >= 1
-    assert hw["co_rust_native"] is True
+    assert hw["co_rust_native"] is co_rust
 
     setup_res = QuanLyPhuThuoc.thiet_lap_tu_dong(profile="legal-rag", chay_that=False)
     assert setup_res["ho_so"] == "legal-rag"
     assert setup_res["che_do_thuc_thi"] == "xem_truoc_dry_run"
-    assert setup_res["tang_thap_rust"]["co_rust_native"] is True
+    assert setup_res["tang_thap_rust"]["co_rust_native"] is co_rust
     assert len(setup_res["cac_nhom_goi"]) == 3
 
     parser = _tao_parser()

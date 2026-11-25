@@ -2,6 +2,14 @@
 
 Xem [CHANGELOG.md](https://github.com/phonghhd/vietnamese-ai/blob/main/CHANGELOG.md) đầy đủ trên GitHub.
 
+## v31.0.4 (2026-11-25 — Deep Architecture, Vertical Moat, 5-Surface Integration & CI Green)
+
+- **Vá Toàn Diện Lỗi Tiềm Ẩn & CI Python 3.9–3.13 + Rust Core Parity**: sửa bug `total_memory` trên `MultiGPUTrainer`, xử lý sạch toàn bộ 27 lỗi `mypy` trên môi trường `[all,dev]`, sửa `XuLyVanBan(dung_native_tokenizer=True)` và fallback `\u200c` thuần Python, thêm fallback TOML cho Python 3.9/3.10, chuyển Python 3.9 sang `ubuntu-22.04` và thêm job CI biên dịch thật `rust_core`.
+- **Kiến Trúc Chiều Sâu 5 Trụ Cột & Rust Zero-Copy Kernels**: chuẩn hóa dấu thanh FST & tách từ Viterbi DAG đồng nhất Rust/Python (`584,893` / `269,914` từ/s); kernel Rust Zero-Copy `PyBytes` (`Q5_K`, `Q6_K`, `RMSNorm`, `SwiGLU`) nhanh hơn NumPy **3.7x–6.3x**; xác thực `KiemChungFreivalds` phát hiện **100%** gian lận Byzantine; Persistent HNSW `.vaidb` vector hóa batch-neighbor; SimPO không cần `ref_model` & Eval Gate Paired Bootstrap 95% CI; tường lửa chặn Prompt Injection tiếng Việt không dấu/Zero-Width/BiDi & OS-level Sandbox `RLIMIT_AS`.
+- **Vertical Moat Pháp Lý & Cross-Encoder ONNX (`Hướng C4`)**: `BoNapVanBanPhapQuyTuDong` (`vai legal-ingest <nguon> -o kho.vaidb`) tự động phân tích văn bản pháp quy & Văn bản hợp nhất (`.docx`/`.pdf`/`.txt`/`.md`), tự sinh chuỗi `PhienBanDieuKhoan` Point-in-Time + đồ thị `QuanHePhapLy`, đóng gói 1 tệp `.vaidb` HNSW và tự phục hồi trên `TroLyPhapLy`; nâng cấp `BoSapXepLaiONNXTiengViet` hỗ trợ preset `bge-reranker-v2-m3` / `phoranker` theo lô `cham_diem_lo`; mở rộng 14 mốc Point-in-Time luật Việt Nam.
+- **Tích Hợp 5 Bề Mặt & Benchmark `--suite deep`**: đồng bộ toàn bộ lên `TroLyPhapLy`, CLI `vai`, FastAPI (`/v1/legal/clause-version`, `/v1/legal/contract-review`, `/v1/nlp/tokenize`, `/v1/vaidb/hnsw`), MCP Server (`--extended-tools` 9 công cụ), Web Studio Dashboard (tải thẳng Word Track Changes `.docx` + Comments) và `benchmarks/run_benchmarks.py --suite deep`.
+- **316/316** public API stubs `.pyi`, **1,314 passed / 32 skipped / 0 failed**, **0 lỗi `mypy`** (328 tệp), **0 lỗi `ruff`**, `mkdocs build --strict` exit 0, `vai release-check` ĐẠT.
+
 ## v31.0.3 (2026-11-24 — Open-Source Production Release)
 
 - **Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Luật**: `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 + Float32 Vector + đồng bộ thư mục SHA-256 `dong_bo_thu_muc`), `RAGPipeline.luu/tai("*.vaidb")`, `BoNhungONNXTiengViet` (`onnx_viet`), `BoTheoDoiHieuLucPhapLy`, `DoThiThamChieuPhapLy` (`vai legal-graph`), và **100 điều khoản pháp luật Việt Nam + 35 QA chuẩn** đóng gói trực tiếp trong wheel (`vietnamese_ai/rag/legal/data/`).

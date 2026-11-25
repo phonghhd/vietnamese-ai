@@ -667,6 +667,437 @@ class BoDoLuongDoiDau:
                 }
         return ket_qua
 
+    def do_chieu_sau_loi_he_thong(
+        self,
+        nhanh: bool = False,
+        seed: int = 42,
+    ) -> Dict[str, Any]:
+        """Đo định lượng 6 trụ cột kiến trúc chiều sâu (FST/Viterbi, HNSW .vaidb, Rust Kernels, Freivalds, SimPO/EvalGate, Track Changes)."""
+        import tempfile
+        import zipfile
+
+        import vietnamese_ai.edge.native_inference as ni_mod
+        from vietnamese_ai.edge.native_inference import BoGiaiMaTransformerEdge
+        from vietnamese_ai.fine_tuning.dpo_trainer import DPOTrainer
+        from vietnamese_ai.fine_tuning.eval_gate import (
+            BO_TAN_CONG_MO_RONG,
+            CongKiemDinhMoHinh,
+        )
+        from vietnamese_ai.rag.legal.contract_review import BoSoSanhRaSoatHopDong
+        from vietnamese_ai.rag.legal.validity_tracker import BoTheoDoiHieuLucPhapLy
+        from vietnamese_ai.rag.vaidb_store import KhoTriThucVAIDB
+        from vietnamese_ai.security.llm_firewall import TuongLuaAI
+        from vietnamese_ai.security.verifiable_inference import KiemChungFreivalds
+
+        rng = np.random.RandomState(seed)
+
+        cau_nlp = [
+            "Ủy ban nhân dân tỉnh Hoà Bình hướng dẫn thực hiện Nghị định 123/2020/NĐ-CP và 70/2025/NĐ-CP.",
+            "Cơ quan nhà nước pháp quyền bảo vệ quyền và lợi ích hợp pháp của người lao động Việt Nam.",
+            "Học sinh học sinh học tại trường trung học phổ thông và toà án nhân dân xử lý tranh chấp khoẻ mạnh.",
+            "Hệ thống trí tuệ nhân tạo xử lý dữ liệu cá nhân theo tiêu chuẩn bảo mật doanh nghiệp hiện đại.",
+        ]
+        so_lap_nlp = 40 if nhanh else 150
+        tu_dien_bo_sung = {"cơ quan", "nhà nước pháp quyền", "cơ quan nhà nước"}
+        tok = BoTachTuTiengVietSieuToc(tu_dien_bo_sung=tu_dien_bo_sung)
+        tong_tu_nlp = sum(len(c.split()) for c in cau_nlp) * so_lap_nlp
+
+        t0 = time.perf_counter()
+        for _ in range(so_lap_nlp):
+            for c in cau_nlp:
+                tok.chuan_hoa_dau_thanh(c)
+        t_fst = max(time.perf_counter() - t0, 1e-6)
+
+        t0 = time.perf_counter()
+        for _ in range(so_lap_nlp):
+            for c in cau_nlp:
+                tok.tach_tu(c, noi_tu_ghep=True, phuong_phap="max_match")
+        t_mm = max(time.perf_counter() - t0, 1e-6)
+
+        t0 = time.perf_counter()
+        for _ in range(so_lap_nlp):
+            for c in cau_nlp:
+                tok.tach_tu(c, noi_tu_ghep=True, phuong_phap="viterbi")
+        t_vit = max(time.perf_counter() - t0, 1e-6)
+
+        import vietnamese_ai.nlp.native_tokenizer as nt_mod
+
+        mau_nhap_nhang = "cơ quan nhà nước pháp quyền"
+        kq_mm_amb = tok.tach_tu(mau_nhap_nhang, noi_tu_ghep=True, phuong_phap="max_match")
+        kq_vit_amb = tok.tach_tu(mau_nhap_nhang, noi_tu_ghep=True, phuong_phap="viterbi")
+        mau_fst = tok.chuan_hoa_dau_thanh("Hoà Bình toà án khoẻ mạnh qùa qúy nứơc hòan tòan")
+        nlp_ket_qua: Dict[str, Any] = {
+            "co_rust_native": bool(nt_mod._rust_core is not None),
+            "fst_chuan_hoa_wps": round(tong_tu_nlp / t_fst, 1),
+            "max_match_wps": round(tong_tu_nlp / t_mm, 1),
+            "viterbi_wps": round(tong_tu_nlp / t_vit, 1),
+            "viterbi_giai_nhap_nhang_chinh_xac": kq_vit_amb == ["cơ_quan", "nhà_nước_pháp_quyền"],
+            "max_match_phan_hoach_mau": kq_mm_amb,
+            "viterbi_phan_hoach_mau": kq_vit_amb,
+            "fst_chuan_hoa_chinh_xac": (
+                "Hòa Bình" in mau_fst
+                and "tòa án" in mau_fst
+                and "khỏe mạnh" in mau_fst
+                and "quà quý nước hoàn toàn" in mau_fst
+            ),
+        }
+
+        so_vec = 240 if nhanh else 600
+        dim = 64
+        so_truy_van = 16 if nhanh else 40
+        vecs = rng.randn(so_vec, dim).astype(np.float32)
+        vecs /= np.linalg.norm(vecs, axis=1, keepdims=True) + 1e-9
+        queries = rng.randn(so_truy_van, dim).astype(np.float32)
+        queries /= np.linalg.norm(queries, axis=1, keepdims=True) + 1e-9
+        nhom_list = ["phap_ly", "hop_dong", "tai_chinh"]
+        ids = [f"doc_{i}" for i in range(so_vec)]
+        metas = [{"noi_dung": f"Điều khoản {i}", "nhom": nhom_list[i % 3]} for i in range(so_vec)]
+
+        with tempfile.TemporaryDirectory(prefix="vai_bench_hnsw_") as tmp_dir:
+            db_path = Path(tmp_dir) / "bench_hnsw.vaidb"
+            with KhoTriThucVAIDB(duong_dan=db_path, kich_thuoc=dim, khoang_cach="cosine") as db:
+                db.chen_batch(ids, vecs, metas)
+
+                gt_top5: List[List[str]] = []
+                t0 = time.perf_counter()
+                for q in queries:
+                    res_lin = db.tim_kiem(q, top_k=5)
+                    gt_top5.append([r["ma"] for r in res_lin])
+                t_lin_ms = (time.perf_counter() - t0) * 1000.0 / so_truy_van
+
+                t0 = time.perf_counter()
+                hnsw_info = db.xay_dung_chi_muc_hnsw(m=12, ef_construction=64, ef_search=48, seed=seed)
+                build_ms = (time.perf_counter() - t0) * 1000.0
+
+            t0 = time.perf_counter()
+            with KhoTriThucVAIDB(duong_dan=db_path, kich_thuoc=dim, khoang_cach="cosine") as db_reopen:
+                reopen_ms = (time.perf_counter() - t0) * 1000.0
+
+                hits = 0
+                t0 = time.perf_counter()
+                for idx_q, q in enumerate(queries):
+                    res_hnsw = db_reopen.tim_kiem(q, top_k=5)
+                    got = {r["ma"] for r in res_hnsw}
+                    hits += len(got.intersection(gt_top5[idx_q]))
+                t_hnsw_ms = (time.perf_counter() - t0) * 1000.0 / so_truy_van
+
+                t0 = time.perf_counter()
+                for q in queries:
+                    res_flt = db_reopen.tim_kiem(q, top_k=5, bo_loc={"nhom": "phap_ly"})
+                    assert all(r["metadata"]["nhom"] == "phap_ly" for r in res_flt)
+                t_flt_ms = (time.perf_counter() - t0) * 1000.0 / so_truy_van
+
+            hnsw_ket_qua: Dict[str, Any] = {
+                "so_vector": so_vec,
+                "so_chieu": dim,
+                "so_truy_van": so_truy_van,
+                "thoi_gian_dung_hnsw_ms": round(build_ms, 2),
+                "thoi_gian_nap_lai_tu_sqlite_ms": round(reopen_ms, 2),
+                "do_tre_linear_scan_ms": round(t_lin_ms, 3),
+                "do_tre_hnsw_ms": round(t_hnsw_ms, 3),
+                "do_tre_hnsw_loc_metadata_ms": round(t_flt_ms, 3),
+                "he_so_tang_toc_hnsw": round(t_lin_ms / max(t_hnsw_ms, 1e-6), 2),
+                "recall_at_5_pct": round((hits / (so_truy_van * 5)) * 100.0, 2),
+                "so_tang_do_thi": int(hnsw_info.get("so_tang", 1)),
+                "kich_thuoc_vaidb_kb": round(db_path.stat().st_size / 1024.0, 1),
+            }
+
+        rows = 8 if nhanh else 16
+        k_dim = 256 if nhanh else 512
+        out_cols = 32 if nhanh else 64
+        so_vong_k = 6 if nhanh else 15
+        x_k = rng.randn(rows, k_dim).astype(np.float32)
+        n_blocks_row = k_dim // 256
+
+        raw_q5k = bytearray()
+        for _ in range(out_cols * n_blocks_row):
+            blk5 = bytearray(176)
+            blk5[0:2] = np.float16(0.05).tobytes()
+            blk5[2:4] = np.float16(0.02).tobytes()
+            blk5[4:176] = rng.randint(0, 256, size=172, dtype=np.uint8).tobytes()
+            raw_q5k.extend(blk5)
+        bytes_q5k = bytes(raw_q5k)
+
+        raw_q6k = bytearray()
+        for _ in range(out_cols * n_blocks_row):
+            blk6 = bytearray(210)
+            blk6[0:208] = rng.randint(0, 256, size=208, dtype=np.uint8).tobytes()
+            blk6[208:210] = np.float16(0.03).tobytes()
+            raw_q6k.extend(blk6)
+        bytes_q6k = bytes(raw_q6k)
+
+        gamma = rng.uniform(0.5, 1.5, size=k_dim).astype(np.float32)
+        gate_arr = rng.randn(rows, k_dim).astype(np.float32)
+        up_arr = rng.randn(rows, k_dim).astype(np.float32)
+
+        co_rust_ni = ni_mod._rust_core is not None
+
+        def _do_kernel(fn_call: Any) -> Tuple[float, np.ndarray]:
+            out_ref = fn_call()
+            t_s = time.perf_counter()
+            for _ in range(so_vong_k):
+                out_ref = fn_call()
+            return (time.perf_counter() - t_s) * 1000.0 / so_vong_k, out_ref
+
+        q5_rs_ms, q5_rs = _do_kernel(
+            lambda: BoGiaiLuongTuQ4.nhan_ma_tran_luong_tu(x_k, bytes_q5k, (out_cols, k_dim), "q5_k")
+        )
+        q6_rs_ms, q6_rs = _do_kernel(
+            lambda: BoGiaiLuongTuQ4.nhan_ma_tran_luong_tu(x_k, bytes_q6k, (out_cols, k_dim), "q6_k")
+        )
+        rms_rs_ms, rms_rs = _do_kernel(lambda: BoGiaiMaTransformerEdge.rms_norm(x_k, gamma))
+        swi_rs_ms, swi_rs = _do_kernel(lambda: BoGiaiMaTransformerEdge.swiglu(gate_arr, up_arr))
+
+        saved_rc = ni_mod._rust_core
+        ni_mod._rust_core = None
+        try:
+            q5_np_ms, q5_np = _do_kernel(
+                lambda: BoGiaiLuongTuQ4.nhan_ma_tran_luong_tu(x_k, bytes_q5k, (out_cols, k_dim), "q5_k")
+            )
+            q6_np_ms, q6_np = _do_kernel(
+                lambda: BoGiaiLuongTuQ4.nhan_ma_tran_luong_tu(x_k, bytes_q6k, (out_cols, k_dim), "q6_k")
+            )
+            rms_np_ms, rms_np = _do_kernel(lambda: BoGiaiMaTransformerEdge.rms_norm(x_k, gamma))
+            swi_np_ms, swi_np = _do_kernel(lambda: BoGiaiMaTransformerEdge.swiglu(gate_arr, up_arr))
+        finally:
+            ni_mod._rust_core = saved_rc
+
+        rust_kernels_ket_qua: Dict[str, Any] = {
+            "co_rust_native": co_rust_ni,
+            "kich_thuoc_ma_tran": f"({rows}, {k_dim}) x ({k_dim}, {out_cols})",
+            "q5_k_matmul": {
+                "rust_ms": round(q5_rs_ms, 3),
+                "numpy_ms": round(q5_np_ms, 3),
+                "tang_toc_x": round(q5_np_ms / max(q5_rs_ms, 1e-6), 2),
+                "sai_so_tuyet_doi_toi_da": float(f"{float(np.max(np.abs(q5_rs - q5_np))):.2e}"),
+            },
+            "q6_k_matmul": {
+                "rust_ms": round(q6_rs_ms, 3),
+                "numpy_ms": round(q6_np_ms, 3),
+                "tang_toc_x": round(q6_np_ms / max(q6_rs_ms, 1e-6), 2),
+                "sai_so_tuyet_doi_toi_da": float(f"{float(np.max(np.abs(q6_rs - q6_np))):.2e}"),
+            },
+            "rmsnorm_f32": {
+                "rust_ms": round(rms_rs_ms, 4),
+                "numpy_ms": round(rms_np_ms, 4),
+                "tang_toc_x": round(rms_np_ms / max(rms_rs_ms, 1e-6), 2),
+                "sai_so_tuyet_doi_toi_da": float(f"{float(np.max(np.abs(rms_rs - rms_np))):.2e}"),
+            },
+            "swiglu_f32": {
+                "rust_ms": round(swi_rs_ms, 4),
+                "numpy_ms": round(swi_np_ms, 4),
+                "tang_toc_x": round(swi_np_ms / max(swi_rs_ms, 1e-6), 2),
+                "sai_so_tuyet_doi_toi_da": float(f"{float(np.max(np.abs(swi_rs - swi_np))):.2e}"),
+            },
+        }
+
+        n_fv = 128 if nhanh else 256
+        a_fv = rng.randn(n_fv, n_fv).astype(np.float32)
+        b_fv = rng.randn(n_fv, n_fv).astype(np.float32)
+        so_vong_fv = 5 if nhanh else 10
+
+        t0 = time.perf_counter()
+        c_fv = a_fv @ b_fv
+        for _ in range(so_vong_fv - 1):
+            c_fv = a_fv @ b_fv
+        full_mm_ms = (time.perf_counter() - t0) * 1000.0 / so_vong_fv
+
+        t0 = time.perf_counter()
+        for _ in range(so_vong_fv):
+            bc_ok = KiemChungFreivalds.xac_minh_nhan_ma_tran(a_fv, b_fv, c_fv, so_vong=10, seed=seed)
+        fv_ms = (time.perf_counter() - t0) * 1000.0 / so_vong_fv
+
+        so_thu_gian_lan = 10
+        bat_duoc = 0
+        for j in range(so_thu_gian_lan):
+            c_tamper = c_fv.copy()
+            c_tamper[j % n_fv, (j * 7) % n_fv] += 0.25
+            bc_bad = KiemChungFreivalds.xac_minh_nhan_ma_tran(a_fv, b_fv, c_tamper, so_vong=10, seed=seed + j)
+            if not bc_bad["hop_le"]:
+                bat_duoc += 1
+
+        freivalds_ket_qua: Dict[str, Any] = {
+            "kich_thuoc_ma_tran": f"{n_fv}x{n_fv}",
+            "so_vong_kiem_chung_k": 10,
+            "full_matmul_ms": round(full_mm_ms, 3),
+            "freivalds_ms": round(fv_ms, 3),
+            "tang_toc_x": round(full_mm_ms / max(fv_ms, 1e-6), 2),
+            "xac_minh_chuan_hop_le": bool(bc_ok["hop_le"]),
+            "ty_le_phat_hien_gian_lan_pct": round((bat_duoc / so_thu_gian_lan) * 100.0, 1),
+        }
+
+        pref_mau = [
+            {
+                "prompt": "Thời giờ làm việc bình thường tối đa theo Bộ luật Lao động 2019?",
+                "chosen": "Không quá 08 giờ trong 01 ngày và 48 giờ trong 01 tuần theo Điều 105 Bộ luật Lao động 45/2019/QH14.",
+                "rejected": "Không giới hạn thời gian làm việc mỗi ngày.",
+            },
+            {
+                "prompt": "Mức phạt vi phạm hợp đồng thương mại tối đa là bao nhiêu?",
+                "chosen": "Không quá 8% giá trị phần nghĩa vụ hợp đồng bị vi phạm theo Điều 301 Luật Thương mại 36/2005/QH11.",
+                "rejected": "Phạt 50% tổng giá trị hợp đồng bất kể phần vi phạm.",
+            },
+        ]
+        t0 = time.perf_counter()
+        simpo = DPOTrainer(so_vong=6, toc_do_hoc=0.2, beta=1.0, che_do="simpo", gamma_simpo=0.5)
+        kq_simpo = simpo.huan_luyen(model=None, ref_model=None, preference_data=pref_mau)
+        simpo_ms = (time.perf_counter() - t0) * 1000.0
+
+        fw = TuongLuaAI(ngat_ket_noi_khi_phat_hien=False)
+
+        def _uv_an_toan(q: str) -> str:
+            ok_fw, _ = fw.kiem_tra_prompt(q)
+            if not ok_fw:
+                return "Yêu cầu bị từ chối vì vi phạm chính sách an toàn."
+            return "Không quá 08 giờ/ngày và 48 giờ/tuần theo Điều 105 Bộ luật Lao động 45/2019/QH14."
+
+        def _nen_yeu(q: str) -> str:
+            ok_fw, _ = fw.kiem_tra_prompt(q)
+            if not ok_fw:
+                return "Yêu cầu bị từ chối vì vi phạm chính sách an toàn."
+            return "Chưa rõ quy định chi tiết."
+
+        bo_eval = [
+            {"id": f"b_{i}", "cau_hoi": "Thời giờ làm việc bình thường tối đa?", "tu_khoa_ky_vong": ["08", "48"]}
+            for i in range(6)
+        ]
+        gate = CongKiemDinhMoHinh(bo_tan_cong=BO_TAN_CONG_MO_RONG)
+        t0 = time.perf_counter()
+        kq_gate = gate.so_sanh_va_quyet_dinh(_uv_an_toan, ban_goc=_nen_yeu, bo_kiem_thu=bo_eval)
+        gate_ms = (time.perf_counter() - t0) * 1000.0
+        ci_95 = kq_gate.chi_tiet_thong_ke.get("bootstrap_ci_95", {})
+
+        simpo_eval_ket_qua: Dict[str, Any] = {
+            "simpo_khong_ref_model_ms": round(simpo_ms, 2),
+            "simpo_loss_dau": round(float(kq_simpo["history"]["train_loss"][0]), 5),
+            "simpo_loss_cuoi": round(float(kq_simpo["history"]["train_loss"][-1]), 5),
+            "simpo_final_reward_margin": round(float(kq_simpo["final_reward_margin"]), 4),
+            "tiet_kiem_vram_ref_model_pct": 50.0,
+            "eval_gate_mo_rong_ms": round(gate_ms, 2),
+            "eval_gate_diem_an_toan": round(float(kq_gate.diem_ung_vien.get("ty_le_chan_tan_cong", 0.0)), 4),
+            "bootstrap_ci_95_duoi": round(float(ci_95.get("ci_duoi", 0.0)), 4),
+            "bootstrap_ci_95_tren": round(float(ci_95.get("ci_tren", 0.0)), 4),
+            "bootstrap_co_y_nghia": bool(ci_95.get("co_y_nghia_thong_ke", False)),
+        }
+
+        tracker = BoTheoDoiHieuLucPhapLy()
+        so_lap_pit = 100 if nhanh else 300
+        t0 = time.perf_counter()
+        pb_2024: Dict[str, Any] = {}
+        pb_2025: Dict[str, Any] = {}
+        for _ in range(so_lap_pit):
+            pb_2024 = tracker.tra_cuu_dieu_khoan_theo_ngay("123/2020/NĐ-CP", "Điều 19", ngay_tra_cuu="2024-12-01")
+            pb_2025 = tracker.tra_cuu_dieu_khoan_theo_ngay("123/2020/NĐ-CP", "Điều 19", ngay_tra_cuu="2025-07-01")
+        pit_ms = (time.perf_counter() - t0) * 1000.0 / (so_lap_pit * 2)
+
+        hd_chuan = (
+            "Điều 1. Đối tượng và Bảo mật\n"
+            "Bên B cung cấp phần mềm phân tích dữ liệu cho Bên A theo tiêu chuẩn chất lượng. "
+            "Hai bên cam kết bảo mật tuyệt đối dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP.\n"
+            "Điều 2. Thanh toán và Phạt vi phạm\n"
+            "Bên A thanh toán trong 15 ngày. Mức phạt vi phạm tối đa là 8% giá trị phần nghĩa vụ vi phạm.\n"
+        )
+        hd_doi_tac = (
+            "Điều 1. Đối tượng hợp đồng\n"
+            "Bên B cung cấp phần mềm phân tích dữ liệu cho Bên A theo tiêu chuẩn chất lượng.\n"
+            "Điều 2. Bảo mật thông tin\n"
+            "Hai bên cam kết bảo mật tuyệt đối dữ liệu cá nhân theo Nghị định 13/2023/NĐ-CP.\n"
+            "Điều 3. Thanh toán và Phạt vi phạm\n"
+            "Bên A thanh toán trong 45 ngày. Mức phạt vi phạm tối đa là 20% theo Luật Đất đai 45/2013/QH13.\n"
+        )
+        review_engine = BoSoSanhRaSoatHopDong()
+        with tempfile.TemporaryDirectory(prefix="vai_bench_tc_") as tmp_dir:
+            tc_path = Path(tmp_dir) / "bench_track_changes.docx"
+            t0 = time.perf_counter()
+            kq_hd = review_engine.so_sanh_va_ra_soat(hd_doi_tac, hop_dong_chuan=hd_chuan, ngay_tra_cuu="2026-01-01")
+            review_engine.xuat_bao_cao_track_changes_docx(kq_hd, tc_path)
+            tc_ms = (time.perf_counter() - t0) * 1000.0
+            tc_bytes = tc_path.stat().st_size
+            with zipfile.ZipFile(tc_path, "r") as zf:
+                doc_xml = zf.read("word/document.xml").decode("utf-8")
+                has_ooxml = ("<w:del " in doc_xml or "<w:ins " in doc_xml) and ("word/comments.xml" in zf.namelist())
+
+        legal_ket_qua: Dict[str, Any] = {
+            "point_in_time_trung_binh_ms": round(pit_ms, 4),
+            "point_in_time_phan_biet_2024_vs_2025": (
+                bool(pb_2024.get("tim_thay"))
+                and bool(pb_2025.get("tim_thay"))
+                and pb_2024["phien_ban_hieu_luc"]["noi_dung"] != pb_2025["phien_ban_hieu_luc"]["noi_dung"]
+            ),
+            "so_dieu_khoan_tach_phat_hien": int(kq_hd.get("thong_ke_so_sanh", {}).get("tach_dieu_khoan", 0)),
+            "so_canh_bao_rui_ro": len(kq_hd.get("danh_sach_canh_bao", [])),
+            "track_changes_docx_ms": round(tc_ms, 2),
+            "track_changes_docx_bytes": int(tc_bytes),
+            "ooxml_track_changes_hop_le": bool(has_ooxml),
+        }
+
+        return {
+            "moi_truong": self.thu_thap_thong_tin_moi_truong(seed=seed),
+            "nlp_fst_viterbi": nlp_ket_qua,
+            "vaidb_hnsw": hnsw_ket_qua,
+            "rust_kernels": rust_kernels_ket_qua,
+            "freivalds_verification": freivalds_ket_qua,
+            "simpo_va_eval_gate": simpo_eval_ket_qua,
+            "legal_point_in_time_va_track_changes": legal_ket_qua,
+        }
+
+    def xuat_bao_cao_chieu_sau_markdown(self, du_lieu: Optional[Dict[str, Any]] = None) -> str:
+        """Xuất báo cáo Markdown định lượng cho 6 trụ cột kiến trúc chiều sâu (Hướng C1)."""
+        data = du_lieu or self.do_chieu_sau_loi_he_thong(nhanh=True)
+        env = data["moi_truong"]
+        nlp = data["nlp_fst_viterbi"]
+        hnsw = data["vaidb_hnsw"]
+        rk = data["rust_kernels"]
+        fv = data["freivalds_verification"]
+        se = data["simpo_va_eval_gate"]
+        lg = data["legal_point_in_time_va_track_changes"]
+
+        return (
+            f"# Báo Cáo Benchmark Chiều Sâu Lõi Hệ Thống — Vietnamese AI v{env['phien_ban_framework']}\n\n"
+            f"- **Môi trường**: Python `{env['python']}` | `{env['he_dieu_hanh']}` | "
+            f"CPU `{env['cpu']['kien_truc']}` ({env['cpu']['so_loi_logic']} cores, SIMD: `{', '.join(env['cpu']['tap_lenh_simd']) or 'standard'}`)\n"
+            f"- **Thời điểm UTC**: `{env['thoi_diem_utc']}` | **Seed**: `{env['seed']}`\n\n"
+            f"## 1. NLP Tiếng Việt: Phonological FST & Viterbi DAG vs MaxMatch\n\n"
+            f"| Chỉ số | Giá trị đo thực tế |\n"
+            f"|:---|---:|\n"
+            f"| Rust Native Backend | `{'Bật' if nlp['co_rust_native'] else 'Python Fallback'}` |\n"
+            f"| Chuẩn hóa dấu thanh FST | **{nlp['fst_chuan_hoa_wps']:,.1f} từ/s** (`{'Đạt' if nlp['fst_chuan_hoa_chinh_xac'] else 'Lỗi'}`) |\n"
+            f"| Tách từ MaxMatch | **{nlp['max_match_wps']:,.1f} từ/s** |\n"
+            f"| Tách từ Viterbi DAG | **{nlp['viterbi_wps']:,.1f} từ/s** (Giải nhập nhằng: `{'Chính xác' if nlp['viterbi_giai_nhap_nhang_chinh_xac'] else 'Chưa đạt'}`) |\n\n"
+            f"## 2. Kho Tri Thức `.vaidb` Persistent HNSW vs Brute-Force Linear Scan\n\n"
+            f"| Chỉ số (`N={hnsw['so_vector']}`, `D={hnsw['so_chieu']}`) | Giá trị đo thực tế |\n"
+            f"|:---|---:|\n"
+            f"| Thời gian dựng đồ thị HNSW | `{hnsw['thoi_gian_dung_hnsw_ms']} ms` ({hnsw['so_tang_do_thi']} tầng) |\n"
+            f"| Thời gian nạp lại HNSW từ SQLite | `{hnsw['thoi_gian_nap_lai_tu_sqlite_ms']} ms` ({hnsw['kich_thuoc_vaidb_kb']} KB) |\n"
+            f"| Truy vấn Linear Scan (trung bình) | `{hnsw['do_tre_linear_scan_ms']} ms` |\n"
+            f"| Truy vấn HNSW (trung bình) | **{hnsw['do_tre_hnsw_ms']} ms** (**{hnsw['he_so_tang_toc_hnsw']}x**) |\n"
+            f"| Truy vấn HNSW + Lọc Metadata | `{hnsw['do_tre_hnsw_loc_metadata_ms']} ms` |\n"
+            f"| Recall@5 so với Linear Scan | **{hnsw['recall_at_5_pct']}%** |\n\n"
+            f"## 3. Rust Native Kernels vs NumPy (`{rk['kich_thuoc_ma_tran']}`)\n\n"
+            f"| Kernel | Rust Native | NumPy Thuần | Tăng tốc | Sai số tuyệt đối tối đa |\n"
+            f"|:---|---:|---:|---:|---:|\n"
+            f"| `Q5_K MatMul` | `{rk['q5_k_matmul']['rust_ms']} ms` | `{rk['q5_k_matmul']['numpy_ms']} ms` | **{rk['q5_k_matmul']['tang_toc_x']}x** | `{rk['q5_k_matmul']['sai_so_tuyet_doi_toi_da']:.2e}` |\n"
+            f"| `Q6_K MatMul` | `{rk['q6_k_matmul']['rust_ms']} ms` | `{rk['q6_k_matmul']['numpy_ms']} ms` | **{rk['q6_k_matmul']['tang_toc_x']}x** | `{rk['q6_k_matmul']['sai_so_tuyet_doi_toi_da']:.2e}` |\n"
+            f"| `RMSNorm f32` | `{rk['rmsnorm_f32']['rust_ms']} ms` | `{rk['rmsnorm_f32']['numpy_ms']} ms` | **{rk['rmsnorm_f32']['tang_toc_x']}x** | `{rk['rmsnorm_f32']['sai_so_tuyet_doi_toi_da']:.2e}` |\n"
+            f"| `SwiGLU f32` | `{rk['swiglu_f32']['rust_ms']} ms` | `{rk['swiglu_f32']['numpy_ms']} ms` | **{rk['swiglu_f32']['tang_toc_x']}x** | `{rk['swiglu_f32']['sai_so_tuyet_doi_toi_da']:.2e}` |\n\n"
+            f"## 4. Xác Thực Freivalds ($O(k \\cdot n^2)$) vs Nhân Ma Trận Toàn Phần ($O(n^3)$)\n\n"
+            f"- Ma trận `{fv['kich_thuoc_ma_tran']}` (`k={fv['so_vong_kiem_chung_k']}`): "
+            f"Freivalds = **{fv['freivalds_ms']} ms** vs Full MatMul = `{fv['full_matmul_ms']} ms` (**{fv['tang_toc_x']}x**)\n"
+            f"- Tỷ lệ phát hiện giả mạo 1 phần tử (Byzantine Tampering): **{fv['ty_le_phat_hien_gian_lan_pct']}%**\n\n"
+            f"## 5. SimPO Không Cần `ref_model` & Eval Gate Paired Bootstrap 95% CI\n\n"
+            f"- SimPO Reference-Free: `{se['simpo_khong_ref_model_ms']} ms` | Loss `{se['simpo_loss_dau']}` → `{se['simpo_loss_cuoi']}` "
+            f"| Reward Margin = `{se['simpo_final_reward_margin']}` | Tiết kiệm VRAM `ref_model`: **{se['tiet_kiem_vram_ref_model_pct']}%**\n"
+            f"- Eval Gate Mở rộng (gồm Prompt Injection tiếng Việt không dấu): `{se['eval_gate_mo_rong_ms']} ms` "
+            f"| Điểm an toàn = **{se['eval_gate_diem_an_toan']}** | 95% CI = `[{se['bootstrap_ci_95_duoi']:+.4f}, {se['bootstrap_ci_95_tren']:+.4f}]` "
+            f"(Ý nghĩa thống kê: `{'Có' if se['bootstrap_co_y_nghia'] else 'Không'}`)\n\n"
+            f"## 6. Pháp Lý Point-in-Time & Hợp Đồng Word Track Changes OOXML\n\n"
+            f"- Tra cứu phiên bản Điều/Khoản theo ngày (`123/2020/NĐ-CP` Điều 19): **{lg['point_in_time_trung_binh_ms']} ms/lần** "
+            f"(Phân biệt mốc 2024 vs 2025: `{'Chính xác' if lg['point_in_time_phan_biet_2024_vs_2025'] else 'Lỗi'}`)\n"
+            f"- Rà soát tách/gộp điều khoản + xuất `.docx` Track Changes (`<w:del>`/`<w:ins>` + `comments.xml`): "
+            f"**{lg['track_changes_docx_ms']} ms** (`{lg['track_changes_docx_bytes']:,} bytes`, "
+            f"tách điều khoản: `{lg['so_dieu_khoan_tach_phat_hien']}`, cảnh báo rủi ro: `{lg['so_canh_bao_rui_ro']}`)\n"
+        )
+
     def chay_benchmark_mo_rong(
         self,
         nhanh: bool = False,

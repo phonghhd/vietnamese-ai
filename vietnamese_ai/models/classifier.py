@@ -37,13 +37,19 @@ except ImportError:
     GradientBoostingClassifier = _LogisticNumPy
     HistGradientBoostingClassifier = _LogisticNumPy
 
+_XGBClassifier: Any
 try:
-    from xgboost import XGBClassifier as _XGBClassifier  # type: ignore
+    from xgboost import XGBClassifier as _XGBClassifierImported  # type: ignore
+
+    _XGBClassifier = _XGBClassifierImported
 except ImportError:
     _XGBClassifier = HistGradientBoostingClassifier
 
+_LGBMClassifier: Any
 try:
-    from lightgbm import LGBMClassifier as _LGBMClassifier  # type: ignore
+    from lightgbm import LGBMClassifier as _LGBMClassifierImported  # type: ignore
+
+    _LGBMClassifier = _LGBMClassifierImported
 except ImportError:
     _LGBMClassifier = HistGradientBoostingClassifier
 

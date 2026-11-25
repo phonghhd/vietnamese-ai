@@ -86,7 +86,7 @@ class OpenAIWrapper(BaseLLMWrapper):
         self.temperature = temperature
 
     def sinh_van_ban(self, prompt: str, **kwargs: Any) -> str:
-        messages = self._parse_prompt(prompt)
+        messages: Any = self._parse_prompt(prompt)
 
         temp = kwargs.get("nhiet_do", self.temperature)
         tokens = kwargs.get("do_dai", self.max_tokens)
@@ -94,7 +94,7 @@ class OpenAIWrapper(BaseLLMWrapper):
         response = self.client.chat.completions.create(
             model=self.model, messages=messages, temperature=temp, max_tokens=tokens
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
 
 
 class GeminiWrapper(BaseLLMWrapper):
@@ -111,7 +111,7 @@ class GeminiWrapper(BaseLLMWrapper):
         temperature: float = 0.7,
     ):
         self._dung_sdk_moi = False
-        self.client = None
+        self.client: Any = None
         self.model_name = model
         try:
             from google import genai  # type: ignore

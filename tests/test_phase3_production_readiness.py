@@ -12,7 +12,35 @@ from typing import Any, List
 
 import numpy as np
 import pytest
-import tomllib
+
+try:
+    import tomllib as _tomllib
+except ModuleNotFoundError:
+    try:
+        import tomli as _tomllib  # type: ignore[no-redef]
+    except ModuleNotFoundError:
+        _tomllib = None  # type: ignore[assignment]
+
+
+def _doc_toml_text(content: str) -> Any:
+    if _tomllib is not None:
+        return _tomllib.loads(content)
+    section = ""
+    data: dict[str, Any] = {}
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            data.setdefault(section, {})
+            continue
+        if "=" in line and section:
+            k, v = line.split("=", 1)
+            k = k.strip()
+            v = v.strip().strip('"').strip("'")
+            data[section][k] = v
+    return data
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -53,7 +81,7 @@ class TestSemVerVaDongGoiDocLap:
         bc = QuanLyPhatHanhGoi.kiem_tra_tuan_thu_semver(ROOT_DIR)
         assert bc["hop_le_semver"] is True
         assert bc["dong_bo_phien_ban"] is True
-        assert bc["phien_ban_chuan"] == "31.0.3"
+        assert bc["phien_ban_chuan"] == "31.0.4"
         assert len(bc["cac_nguon"]) >= 8
 
         for ten_goi in (
@@ -65,12 +93,12 @@ class TestSemVerVaDongGoiDocLap:
         ):
             manifest = ROOT_DIR / "packages" / ten_goi / "pyproject.toml"
             assert manifest.exists(), f"Thiếu manifest cho {ten_goi}"
-            parsed = tomllib.loads(manifest.read_text(encoding="utf-8"))
+            parsed = _doc_toml_text(manifest.read_text(encoding="utf-8"))
             assert parsed["project"]["name"] == ten_goi
-            assert parsed["project"]["version"] == "31.0.3"
+            assert parsed["project"]["version"] == bc["phien_ban_chuan"]
 
         xuat_thu = QuanLyPhatHanhGoi.xuat_pyproject_goi_con("vietnamese-ai-zkml", tmp_path, phien_ban="31.1.0")
-        parsed_tmp = tomllib.loads(xuat_thu.read_text(encoding="utf-8"))
+        parsed_tmp = _doc_toml_text(xuat_thu.read_text(encoding="utf-8"))
         assert parsed_tmp["project"]["version"] == "31.1.0"
 
 
@@ -309,7 +337,7 @@ class TestBenchmarkTaiLapVaTaiLieuChuanQuocTe:
         suite = BoDoLuongDoiDau()
         kq = suite.chay_benchmark_mo_rong(nhanh=True, seed=42, bat_lan_thuc_te=True)
 
-        assert kq["moi_truong"]["phien_ban_framework"] == "31.0.3"
+        assert kq["moi_truong"]["phien_ban_framework"] == "31.0.4"
         assert kq["suy_luan_llm"]["tai_dong_thoi"]["thong_luong_req_giay"] > 0
         assert len(kq["suy_luan_llm"]["hieu_nang_theo_kich_thuoc_mo_hinh"]) == 2
         assert kq["on_dinh_tai_nguyen"]["co_dau_hieu_ro_ri_bo_nho"] is False
@@ -321,7 +349,7 @@ class TestBenchmarkTaiLapVaTaiLieuChuanQuocTe:
 
         md = suite.xuat_bao_cao_mo_rong_markdown(kq)
         assert "Báo Cáo Benchmark Tái Lập" in md
-        assert "31.0.3" in md
+        assert "31.0.4" in md
 
         out_json = tmp_path / "bench.json"
         out_md = tmp_path / "bench.md"

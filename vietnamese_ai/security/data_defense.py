@@ -16,6 +16,7 @@ Bao gồm 4 lá chắn chuyên sâu chạy 100% trên nền NumPy + thư viện 
 from __future__ import annotations
 
 import hashlib
+import io
 import math
 import re
 import struct
@@ -151,14 +152,43 @@ class KhienBaoVeHinhAnh:
             if sig.lower() in raw.lower():
                 canh_bao.append(mo_ta)
 
-        # Quét văn bản ASCII khả nghi nhúng trong metadata/comment của ảnh
-        chuoi_ascii = "".join(chr(b) if 32 <= b <= 126 else " " for b in raw[:65536] + duoi_thua[:65536])
-        from vietnamese_ai.security.llm_firewall import TuongLuaAI
+        cac_doan_ascii = re.findall(rb"[ -~]{12,}", raw[:65536])
+        if duoi_thua:
+            cac_doan_ascii.extend(re.findall(rb"[ -~]{12,}", duoi_thua[:65536]))
 
-        tuong_lua = TuongLuaAI(ngat_ket_noi_khi_phat_hien=False)
-        hop_le_prompt, ly_do_prompt = tuong_lua.kiem_tra_prompt(chuoi_ascii)
-        if not hop_le_prompt:
-            canh_bao.append(f"Chỉ thị Prompt Injection ẩn trong nhị phân/EXIF ảnh: {ly_do_prompt}")
+        cac_khoi_van_ban: List[str] = []
+        bo_dem: List[str] = []
+        do_dai_dem = 0
+        for doan in cac_doan_ascii:
+            txt = doan.decode("ascii", errors="ignore").strip()
+            if not txt:
+                continue
+            if do_dai_dem + len(txt) + 1 > 4000 and bo_dem:
+                cac_khoi_van_ban.append(" ".join(bo_dem))
+                bo_dem = []
+                do_dai_dem = 0
+                if len(cac_khoi_van_ban) >= 4:
+                    break
+            bo_dem.append(txt)
+            do_dai_dem += len(txt) + 1
+        if bo_dem and len(cac_khoi_van_ban) < 4:
+            cac_khoi_van_ban.append(" ".join(bo_dem))
+
+        if duoi_thua:
+            duoi_utf8 = duoi_thua[:4096].decode("utf-8", errors="ignore")
+            duoi_sach = re.sub(r"[\x00-\x1f\x7f]+", " ", duoi_utf8).strip()
+            if len(duoi_sach) >= 12:
+                cac_khoi_van_ban.append(duoi_sach[:4000])
+
+        if cac_khoi_van_ban:
+            from vietnamese_ai.security.llm_firewall import TuongLuaAI
+
+            tuong_lua = TuongLuaAI(ngat_ket_noi_khi_phat_hien=False)
+            for khoi in cac_khoi_van_ban:
+                hop_le_prompt, ly_do_prompt = tuong_lua.kiem_tra_prompt(khoi)
+                if not hop_le_prompt:
+                    canh_bao.append(f"Chỉ thị Prompt Injection ẩn trong nhị phân/EXIF ảnh: {ly_do_prompt}")
+                    break
 
         return len(duoi_thua), canh_bao
 
@@ -325,6 +355,18 @@ class KhienBaoVeHinhAnh:
             if w * h > self.gioi_han_pixel:
                 return None
             return np.asarray(anh)
+        if isinstance(anh, (bytes, bytearray)):
+            try:
+                from PIL import Image
+
+                Image.MAX_IMAGE_PIXELS = self.gioi_han_pixel
+                with Image.open(io.BytesIO(bytes(anh))) as img:
+                    w, h = img.size
+                    if w * h > self.gioi_han_pixel:
+                        return None
+                    return np.asarray(img.convert("RGB"))
+            except Exception:
+                return None
         if isinstance(anh, (str, Path)) and Path(anh).is_file():
             try:
                 from PIL import Image

@@ -4,6 +4,8 @@ import hashlib
 import hmac
 import json
 import os
+import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Dict, List
@@ -45,6 +47,7 @@ class HeThongXacThuc:
         self.duong_dan.mkdir(parents=True, exist_ok=True)
         self.ttl_token_giay = ttl_token_giay
         self.logger = Logger("HeThongXacThuc")
+        self._lock = threading.RLock()
         self._users_file = self.duong_dan / "users.json"
         self._tokens_file = self.duong_dan / "tokens.json"
         self._users = self._tai_json(self._users_file)
@@ -53,14 +56,24 @@ class HeThongXacThuc:
     @staticmethod
     def _tai_json(duong_dan: Path) -> Dict:
         if duong_dan.exists():
-            with open(duong_dan, "r") as f:
+            with open(duong_dan, "r", encoding="utf-8") as f:
                 return json.load(f)
         return {}
 
     @staticmethod
     def _luu_json(duong_dan: Path, data: Dict) -> None:
-        with open(duong_dan, "w") as f:
-            json.dump(data, f, indent=2)
+        duong_dan.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=str(duong_dan.parent), prefix=".tmp_auth_", suffix=".json")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, str(duong_dan))
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
     @staticmethod
     def _bam_mat_khau(mat_khau: str) -> str:
@@ -82,6 +95,15 @@ class HeThongXacThuc:
     def _tao_token() -> str:
         return hashlib.sha256(os.urandom(32)).hexdigest()[:32]
 
+    def _thu_hoi_toan_bo_token_nguoi_dung(self, ten_dang_nhap: str) -> int:
+        """Thu hồi toàn bộ token đang hoạt động thuộc một người dùng."""
+        can_xoa = [tok for tok, info in self._tokens.items() if info.get("ten_dang_nhap") == ten_dang_nhap]
+        for tok in can_xoa:
+            del self._tokens[tok]
+        if can_xoa:
+            self._luu_json(self._tokens_file, self._tokens)
+        return len(can_xoa)
+
     def dang_ky(self, ten_dang_nhap: str, mat_khau: str, vai_tro: str = "viewer") -> bool:
         """
         Đăng ký người dùng mới.
@@ -91,19 +113,20 @@ class HeThongXacThuc:
             mat_khau: Mật khẩu
             vai_tro: Vai trò (admin, developer, viewer)
         """
-        if ten_dang_nhap in self._users:
-            raise ValueError(f"Tên đăng nhập đã tồn tại: {ten_dang_nhap}")
-        if vai_tro not in self.VAI_TRO_QUYEN:
-            raise ValueError(f"Vai trò không hợp lệ: {vai_tro}")
+        with self._lock:
+            if ten_dang_nhap in self._users:
+                raise ValueError(f"Tên đăng nhập đã tồn tại: {ten_dang_nhap}")
+            if vai_tro not in self.VAI_TRO_QUYEN:
+                raise ValueError(f"Vai trò không hợp lệ: {vai_tro}")
 
-        self._users[ten_dang_nhap] = {
-            "mat_khau": self._bam_mat_khau(mat_khau),
-            "vai_tro": vai_tro,
-            "thoi_gian_tao": time.time(),
-        }
-        self._luu_json(self._users_file, self._users)
-        self.logger.info(f"Đã đăng ký: {ten_dang_nhap} ({vai_tro})")
-        return True
+            self._users[ten_dang_nhap] = {
+                "mat_khau": self._bam_mat_khau(mat_khau),
+                "vai_tro": vai_tro,
+                "thoi_gian_tao": time.time(),
+            }
+            self._luu_json(self._users_file, self._users)
+            self.logger.info(f"Đã đăng ký: {ten_dang_nhap} ({vai_tro})")
+            return True
 
     def dang_nhap(self, ten_dang_nhap: str, mat_khau: str) -> str:
         """
@@ -112,41 +135,48 @@ class HeThongXacThuc:
         Returns:
             Token xác thực
         """
-        if ten_dang_nhap not in self._users:
-            raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
+        with self._lock:
+            if ten_dang_nhap not in self._users:
+                raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
 
-        user = self._users[ten_dang_nhap]
-        if not self._kiem_tra_mat_khau(mat_khau, user["mat_khau"]):
-            raise ValueError("Mật khẩu không đúng")
+            user = self._users[ten_dang_nhap]
+            if not self._kiem_tra_mat_khau(mat_khau, user["mat_khau"]):
+                raise ValueError("Mật khẩu không đúng")
 
-        token = self._tao_token()
-        self._tokens[token] = {
-            "ten_dang_nhap": ten_dang_nhap,
-            "vai_tro": user["vai_tro"],
-            "thoi_gian": time.time(),
-        }
-        self._luu_json(self._tokens_file, self._tokens)
-        return token
+            token = self._tao_token()
+            self._tokens[token] = {
+                "ten_dang_nhap": ten_dang_nhap,
+                "vai_tro": user["vai_tro"],
+                "thoi_gian": time.time(),
+            }
+            self._luu_json(self._tokens_file, self._tokens)
+            return token
 
     def xac_thuc(self, token: str) -> Dict:
-        """Xác thực token (kèm kiểm tra thời hạn TTL) và trả về thông tin người dùng."""
-        if token not in self._tokens:
-            raise PermissionError("Token không hợp lệ")
-        info = self._tokens[token]
-        thoi_gian_tao = float(info.get("thoi_gian", 0.0))
-        if self.ttl_token_giay > 0 and thoi_gian_tao > 0 and (time.time() - thoi_gian_tao) > self.ttl_token_giay:
-            del self._tokens[token]
-            self._luu_json(self._tokens_file, self._tokens)
-            raise PermissionError("Token đã hết hạn")
-        return info
+        """Xác thực token (kèm kiểm tra thời hạn TTL và tồn tại tài khoản) và trả về thông tin người dùng."""
+        with self._lock:
+            if token not in self._tokens:
+                raise PermissionError("Token không hợp lệ")
+            info = self._tokens[token]
+            if info.get("ten_dang_nhap") not in self._users:
+                del self._tokens[token]
+                self._luu_json(self._tokens_file, self._tokens)
+                raise PermissionError("Tài khoản gắn với token không còn tồn tại")
+            thoi_gian_tao = float(info.get("thoi_gian", 0.0))
+            if self.ttl_token_giay > 0 and thoi_gian_tao > 0 and (time.time() - thoi_gian_tao) > self.ttl_token_giay:
+                del self._tokens[token]
+                self._luu_json(self._tokens_file, self._tokens)
+                raise PermissionError("Token đã hết hạn")
+            return dict(info)
 
     def thu_hoi_token(self, token: str) -> bool:
         """Thu hồi (đăng xuất) một token đang hoạt động."""
-        if token in self._tokens:
-            del self._tokens[token]
-            self._luu_json(self._tokens_file, self._tokens)
-            return True
-        return False
+        with self._lock:
+            if token in self._tokens:
+                del self._tokens[token]
+                self._luu_json(self._tokens_file, self._tokens)
+                return True
+            return False
 
     def kiem_tra_quyen(self, token: str, quyen: str) -> bool:
         """Kiểm tra người dùng có quyền thực hiện hành động không."""
@@ -163,48 +193,55 @@ class HeThongXacThuc:
         return info["vai_tro"]
 
     def doi_mat_khau(self, ten_dang_nhap: str, mat_khau_cu: str, mat_khau_moi: str) -> bool:
-        """Đổi mật khẩu."""
-        if ten_dang_nhap not in self._users:
-            raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
-        if not self._kiem_tra_mat_khau(mat_khau_cu, self._users[ten_dang_nhap]["mat_khau"]):
-            raise ValueError("Mật khẩu cũ không đúng")
+        """Đổi mật khẩu và thu hồi toàn bộ token phiên cũ của người dùng."""
+        with self._lock:
+            if ten_dang_nhap not in self._users:
+                raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
+            if not self._kiem_tra_mat_khau(mat_khau_cu, self._users[ten_dang_nhap]["mat_khau"]):
+                raise ValueError("Mật khẩu cũ không đúng")
 
-        self._users[ten_dang_nhap]["mat_khau"] = self._bam_mat_khau(mat_khau_moi)
-        self._luu_json(self._users_file, self._users)
-        return True
+            self._users[ten_dang_nhap]["mat_khau"] = self._bam_mat_khau(mat_khau_moi)
+            self._luu_json(self._users_file, self._users)
+            self._thu_hoi_toan_bo_token_nguoi_dung(ten_dang_nhap)
+            return True
 
     def xoa_nguoi_dung(self, ten_dang_nhap: str) -> None:
-        """Xóa người dùng."""
-        if ten_dang_nhap in self._users:
-            del self._users[ten_dang_nhap]
-            self._luu_json(self._users_file, self._users)
+        """Xóa người dùng và thu hồi toàn bộ token đang hoạt động."""
+        with self._lock:
+            if ten_dang_nhap in self._users:
+                del self._users[ten_dang_nhap]
+                self._luu_json(self._users_file, self._users)
+            self._thu_hoi_toan_bo_token_nguoi_dung(ten_dang_nhap)
 
     def danh_sach_nguoi_dung(self) -> List[Dict]:
         """Liệt kê người dùng (không hiển thị mật khẩu)."""
-        return [
-            {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]} for ten, info in self._users.items()
-        ]
+        with self._lock:
+            return [
+                {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]} for ten, info in self._users.items()
+            ]
 
     def tao_api_key(self, ten_dang_nhap: str) -> str:
         """Tạo API key cho người dùng (lưu mã băm SHA-256 thay vì plaintext)."""
-        if ten_dang_nhap not in self._users:
-            raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
+        with self._lock:
+            if ten_dang_nhap not in self._users:
+                raise KeyError(f"Không tìm thấy người dùng: {ten_dang_nhap}")
 
-        api_key = f"vai_{os.urandom(24).hex()}"
-        key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
-        self._users[ten_dang_nhap]["api_key_hash"] = key_hash
-        self._users[ten_dang_nhap].pop("api_key", None)
-        self._luu_json(self._users_file, self._users)
-        return api_key
+            api_key = f"vai_{os.urandom(24).hex()}"
+            key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+            self._users[ten_dang_nhap]["api_key_hash"] = key_hash
+            self._users[ten_dang_nhap].pop("api_key", None)
+            self._luu_json(self._users_file, self._users)
+            return api_key
 
     def xac_thuc_api_key(self, api_key: str) -> Dict:
         """Xác thực bằng API key chống tấn công đo thời gian (constant-time comparison)."""
         cand_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
-        for ten, info in self._users.items():
-            stored_hash = info.get("api_key_hash")
-            if stored_hash and hmac.compare_digest(stored_hash, cand_hash):
-                return {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]}
-            legacy_plain = info.get("api_key")
-            if legacy_plain and hmac.compare_digest(str(legacy_plain), api_key):
-                return {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]}
+        with self._lock:
+            for ten, info in self._users.items():
+                stored_hash = info.get("api_key_hash")
+                if stored_hash and hmac.compare_digest(stored_hash, cand_hash):
+                    return {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]}
+                legacy_plain = info.get("api_key")
+                if legacy_plain and hmac.compare_digest(str(legacy_plain), api_key):
+                    return {"ten_dang_nhap": ten, "vai_tro": info["vai_tro"]}
         raise PermissionError("API key không hợp lệ")

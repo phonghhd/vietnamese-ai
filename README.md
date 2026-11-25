@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-31.0.3-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-31.0.4-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%20--%203.14-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-1265%20passed-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-1314%20passed-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/mypy-0%20errors-brightgreen.svg" alt="mypy">
   <img src="https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg" alt="ruff">
   <img src="https://img.shields.io/badge/public%20APIs-316-indigo.svg" alt="apis">
@@ -31,7 +31,7 @@
 
 ---
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
-## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.0.3 — Open-Source Production Release)
+## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.0.4 — Deep Architecture & Vertical Moat Release)
 
 - **Bàn Làm Việc AI Tiếng Việt Thực Chiến (9 Trụ Cột Đã Liên Kết Khép Kín)**:
   - **1. Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Luật (`vai rag --db`, `vai legal-graph`)**: `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 tiếng Việt có dấu/không dấu + Float32 Vector + đồng bộ thư mục tăng dần SHA-256 `dong_bo_thu_muc`), `RAGPipeline.luu/tai("*.vaidb")`, `BoNhungONNXTiengViet` (`onnx_viet` hiểu đồng nghĩa đời thường) và `DoThiThamChieuPhapLy` truy vết Luật ↔ Nghị định ↔ Thông tư kèm sơ đồ Mermaid.
@@ -86,7 +86,7 @@
 
 > Tái lập trực tiếp trên máy của bạn bằng `vai benchmark --compare` hoặc container cố định `benchmarks/Dockerfile.benchmark`.
 
-| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (v31.0.3)** | **LangChain** | **LlamaIndex** | **Ưu thế của Vietnamese AI** |
+| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (v31.0.4)** | **LangChain** | **LlamaIndex** | **Ưu thế của Vietnamese AI** |
 |:---|:---:|:---:|:---:|:---:|
 | **Thời gian khởi động (Cold-start)** | **1.20 ms** | 2,150 ms | 2,680 ms | ⚡ **Nhanh gấp ~1,790 lần** |
 | **Dung lượng RAM chiếm dụng** | **14.0 MB** | 142.5 MB | 165.0 MB | 🍃 **Tiết kiệm 90.2% RAM** |
@@ -1106,6 +1106,7 @@ vai release-check: SẴN SÀNG PHÁT HÀNH (316/316 type stubs, 9 tệp SemVer, 
 | v31.0 | Suy Luận Bầy Đàn Phân Tán Trên CPU & Xác Thực Chứng Minh Mật Mã Học (Verifiable AI / zkML): Suy Luận Bầy Đàn Swarm CPU Pipeline Parallelism (`NutSwarmCPU`, `DieuPhoiSwarmCPU`) chia sẻ tải tính toán LLM qua mạng LAN trên các máy tính văn phòng/Mini PC, Xác thực Mật mã học Schnorr Fiat-Shamir NIZK modulo 256-bit kết hợp Merkle Tree O(log N) (`CayMerkleSuyLuan`, `XacThucSuyLuanMaoHiem`) kháng 100% nút Byzantine gian lận, CLI `vai swarm` và `vai verify`, phân rã độ trễ tính toán vs độ trễ mạng vật lý. |
 | v31.0.2 | Hệ Sinh Thái Khép Kín Tự Tối Ưu, Tự Chữa Lành & Đồng Tiến Hóa Đối Kháng (Closed-Loop Self-Evolving & Self-Healing Ecosystem): Bánh đà dữ liệu suy luận khép kín (DataLake DVC -> DPO Trainer -> Model Registry), Vận hành tự phục hồi Production (Circuit Breaker / Health Check -> Auto-Rollback HMAC), Đóng gói biên 1-click GGUF & Swarm CPU Pipeline Parallelism có chứng thực Merkle/zkML, Đồng tiến hóa đối kháng (Red Team Simulator -> Adversarial DPO Hardening), và Hợp nhất Đồ thị trạng thái DAG phân tán (Distributed StateGraph). Cầu nối hợp nhất `QuyTrinhDauCuoi` (`HeSinhThaiAI`). |
 | v31.0.3 | **Open-Source Production Release (4 Hướng Chiến Lược + 5 Ưu Tiên + Khép Kín 9 Mối Nối)**: Kho tri thức đơn tệp `.vaidb` (SQLite WAL + FTS5 + Vector + đồng bộ SHA-256), Ngữ nghĩa đồng nghĩa ONNX (`onnx_viet`), 100 điều khoản pháp lý + 35 QA đóng gói sẵn trong wheel, Theo dõi hiệu lực & Đồ thị tham chiếu luật (`vai legal-graph`), Rà soát hợp đồng `.docx`/Redline (`vai contract-review`), Chat Workspace đa phòng ban & Studio 6 tabs (`vai studio --workspace-dir --auth`), MCP Server `stdio`/`SSE` tự nạp V-Plugin 2.0 (`vai mcp-server`), Zalo OA & Telegram Bot lưu SQLite Workspace (`vai connector`), LLM Zero-GPU CPU (`vai pull`/`vai run --rag .vaidb`), Remote GPU Flywheel (`vai train-cloud --from-workspace --eval-4-axis`), Cổng Kiểm Định 4 trục (`vai eval-gate`), Bản đồ minh bạch 3 tầng (`vai status-map`), và cổng phát hành PyPI OIDC (`vai release-check`). 316 public APIs, 1,265 tests passed, 0 mypy/ruff errors. |
+| v31.0.4 | **Deep Architecture, Vertical Moat, 5-Surface Integration & CI Green**: Chuẩn hóa dấu thanh FST & Viterbi DAG khớp 100% Rust/Python (`584k`/`269k` từ/s), Kernel Rust Zero-Copy `PyBytes` (`Q5_K`/`Q6_K`/`RMSNorm`/`SwiGLU`, nhanh hơn NumPy `3.7x–6.3x`), `KiemChungFreivalds` phát hiện `100%` Byzantine, Persistent HNSW `.vaidb` batch-neighbor, `BoNapVanBanPhapQuyTuDong` (`vai legal-ingest`) đóng gói văn bản hợp nhất → `.vaidb` HNSW + 14 mốc Point-in-Time + Đồ thị, Cross-Encoder ONNX (`bge-reranker-v2-m3`/`phoranker`), Word Track Changes OOXML + Comments, SimPO, Eval Gate Paired Bootstrap 95% CI, Red-Team Firewall/PII/Sandbox, đồng bộ 5 bề mặt & CI Python 3.9–3.13 + Rust Parity xanh 100%. 316 public APIs, 1,314 tests passed, 0 mypy/ruff errors. |
 
 ### Tính liên kết của v31.0.2 với các phiên bản trước
 - **Khép kín Bánh đà Dữ liệu & DPO (v31.0.2)**: Kết nối trực tiếp dữ liệu suy luận từ **FastAPI / Serving (v10)** và cơ chế tự đánh giá **Self-Refine (v11)** vào **HoDuLieu DVC (v21)** để nuôi dưỡng và tái huấn luyện mô hình qua **DPOTrainer (v7)**, loại bỏ hoàn toàn sự phân mảnh dữ liệu.
@@ -1168,7 +1169,7 @@ Nếu bạn sử dụng **Vietnamese AI Framework** trong nghiên cứu khoa h�
   author       = {Huynh, Duong Phong},
   title        = {Vietnamese AI: A Lightweight, Zero-Dependency, and Verifiable Framework for Vietnamese-Centric AI and Distributed Swarm CPU Inference},
   year         = {2026},
-  version      = {31.0.3},
+  version      = {31.0.4},
   publisher    = {Zenodo},
   doi          = {10.5281/zenodo.20357082},
   url          = {https://github.com/phonghhd/vietnamese-ai}

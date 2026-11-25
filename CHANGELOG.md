@@ -2,6 +2,27 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v31.0.4 (2026-11-25 — Deep Architecture, Vertical Moat, 5-Surface Integration & CI Green)
+
+### 🚀 5 Trụ Cột Kiến Trúc Chiều Sâu, Vertical Moat Pháp Lý, Tích Hợp 5 Bề Mặt & Vá Toàn Diện CI/CD
+- **Vá Toàn Bộ Lỗi Tiềm Ẩn & CI Matrix Python 3.9–3.13 (Hướng A + CI Hardening)**:
+  - Sửa bug thật `total_mem` → `total_memory` trên `MultiGPUTrainer`, sửa toàn bộ **27 lỗi `mypy`** trên môi trường cài đủ `.[all,dev]` (`pytorch_trainer`, `dpo_trainer`, `sft_trainer`, `grpo_trainer`, `multi_gpu`, `jamba_block`, `mang_sau`, `embedder`, `image_embedder`, `llm/wrappers`, `regression`, `classifier`, `qdrant_store`).
+  - Sửa `XuLyVanBan(dung_native_tokenizer=True)` không bị `underthesea` ghi đè khi cài `[all]`; bổ sung lọc đầy đủ `\u200c`/Zero-Width/BiDi ở đường fallback Python của `BoTachTuTiengVietSieuToc.chuan_hoa_unicode`; thêm fallback TOML cho Python 3.9/3.10 (`tomli`) và cấu hình `ubuntu-22.04` cho Python 3.9 trong `.github/workflows/ci.yml`.
+  - Bổ sung job CI **`rust-core-parity`** biên dịch thật `vietnamese_ai_rust.so` và chạy kiểm thử đối chiếu Rust vs Python trên GitHub Actions.
+- **Lõi NLP, Rust Zero-Copy & Xác Thực Byzantine (Hướng B + C1)**:
+  - Chuẩn hóa dấu thanh âm vị học FST + tách từ ghép Viterbi DAG khớp 100% giữa Rust và Python (**584,893 từ/s** FST, **269,914 từ/s** Viterbi).
+  - Bổ sung kernel Rust Zero-Copy `PyBytes` (`fast_q5_k_matmul_f32_bytes`, `fast_q6_k_matmul_f32_bytes`, `fast_rmsnorm_f32_bytes`, `fast_swiglu_f32_bytes`) nhanh hơn NumPy **3.7x–6.3x**.
+  - `KiemChungFreivalds` ($O(k \cdot n^2)$) tối ưu `float32` và siết ngưỡng `rtol=2e-5, atol=1e-3` phát hiện **100%** gian lận 1 phần tử trên ma trận `256x256`; KV-Cache đa phiên & TCP keep-alive pool trên Swarm LAN.
+  - Bổ sung bộ benchmark tái lập `--suite deep` (`BoDoLuongDoiDau.do_chieu_sau_loi_he_thong`) đo định lượng 6 trụ cột lõi mới.
+- **Vertical Moat Pháp Lý Việt Nam & Cross-Encoder ONNX (Hướng C4)**:
+  - `BoNapVanBanPhapQuyTuDong` (`AutoLegalCorpusPipeline`, CLI `vai legal-ingest <nguon> -o kho.vaidb`): tự động phân tích văn bản pháp quy & **Văn bản hợp nhất** (`.docx`/`.pdf`/`.txt`/`.md` hoặc thư mục), trích xuất số hiệu, ngày hiệu lực, quan hệ thay thế/sửa đổi/hướng dẫn, bóc tách cước chú hợp nhất `[N]` → tự sinh chuỗi `PhienBanDieuKhoan` Point-in-Time + cạnh `QuanHePhapLy`, đóng gói thành **1 tệp `.vaidb` đã dựng sẵn HNSW bền vững** (vector hóa batch-neighbor) và tự động phục hồi khi mở bằng `TroLyPhapLy(duong_dan_vaidb=...)`.
+  - Nâng cấp `BoSapXepLaiONNXTiengViet` & `SapXepLai` hỗ trợ preset **BGE-Reranker-v2-m3** (`bge_reranker`), **PhoRanker** (`phoranker`, tự động tách từ ghép `_` chuẩn PhoBERT), `cross_encoder_onnx`, nạp `tokenizer.json`, suy luận theo lô `cham_diem_lo` (hỗ trợ cả 1 logit và 2 logits `[neg, pos]`) kèm fallback bigram + proximity span.
+  - Mở rộng `CO_SO_PHIEN_BAN_DIEU_KHOAN_VN` lên **14 mốc Point-in-Time** thực chiến (Hóa đơn `123/2020/NĐ-CP` → `70/2025/NĐ-CP`, BHXH `58/2014` → `41/2024`, Thuế GTGT `13/2008` → `48/2024`, Đất đai `45/2013` → `31/2024`, Giao dịch điện tử `51/2005` → `20/2023`, Nhà ở `65/2014` → `27/2023`).
+- **Tích Hợp 5 Bề Mặt, Tinh Chỉnh & Red-Team Bảo Mật (Hướng C2 + C3)**:
+  - Nhận diện tách/gộp điều khoản hợp đồng và xuất **Word Track Changes (`<w:del>`/`<w:ins>`) + `word/comments.xml`**; SFT Instruction Masking (`-100`) + packed `position_ids`; **SimPO** không cần `ref_model` (tiết kiệm 50% VRAM); Eval Gate **Paired Bootstrap 95% CI**; tường lửa chặn Prompt Injection tiếng Việt có dấu/không dấu/Zero-Width/BiDi Override; PII `DataSanitizer` nhận thức ngữ cảnh (không phá VNĐ/số hiệu luật); Sandbox giới hạn RAM `RLIMIT_AS`/`bwrap`; chống DoS `Content-Length` (`400`/`413`) + CORS/RBAC (`403`).
+  - Nối đồng bộ lên cả 5 bề mặt: `TroLyPhapLy`, CLI (`vai`), FastAPI (`/v1/legal/clause-version`, `/v1/legal/contract-review`, `/v1/nlp/tokenize`, `/v1/vaidb/hnsw`), MCP Server (`--extended-tools` 9 công cụ), và Web Studio Dashboard 6 tabs.
+  - Kiểm định toàn diện: **316/316** public API stubs `.pyi`, **1,314 passed / 32 skipped / 0 failed**, **0 lỗi `mypy`** (328 tệp), **0 lỗi `ruff`**, `mkdocs build --strict` exit 0, `vai release-check` ĐẠT.
+
 ## v31.0.3 (2026-11-24 — Open-Source Production Release)
 
 ### 🚀 4 Hướng Chiến Lược, 5 Ưu Tiên Sản Xuất & Khép Kín Toàn Bộ 9 Mối Nối Liên Tầng

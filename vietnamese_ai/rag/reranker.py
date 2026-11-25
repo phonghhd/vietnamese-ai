@@ -24,21 +24,40 @@ class SapXepLai:
         ham_score: Optional[Callable[[str, str], float]] = None,
         trong_so_da_dang: float = 0.5,
         duong_dan_onnx: Optional[str] = None,
+        duong_dan_tokenizer_onnx: Optional[str] = None,
     ):
-        if che_do not in ("mmr", "cross_encoder", "keyword", "position", "onnx_viet", "vietnamese_semantic"):
-            raise ValueError(
-                "che_do phải là: mmr, cross_encoder, keyword, position, onnx_viet, vietnamese_semantic"
-            )
+        che_do_hop_le = (
+            "mmr",
+            "cross_encoder",
+            "keyword",
+            "position",
+            "onnx_viet",
+            "vietnamese_semantic",
+            "cross_encoder_onnx",
+            "bge_reranker",
+            "phoranker",
+        )
+        if che_do not in che_do_hop_le:
+            raise ValueError(f"che_do phải thuộc: {', '.join(che_do_hop_le)}")
 
         self.che_do = che_do
         self.ham_score = ham_score
         self.trong_so_da_dang = trong_so_da_dang
         self.duong_dan_onnx = duong_dan_onnx
         self._onnx_reranker: Optional[Any] = None
-        if che_do in ("onnx_viet", "vietnamese_semantic"):
+        if che_do in ("onnx_viet", "vietnamese_semantic", "cross_encoder_onnx", "bge_reranker", "phoranker"):
             from vietnamese_ai.rag.onnx_semantic import BoSapXepLaiONNXTiengViet
 
-            self._onnx_reranker = BoSapXepLaiONNXTiengViet(duong_dan_onnx=duong_dan_onnx)
+            preset_map = {
+                "bge_reranker": "bge-reranker-v2-m3",
+                "phoranker": "phoranker",
+                "cross_encoder_onnx": "bge-reranker-v2-m3",
+            }
+            self._onnx_reranker = BoSapXepLaiONNXTiengViet(
+                duong_dan_onnx=duong_dan_onnx,
+                duong_dan_tokenizer=duong_dan_tokenizer_onnx,
+                preset=preset_map.get(che_do),
+            )
 
     def sap_xep_lai(
         self,
@@ -62,7 +81,7 @@ class SapXepLai:
 
         if self.che_do == "mmr":
             return self._mmr(cau_hoi, ket_qua, top_k)
-        elif self.che_do in ("onnx_viet", "vietnamese_semantic"):
+        elif self.che_do in ("onnx_viet", "vietnamese_semantic", "cross_encoder_onnx", "bge_reranker", "phoranker"):
             assert self._onnx_reranker is not None
             return self._onnx_reranker.sap_xep_lai(cau_hoi, ket_qua, top_k)
         elif self.che_do == "cross_encoder":

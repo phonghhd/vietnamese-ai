@@ -1,39 +1,81 @@
 """TuongLuaAI & TuongLuaBaoVeFramework - Hệ thống Tường lửa Tự động Đa tầng bảo vệ Vietnamese AI Framework."""
 
+from __future__ import annotations
+
 import base64
 import re
+import threading
 import time
 import unicodedata
-from typing import Any, Dict, List, Tuple
+from collections import deque
+from typing import Any, Dict, List, Set, Tuple
 
 from vietnamese_ai.security.data_sanitizer import DataSanitizer
 
 
 class AhoCorasickTrie:
-    """Cấu trúc dữ liệu Trie quét chuỗi siêu tốc O(M+N) v27.0.1"""
+    """Cấu trúc dữ liệu Aho-Corasick quét đa mẫu O(M+N) đếm số từ khóa riêng biệt khớp."""
 
-    def __init__(self):
-        self.root = {}
+    def __init__(self) -> None:
+        self._goto: List[Dict[str, int]] = [{}]
+        self._fail: List[int] = [0]
+        self._output: List[List[str]] = [[]]
+        self._da_xay_dung: bool = False
 
-    def add_word(self, word: str):
-        node = self.root
-        for char in word.lower():
-            node = node.setdefault(char, {})
-        node["$"] = True
+    def add_word(self, word: str) -> None:
+        """Thêm một từ khóa vào automaton Aho-Corasick."""
+        w = word.lower()
+        if not w:
+            return
+        state = 0
+        for char in w:
+            nxt = self._goto[state].get(char)
+            if nxt is None:
+                nxt = len(self._goto)
+                self._goto[state][char] = nxt
+                self._goto.append({})
+                self._fail.append(0)
+                self._output.append([])
+            state = nxt
+        if w not in self._output[state]:
+            self._output[state].append(w)
+        self._da_xay_dung = False
+
+    def _xay_dung_failure_links(self) -> None:
+        """Xây dựng liên kết thất bại (BFS failure links) theo thuật toán Aho-Corasick."""
+        q: deque[int] = deque()
+        self._fail = [0] * len(self._goto)
+        for nxt in self._goto[0].values():
+            self._fail[nxt] = 0
+            q.append(nxt)
+        while q:
+            r = q.popleft()
+            for ch, u in self._goto[r].items():
+                q.append(u)
+                v = self._fail[r]
+                while v != 0 and ch not in self._goto[v]:
+                    v = self._fail[v]
+                self._fail[u] = self._goto[v].get(ch, 0)
+                for pat in self._output[self._fail[u]]:
+                    if pat not in self._output[u]:
+                        self._output[u].append(pat)
+        self._da_xay_dung = True
 
     def count_matches(self, text: str) -> int:
-        count = 0
-        text = text.lower()
-        for i in range(len(text)):
-            node = self.root
-            for j in range(i, len(text)):
-                if text[j] not in node:
-                    break
-                node = node[text[j]]
-                if "$" in node:
-                    count += 1
-                    break
-        return count
+        """Đếm số lượng từ khóa rủi ro riêng biệt xuất hiện trong chuỗi đầu vào."""
+        if not text:
+            return 0
+        if not self._da_xay_dung:
+            self._xay_dung_failure_links()
+        state = 0
+        khop_rieng_biet: Set[str] = set()
+        for ch in text.lower():
+            while state != 0 and ch not in self._goto[state]:
+                state = self._fail[state]
+            state = self._goto[state].get(ch, 0)
+            if self._output[state]:
+                khop_rieng_biet.update(self._output[state])
+        return len(khop_rieng_biet)
 
 
 class TuongLuaAI:
@@ -44,19 +86,22 @@ class TuongLuaAI:
     """
 
     MAU_HIEM_DOC = [
-        r"(?i)\bbỏ\s+qua\s+(?:tất\s+cả\s+|toàn\s+bộ\s+|mọi\s+)?(?:các\s+)?(?:hướng\s+dẫn|chỉ\s+thị|lệnh|quy\s+tắc)\b",
+        r"(?i)\bbỏ\s+qua\s+(?:tất\s+cả\s+|toàn\s+bộ\s+|mọi\s+)?(?:các\s+)?(?:hướng\s+dẫn|chỉ\s+dẫn|chỉ\s+thị|lệnh|quy\s+tắc)\b",
         r"(?i)\b(?:ignore|disregard|forget)\s+(?:all\s+)?(?:the\s+)?(?:previous\s+|prior\s+)?(?:instructions|commands|prompts?|rules)\b",
         r"(?i)\bbạn\s+(?:bây\s+giờ\s+)?(?:sẽ\s+)?đóng\s+vai\b",
         r"(?i)\byou\s+(?:will\s+)?(?:now\s+)?act\s+as\b",
         r"(?i)\byou\s+are\s+now\s+a\s+hacker\b",
-        r"(?i)\bdan\b",
+        r"(?i)(?:\b(?:act\s+as|you\s+are\s+now|đóng\s+vai(?:\s+là)?|bạn\s+(?:bây\s+giờ\s+)?(?:sẽ\s+)?là|chế\s+độ|mode)\s+dan\b|\bdan\s*(?:\(|mode\b|jailbreak\b|do\s+anything\b|không\s+giới\s+hạn\b|unlimited\b))",
         r"(?i)\bdo\s+anything\s+now\b",
         r"(?i)\blàm\s+bất\s+cứ\s+điều\s+gì\b",
         r"(?i)\bquên\s+(?:tất\s+cả\s+)?(?:những\s+)?gì\s+tôi\s+đã\s+nói\b",
         r"(?i)\bsystem\s+prompt\b",
-        r"(?i)\btừ\s+giờ\s+trở\s+đi\b",
+        r"(?i)\btừ\s+giờ\s+trở\s+đi\b.{0,45}\b(?:bạn\s+(?:sẽ|hãy|phải|là)|đóng\s+vai|bỏ\s+qua|không\s+tuân|vô\s+hiệu|hacker|jailbreak|trả\s+lời\s+mọi)\b",
         r"(?i)(?:lặp\s+lại|in\s+ra|hiển\s+thị|tiết\s+lộ|repeat|reveal)\s+(?:toàn\s+bộ\s+|mọi\s+)?(?:prompt\s+hệ\s+thống|chỉ\s+thị\s+ban\s+đầu|system\s+prompt|mật\s+khẩu\s+nội\s+bộ|khóa\s+bí\s+mật)",
         r"(?i)(?:tắt|vô\s+hiệu\s+hóa|disable|turn\s+off)\s+(?:mọi\s+|tất\s+cả\s+)?(?:biện\s+pháp\s+an\s+toàn|bảo\s+mật|tường\s+lửa|safety|guardrails|firewall)",
+        r"(?i)\bbo\s+qua\s+(?:tat\s+ca\s+|toan\s+bo\s+|moi\s+)?(?:cac\s+)?(?:huong\s+dan|chi\s+dan|chi\s+thi|lenh|quy\s+tac)\b",
+        r"(?i)(?:tiet\s+lo|in\s+ra|hien\s+thi)\s+(?:toan\s+bo\s+|moi\s+)?(?:prompt\s+he\s+thong|chi\s+thi\s+ban\s+dau|mat\s+khau\s+noi\s+bo|khoa\s+bi\s+mat)",
+        r"(?i)(?:tat|vo\s+hieu\s+hoa)\s+(?:moi\s+|tat\s+ca\s+)?(?:bien\s+phap\s+an\s+toan|bao\s+mat|tuong\s+lua)",
         r"(?i)(?:sudo\s+rm\s+-rf|tải\s+payload|/etc/passwd|/etc/shadow|union\s+select\s+|drop\s+table\s+)",
     ]
 
@@ -75,7 +120,7 @@ class TuongLuaAI:
         "sudo rm",
     ]
 
-    KY_TU_VO_HINH = re.compile(r"[\u200b\u200c\u200d\u2060\ufeff]")
+    KY_TU_VO_HINH = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\u00ad]")
     MAU_CHIA_TACH = re.compile(r"(?<=\b[a-zA-Z])[.\-_](?=[a-zA-Z]\b)")
     MAU_BASE64 = re.compile(r"(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/=])")
 
@@ -183,11 +228,17 @@ class TuongLuaBaoVeFramework:
     SSRF_NOI_BO = (
         "169.254.169.254",
         "metadata.google.internal",
-        "127.0.0.1:22",
-        "0.0.0.0:22",
+        "127.0.0.1",
+        "0.0.0.0",
+        "localhost",
+        "[::1]",
+        "::1",
         "file://",
         "gopher://",
     )
+
+    GIOI_HAN_NHAT_KY = 2000
+    GIOI_HAN_CLIENT_RATE = 10000
 
     def __init__(
         self,
@@ -201,30 +252,48 @@ class TuongLuaBaoVeFramework:
         self.gioi_han_req_moi_phut = max(1, gioi_han_req_moi_phut)
         self.canary_token = canary_token
         self.tuong_lua_prompt = TuongLuaAI(ngat_ket_noi_khi_phat_hien=chan_khi_vi_pham)
+        self._lock = threading.Lock()
         self._lich_su_request: Dict[str, List[float]] = {}
         self.nhat_ky_an_ninh: List[Dict[str, Any]] = []
 
     def _ghi_nhat_ky(self, tang: str, muc_do: str, ly_do: str, du_lieu_mau: str = "") -> None:
-        self.nhat_ky_an_ninh.append(
-            {
-                "thoi_gian": time.time(),
-                "tang_bao_ve": tang,
-                "muc_do": muc_do,
-                "ly_do": ly_do,
-                "mau_trich_doan": du_lieu_mau[:120],
-            }
-        )
+        with self._lock:
+            if len(self.nhat_ky_an_ninh) >= self.GIOI_HAN_NHAT_KY:
+                del self.nhat_ky_an_ninh[: len(self.nhat_ky_an_ninh) - self.GIOI_HAN_NHAT_KY + 1]
+            self.nhat_ky_an_ninh.append(
+                {
+                    "thoi_gian": time.time(),
+                    "tang_bao_ve": tang,
+                    "muc_do": muc_do,
+                    "ly_do": ly_do,
+                    "mau_trich_doan": du_lieu_mau[:120],
+                }
+            )
 
     def kiem_tra_toc_do(self, client_id: str = "default") -> Tuple[bool, str]:
         """Kiểm tra giới hạn tốc độ truy vấn theo cửa sổ trượt 60 giây (chống DoS/Flood)."""
         now = time.time()
-        ds = [t for t in self._lich_su_request.get(client_id, []) if now - t < 60.0]
-        if len(ds) >= self.gioi_han_req_moi_phut:
+        with self._lock:
+            if len(self._lich_su_request) > self.GIOI_HAN_CLIENT_RATE:
+                het_han = [
+                    cid
+                    for cid, times in self._lich_su_request.items()
+                    if not times or now - times[-1] >= 60.0
+                ]
+                for cid in het_han:
+                    self._lich_su_request.pop(cid, None)
+            ds = [t for t in self._lich_su_request.get(client_id, []) if now - t < 60.0]
+            if len(ds) >= self.gioi_han_req_moi_phut:
+                self._lich_su_request[client_id] = ds
+                vuot = True
+            else:
+                ds.append(now)
+                self._lich_su_request[client_id] = ds
+                vuot = False
+        if vuot:
             ly_do = f"Vượt quá giới hạn tốc độ ({self.gioi_han_req_moi_phut} yêu cầu/phút) cho '{client_id}'."
             self._ghi_nhat_ky("rate_limit", "HIGH", ly_do, client_id)
             return False, ly_do
-        ds.append(now)
-        self._lich_su_request[client_id] = ds
         return True, "Hợp lệ."
 
     def kiem_tra_dau_vao(self, van_ban: str, client_id: str = "default") -> Dict[str, Any]:
@@ -416,14 +485,16 @@ class TuongLuaBaoVeFramework:
 
     def thong_ke(self) -> Dict[str, Any]:
         """Thống kê hoạt động của Tường lửa Tự động Đa tầng."""
+        with self._lock:
+            nhat_ky = list(self.nhat_ky_an_ninh)
         theo_tang: Dict[str, int] = {}
-        for muc in self.nhat_ky_an_ninh:
+        for muc in nhat_ky:
             t = muc["tang_bao_ve"]
             theo_tang[t] = theo_tang.get(t, 0) + 1
         return {
-            "tong_su_co_da_chan": len(self.nhat_ky_an_ninh),
+            "tong_su_co_da_chan": len(nhat_ky),
             "chi_tiet_theo_tang": theo_tang,
-            "nhat_ky_gan_nhat": self.nhat_ky_an_ninh[-5:],
+            "nhat_ky_gan_nhat": nhat_ky[-5:],
         }
 
 

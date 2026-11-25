@@ -149,7 +149,7 @@ def test_studio_dashboard_http_server_and_apis():
             assert resp.status == 200
             data_ov = json.loads(resp.read().decode("utf-8"))
             assert data_ov["trang_thai"] == "ONLINE"
-            assert data_ov["phien_ban"] in ("31.0.0", "31.0.2", "31.0.3")
+            assert data_ov["phien_ban"] in ("31.0.0", "31.0.2", "31.0.3", "31.0.4")
 
         # 3. POST /api/security/test_prompt
         req_sec = urllib.request.Request(

@@ -261,7 +261,7 @@ def test_moi_noi_5_tu_dong_cap_phat_nhap_tuy_chon_tren_cac_module(monkeypatch: p
 
 
 def test_moi_noi_6_dong_bo_packaging_cargo_va_9_bieu_tuong_top_level() -> None:
-    """Mối nối 6: Đồng bộ phiên bản 31.0.3 cả Rust Cargo.toml, sub-package legal và 9 biểu tượng top-level."""
+    """Mối nối 6: Đồng bộ phiên bản 31.0.4 cả Rust Cargo.toml, sub-package legal và 9 biểu tượng top-level."""
     bieu_tuong_moi = [
         "BoGiaiMaTransformerEdge",
         "BoTachTuBPEGGUF",
@@ -280,9 +280,9 @@ def test_moi_noi_6_dong_bo_packaging_cargo_va_9_bieu_tuong_top_level() -> None:
     bc_semver = vietnamese_ai.QuanLyPhatHanhGoi.kiem_tra_tuan_thu_semver()
     assert bc_semver["hop_le_semver"] is True
     assert bc_semver["dong_bo_phien_ban"] is True
-    assert bc_semver["phien_ban_chuan"] == "31.0.3"
+    assert bc_semver["phien_ban_chuan"] == "31.0.4"
     assert "rust_core/Cargo.toml" in bc_semver["cac_nguon"]
-    assert bc_semver["cac_nguon"]["rust_core/Cargo.toml"] == "31.0.3"
+    assert bc_semver["cac_nguon"]["rust_core/Cargo.toml"] == "31.0.4"
 
     goi_legal = vietnamese_ai.QuanLyPhatHanhGoi.danh_sach_goi()["vietnamese-ai-legal"]
     deps_legal = goi_legal["phu_thuoc_tuy_chon"]["ocr-pdf"]
