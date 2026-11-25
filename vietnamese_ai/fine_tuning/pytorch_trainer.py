@@ -14,6 +14,7 @@ from vietnamese_ai.utils.logger import Logger
 if TYPE_CHECKING:
     import torch.nn as nn
 
+_no_grad: Any
 try:
     import torch
     import torch.nn as nn
@@ -25,8 +26,10 @@ except ImportError:
     _CO_PYTORCH = False
 
     @contextmanager
-    def _no_grad():
+    def _no_grad_fallback():
         yield
+
+    _no_grad = _no_grad_fallback
 
 
 class HuanLuyenPyTorch:

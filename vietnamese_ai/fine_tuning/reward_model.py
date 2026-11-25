@@ -257,7 +257,7 @@ class RewardModel:
             "history": self._history,
         }
 
-    def diem_danh_gia(self, model: Any, cac_van_ban: List[str]) -> List[Dict[str, float]]:
+    def diem_danh_gia(self, model: Any, cac_van_ban: List[str]) -> List[Dict[str, Any]]:
         """
         Đánh giá reward scores cho danh sách văn bản.
 
@@ -268,7 +268,7 @@ class RewardModel:
         Returns:
             List [{"van_ban": ..., "score": ..., "score_normalized": ...}]
         """
-        ket_qua = []
+        ket_qua: List[Dict[str, Any]] = []
 
         if _CO_PYTORCH and isinstance(model, nn.Module):
             device = next(model.parameters()).device

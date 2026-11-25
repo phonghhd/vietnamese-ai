@@ -192,7 +192,10 @@ class EdgeRouter:
         def _task_cloud():
             if not self.cloud_api_key:
                 raise ValueError("Chưa cấu hình Cloud API.")
-            return self._call_cloud(prompt, do_dai), "CLOUD"
+            res_cloud = self._call_cloud(prompt, do_dai)
+            if isinstance(res_cloud, str) and res_cloud.startswith("Lỗi"):
+                raise RuntimeError(res_cloud)
+            return res_cloud, "CLOUD"
 
         # Chạy song song
         print("[EdgeRouter] Bắt đầu cuộc đua (Race) giữa P2P Edge và Data Center...")
