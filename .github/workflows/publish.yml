@@ -60,7 +60,7 @@ jobs:
             arch: x86_64
             target: x86_64-unknown-linux-gnu
             manylinux: auto
-          - os: macos-14
+          - os: macos-latest
             arch: arm64
             target: aarch64-apple-darwin
             manylinux: ""
@@ -92,8 +92,9 @@ jobs:
           path: dist_rust/*.whl
 
   build-and-publish:
-    name: Build Package and Upload (${{ inputs.target || 'pypi' }})
+    name: Build Package and Upload (${{ github.event.inputs.target || 'pypi' }})
     needs: [release-gate, build-rust-wheels]
+    if: ${{ always() && needs.release-gate.result == 'success' && !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -115,22 +116,51 @@ jobs:
       - name: Build vietnamese-ai sdist and wheel
         run: python -m build
 
-      - name: Download native Rust wheel artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: rust-wheel-*
-          path: dist/
-          merge-multiple: true
-
-      - name: Verify all distribution artifacts with twine
+      - name: Verify vietnamese-ai distribution artifacts with twine
         run: twine check dist/*
 
-      - name: Upload to TestPyPI via OIDC Trusted Publishing
+      - name: Upload vietnamese-ai to TestPyPI via OIDC Trusted Publishing
         if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
+          packages-dir: dist/
           repository-url: https://test.pypi.org/legacy/
 
-      - name: Upload to PyPI via OIDC Trusted Publishing
+      - name: Upload vietnamese-ai to PyPI via OIDC Trusted Publishing
         if: github.event_name != 'workflow_dispatch' || inputs.target == 'pypi'
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+      - name: Download native Rust wheel artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rust-wheel-*
+          path: dist_rust/
+          merge-multiple: true
+
+      - name: Verify native Rust wheels with twine
+        id: check-rust-wheels
+        run: |
+          if compgen -G "dist_rust/*.whl" > /dev/null; then
+            twine check dist_rust/*.whl
+            echo "has_wheels=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_wheels=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload optional vietnamese-ai-rust wheels to TestPyPI
+        if: steps.check-rust-wheels.outputs.has_wheels == 'true' && github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+        continue-on-error: true
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist_rust/
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Upload optional vietnamese-ai-rust wheels to PyPI
+        if: steps.check-rust-wheels.outputs.has_wheels == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'pypi')
+        continue-on-error: true
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist_rust/
