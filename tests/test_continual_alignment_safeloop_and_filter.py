@@ -254,3 +254,25 @@ def test_vialign_safebench_ablation_va_cli_align_safety(tmp_path: Path) -> None:
     assert out_json.is_file()
     loaded = json.loads(out_json.read_text(encoding="utf-8"))
     assert loaded["ten_bo_chuan"] == kq_cli["ten_bo_chuan"] == "ViAlign-SafeBench"
+
+
+def test_cold_import_khong_vong_lap_open_corpus_va_benchmark() -> None:
+    import subprocess
+    import sys
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import vietnamese_ai as v; "
+                "assert len(v.tai_bo_phap_ly_mo()) == 100; "
+                "assert len(v.tai_bo_phap_ly_thoi_gian()) == 60; "
+                "assert v.ChiMucVectorLuongTu is not None and v.BoLocNhieuCapUuTien is not None"
+            ),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
