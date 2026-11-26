@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai-zkml"
-version = "31.0.4"
+version = "31.1.0"
 description = "Mật mã học xác thực suy luận AI: CayMerkleSuyLuan, Schnorr/Fiat-Shamir RFC 5114 & KiemToanMatMa"
 license = {text = "MIT"}
 requires-python = ">=3.8"

@@ -2,7 +2,7 @@
 
 ## Project Info
 - **Name**: Vietnamese AI Framework (`vietnamese-ai`)
-- **Version**: 31.0.4
+- **Version**: 31.1.0
 - **Language**: Python 3.8+
 - **Package dir**: `vietnamese_ai/`
 
@@ -100,6 +100,6 @@ vietnamese_ai/
 - Follow existing code patterns (see models/base.py for base class pattern)
 - New modules need: `__init__.py` with exports, implementation file, tests (and update `__init__.pyi` if adding top-level exports)
 - Một số module Edge/DePIN/multimodal/WASM là **mô phỏng** — kiểm tra trực tiếp qua `vai status-map` hoặc docstring từng class
-- Version canonical: **31.0.4** (`__init__.py` == `pyproject.toml` == `setup.py` == `packages/*/pyproject.toml` == `rust_core/Cargo.toml`)
+- Version canonical: **31.1.0** (`__init__.py` == `pyproject.toml` == `setup.py` == `packages/*/pyproject.toml` == `rust_core/Cargo.toml`)
 - Plugin: `QuanLyPlugin` = hot-swap (tự gắn vào FastAPI & MCP); `PluginManager` = legacy hooks (cả hai đều hợp lệ)
-- Baseline test (v31.0.4): 1,314 passed, 32 skipped (torch/optional deps), 0 mypy errors (328 files), 316 public exports
+- Baseline test (v31.1.0): 1,338+ passed, 0 mypy errors, 349 public exports (bao gồm Temporal-Graph Legal RAG, ViEdge-RustEngine & ViAlign-SafeLoop)

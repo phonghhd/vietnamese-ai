@@ -106,6 +106,8 @@ class TroLyPhapLy:
         dung_onnx_semantic: bool = False,
     ):
         from vietnamese_ai.rag.legal.citation_graph import DoThiThamChieuPhapLy
+        from vietnamese_ai.rag.legal.citation_verifier import BoKiemChungTrichDanPhapLy
+        from vietnamese_ai.rag.legal.temporal_query import BoPhanTichThoiGianPhapLy
         from vietnamese_ai.rag.legal.validity_tracker import BoTheoDoiHieuLucPhapLy
         from vietnamese_ai.rag.vietnamese_context import BoToiUuNguCanhHanhChinh
 
@@ -113,6 +115,11 @@ class TroLyPhapLy:
         self.bo_toi_uu = BoToiUuNguCanhHanhChinh(bat_tuong_lua=False)
         self.bo_theo_doi_hieu_luc = BoTheoDoiHieuLucPhapLy()
         self.do_thi_tham_chieu = DoThiThamChieuPhapLy(bo_theo_doi=self.bo_theo_doi_hieu_luc)
+        self.bo_phan_tich_thoi_gian = BoPhanTichThoiGianPhapLy()
+        self.bo_kiem_chung_trich_dan = BoKiemChungTrichDanPhapLy(
+            bo_theo_doi=self.bo_theo_doi_hieu_luc,
+            bo_phan_tich_thoi_gian=self.bo_phan_tich_thoi_gian,
+        )
         self.rag = RAGPipeline(
             nguong_diem=0.05,
             top_k=3,
@@ -255,6 +262,21 @@ class TroLyPhapLy:
             che_do_hanh_chinh=True,
         )
 
+    def kiem_chung_cau_tra_loi(
+        self,
+        cau_tra_loi: str,
+        nguon_truy_hoi: List[Dict[str, Any]],
+        ngay_tra_cuu: Optional[str] = None,
+        cau_hoi: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Kiểm chứng trích dẫn 3 tầng (nguồn, hiệu lực thời gian, số liệu) cho câu trả lời từ mô hình/LLM bất kỳ."""
+        return self.bo_kiem_chung_trich_dan.kiem_chung(
+            cau_tra_loi=cau_tra_loi,
+            nguon_truy_hoi=nguon_truy_hoi,
+            ngay_tra_cuu=ngay_tra_cuu,
+            cau_hoi=cau_hoi,
+        ).to_dict()
+
     def tra_cuu(
         self,
         cau_hoi: str,
@@ -263,7 +285,7 @@ class TroLyPhapLy:
     ) -> Dict[str, Any]:
         """
         Tra cứu quy định pháp luật và sinh câu trả lời kèm trích dẫn văn bản luật chuẩn xác
-        (hỗ trợ mốc thời gian hiệu lực `ngay_tra_cuu` và tra cứu phiên bản Điều/Khoản Point-in-Time).
+        (tự nhận diện mốc thời gian trong câu hỏi, hỗ trợ Point-in-Time Legal Lookup và kiểm chứng trích dẫn 3 tầng).
         """
         cau_hoi_sach = str(cau_hoi or "").strip()
         kt_dau_vao = self.tuong_lua.kiem_tra_dau_vao(cau_hoi_sach)
@@ -277,6 +299,13 @@ class TroLyPhapLy:
                 "diem_bam_sat_nguon": 0.0,
             }
 
+        kq_thoi_gian = self.bo_phan_tich_thoi_gian.phan_tich(cau_hoi_sach)
+        ngay_hieu_luc_dung: Optional[str] = (
+            ngay_tra_cuu
+            if ngay_tra_cuu is not None
+            else (kq_thoi_gian.ngay_tra_cuu if kq_thoi_gian.co_moc_tuong_minh else None)
+        )
+
         phien_ban_dieu: Optional[Dict[str, Any]] = None
         ds_sh_hoi = self.bo_theo_doi_hieu_luc.trich_xuat_so_hieu(cau_hoi_sach)
         m_dieu = re.search(r"điều\s+(\d+[a-zA-ZđĐ]?)", cau_hoi_sach, re.IGNORECASE | re.UNICODE)
@@ -284,7 +313,7 @@ class TroLyPhapLy:
             kq_pb = self.tra_cuu_dieu_khoan_theo_ngay(
                 so_hieu=ds_sh_hoi[0],
                 dieu=f"Điều {m_dieu.group(1)}",
-                ngay_tra_cuu=ngay_tra_cuu,
+                ngay_tra_cuu=ngay_hieu_luc_dung,
             )
             if kq_pb.get("tim_thay"):
                 phien_ban_dieu = kq_pb
@@ -360,6 +389,12 @@ class TroLyPhapLy:
 
         kt_dau_ra = CongAnToanDauRa.kiem_tra_va_lam_sach(tra_loi, nguon_ngu_canh=nguon_list)
         tra_loi_sach = kt_dau_ra["van_ban_sach"]
+        kq_kiem_chung = self.bo_kiem_chung_trich_dan.kiem_chung(
+            cau_tra_loi=tra_loi_sach,
+            nguon_truy_hoi=nguon_list,
+            ngay_tra_cuu=ngay_hieu_luc_dung,
+            cau_hoi=cau_hoi_sach,
+        )
 
         ket_qua: Dict[str, Any] = {
             "cau_hoi": cau_hoi_sach,
@@ -370,9 +405,11 @@ class TroLyPhapLy:
             "diem_bam_sat_nguon": kt_dau_ra.get("diem_bam_sat_nguon", 1.0),
             "nghi_ngo_ao_giac": kt_dau_ra.get("nghi_ngo_ao_giac", False),
             "an_toan": kt_dau_ra["an_toan"],
+            "phan_tich_thoi_gian": kq_thoi_gian.to_dict(),
+            "kiem_chung_trich_dan": kq_kiem_chung.to_dict(),
         }
-        if ngay_tra_cuu is not None:
-            ket_qua["ngay_tra_cuu"] = ngay_tra_cuu
+        if ngay_hieu_luc_dung is not None:
+            ket_qua["ngay_tra_cuu"] = ngay_hieu_luc_dung
         if phien_ban_dieu is not None:
             ket_qua["phien_ban_dieu_khoan"] = phien_ban_dieu
         return ket_qua

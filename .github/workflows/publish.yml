@@ -41,11 +41,11 @@ jobs:
           python -m build --outdir dist_check
           twine check dist_check/*
 
-      - name: Clean-venv wheel smoke test (verify bundled 100 legal provisions)
+      - name: Clean-venv wheel smoke test (verify bundled legal datasets & v31.1.0 pillars)
         run: |
           python -m venv /tmp/smoke_venv
           /tmp/smoke_venv/bin/pip install dist_check/*.whl
-          /tmp/smoke_venv/bin/python -c "import vietnamese_ai as v; assert len(v.tai_bo_phap_ly_mo()) == 100; assert len(v.tai_bo_hoi_dap_phap_ly_mo()) == 35; print('Wheel smoke test OK!')"
+          /tmp/smoke_venv/bin/python -c "import vietnamese_ai as v; assert len(v.tai_bo_phap_ly_mo()) == 100; assert len(v.tai_bo_hoi_dap_phap_ly_mo()) == 35; assert len(v.tai_bo_phap_ly_thoi_gian()) == 60; assert len(v.tai_bo_hoi_dap_phap_ly_thoi_gian()) == 64; assert v.ChiMucVectorLuongTu is not None and v.BoLocNhieuCapUuTien is not None; print('Wheel smoke test OK!')"
           /tmp/smoke_venv/bin/vai demo legal-rag
 
   build-rust-wheels:

@@ -567,6 +567,8 @@ class QuanLyPhienChatWorkspace:
         ho_du_lieu: Optional[Any] = None,
         ten_dataset_dvc: str = "studio_dpo_feedback.jsonl",
         token: Optional[str] = None,
+        loc_nhieu: bool = False,
+        mo_hinh_tham_chieu: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Xuất toàn bộ phản hồi `thumbs_up` / `thumbs_down` (kèm đáp án sửa) trong Workspace thành tập dữ liệu
@@ -646,6 +648,22 @@ class QuanLyPhienChatWorkspace:
                     }
                 )
 
+        bao_cao_loc_nhieu: Optional[Dict[str, Any]] = None
+        if loc_nhieu:
+            from vietnamese_ai.fine_tuning.preference_filter import BoLocNhieuCapUuTien
+
+            bo_loc = BoLocNhieuCapUuTien()
+            kq_loc = bo_loc.loc_tap_du_lieu(cac_mau, mo_hinh_tham_chieu=mo_hinh_tham_chieu)
+            cac_mau = kq_loc.mau_sach
+            bao_cao_loc_nhieu = {
+                "tong_dau_vao": kq_loc.tong_dau_vao,
+                "so_giu_lai": kq_loc.so_giu_lai,
+                "so_cach_ly": kq_loc.so_cach_ly,
+                "ty_le_giu_lai": kq_loc.ty_le_giu_lai,
+                "thong_ke_ly_do_loai": kq_loc.thong_ke_ly_do_loai,
+                "trong_so_trung_binh": kq_loc.trong_so_trung_binh,
+            }
+
         duong_dan_xuat: Optional[str] = None
         if duong_dan_jsonl is not None:
             p_out = Path(duong_dan_jsonl)
@@ -666,13 +684,17 @@ class QuanLyPhienChatWorkspace:
             )
 
         self._ghi_audit("xuat_dpo", user, f"Xuất {len(cac_mau)} mẫu DPO", {"duong_dan": duong_dan_xuat})
-        return {
+        ket_qua_xuat: Dict[str, Any] = {
             "so_mau_dpo": len(cac_mau),
             "da_an_pii": an_pii,
+            "da_loc_nhieu": bool(loc_nhieu),
             "duong_dan_jsonl": duong_dan_xuat,
             "ma_bam_dvc": ma_bam_dvc,
             "mau_dpo": cac_mau,
         }
+        if bao_cao_loc_nhieu is not None:
+            ket_qua_xuat["bao_cao_loc_nhieu"] = bao_cao_loc_nhieu
+        return ket_qua_xuat
 
     def dong(self) -> None:
         """Đóng toàn bộ kết nối SQLite và `.vaidb` an toàn."""

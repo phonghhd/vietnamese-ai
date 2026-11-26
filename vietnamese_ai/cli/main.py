@@ -190,11 +190,31 @@ Ví dụ sử dụng:
     # === BENCHMARK ===
     bench_parser = subparsers.add_parser(
         "benchmark",
-        help="Đo kiểm hiệu năng và so sánh đối đầu khoa học định lượng (vs LangChain / LlamaIndex)",
+        help="Đo kiểm hiệu năng, Ablation ViLegal-TempBench và so sánh đối đầu khoa học",
     )
+    bench_parser.add_argument(
+        "--suite",
+        choices=("speed", "compare", "legal-temporal", "edge-systems", "align-safety"),
+        default=None,
+        help="Chọn bộ đo: 'speed', 'compare', 'legal-temporal', 'edge-systems' hoặc 'align-safety' (ViAlign-SafeBench)",
+    )
+    bench_parser.add_argument("--scale", type=int, default=20000, help="Số lượng vector cho suite edge-systems (mặc định: 20000)")
+    bench_parser.add_argument("--dim", type=int, default=384, help="Số chiều vector cho suite edge-systems (mặc định: 384)")
+    bench_parser.add_argument("--rounds", type=int, default=5, help="Số vòng lặp Continual Alignment cho suite align-safety (mặc định: 5)")
     bench_parser.add_argument("--compare", action="store_true", help="Chạy bộ đo lường đối đầu định lượng vs LangChain/LlamaIndex")
+    bench_parser.add_argument("--quick", action="store_true", help="Chạy chế độ rút gọn nhanh cho CI")
+    bench_parser.add_argument("--seed", type=int, default=42, help="Hạt giống tái lập kết quả (mặc định: 42)")
     bench_parser.add_argument("--latex", action="store_true", help="Xuất bảng số liệu định dạng LaTeX cho bài báo khoa học")
-    bench_parser.add_argument("--output", default=None, help="Đường dẫn tệp xuất báo cáo (.json hoặc .md)")
+    bench_parser.add_argument(
+        "--llm-provider",
+        choices=("none", "gemini", "openai", "ollama"),
+        default="none",
+        help="Tùy chọn dùng LLM thật (gemini/openai/ollama) cho suite legal-temporal",
+    )
+    bench_parser.add_argument("--llm-model", default="", help="Tên mô hình LLM (mặc định: gemini-2.5-flash / gpt-4o-mini / qwen2.5:3b)")
+    bench_parser.add_argument("--base-url", default="", help="URL API tùy chỉnh cho Ollama hoặc OpenAI-compatible")
+    bench_parser.add_argument("--llm-delay", type=float, default=0.0, help="Độ trễ giữa các lần gọi API LLM (giây)")
+    bench_parser.add_argument("--output", default=None, help="Đường dẫn tệp xuất báo cáo (.json, .md hoặc .tex)")
 
     # === TOKENIZE ===
     tok_parser = subparsers.add_parser(
@@ -251,6 +271,7 @@ Ví dụ sử dụng:
     sol_parser.add_argument("--input", "-i", default=None, help="Đường dẫn tệp ảnh hoặc nội dung văn bản đầu vào")
     sol_parser.add_argument("--type", default="cccd", choices=["cccd", "hoa_don"], help="Loại giấy tờ cho trich-xuat")
     sol_parser.add_argument("--vaidb", default=None, help="Đường dẫn tệp kho tri thức `.vaidb` cho giải pháp `phap-ly`")
+    sol_parser.add_argument("--date", default=None, help="Mốc ngày tra cứu hiệu lực pháp lý dạng YYYY-MM-DD cho `phap-ly`")
     sol_parser.add_argument("--no-open-corpus", action="store_true", help="Không nạp thêm 100 điều khoản pháp lý mở mặc định")
     sol_parser.add_argument("--voice", action="store_true", help="Khởi động máy chủ WebRTC Voicebot thời gian thực cho CSKH")
 
@@ -418,6 +439,29 @@ Ví dụ sử dụng:
     li_parser.add_argument("--no-hnsw", action="store_true", help="Không dựng chỉ mục HNSW bền vững trong tệp `.vaidb`")
     li_parser.add_argument("--json", action="store_true", help="Xuất báo cáo nạp tự động dưới dạng JSON thuần")
 
+    la_parser = subparsers.add_parser(
+        "legal-ask",
+        help="Hỏi đáp pháp lý theo mốc thời gian & đồ thị điều khoản kèm kiểm chứng trích dẫn 3 tầng (ViLegal-TemporalRAG)",
+    )
+    la_parser.add_argument("query", help="Câu hỏi pháp lý tiếng Việt (tự bóc tách mốc thời gian nếu không truyền --date)")
+    la_parser.add_argument("--date", default=None, help="Mốc ngày tra cứu hiệu lực tường minh dạng YYYY-MM-DD")
+    la_parser.add_argument(
+        "--mode",
+        choices=("bm25", "hybrid", "temporal", "temporal_graph", "full"),
+        default="full",
+        help="Chế độ truy hồi (mặc định: full)",
+    )
+    la_parser.add_argument("--top-k", type=int, default=5, help="Số điều khoản truy hồi tối đa (mặc định: 5)")
+    la_parser.add_argument(
+        "--llm-provider",
+        choices=("none", "gemini", "openai", "ollama"),
+        default="none",
+        help="Tùy chọn sinh câu trả lời bằng LLM thật (gemini/openai/ollama)",
+    )
+    la_parser.add_argument("--llm-model", default="", help="Tên mô hình LLM (mặc định: gemini-2.5-flash / gpt-4o-mini / qwen2.5:3b)")
+    la_parser.add_argument("--base-url", default="", help="URL API tùy chỉnh cho Ollama hoặc OpenAI-compatible")
+    la_parser.add_argument("--json", action="store_true", help="Xuất kết quả đầy đủ dưới dạng JSON thuần")
+
     cr_parser = subparsers.add_parser(
         "contract-review",
         help="Rà soát rủi ro & so sánh hợp đồng (.docx/.pdf/.txt) kèm xuất báo cáo Redline Markdown & Word .docx",
@@ -448,6 +492,11 @@ Ví dụ sử dụng:
         help="Bật thêm các công cụ MCP chuyên sâu (Point-in-Time Điều luật, Viterbi NLP, HNSW .vaidb)",
     )
     mcp_parser.add_argument(
+        "--temporal-legal-tools",
+        action="store_true",
+        help="Bật thêm 2 công cụ MCP ViLegal-TemporalRAG (tra_cuu_phap_ly_thoi_gian & kiem_chung_trich_dan_phap_ly)",
+    )
+    mcp_parser.add_argument(
         "--print-config",
         default=None,
         choices=["cursor", "claude", "vscode"],
@@ -473,6 +522,11 @@ Ví dụ sử dụng:
     dpo_parser.add_argument("--workspace-dir", required=True, help="Thư mục dữ liệu Workspace SQLite")
     dpo_parser.add_argument("--workspace", default=None, help="Lọc theo mã Workspace (tùy chọn)")
     dpo_parser.add_argument("--output", default="studio_dpo_feedback.jsonl", help="Đường dẫn tệp DPO JSONL xuất ra")
+    dpo_parser.add_argument(
+        "--filter-noise",
+        action="store_true",
+        help="Bật bộ lọc nhiễu cặp ưu tiên 6 tín hiệu (BoLocNhieuCapUuTien) trước khi xuất JSONL",
+    )
 
     eg_parser = subparsers.add_parser(
         "eval-gate",
@@ -1031,10 +1085,104 @@ def cmd_chat(args):
 
 
 def cmd_benchmark(args=None):
-    """Đo kiểm tốc độ huấn luyện hoặc so sánh đối đầu khoa học vs LangChain/LlamaIndex."""
-    is_compare = getattr(args, "compare", False) if args else False
+    """Đo kiểm tốc độ huấn luyện, chạy Ablation ViLegal-TempBench hoặc so sánh đối đầu khoa học."""
+    suite_name = getattr(args, "suite", None) if args else None
+    is_compare = (getattr(args, "compare", False) if args else False) or suite_name == "compare"
     is_latex = getattr(args, "latex", False) if args else False
+    is_quick = getattr(args, "quick", False) if args else False
+    seed = getattr(args, "seed", 42) if args else 42
     out_file = getattr(args, "output", None) if args else None
+
+    if suite_name == "align-safety":
+        import json
+
+        from vietnamese_ai.benchmark.continual_alignment_benchmark import BoDanhGiaCanChinhAnToan
+
+        n_rounds = int(getattr(args, "rounds", 5) or 5)
+        print(f"Đang chạy bộ đánh giá Continual Alignment ViAlign-SafeBench ({n_rounds} vòng | quick={is_quick})...")
+        align_bench = BoDanhGiaCanChinhAnToan()
+        kq = align_bench.chay_ablation_da_vong(
+            so_vong=n_rounds,
+            nhanh=is_quick,
+            seed=seed,
+        )
+        bao_cao = align_bench.xuat_bang_latex(kq) if is_latex else align_bench.xuat_bao_cao_markdown(kq)
+        print(bao_cao)
+        if out_file:
+            p = Path(out_file)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            if p.suffix.lower() == ".json":
+                p.write_text(json.dumps(kq, indent=2, ensure_ascii=False), encoding="utf-8")
+            else:
+                p.write_text(bao_cao, encoding="utf-8")
+            print(f"-> Đã lưu báo cáo ViAlign-SafeBench ra tệp: {out_file}")
+        return kq
+
+    if suite_name == "edge-systems":
+        import json
+
+        from vietnamese_ai.benchmark.edge_systems_benchmark import BoDanhGiaHeThongEdge
+
+        n_vec = int(getattr(args, "scale", 20000) or 20000)
+        dim_vec = int(getattr(args, "dim", 384) or 384)
+        print(
+            f"Đang chạy bộ đánh giá hệ thống Zero-GPU ViEdge-SysBench "
+            f"(N={n_vec:,}, D={dim_vec}, quick={is_quick})..."
+        )
+        edge_bench = BoDanhGiaHeThongEdge()
+        kq = edge_bench.chay_toan_dien(
+            nhanh=is_quick,
+            n_vectors=n_vec,
+            dim=dim_vec,
+            seed=seed,
+        )
+        bao_cao = edge_bench.xuat_bang_latex(kq) if is_latex else edge_bench.xuat_bao_cao_markdown(kq)
+        print(bao_cao)
+        if out_file:
+            p = Path(out_file)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            if p.suffix.lower() == ".json":
+                p.write_text(json.dumps(kq, indent=2, ensure_ascii=False), encoding="utf-8")
+            else:
+                p.write_text(bao_cao, encoding="utf-8")
+            print(f"-> Đã lưu báo cáo ViEdge-SysBench ra tệp: {out_file}")
+        return kq
+
+    if suite_name == "legal-temporal":
+        import json
+
+        from vietnamese_ai.benchmark.legal_temporal_benchmark import (
+            BoDanhGiaLegalTemporalRAG,
+            tao_ham_sinh_llm,
+        )
+
+        ham_llm = None
+        ten_llm = "extractive-grounded"
+        llm_provider = getattr(args, "llm_provider", "none") or "none"
+        if llm_provider != "none":
+            llm_model = getattr(args, "llm_model", "") or None
+            ham_llm = tao_ham_sinh_llm(
+                nha_cung_cap=llm_provider,
+                model=llm_model,
+                base_url=getattr(args, "base_url", "") or None,
+                do_tre_giua_goi_giay=float(getattr(args, "llm_delay", 0.0) or 0.0),
+            )
+            ten_llm = f"{llm_provider}:{llm_model or 'default'}"
+
+        print(f"Đang chạy bộ đánh giá khoa học ViLegal-TempBench (5 cấu hình Ablation | Sinh: {ten_llm})...")
+        bench = BoDanhGiaLegalTemporalRAG(ham_sinh_llm=ham_llm, ten_mo_hinh_llm=ten_llm)
+        kq = bench.chay_ablation(nhanh=is_quick, seed=seed)
+        bao_cao = bench.xuat_bang_latex(kq) if is_latex else bench.xuat_bao_cao_markdown(kq)
+        print(bao_cao)
+        if out_file:
+            p = Path(out_file)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            if p.suffix.lower() == ".json":
+                p.write_text(json.dumps(kq, indent=2, ensure_ascii=False), encoding="utf-8")
+            else:
+                p.write_text(bao_cao, encoding="utf-8")
+            print(f"-> Đã lưu báo cáo ViLegal-TempBench ra tệp: {out_file}")
+        return kq
 
     if is_compare:
         from vietnamese_ai.benchmark.comparative_benchmark import BoDoLuongDoiDau
@@ -1209,11 +1357,20 @@ def cmd_solution(args):
         )
         try:
             q = args.query or args.input or "Thời giờ làm việc bình thường là bao nhiêu?"
+            ngay_tc = getattr(args, "date", None)
             print(f"=== TRỢ LÝ PHÁP LÝ & DOANH NGHIỆP ===\nCâu hỏi: {q}\n")
-            kq = tro_ly.tra_cuu(q)
+            kq = tro_ly.tra_cuu(q, ngay_tra_cuu=ngay_tc)
             print(f"Trả lời:\n{kq['tra_loi']}\n")
             if kq["can_cu_phap_ly"]:
                 print(f"Căn cứ pháp lý: {', '.join(kq['can_cu_phap_ly'])}")
+            kc = kq.get("kiem_chung_trich_dan") or {}
+            if kc:
+                print(
+                    f"Kiểm chứng 3 tầng: hợp lệ={kc.get('hop_le')} | "
+                    f"trung thực={kc.get('diem_trung_thuc')} | "
+                    f"xung đột thời gian={kc.get('co_xung_dot_thoi_gian')} | "
+                    f"nhất quán số liệu={kc.get('diem_nhat_quan_so_lieu')}"
+                )
             td_pl = kq.get("trich_dan_phap_ly") or {}
             for cb in td_pl.get("canh_bao_hieu_luc") or []:
                 print(f"Cảnh báo hiệu lực: {cb}")
@@ -2076,6 +2233,58 @@ def cmd_contract_review(args: Any) -> Any:
     return kq
 
 
+def cmd_legal_ask(args: Any) -> Dict[str, Any]:
+    """Hỏi đáp pháp lý theo mốc thời gian & đồ thị điều khoản kèm kiểm chứng 3 tầng (`vai legal-ask`)."""
+    import json
+
+    from vietnamese_ai.benchmark.legal_temporal_benchmark import tao_ham_sinh_llm
+    from vietnamese_ai.rag.legal.temporal_rag import tao_dong_co_phap_ly_thoi_gian_mac_dinh
+
+    engine = tao_dong_co_phap_ly_thoi_gian_mac_dinh()
+    ham_llm = None
+    llm_provider = getattr(args, "llm_provider", "none") or "none"
+    if llm_provider != "none":
+        ham_llm = tao_ham_sinh_llm(
+            nha_cung_cap=llm_provider,
+            model=getattr(args, "llm_model", "") or None,
+            base_url=getattr(args, "base_url", "") or None,
+        )
+
+    kq = engine.tra_loi_phap_ly(
+        cau_hoi=str(args.query),
+        ngay_tra_cuu=getattr(args, "date", None),
+        top_k=int(getattr(args, "top_k", 5)),
+        che_do=str(getattr(args, "mode", "full")),
+        ham_sinh_llm=ham_llm,
+    )
+    if getattr(args, "json", False):
+        print(json.dumps(kq, ensure_ascii=False, indent=2))
+        return kq
+
+    kc = kq.get("kiem_chung_trich_dan", {})
+    print(f"=== VILEGAL-TEMPORALRAG ({kq['che_do']} | Mốc hiệu lực: {kq['ngay_tra_cuu']}) ===")
+    if kq.get("canh_bao_thoi_gian"):
+        for cb in kq["canh_bao_thoi_gian"]:
+            print(f"[!] {cb}")
+    print(f"\nTrả lời:\n{kq['tra_loi']}\n")
+    if kq.get("ket_qua"):
+        print("Căn cứ truy hồi:")
+        for item in kq["ket_qua"][:3]:
+            nhan_graph = " [Đồ thị đa bước]" if item.get("tu_do_thi_da_buoc") else ""
+            print(
+                f"  #{item['hang']} [{item['so_hieu']} - {item['dieu']}] "
+                f"{item['ten_van_ban']} (hiệu lực={item['con_hieu_luc']}){nhan_graph}"
+            )
+    print(
+        f"\nKiểm chứng 3 tầng: hợp lệ={kc.get('hop_le')} | "
+        f"trung thực={kc.get('diem_trung_thuc')} | "
+        f"thời gian={kc.get('diem_nhat_quan_thoi_gian')} | "
+        f"số liệu={kc.get('diem_nhat_quan_so_lieu')} | "
+        f"độ trễ={kq.get('thoi_gian_ms')} ms"
+    )
+    return kq
+
+
 def cmd_mcp_server(args: Any) -> Any:
     """Khởi chạy máy chủ MCP chuẩn stdio/SSE hoặc in cấu hình IDE (`vai mcp-server`)."""
     import json
@@ -2108,6 +2317,7 @@ def cmd_mcp_server(args: Any) -> Any:
         duong_dan_vaidb=vaidb,
         quan_ly_plugin=quan_ly_plugin,
         bat_cong_cu_mo_rong=bool(getattr(args, "extended_tools", False)),
+        bat_cong_cu_phap_ly_thoi_gian=bool(getattr(args, "temporal_legal_tools", False)),
     )
     try:
         if getattr(args, "transport", "stdio") == "sse":
@@ -2210,12 +2420,18 @@ def cmd_export_dpo(args: Any) -> Any:
 
     ql = QuanLyPhienChatWorkspace(thu_muc_du_lieu=args.workspace_dir, bat_xac_thuc=False)
     try:
+        loc_nhieu = bool(getattr(args, "filter_noise", False))
         kq = ql.xuat_tap_du_lieu_dpo(
             duong_dan_jsonl=args.output,
             ma_workspace=getattr(args, "workspace", None),
             an_pii=True,
+            loc_nhieu=loc_nhieu,
         )
-        print(f"Đã xuất {kq['so_mau_dpo']} mẫu DPO sạch (đã ẩn PII) tại: {kq['duong_dan_jsonl']}")
+        suffix = ""
+        if loc_nhieu and kq.get("bao_cao_loc_nhieu"):
+            bc = kq["bao_cao_loc_nhieu"]
+            suffix = f" [đã lọc nhiễu: giữ {bc['so_giu_lai']}/{bc['tong_dau_vao']}, cách ly {bc['so_cach_ly']}]"
+        print(f"Đã xuất {kq['so_mau_dpo']} mẫu DPO sạch (đã ẩn PII){suffix} tại: {kq['duong_dan_jsonl']}")
         return kq
     finally:
         ql.dong()
@@ -2321,6 +2537,7 @@ def main():
         "release-check": lambda: cmd_release_check(args),
         "legal-graph": lambda: cmd_legal_graph(args),
         "legal-ingest": lambda: cmd_legal_ingest(args),
+        "legal-ask": lambda: cmd_legal_ask(args),
         "contract-review": lambda: cmd_contract_review(args),
         "mcp-server": lambda: cmd_mcp_server(args),
         "connector": lambda: cmd_connector(args),

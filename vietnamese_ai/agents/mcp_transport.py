@@ -44,13 +44,14 @@ class MayChuMCPThucTe(MCPServer):
     def __init__(
         self,
         ten: str = "vietnamese-ai-mcp",
-        phien_ban: str = "31.0.4",
+        phien_ban: str = "31.1.0",
         duong_dan_vaidb: Optional[Union[str, Path]] = None,
         nap_kho_phap_ly_mo: bool = True,
         bat_tuong_lua: bool = True,
         quan_ly_plugin: Optional[Any] = None,
         tro_ly_phap_ly: Optional[Any] = None,
         bat_cong_cu_mo_rong: bool = False,
+        bat_cong_cu_phap_ly_thoi_gian: bool = False,
     ) -> None:
         super().__init__(ten=ten, phien_ban=phien_ban, bat_tuong_lua=bat_tuong_lua)
         self.duong_dan_vaidb = str(duong_dan_vaidb) if duong_dan_vaidb else None
@@ -59,9 +60,12 @@ class MayChuMCPThucTe(MCPServer):
         self._tro_ly_phap_ly: Optional[Any] = tro_ly_phap_ly
         self._bo_so_sanh_hd: Optional[Any] = None
         self._dong_co_edge: Optional[Any] = None
+        self._dong_co_phap_ly_thoi_gian: Optional[Any] = None
         self._dang_ky_cong_cu_mac_dinh()
         if bat_cong_cu_mo_rong:
             self.dang_ky_cong_cu_nang_cao()
+        if bat_cong_cu_phap_ly_thoi_gian:
+            self.dang_ky_cong_cu_phap_ly_thoi_gian()
         if quan_ly_plugin is not None:
             self.gan_quan_ly_plugin(quan_ly_plugin)
         self._dang_ky_tai_nguyen_mac_dinh()
@@ -340,6 +344,70 @@ class MayChuMCPThucTe(MCPServer):
             ),
         ]
         for cc in ds_moi:
+            if cc.ten not in self._cong_cu:
+                self.dang_ky_cong_cu(cc)
+                da_them += 1
+        return da_them
+
+    def dang_ky_cong_cu_phap_ly_thoi_gian(self) -> int:
+        """Đăng ký 2 công cụ MCP v31.1.0 cho ViLegal-TemporalRAG và Kiểm chứng trích dẫn 3 tầng."""
+        da_them = 0
+
+        def _lay_dong_co_tg() -> Any:
+            if self._dong_co_phap_ly_thoi_gian is None:
+                from vietnamese_ai.rag.legal.temporal_rag import (
+                    tao_dong_co_phap_ly_thoi_gian_mac_dinh,
+                )
+
+                self._dong_co_phap_ly_thoi_gian = tao_dong_co_phap_ly_thoi_gian_mac_dinh()
+            return self._dong_co_phap_ly_thoi_gian
+
+        def _tra_cuu_phap_ly_thoi_gian(
+            cau_hoi: str,
+            ngay_tra_cuu: str = "",
+            che_do: str = "full",
+            top_k: int = 5,
+        ) -> str:
+            kq = _lay_dong_co_tg().tra_loi_phap_ly(
+                cau_hoi=cau_hoi,
+                ngay_tra_cuu=ngay_tra_cuu.strip() or None,
+                top_k=max(1, min(20, int(top_k))),
+                che_do=che_do,
+            )
+            return json.dumps(kq, ensure_ascii=False)
+
+        def _kiem_chung_trich_dan_phap_ly(
+            cau_tra_loi: str,
+            nguon_json: str = "[]",
+            ngay_tra_cuu: str = "",
+            cau_hoi: str = "",
+        ) -> str:
+            from vietnamese_ai.rag.legal.citation_verifier import BoKiemChungTrichDanPhapLy
+
+            nguon = json.loads(nguon_json) if nguon_json.strip() else []
+            if not isinstance(nguon, list):
+                nguon = []
+            verifier = BoKiemChungTrichDanPhapLy()
+            kq = verifier.kiem_chung(
+                cau_tra_loi=cau_tra_loi,
+                nguon_truy_hoi=nguon,
+                ngay_tra_cuu=ngay_tra_cuu.strip() or None,
+                cau_hoi=cau_hoi.strip() or None,
+            ).to_dict()
+            return json.dumps(kq, ensure_ascii=False)
+
+        for cc in (
+            CongCu(
+                ten="tra_cuu_phap_ly_thoi_gian",
+                mo_ta="Truy hồi đa bước theo mốc thời gian & đồ thị điều khoản kèm kiểm chứng 3 tầng (ViLegal-TemporalRAG).",
+                ham_thuc_thi=_tra_cuu_phap_ly_thoi_gian,
+            ),
+            CongCu(
+                ten="kiem_chung_trich_dan_phap_ly",
+                mo_ta="Kiểm chứng trích dẫn pháp lý 3 tầng (Grounding, Temporal Consistency, Numeric Consistency).",
+                ham_thuc_thi=_kiem_chung_trich_dan_phap_ly,
+            ),
+        ):
             if cc.ten not in self._cong_cu:
                 self.dang_ky_cong_cu(cc)
                 da_them += 1

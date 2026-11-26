@@ -1,3 +1,10 @@
+mod edge_quant;
+
+use edge_quant::{
+    fast_binary_hamming_top_k_bytes, fast_binary_quantize_bytes,
+    fast_binary_rescore_sq8_top_k_bytes, fast_bitnet_158_matmul_bytes,
+    fast_bitnet_158_pack_bytes, fast_sq8_quantize_bytes, fast_sq8_top_k_bytes, RustHNSWIndex,
+};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use rayon::prelude::*;
@@ -99,12 +106,36 @@ fn fast_top_k_cosine_bytes(
         let mut res: Vec<(usize, f32)> = (0..n_docs)
             .into_par_iter()
             .map(|doc_idx| {
-                let base = doc_idx * dim;
-                let mut dot = 0.0f32;
-                let mut v_norm_sq = 0.0f32;
-                for j in 0..dim {
-                    let v = read_f32_le(matrix_f32_le, base + j);
-                    dot += query[j] * v;
+                let row_bytes = &matrix_f32_le[doc_idx * dim * 4..(doc_idx + 1) * dim * 4];
+                let mut d0 = 0.0f32;
+                let mut d1 = 0.0f32;
+                let mut d2 = 0.0f32;
+                let mut d3 = 0.0f32;
+                let mut n0 = 0.0f32;
+                let mut n1 = 0.0f32;
+                let mut n2 = 0.0f32;
+                let mut n3 = 0.0f32;
+                let mut chunks_b = row_bytes.chunks_exact(16);
+                let mut chunks_q = query.chunks_exact(4);
+                for (cb, cq) in chunks_b.by_ref().zip(chunks_q.by_ref()) {
+                    let v0 = f32::from_le_bytes([cb[0], cb[1], cb[2], cb[3]]);
+                    let v1 = f32::from_le_bytes([cb[4], cb[5], cb[6], cb[7]]);
+                    let v2 = f32::from_le_bytes([cb[8], cb[9], cb[10], cb[11]]);
+                    let v3 = f32::from_le_bytes([cb[12], cb[13], cb[14], cb[15]]);
+                    d0 += cq[0] * v0;
+                    d1 += cq[1] * v1;
+                    d2 += cq[2] * v2;
+                    d3 += cq[3] * v3;
+                    n0 += v0 * v0;
+                    n1 += v1 * v1;
+                    n2 += v2 * v2;
+                    n3 += v3 * v3;
+                }
+                let mut dot = (d0 + d1) + (d2 + d3);
+                let mut v_norm_sq = (n0 + n1) + (n2 + n3);
+                for (cb, &qv) in chunks_b.remainder().chunks_exact(4).zip(chunks_q.remainder()) {
+                    let v = f32::from_le_bytes([cb[0], cb[1], cb[2], cb[3]]);
+                    dot += qv * v;
                     v_norm_sq += v * v;
                 }
                 let v_norm = v_norm_sq.sqrt().max(1e-9);
@@ -1630,6 +1661,14 @@ fn vietnamese_ai_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fast_rmsnorm_f32_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(fast_swiglu_f32_bytes, m)?)?;
     m.add_function(wrap_pyfunction!(fast_rfc5114_modpow, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_sq8_quantize_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_sq8_top_k_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_binary_quantize_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_binary_hamming_top_k_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_binary_rescore_sq8_top_k_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_bitnet_158_pack_bytes, m)?)?;
+    m.add_function(wrap_pyfunction!(fast_bitnet_158_matmul_bytes, m)?)?;
     m.add_class::<RustViTokenizer>()?;
+    m.add_class::<RustHNSWIndex>()?;
     Ok(())
 }

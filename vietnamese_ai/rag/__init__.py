@@ -49,6 +49,9 @@ __all__ = [
     "LegalCitationGraph",
     "BoSoSanhRaSoatHopDong",
     "ContractReviewEngine",
+    "ChiMucVectorLuongTu",
+    "QuantizedVectorIndex",
+    "co_rust_luong_tu",
 ]
 
 __getattr__ = tao_lazy_getattr(
@@ -121,6 +124,9 @@ __getattr__ = tao_lazy_getattr(
         "LegalCitationGraph": ("vietnamese_ai.rag.legal.citation_graph", "LegalCitationGraph"),
         "BoSoSanhRaSoatHopDong": ("vietnamese_ai.rag.legal.contract_review", "BoSoSanhRaSoatHopDong"),
         "ContractReviewEngine": ("vietnamese_ai.rag.legal.contract_review", "ContractReviewEngine"),
+        "ChiMucVectorLuongTu": ("vietnamese_ai.rag.quantized_index", "ChiMucVectorLuongTu"),
+        "QuantizedVectorIndex": ("vietnamese_ai.rag.quantized_index", "QuantizedVectorIndex"),
+        "co_rust_luong_tu": ("vietnamese_ai.rag.quantized_index", "co_rust_luong_tu"),
     },
     globals(),
 )

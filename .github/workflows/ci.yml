@@ -90,8 +90,9 @@ jobs:
 
       - name: Verify Rust Core native parity & red-team suite
         run: |
-          python -c "from vietnamese_ai.nlp.native_tokenizer import co_ho_tro_rust; assert co_ho_tro_rust(), 'Rust Core not loaded'"
+          python -c "from vietnamese_ai.nlp.native_tokenizer import co_ho_tro_rust; from vietnamese_ai.rag.quantized_index import co_rust_luong_tu; from vietnamese_ai.compression.extreme import co_rust_bitnet; assert co_ho_tro_rust() and co_rust_luong_tu() and co_rust_bitnet(), 'Rust Core not loaded'"
           pytest tests/test_rust_acceleration.py \
+            tests/test_edge_systems_rust_quantized_and_bitnet.py \
             tests/test_direction_b_deep_architecture.py \
             tests/test_direction_c1_c3_benchmark_and_redteam.py \
             -v --tb=short

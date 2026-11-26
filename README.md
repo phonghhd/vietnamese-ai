@@ -19,19 +19,30 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-31.0.4-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-31.1.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%20--%203.14-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-1314%20passed-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-1338%2B%20passed-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/mypy-0%20errors-brightgreen.svg" alt="mypy">
   <img src="https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg" alt="ruff">
-  <img src="https://img.shields.io/badge/public%20APIs-316-indigo.svg" alt="apis">
+  <img src="https://img.shields.io/badge/public%20APIs-349-indigo.svg" alt="apis">
   <img src="https://img.shields.io/badge/language-Vietnamese-red.svg" alt="language">
 </p>
 
 ---
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
-## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.0.4 — Deep Architecture & Vertical Moat Release)
+## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.1.0 — Temporal & Graph-Grounded Legal RAG + ViLegal-TempBench)
+
+- **ViLegal-TemporalRAG & Bộ Chuẩn Học Thuật Mở `ViLegal-TempBench` (v31.1.0 — Applied Research → Production)**:
+  - **Truy hồi Đa bước Có Điều kiện Thời gian**: `BoPhanTichThoiGianPhapLy` (*Statute-Bounded Temporal Disambiguation*, **100% TQPA** trên 64 câu) + Đồ thị cấp Điều/Khoản `DoThiThamChieuPhapLy` (60 điều khoản đa phiên bản + 38 cạnh thời gian + 100 điều khoản nền) + `BoTruyHoiPhapLyThoiGian` (5 tầng Ablation chạy trên CPU ~56 ms/truy vấn, đạt **R@3 = 1.000**, **MRR@10 = 0.967**, **TVA = 1.000**, **TCA = 12/12**, **Multi-Hop@3 = 1.000**, **Abstention F1 = 1.000**).
+  - **Kiểm chứng Trích dẫn Tất định 3 Tầng**: `BoKiemChungTrichDanPhapLy` kiểm tra *Citation Grounding*, *Temporal Consistency* và *Numeric/Deadline Consistency* cho cả câu trả lời cục bộ lẫn LLM thật (**Google Gemini API**, OpenAI-compatible, Ollama không cần SDK phụ qua `tao_ham_sinh_llm`).
+  - **Đồng bộ 5 Bề mặt & Tái lập 1 Lệnh**: CLI (`vai legal-ask`, `vai benchmark --suite legal-temporal --latex`), REST API (`/v1/legal/temporal-ask`, `/v1/legal/verify-citation`), MCP (`--temporal-legal-tools`), Web Studio UI (bộ chọn mốc ngày + kiểm chứng 3 tầng) và chuẩn trích dẫn [CITATION.cff](CITATION.cff). Xem [Báo cáo Kỹ thuật ViLegal-TemporalRAG](docs/guides/vilegal-temporal-rag.md).
+- **ViEdge-RustEngine & `ViEdge-SysBench` (Zero-GPU Systems for AI — Rust SIMD + HNSW + BitNet 1.58-bit 2-bit)**:
+  - **Truy hồi Vector Lượng tử hóa & Native Rust HNSW-SQ8**: `ChiMucVectorLuongTu` (`SQ8 4× RAM` SSE4.1/AVX2, `Binary 1-bit POPCNT 32× RAM`, `Binary+SQ8 Rescore`, `RustHNSWIndex` lưu thẳng trong tệp `.vaidb`). Trên CPU văn phòng 6W Celeron N3050 (`20,000 × 384`), **HNSW-SQ8** đạt **p50 = `0.311 ms`** (**117× nhanh hơn FP32 NumPy**), **2,027.6 QPS lô**, **Recall@10 = 0.9688** và giảm **75% RAM vector**.
+  - **BitNet 1.58-bit Đóng Gói 2-bit T-MAC LUT (`16× RAM`)**: `dong_goi_bitnet_158` / `nhan_ma_tran_bitnet_158` / `BitLinear.suy_luan_2bit()` dùng bảng tra 4-bit Nibble LUT không phép nhân, không nhánh rẽ (nhanh hơn **9.96×** bản NumPy ở `2048×2048`, **nhanh hơn 1.85× FP32 OpenBLAS** ở `512×512`, sai số $\le 2 \times 10^{-6}$). Chuỗi tiếng Việt Zero-GPU đầu-cuối chỉ **`4.55 ms`**. Tái lập qua `vai benchmark --suite edge-systems --latex`. Xem [Báo cáo ViEdge-RustEngine](docs/guides/viedge-rust-systems.md).
+- **ViAlign-SafeLoop & `ViAlign-SafeBench` (Eval-Gated Continual Alignment Chống Hồi Quy)**:
+  - **Lọc nhiễu cặp ưu tiên 6 tín hiệu & Studio DPO**: `BoLocNhieuCapUuTien` chặn độc tố jailbreak, PII leak, luật hết hiệu lực, cặp mâu thuẫn & đảo nhãn (tích hợp thẳng vào `vai export-dpo --filter-noise` và `QuanLyPhienChatWorkspace.xuat_tap_du_lieu_dpo(loc_nhieu=True)`).
+  - **Vòng lặp tự cải thiện có Auto-Rollback nguyên tử**: `VongLapCanChinhAnToan` kết hợp `BoDemOnTapNeo` + cDPO có trọng số/KL anchor + cổng kiểm định 4 trục `CongKiemDinhMoHinh`. Trên 5 vòng `ViAlign-SafeBench` (55.7% nhiễu/đầu độc gồm jailbreak R3 & ngụy tạo số học R5), đạt thứ bậc đối chứng đơn điệu **Naive DPO `0.6688` (An toàn `0.0000`) → Filtered `0.9833` → +Replay+cDPO `0.9917` → ViAlign-SafeLoop `1.0000`** (`0` hồi quy ngầm, Paired Bootstrap `+0.2250`, $p=0.0000$). Tái lập qua `vai benchmark --suite align-safety --latex`. Xem [Báo cáo ViAlign-SafeLoop](docs/guides/vialign-safeloop.md).
 
 - **Bàn Làm Việc AI Tiếng Việt Thực Chiến (9 Trụ Cột Đã Liên Kết Khép Kín)**:
   - **1. Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Luật (`vai rag --db`, `vai legal-graph`)**: `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 tiếng Việt có dấu/không dấu + Float32 Vector + đồng bộ thư mục tăng dần SHA-256 `dong_bo_thu_muc`), `RAGPipeline.luu/tai("*.vaidb")`, `BoNhungONNXTiengViet` (`onnx_viet` hiểu đồng nghĩa đời thường) và `DoThiThamChieuPhapLy` truy vết Luật ↔ Nghị định ↔ Thông tư kèm sơ đồ Mermaid.

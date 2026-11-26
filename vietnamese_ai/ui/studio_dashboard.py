@@ -204,6 +204,10 @@ class StudioDashboardHandler(BaseHTTPRequestHandler):
                 self._tra_ve_json(self.server_dashboard.kiem_tra_hieu_luc_phap_ly(data))
             elif path == "/api/legal/clause-version":
                 self._tra_ve_json(self.server_dashboard.tra_cuu_dieu_khoan_studio(data))
+            elif path == "/api/legal/temporal-ask":
+                self._tra_ve_json(self.server_dashboard.hoi_phap_ly_thoi_gian_studio(data))
+            elif path == "/api/legal/verify-citation":
+                self._tra_ve_json(self.server_dashboard.kiem_chung_trich_dan_studio(data))
             elif path == "/api/legal/citation-graph":
                 self._tra_ve_json(self.server_dashboard.truy_van_do_thi_tham_chieu(data))
             elif path == "/api/legal/contract-review":
@@ -340,7 +344,7 @@ class StudioDashboard:
             <div class="logo-badge">V</div>
             <div class="title">
                 <h1>Vietnamese AI Web Studio</h1>
-                <p>Nền tảng Trực quan Toàn năng (Version 31.0.4)</p>
+                <p>Nền tảng Trực quan Toàn năng (Version 31.1.0)</p>
             </div>
         </div>
         <div class="status-pill">Hệ thống Sẵn sàng (Micro-Core Active)</div>
@@ -503,6 +507,30 @@ class StudioDashboard:
                 <button class="btn" onclick="runStudioTokenize()">🔤 Chuẩn hóa Dấu & Tách Từ</button>
                 <div class="result-box" id="nlp-tok-result">Kết quả chuẩn hóa FST và tách từ...</div>
             </div>
+
+            <div class="section-box">
+                <h2>6. Hỏi đáp Pháp lý Theo Mốc Thời Gian &amp; Kiểm chứng 3 Tầng (ViLegal-TemporalRAG)</h2>
+                <label>Câu hỏi pháp lý tiếng Việt (tự bóc tách mốc ngày nếu để trống ô Chọn ngày):</label>
+                <input type="text" id="temporal-ask-query" value="Vào tháng 8/2025, người bán có được phép hủy hóa đơn điện tử đã cấp mã bị sai sót không?">
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.75rem; margin-top:0.5rem;">
+                    <div>
+                        <label>Mốc ngày tra cứu (tùy chọn):</label>
+                        <input type="date" id="temporal-ask-date">
+                    </div>
+                    <div>
+                        <label>Chế độ truy hồi:</label>
+                        <select id="temporal-ask-mode">
+                            <option value="full">Full ViLegal-TemporalRAG (Khuyên dùng)</option>
+                            <option value="temporal_graph">Temporal + Clause Graph Multi-Hop</option>
+                            <option value="temporal">Hybrid + Point-in-Time Temporal</option>
+                            <option value="hybrid">Hybrid (BM25 + Dense RRF)</option>
+                            <option value="bm25">BM25-only</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" onclick="queryTemporalLegalRAG()">⚖️ Truy hồi Thời gian-Đồ thị &amp; Kiểm chứng 3 Tầng</button>
+                <div class="result-box" id="temporal-ask-result">Câu trả lời, đường dẫn đồ thị đa bước và báo cáo kiểm chứng 3 tầng...</div>
+            </div>
         </div>
 
         <!-- TAB 4: TRAINING MONITOR -->
@@ -650,7 +678,7 @@ Có giá trị đến: 15/08/2035</textarea>
     </div>
 
     <footer>
-        Vietnamese AI Framework v31.0.4 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
+        Vietnamese AI Framework v31.1.0 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
     </footer>
 
     <script>
@@ -790,6 +818,20 @@ Có giá trị đến: 15/08/2035</textarea>
             const pp = document.getElementById('nlp-tok-method').value;
             const res = await fetchAPI('nlp/tokenize', { van_ban: vb, phuong_phap: pp, chuan_hoa_dau: true, noi_tu_ghep: true });
             document.getElementById('nlp-tok-result').innerText = JSON.stringify(res, null, 2);
+        }
+
+        async function queryTemporalLegalRAG() {
+            const q = document.getElementById('temporal-ask-query').value.trim();
+            const d = document.getElementById('temporal-ask-date').value.trim();
+            const mode = document.getElementById('temporal-ask-mode').value;
+            document.getElementById('temporal-ask-result').innerText = 'Đang truy hồi ViLegal-TemporalRAG & kiểm chứng 3 tầng...';
+            const res = await fetchAPI('legal/temporal-ask', {
+                cau_hoi: q,
+                ngay_tra_cuu: d || null,
+                che_do: mode,
+                top_k: 5
+            });
+            document.getElementById('temporal-ask-result').innerText = JSON.stringify(res, null, 2);
         }
 
         async function runStudioEvalGate(soSanhBanGoc) {
@@ -1010,6 +1052,7 @@ Có giá trị đến: 15/08/2035</textarea>
         self.cskh = TongDaiCSKH()
         self.telemetry = BoThuThapTelemetryAPI(ten_dich_vu="vietnamese-ai-studio")
         self._bo_so_sanh_hd: Optional[Any] = None
+        self._dong_co_phap_ly_thoi_gian: Optional[Any] = None
         self._quan_ly_workspace: Optional[Any] = None
 
     @property
@@ -1042,7 +1085,7 @@ Có giá trị đến: 15/08/2035</textarea>
         chan_doan = QuanLyPhuThuoc.chan_doan_he_thong()
         import vietnamese_ai
 
-        ver = getattr(vietnamese_ai, "__version__", "31.0.4")
+        ver = getattr(vietnamese_ai, "__version__", "31.1.0")
         so_bieu_tuong = len(getattr(vietnamese_ai, "__all__", []))
         return {
             "trang_thai": "ONLINE",
@@ -1390,6 +1433,46 @@ Có giá trị đến: 15/08/2035</textarea>
             ngay_tra_cuu=ngay,
             khoan=khoan,
         )
+        return {"thanh_cong": True, **kq}
+
+    def hoi_phap_ly_thoi_gian_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Chạy ViLegal-TemporalRAG (truy hồi theo mốc thời gian + đồ thị đa bước + kiểm chứng 3 tầng) cho Studio."""
+        from vietnamese_ai.rag.legal.temporal_rag import tao_dong_co_phap_ly_thoi_gian_mac_dinh
+
+        cau_hoi = str(data.get("cau_hoi") or data.get("question") or "").strip()
+        if not cau_hoi:
+            return {"thanh_cong": False, "loi": "Thiếu tham số 'cau_hoi'."}
+        if self._dong_co_phap_ly_thoi_gian is None:
+            self._dong_co_phap_ly_thoi_gian = tao_dong_co_phap_ly_thoi_gian_mac_dinh()
+        ngay_raw = data.get("ngay_tra_cuu")
+        ngay = str(ngay_raw).strip() if ngay_raw else None
+        che_do = str(data.get("che_do") or "full").strip()
+        top_k = max(1, min(20, int(data.get("top_k", 5) or 5)))
+        kq = self._dong_co_phap_ly_thoi_gian.tra_loi_phap_ly(
+            cau_hoi=cau_hoi,
+            ngay_tra_cuu=ngay,
+            top_k=top_k,
+            che_do=che_do,
+        )
+        return {"thanh_cong": True, **kq}
+
+    def kiem_chung_trich_dan_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Kiểm chứng trích dẫn pháp lý 3 tầng (nguồn, hiệu lực thời gian, số liệu) cho Studio."""
+        from vietnamese_ai.rag.legal.citation_verifier import BoKiemChungTrichDanPhapLy
+
+        cau_tra_loi = str(data.get("cau_tra_loi") or "").strip()
+        if not cau_tra_loi:
+            return {"thanh_cong": False, "loi": "Thiếu tham số 'cau_tra_loi'."}
+        nguon = data.get("nguon_truy_hoi") or []
+        if not isinstance(nguon, list):
+            nguon = []
+        verifier = BoKiemChungTrichDanPhapLy()
+        kq = verifier.kiem_chung(
+            cau_tra_loi=cau_tra_loi,
+            nguon_truy_hoi=nguon,
+            ngay_tra_cuu=str(data["ngay_tra_cuu"]).strip() if data.get("ngay_tra_cuu") else None,
+            cau_hoi=str(data["cau_hoi"]).strip() if data.get("cau_hoi") else None,
+        ).to_dict()
         return {"thanh_cong": True, **kq}
 
     def tach_tu_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:

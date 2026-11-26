@@ -55,12 +55,15 @@ class DPOTrainer:
         seed: int = 42,
         che_do: str = "dpo",
         gamma_simpo: float = 0.5,
+        he_so_neo_kl: float = 0.0,
     ):
         if beta <= 0:
             raise ValueError(f"beta phải > 0, nhận: {beta}")
         che_do_norm = str(che_do or "dpo").strip().lower()
         if che_do_norm not in ("dpo", "simpo"):
             raise ValueError(f"che_do phải là 'dpo' hoặc 'simpo', nhận: {che_do}")
+        if he_so_neo_kl < 0:
+            raise ValueError(f"he_so_neo_kl phải >= 0, nhận: {he_so_neo_kl}")
 
         self.so_vong = so_vong
         self.kich_thuoc_batch = kich_thuoc_batch
@@ -74,6 +77,7 @@ class DPOTrainer:
         self.seed = seed
         self.che_do = che_do_norm
         self.gamma_simpo = float(gamma_simpo)
+        self.he_so_neo_kl = float(he_so_neo_kl)
         self.logger = Logger("DPOTrainer")
 
         self._history: Dict[str, List[float]] = {
@@ -88,7 +92,7 @@ class DPOTrainer:
         self,
         model: Any,
         ref_model: Optional[Any],
-        preference_data: List[Dict[str, str]],
+        preference_data: List[Dict[str, Any]],
         tokenizer: Any = None,
         callback: Optional[Callable] = None,
     ) -> Dict[str, Any]:
@@ -167,11 +171,22 @@ class DPOTrainer:
                 prompt = mau.get("prompt", "")
                 chosen = mau.get("chosen", "")
                 rejected = mau.get("rejected", "")
+                trong_so = float(np.clip(float(mau.get("trong_so", 1.0)), 0.0, 2.0))
+                if trong_so <= 0.0:
+                    continue
 
                 try:
                     loss, chosen_reward, rejected_reward = self._tinh_dpo_loss(
                         model, ref_model, prompt, chosen, rejected, device, tokenizer=tokenizer
                     )
+                    if trong_so != 1.0:
+                        loss = loss * trong_so
+                    if self.he_so_neo_kl > 0.0 and ref_model is not None and isinstance(ref_model, nn.Module):
+                        anchor_reg = torch.tensor(0.0, device=device)
+                        for p_cur, p_ref in zip(model.parameters(), ref_model.parameters()):
+                            if p_cur.requires_grad and p_cur.shape == p_ref.shape:
+                                anchor_reg = anchor_reg + torch.mean((p_cur - p_ref.detach()) ** 2)
+                        loss = loss + 0.5 * self.he_so_neo_kl * anchor_reg
 
                     loss = loss / self.gradient_accumulation
                     loss.backward()
@@ -381,6 +396,7 @@ class DPOTrainer:
         dim = 256
         dung_simpo = self.che_do == "simpo" or ref_model is None
         w_policy = getattr(model, "_dpo_weights", np.zeros(dim, dtype=np.float64)).copy()
+        w_anchor = w_policy.copy()
         w_ref = (
             np.zeros(dim, dtype=np.float64)
             if dung_simpo
@@ -400,6 +416,10 @@ class DPOTrainer:
                 prompt = mau.get("prompt", "")
                 chosen = mau.get("chosen", "")
                 rejected = mau.get("rejected", "")
+                trong_so = float(np.clip(float(mau.get("trong_so", 1.0)), 0.0, 2.0))
+                if trong_so <= 0.0:
+                    continue
+                sample_ls = float(np.clip(float(mau.get("label_smoothing", self.label_smoothing)), 0.0, 0.45))
 
                 phi_w = self._trich_xuat_dac_trung_dpo(f"{prompt} {chosen}", dim)
                 phi_l = self._trich_xuat_dac_trung_dpo(f"{prompt} {rejected}", dim)
@@ -428,17 +448,22 @@ class DPOTrainer:
                 sig_u = 1.0 / (1.0 + np.exp(-np.clip(u, -30.0, 30.0)))
                 sig_neg_u = 1.0 - sig_u
 
-                if self.label_smoothing > 0:
+                if sample_ls > 0:
                     loss = float(
-                        -(1.0 - self.label_smoothing) * np.log(sig_u + 1e-12)
-                        - self.label_smoothing * np.log(sig_neg_u + 1e-12)
+                        trong_so
+                        * (
+                            -(1.0 - sample_ls) * np.log(sig_u + 1e-12)
+                            - sample_ls * np.log(sig_neg_u + 1e-12)
+                        )
                     )
-                    d_u = -((1.0 - self.label_smoothing) * (1.0 - sig_u) - self.label_smoothing * sig_u)
+                    d_u = -trong_so * ((1.0 - sample_ls) * (1.0 - sig_u) - sample_ls * sig_u)
                 else:
-                    loss = float(-np.log(sig_u + 1e-12))
-                    d_u = -(1.0 - sig_u)
+                    loss = float(trong_so * (-np.log(sig_u + 1e-12)))
+                    d_u = -trong_so * (1.0 - sig_u)
 
                 grad_w = d_u * self.beta * grad_phi
+                if self.he_so_neo_kl > 0.0:
+                    grad_w = grad_w + self.he_so_neo_kl * (w_policy - w_anchor)
                 grad_norm = np.linalg.norm(grad_w)
                 if self.gradient_clip > 0 and grad_norm > self.gradient_clip:
                     grad_w = grad_w * (self.gradient_clip / (grad_norm + 1e-8))

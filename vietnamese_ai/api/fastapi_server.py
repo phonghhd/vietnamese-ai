@@ -168,6 +168,20 @@ class LegalClauseVersionRequest(BaseModel):
     khoan: Optional[str] = None
 
 
+class LegalTemporalAskRequest(BaseModel):
+    cau_hoi: str
+    ngay_tra_cuu: Optional[str] = None
+    che_do: str = "full"
+    top_k: int = 5
+
+
+class LegalVerifyCitationRequest(BaseModel):
+    cau_tra_loi: str
+    nguon_truy_hoi: List[Dict[str, Any]] = []
+    ngay_tra_cuu: Optional[str] = None
+    cau_hoi: Optional[str] = None
+
+
 class ContractReviewRequest(BaseModel):
     hop_dong_doi_tac: str
     hop_dong_chuan: Optional[str] = None
@@ -775,6 +789,37 @@ class FastAPIServer:
                 ngay_tra_cuu=req.ngay_tra_cuu,
                 khoan=req.khoan,
             )
+
+        @self.app.post("/v1/legal/temporal-ask")
+        async def legal_temporal_ask(req: LegalTemporalAskRequest):
+            """Hỏi đáp pháp lý theo mốc thời gian & đồ thị điều khoản đa bước kèm kiểm chứng trích dẫn 3 tầng."""
+            from vietnamese_ai.rag.legal.temporal_rag import tao_dong_co_phap_ly_thoi_gian_mac_dinh
+
+            engine = getattr(self, "_dong_co_phap_ly_thoi_gian", None)
+            if engine is None:
+                engine = tao_dong_co_phap_ly_thoi_gian_mac_dinh()
+                self._dong_co_phap_ly_thoi_gian = engine
+            return engine.tra_loi_phap_ly(
+                cau_hoi=req.cau_hoi,
+                ngay_tra_cuu=req.ngay_tra_cuu,
+                top_k=max(1, min(20, int(req.top_k))),
+                che_do=req.che_do,
+            )
+
+        @self.app.post("/v1/legal/verify-citation")
+        async def legal_verify_citation(req: LegalVerifyCitationRequest):
+            """Kiểm chứng trích dẫn pháp lý 3 tầng (Grounding, Temporal Consistency, Numeric Consistency)."""
+            from vietnamese_ai.rag.legal.citation_verifier import BoKiemChungTrichDanPhapLy
+
+            verifier = BoKiemChungTrichDanPhapLy(
+                bo_theo_doi=getattr(self.bo_xu_ly, "bo_theo_doi_hieu_luc", None)
+            )
+            return verifier.kiem_chung(
+                cau_tra_loi=req.cau_tra_loi,
+                nguon_truy_hoi=req.nguon_truy_hoi,
+                ngay_tra_cuu=req.ngay_tra_cuu,
+                cau_hoi=req.cau_hoi,
+            ).to_dict()
 
         @self.app.post("/v1/legal/contract-review")
         async def legal_contract_review(req: ContractReviewRequest):

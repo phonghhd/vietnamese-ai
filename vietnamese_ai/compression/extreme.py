@@ -1,11 +1,35 @@
-"""Kiến trúc BitNet b1.58 (Ternary Weights -1, 0, +1) hỗ trợ song song PyTorch và thuần NumPy."""
+"""Kiến trúc BitNet b1.58 (Ternary Weights -1, 0, +1) hỗ trợ song song PyTorch, thuần NumPy và kernel 2-bit Rust."""
 
 import math
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
 
 from vietnamese_ai.compression.cpu_kernel import EvoKernelCPU
+
+
+def _nap_rust_core() -> Any:
+    """Nạp mô-đun Rust native ưu tiên bản hỗ trợ kernel BitNet 1.58-bit 2-bit."""
+    candidates = []
+    try:
+        from vietnamese_ai import vietnamese_ai_rust as _pkg_rust  # type: ignore
+
+        candidates.append(_pkg_rust)
+    except ImportError:
+        pass
+    try:
+        import vietnamese_ai_rust as _top_rust  # type: ignore
+
+        candidates.append(_top_rust)
+    except ImportError:
+        pass
+    for mod in candidates:
+        if hasattr(mod, "fast_bitnet_158_pack_bytes") and hasattr(mod, "fast_bitnet_158_matmul_bytes"):
+            return mod
+    return candidates[0] if candidates else None
+
+
+_rust_core: Any = _nap_rust_core()
 
 try:
     import torch
@@ -15,6 +39,88 @@ try:
     _CO_TORCH = True
 except ImportError:
     _CO_TORCH = False
+
+
+def co_rust_bitnet() -> bool:
+    """Kiểm tra lõi Rust có sẵn kernel đóng gói và nhân ma trận BitNet 1.58-bit 2-bit hay không."""
+    return (
+        _rust_core is not None
+        and hasattr(_rust_core, "fast_bitnet_158_pack_bytes")
+        and hasattr(_rust_core, "fast_bitnet_158_matmul_bytes")
+    )
+
+
+def dong_goi_bitnet_158(weights: np.ndarray, bat_rust: bool = True) -> Tuple[bytes, float]:
+    """Đóng gói ma trận trọng số `(out_features, in_features)` sang 2-bit tam phân theo từng hàng (giảm 16x RAM so với FP32)."""
+    w_arr = np.ascontiguousarray(np.asarray(weights, dtype=np.float32))
+    if w_arr.ndim != 2:
+        raise ValueError(f"Trọng số BitNet phải là ma trận 2 chiều, nhận được shape={w_arr.shape}")
+    out_features, in_features = int(w_arr.shape[0]), int(w_arr.shape[1])
+    if bat_rust and co_rust_bitnet():
+        packed_b, scale = _rust_core.fast_bitnet_158_pack_bytes(
+            w_arr.tobytes(), out_features, in_features
+        )
+        return bytes(packed_b), float(scale)
+
+    scale = max(float(np.mean(np.abs(w_arr))), 1e-5)
+    q_w = np.clip(np.round(w_arr / scale), -1.0, 1.0).astype(np.int8)
+    shifted = (q_w + 1).astype(np.uint8)
+    pad_cols = (-in_features) % 4
+    if pad_cols:
+        shifted = np.pad(shifted, ((0, 0), (0, pad_cols)), constant_values=1)
+    g = shifted.reshape(out_features, -1, 4)
+    packed = (g[:, :, 0] << 6) | (g[:, :, 1] << 4) | (g[:, :, 2] << 2) | g[:, :, 3]
+    return np.ascontiguousarray(packed, dtype=np.uint8).tobytes(), scale
+
+
+def nhan_ma_tran_bitnet_158(
+    x: np.ndarray,
+    packed_w: bytes,
+    in_features: int,
+    out_features: int,
+    scale: float,
+    bat_rust: bool = True,
+) -> np.ndarray:
+    """Thực thi nhân ma trận BitNet 1.58-bit trực tiếp từ trọng số nén 2-bit không dùng phép nhân trọng số."""
+    x_arr = np.asarray(x, dtype=np.float32)
+    orig_shape = x_arr.shape
+    if x_arr.ndim == 1:
+        x_2d = x_arr.reshape(1, -1)
+    else:
+        x_2d = x_arr.reshape(-1, int(orig_shape[-1]))
+    if int(x_2d.shape[1]) != int(in_features):
+        raise ValueError(
+            f"Chiều đầu vào không khớp BitNet ({x_2d.shape[1]} != {in_features})"
+        )
+    x_c = np.ascontiguousarray(x_2d, dtype=np.float32)
+    n_rows = int(x_c.shape[0])
+
+    if bat_rust and co_rust_bitnet():
+        raw_out = _rust_core.fast_bitnet_158_matmul_bytes(
+            x_c.tobytes(),
+            packed_w,
+            n_rows,
+            int(in_features),
+            int(out_features),
+            float(scale),
+        )
+        y_2d = np.frombuffer(bytes(raw_out), dtype=np.float32).reshape(n_rows, int(out_features)).copy()
+    else:
+        packed_cols = (int(in_features) + 3) // 4
+        raw_u8 = np.frombuffer(packed_w, dtype=np.uint8).reshape(int(out_features), packed_cols)
+        unpacked = np.empty((int(out_features), packed_cols * 4), dtype=np.int8)
+        unpacked[:, 0::4] = ((raw_u8 >> 6) & 0x03).astype(np.int8) - 1
+        unpacked[:, 1::4] = ((raw_u8 >> 4) & 0x03).astype(np.int8) - 1
+        unpacked[:, 2::4] = ((raw_u8 >> 2) & 0x03).astype(np.int8) - 1
+        unpacked[:, 3::4] = (raw_u8 & 0x03).astype(np.int8) - 1
+        q_w = unpacked[:, : int(in_features)]
+        pos_mask = (q_w == 1).astype(np.float32).T
+        neg_mask = (q_w == -1).astype(np.float32).T
+        y_2d = ((x_c @ pos_mask) - (x_c @ neg_mask)) * np.float32(scale)
+
+    if len(orig_shape) == 1:
+        return y_2d.reshape(int(out_features))
+    return y_2d.reshape(*orig_shape[:-1], int(out_features))
 
 
 if _CO_TORCH:
@@ -58,16 +164,38 @@ if _CO_TORCH:
 
         def dong_goi_2bit(self) -> bytes:
             """Đóng gói 4 trọng số tam phân `{-1, 0, +1}` vào 1 byte (giảm 16x dung lượng so với FP32)."""
+            packed, _ = self.dong_goi_2bit_kem_ty_le()
+            return packed
+
+        def dong_goi_2bit_kem_ty_le(self, bat_rust: bool = True) -> Tuple[bytes, float]:
+            """Đóng gói ma trận trọng số sang 2-bit theo từng hàng kèm hệ số tỷ lệ absmean."""
             w_np = self.weight.detach().cpu().numpy()
-            scale = max(float(np.mean(np.abs(w_np))), 1e-5)
-            q_w = np.clip(np.round(w_np / scale), -1.0, 1.0).astype(np.int8)
-            shifted = (q_w.ravel() + 1).astype(np.uint8)
-            pad_len = (-len(shifted)) % 4
-            if pad_len:
-                shifted = np.pad(shifted, (0, pad_len), constant_values=1)
-            g = shifted.reshape(-1, 4)
-            packed = (g[:, 0] << 6) | (g[:, 1] << 4) | (g[:, 2] << 2) | g[:, 3]
-            return packed.tobytes()
+            return dong_goi_bitnet_158(w_np, bat_rust=bat_rust)
+
+        def suy_luan_2bit(self, x: Any, bat_rust: bool = True) -> np.ndarray:
+            """Suy luận trực tiếp trên trọng số nén 2-bit (không giải nén toàn bộ ma trận, dùng kernel Rust khi có)."""
+            x_np = x.detach().cpu().numpy() if hasattr(x, "detach") else np.asarray(x, dtype=np.float32)
+            packed, scale = self.dong_goi_2bit_kem_ty_le(bat_rust=bat_rust)
+            out = nhan_ma_tran_bitnet_158(
+                x_np, packed, self.in_features, self.out_features, scale, bat_rust=bat_rust
+            )
+            if self.bias is not None:
+                out = out + self.bias.detach().cpu().numpy().astype(np.float32)
+            return out
+
+        def thong_ke_nen(self) -> Dict[str, Any]:
+            """Thống kê dung lượng nén 2-bit thực tế so với trọng số FP32 gốc."""
+            packed, scale = self.dong_goi_2bit_kem_ty_le()
+            fp32_bytes = int(self.in_features * self.out_features * 4)
+            return {
+                "in_features": int(self.in_features),
+                "out_features": int(self.out_features),
+                "fp32_bytes": fp32_bytes,
+                "packed_2bit_bytes": len(packed),
+                "ti_le_nen": round(fp32_bytes / max(1, len(packed)), 2),
+                "ty_le_absmean": round(scale, 6),
+                "dung_rust": co_rust_bitnet(),
+            }
 
     class RMSNorm(nn.Module):
         """Root Mean Square Normalization chuẩn Llama / BitNet."""
@@ -165,14 +293,41 @@ else:
 
         def dong_goi_2bit(self) -> bytes:
             """Đóng gói 4 trọng số tam phân `{-1, 0, +1}` vào 1 byte (giảm 16x dung lượng so với FP32)."""
-            q_w, _ = self._quantize_weight_1_58_bit(self.weight)
-            shifted = (q_w.ravel() + 1).astype(np.uint8)
-            pad_len = (-len(shifted)) % 4
-            if pad_len:
-                shifted = np.pad(shifted, (0, pad_len), constant_values=1)
-            g = shifted.reshape(-1, 4)
-            packed = (g[:, 0] << 6) | (g[:, 1] << 4) | (g[:, 2] << 2) | g[:, 3]
-            return packed.tobytes()
+            packed, _ = self.dong_goi_2bit_kem_ty_le()
+            return packed
+
+        def dong_goi_2bit_kem_ty_le(self, bat_rust: bool = True) -> Tuple[bytes, float]:
+            """Đóng gói ma trận trọng số sang 2-bit theo từng hàng kèm hệ số tỷ lệ absmean."""
+            return dong_goi_bitnet_158(self.weight, bat_rust=bat_rust)
+
+        def suy_luan_2bit(self, x: Any, bat_rust: bool = True) -> np.ndarray:
+            """Suy luận trực tiếp trên trọng số nén 2-bit (dùng kernel Rust không phép nhân trọng số khi có)."""
+            packed, scale = self.dong_goi_2bit_kem_ty_le(bat_rust=bat_rust)
+            out = nhan_ma_tran_bitnet_158(
+                np.asarray(x, dtype=np.float32),
+                packed,
+                self.in_features,
+                self.out_features,
+                scale,
+                bat_rust=bat_rust,
+            )
+            if self.bias is not None:
+                out = out + self.bias.astype(np.float32)
+            return out
+
+        def thong_ke_nen(self) -> Dict[str, Any]:
+            """Thống kê dung lượng nén 2-bit thực tế so với trọng số FP32 gốc."""
+            packed, scale = self.dong_goi_2bit_kem_ty_le()
+            fp32_bytes = int(self.in_features * self.out_features * 4)
+            return {
+                "in_features": int(self.in_features),
+                "out_features": int(self.out_features),
+                "fp32_bytes": fp32_bytes,
+                "packed_2bit_bytes": len(packed),
+                "ti_le_nen": round(fp32_bytes / max(1, len(packed)), 2),
+                "ty_le_absmean": round(scale, 6),
+                "dung_rust": co_rust_bitnet(),
+            }
 
         def __call__(self, x: Any) -> np.ndarray:
             return self.forward(x)

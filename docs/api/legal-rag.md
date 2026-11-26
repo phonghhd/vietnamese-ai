@@ -195,3 +195,49 @@ class BoSoSanhRaSoatHopDong:
 ```
 
 Hỗ trợ đọc `.docx`/`.pdf`/`.txt`, sinh báo cáo Redline Markdown & `.docx` (OOXML), tích hợp qua CLI `vai contract-review` và Web Studio `POST /api/legal/contract-review`. Alias: `ContractReviewEngine`.
+
+## Temporal & Graph-Grounded Legal RAG (`v31.1.0`)
+
+```python
+class BoPhanTichThoiGianPhapLy:
+    def phan_tich(
+        cau_hoi: str,
+        ngay_mac_dinh: Optional[Union[str, date]] = None,
+    ) -> KetQuaPhanTichThoiGian
+    def trich_xuat_ngay(
+        cau_hoi: str,
+        ngay_mac_dinh: Optional[Union[str, date]] = None,
+    ) -> str
+
+class BoKiemChungTrichDanPhapLy:
+    def kiem_chung(
+        cau_tra_loi: str,
+        nguon_truy_hoi: List[Dict[str, Any]],
+        ngay_tra_cuu: Optional[Union[str, date]] = None,
+        cau_hoi: Optional[str] = None,
+    ) -> KetQuaKiemChungTrichDan
+
+class BoTruyHoiPhapLyThoiGian:
+    def nap_tu_danh_sach(
+        danh_sach_dieu_khoan: Sequence[Dict[str, Any]],
+        danh_sach_canh: Optional[Sequence[Dict[str, Any]]] = None,
+    ) -> int
+    def truy_hoi(
+        cau_hoi: str,
+        ngay_tra_cuu: Optional[Union[str, date]] = None,
+        top_k: int = 5,
+        che_do: str = "full",
+        so_buoc_do_thi: int = 2,
+        ngay_mac_dinh: Optional[Union[str, date]] = None,
+    ) -> Dict[str, Any]
+    def tra_loi_phap_ly(
+        cau_hoi: str,
+        ngay_tra_cuu: Optional[Union[str, date]] = None,
+        top_k: int = 5,
+        che_do: str = "full",
+        ham_sinh_llm: Optional[Callable[[str], str]] = None,
+        ngay_mac_dinh: Optional[Union[str, date]] = None,
+    ) -> Dict[str, Any]
+```
+
+Aliases: `TemporalQueryParser`, `LegalCitationVerifier`, `TemporalGraphLegalRAG`. Tích hợp trực tiếp trên CLI (`vai legal-ask`), REST API (`/v1/legal/temporal-ask`, `/v1/legal/verify-citation`), MCP (`--temporal-legal-tools`) và Web Studio (`/api/legal/temporal-ask`, `/api/legal/verify-citation`).

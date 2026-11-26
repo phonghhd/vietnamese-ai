@@ -1,27 +1,34 @@
 cff-version: 1.2.0
-message: "If you use this software in your research or application, please cite it using the following metadata."
-title: "Vietnamese AI: A Lightweight, Zero-Dependency, and Verifiable Framework for Vietnamese-Centric AI and Distributed Swarm CPU Inference"
-abstract: "Vietnamese AI is a production-grade, zero-dependency artificial intelligence framework tailored for the Vietnamese language and resource-constrained computing environments. It provides native high-speed tokenization, hierarchy-preserving administrative Retrieval-Augmented Generation (RAG), distributed swarm CPU inference with pipeline parallelism, and verifiable inference commitments via Schnorr non-interactive zero-knowledge proofs and Merkle trees."
+title: "Vietnamese AI Framework & ViLegal-TempBench: Temporal and Graph-Grounded Retrieval-Augmented Generation for Vietnamese Statutory Law"
+message: "Nếu bạn sử dụng Vietnamese AI Framework hoặc bộ dữ liệu mở ViLegal-TempBench trong nghiên cứu, bài báo khoa học hoặc sản phẩm, vui lòng trích dẫn như sau."
+type: software
 authors:
   - family-names: "Huynh"
     given-names: "Duong Phong"
     orcid: "https://orcid.org/0009-0002-1458-3406"
+    alias: "phonghhd"
     email: "huynhduongphong9@gmail.com"
-version: "31.0.3"
-doi: "10.5281/zenodo.20357082"
-date-released: "2026-11-24"
-license: "MIT"
-url: "https://github.com/phonghhd/vietnamese-ai"
+    affiliation: "EvoNet AI Team"
 repository-code: "https://github.com/phonghhd/vietnamese-ai"
+url: "https://phonghhd.github.io/vietnamese-ai"
+doi: "10.5281/zenodo.20357082"
+license: "MIT"
+version: "31.1.0"
+date-released: "2026-11-25"
 keywords:
   - "vietnamese-nlp"
-  - "natural-language-processing"
+  - "legal-rag"
+  - "temporal-retrieval"
+  - "citation-verification"
+  - "knowledge-graph"
+  - "benchmark"
   - "zero-dependency"
-  - "distributed-inference"
   - "swarm-cpu"
-  - "pipeline-parallelism"
   - "verifiable-ai"
-  - "zkml"
-  - "schnorr-proofs"
-  - "merkle-tree"
   - "rag"
+abstract: >-
+  Vietnamese AI Framework (v31.1.0) introduces ViLegal-TemporalRAG and the open
+  ViLegal-TempBench benchmark for temporal, clause-level graph-grounded Vietnamese
+  legal retrieval and deterministic three-tier citation verification (Citation
+  Grounding, Temporal Consistency, and Numeric/Deadline Consistency), engineered
+  to run reproducibly on CPU-only hardware with optional real LLM integration.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai-classic-ml"
-version = "31.0.4"
+version = "31.1.0"
 description = "Gói mở rộng Học máy cổ điển tiếng Việt (PhanLoai, HoiQuy, PhanCum, MangNron)"
 license = {text = "MIT"}
 requires-python = ">=3.8"

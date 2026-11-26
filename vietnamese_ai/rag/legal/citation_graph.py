@@ -10,7 +10,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from vietnamese_ai.rag.legal.validity_tracker import (
     BoTheoDoiHieuLucPhapLy,
     HoSoHieuLucVanBan,
+    _chuan_hoa_dieu,
     _chuan_hoa_so_hieu,
+    _phan_tich_ngay,
 )
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
@@ -27,6 +29,45 @@ class QuanHePhapLy:
 
     def to_dict(self) -> Dict[str, Any]:
         """Chuyển cạnh quan hệ pháp lý sang dict thuần JSON."""
+        return asdict(self)
+
+
+@dataclass
+class NutDieuKhoanPhapLy:
+    """Một nút Điều/Khoản có phiên bản thời gian trong Đồ thị Pháp lý cấp Điều khoản."""
+
+    ma_nut: str
+    so_hieu: str
+    dieu: str
+    noi_dung: str
+    ten_van_ban: str = ""
+    khoan: Optional[str] = None
+    tieu_de: str = ""
+    linh_vuc: str = ""
+    hieu_luc_tu: Optional[str] = None
+    het_hieu_luc_tu: Optional[str] = None
+    sua_doi_boi: Optional[str] = None
+    trang_thai: str = "hieu_luc"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Chuyển nút điều khoản pháp lý sang từ điển JSON chuẩn."""
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class QuanHeDieuKhoan:
+    """Một cạnh có hướng gắn khoảng thời gian hiệu lực giữa hai nút Điều/Khoản cụ thể."""
+
+    nguon_nut: str
+    dich_nut: str
+    loai_quan_he: str
+    hieu_luc_tu: Optional[str] = None
+    het_hieu_luc_tu: Optional[str] = None
+    trong_so: float = 1.0
+    mo_ta: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Chuyển cạnh quan hệ điều khoản sang từ điển JSON chuẩn."""
         return asdict(self)
 
 
@@ -216,6 +257,13 @@ class DoThiThamChieuPhapLy:
         self._canh_set: Set[Tuple[str, str, str]] = set()
         self._ra: Dict[str, List[QuanHePhapLy]] = {}
         self._vao: Dict[str, List[QuanHePhapLy]] = {}
+
+        self._nut_dieu_khoan: Dict[str, NutDieuKhoanPhapLy] = {}
+        self._canh_dieu_khoan: List[QuanHeDieuKhoan] = []
+        self._canh_dieu_khoan_set: Set[Tuple[str, str, str]] = set()
+        self._ra_dieu_khoan: Dict[str, List[QuanHeDieuKhoan]] = {}
+        self._vao_dieu_khoan: Dict[str, List[QuanHeDieuKhoan]] = {}
+        self._chi_muc_so_hieu_nut: Dict[str, List[str]] = {}
 
         self._nap_mac_dinh()
 
@@ -513,6 +561,206 @@ class DoThiThamChieuPhapLy:
             lines.append(f'    {_id_mermaid(c.nguon)} -->|"{nhan}"| {_id_mermaid(c.dich)}')
         return "\n".join(lines)
 
+    _TRONG_SO_CANH_DIEU_KHOAN: Dict[str, float] = {
+        "sua_doi_dieu": 1.0,
+        "thay_the_dieu": 1.0,
+        "phien_ban_ke_nhiem": 1.0,
+        "huong_dan_dieu": 0.94,
+        "vien_dan_cheo": 0.85,
+        "bai_bo_dieu": 0.50,
+    }
+
+    def them_nut_dieu_khoan(self, nut: NutDieuKhoanPhapLy) -> None:
+        """Đăng ký một nút Điều/Khoản có khoảng hiệu lực vào đồ thị cấp điều khoản."""
+        sh = _chuan_hoa_so_hieu(nut.so_hieu)
+        dieu_norm = _chuan_hoa_dieu(nut.dieu) if nut.dieu else ""
+        ban_sao = NutDieuKhoanPhapLy(
+            ma_nut=str(nut.ma_nut).strip(),
+            so_hieu=sh,
+            dieu=dieu_norm,
+            noi_dung=nut.noi_dung,
+            ten_van_ban=nut.ten_van_ban,
+            khoan=nut.khoan,
+            tieu_de=nut.tieu_de,
+            linh_vuc=nut.linh_vuc,
+            hieu_luc_tu=nut.hieu_luc_tu,
+            het_hieu_luc_tu=nut.het_hieu_luc_tu,
+            sua_doi_boi=_chuan_hoa_so_hieu(nut.sua_doi_boi) if nut.sua_doi_boi else None,
+            trang_thai=nut.trang_thai,
+        )
+        self._nut_dieu_khoan[ban_sao.ma_nut] = ban_sao
+        ds_sh = self._chi_muc_so_hieu_nut.setdefault(sh, [])
+        if ban_sao.ma_nut not in ds_sh:
+            ds_sh.append(ban_sao.ma_nut)
+
+    def lay_nut_dieu_khoan(self, ma_nut: str) -> Optional[NutDieuKhoanPhapLy]:
+        """Lấy thông tin một nút điều khoản theo mã nút."""
+        return self._nut_dieu_khoan.get(str(ma_nut).strip())
+
+    def them_quan_he_dieu_khoan(self, canh: QuanHeDieuKhoan) -> bool:
+        """Thêm một cạnh có hướng gắn thời gian giữa hai nút Điều/Khoản (chống trùng lặp)."""
+        nguon = str(canh.nguon_nut).strip()
+        dich = str(canh.dich_nut).strip()
+        if not nguon or not dich or nguon == dich:
+            return False
+        khoa = (nguon, dich, canh.loai_quan_he)
+        if khoa in self._canh_dieu_khoan_set:
+            return False
+        canh_chuan = QuanHeDieuKhoan(
+            nguon_nut=nguon,
+            dich_nut=dich,
+            loai_quan_he=canh.loai_quan_he,
+            hieu_luc_tu=canh.hieu_luc_tu,
+            het_hieu_luc_tu=canh.het_hieu_luc_tu,
+            trong_so=float(canh.trong_so),
+            mo_ta=canh.mo_ta,
+        )
+        self._canh_dieu_khoan_set.add(khoa)
+        self._canh_dieu_khoan.append(canh_chuan)
+        self._ra_dieu_khoan.setdefault(nguon, []).append(canh_chuan)
+        self._vao_dieu_khoan.setdefault(dich, []).append(canh_chuan)
+        return True
+
+    def dieu_khoan_con_hieu_luc(
+        self,
+        nut: NutDieuKhoanPhapLy,
+        ngay_tra_cuu: Optional[Union[str, date]] = None,
+    ) -> bool:
+        """Kiểm tra một nút Điều/Khoản có đang còn hiệu lực tại mốc `ngay_tra_cuu` hay không."""
+        moc = _phan_tich_ngay(ngay_tra_cuu)
+        if nut.hieu_luc_tu or nut.het_hieu_luc_tu:
+            tu = _phan_tich_ngay(nut.hieu_luc_tu) if nut.hieu_luc_tu else date(1900, 1, 1)
+            den = _phan_tich_ngay(nut.het_hieu_luc_tu) if nut.het_hieu_luc_tu else None
+            return moc >= tu and (den is None or moc < den)
+        hl_vb = self.bo_theo_doi.kiem_tra_hieu_luc(nut.so_hieu, ngay_tra_cuu=moc)
+        if hl_vb.get("tim_thay"):
+            return bool(hl_vb.get("con_hieu_luc"))
+        return True
+
+    def canh_dieu_khoan_con_hieu_luc(
+        self,
+        canh: QuanHeDieuKhoan,
+        ngay_tra_cuu: Optional[Union[str, date]] = None,
+    ) -> bool:
+        """Kiểm tra một cạnh quan hệ điều khoản có hiệu lực tại mốc `ngay_tra_cuu` hay không."""
+        if not canh.hieu_luc_tu and not canh.het_hieu_luc_tu:
+            return True
+        moc = _phan_tich_ngay(ngay_tra_cuu)
+        tu = _phan_tich_ngay(canh.hieu_luc_tu) if canh.hieu_luc_tu else date(1900, 1, 1)
+        den = _phan_tich_ngay(canh.het_hieu_luc_tu) if canh.het_hieu_luc_tu else None
+        return moc >= tu and (den is None or moc < den)
+
+    def mo_rong_da_buoc_theo_thoi_gian(
+        self,
+        ma_nut_khoi_dau: List[str],
+        ngay_tra_cuu: Optional[Union[str, date]] = None,
+        so_buoc: int = 2,
+        he_so_suy_giam: float = 0.75,
+        chi_lay_con_hieu_luc: bool = True,
+        diem_khoi_dau: Optional[Dict[str, float]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Lan truyền đồ thị điều khoản đa bước có điều kiện thời gian `t` (Time-Conditioned Multi-Hop Traversal)."""
+        moc = _phan_tich_ngay(ngay_tra_cuu)
+        max_hop = max(1, int(so_buoc))
+        diem_tich_luy: Dict[str, float] = {}
+        duong_dan_tot_nhat: Dict[str, List[str]] = {}
+        buoc_ngan_nhat: Dict[str, int] = {}
+        quan_he_den: Dict[str, str] = {}
+
+        tap_hat_giong: Set[str] = set()
+        hang_doi: List[Tuple[str, float, int, List[str]]] = []
+        for idx, ma in enumerate(ma_nut_khoi_dau):
+            key = str(ma).strip()
+            if not key or key not in self._nut_dieu_khoan:
+                continue
+            tap_hat_giong.add(key)
+            diem_ban_dau = (
+                float(diem_khoi_dau[key])
+                if diem_khoi_dau is not None and key in diem_khoi_dau
+                else 1.0 / (1.0 + 0.15 * idx)
+            )
+            hang_doi.append((key, diem_ban_dau, 0, [key]))
+
+        da_lan_truyen: Set[Tuple[str, int]] = set()
+        while hang_doi:
+            nut_hien_tai, diem_ht, hop, path = hang_doi.pop(0)
+            if hop >= max_hop or (nut_hien_tai, hop) in da_lan_truyen:
+                continue
+            da_lan_truyen.add((nut_hien_tai, hop))
+
+            ung_vien_canh: List[Tuple[str, QuanHeDieuKhoan, float]] = []
+            for canh in self._vao_dieu_khoan.get(nut_hien_tai, []):
+                if not self.canh_dieu_khoan_con_hieu_luc(canh, ngay_tra_cuu=moc):
+                    continue
+                if canh.loai_quan_he in (
+                    "huong_dan_dieu",
+                    "sua_doi_dieu",
+                    "thay_the_dieu",
+                    "phien_ban_ke_nhiem",
+                ):
+                    ung_vien_canh.append((canh.nguon_nut, canh, 1.0))
+                elif canh.loai_quan_he == "vien_dan_cheo":
+                    ung_vien_canh.append((canh.nguon_nut, canh, 0.85))
+
+            for canh in self._ra_dieu_khoan.get(nut_hien_tai, []):
+                if not self.canh_dieu_khoan_con_hieu_luc(canh, ngay_tra_cuu=moc):
+                    continue
+                if canh.loai_quan_he in ("vien_dan_cheo", "huong_dan_dieu"):
+                    ung_vien_canh.append((canh.dich_nut, canh, 0.92))
+                elif canh.loai_quan_he in ("sua_doi_dieu", "thay_the_dieu", "phien_ban_ke_nhiem"):
+                    ung_vien_canh.append((canh.dich_nut, canh, 0.70))
+
+            for ke, canh, he_so_huong in ung_vien_canh:
+                if ke in path or ke not in self._nut_dieu_khoan:
+                    continue
+                nut_ke = self._nut_dieu_khoan[ke]
+                con_hl = self.dieu_khoan_con_hieu_luc(nut_ke, ngay_tra_cuu=moc)
+                w_loai = self._TRONG_SO_CANH_DIEU_KHOAN.get(canh.loai_quan_he, 0.75)
+                diem_moi = diem_ht * he_so_suy_giam * w_loai * he_so_huong * max(0.1, float(canh.trong_so))
+                if not con_hl and chi_lay_con_hieu_luc:
+                    if hop + 1 < max_hop:
+                        hang_doi.append((ke, diem_moi * 0.9, hop + 1, path + [ke]))
+                    continue
+                if ke not in tap_hat_giong:
+                    diem_tich_luy[ke] = diem_tich_luy.get(ke, 0.0) + diem_moi
+                    if ke not in buoc_ngan_nhat or (hop + 1) < buoc_ngan_nhat[ke]:
+                        buoc_ngan_nhat[ke] = hop + 1
+                        duong_dan_tot_nhat[ke] = path + [ke]
+                        quan_he_den[ke] = canh.loai_quan_he
+                if hop + 1 < max_hop:
+                    hang_doi.append((ke, diem_moi, hop + 1, path + [ke]))
+
+        ket_qua: List[Dict[str, Any]] = []
+        for ma_nut, diem in diem_tich_luy.items():
+            nut_obj = self._nut_dieu_khoan[ma_nut]
+            con_hl = self.dieu_khoan_con_hieu_luc(nut_obj, ngay_tra_cuu=moc)
+            if chi_lay_con_hieu_luc and not con_hl:
+                continue
+            ket_qua.append(
+                {
+                    "ma_nut": ma_nut,
+                    "diem_do_thi": round(float(diem), 6),
+                    "so_buoc": buoc_ngan_nhat.get(ma_nut, 1),
+                    "duong_dan": duong_dan_tot_nhat.get(ma_nut, [ma_nut]),
+                    "loai_quan_he": quan_he_den.get(ma_nut, "lien_quan"),
+                    "con_hieu_luc": con_hl,
+                    "nut": nut_obj.to_dict(),
+                }
+            )
+        ket_qua.sort(key=lambda x: (-float(x["diem_do_thi"]), int(x["so_buoc"]), str(x["ma_nut"])))
+        return ket_qua
+
+    def thong_ke_dieu_khoan(self) -> Dict[str, Any]:
+        """Trả về thống kê tổng số nút và cạnh trong đồ thị cấp Điều/Khoản."""
+        dem_loai: Dict[str, int] = {}
+        for c in self._canh_dieu_khoan:
+            dem_loai[c.loai_quan_he] = dem_loai.get(c.loai_quan_he, 0) + 1
+        return {
+            "so_nut_dieu_khoan": len(self._nut_dieu_khoan),
+            "tong_canh_dieu_khoan": len(self._canh_dieu_khoan),
+            "phan_loai_canh_dieu_khoan": dem_loai,
+        }
+
     def thong_ke(self) -> Dict[str, Any]:
         """Trả về thống kê tổng số văn bản và quan hệ trong đồ thị tham chiếu pháp lý."""
         tap_nut: Set[str] = set(self._ra.keys()) | set(self._vao.keys())
@@ -523,15 +771,23 @@ class DoThiThamChieuPhapLy:
             "so_van_ban_trong_do_thi": len(tap_nut),
             "tong_quan_he": len(self._canh),
             "phan_loai_quan_he": dem_loai,
+            "so_nut_dieu_khoan": len(self._nut_dieu_khoan),
+            "tong_canh_dieu_khoan": len(self._canh_dieu_khoan),
         }
 
 
 LegalRelationEdge = QuanHePhapLy
+LegalClauseNode = NutDieuKhoanPhapLy
+LegalClauseEdge = QuanHeDieuKhoan
 LegalCitationGraph = DoThiThamChieuPhapLy
 
 __all__ = [
     "QuanHePhapLy",
     "LegalRelationEdge",
+    "NutDieuKhoanPhapLy",
+    "LegalClauseNode",
+    "QuanHeDieuKhoan",
+    "LegalClauseEdge",
     "VAN_BAN_HUONG_DAN_MAC_DINH",
     "QUAN_HE_PHAP_LY_MAC_DINH",
     "DoThiThamChieuPhapLy",

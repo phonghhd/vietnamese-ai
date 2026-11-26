@@ -25,13 +25,46 @@ python benchmarks/run_benchmarks.py \
   --seed 42 \
   --output results/deep_benchmark.json \
   --markdown results/deep_benchmark.md
+
+# Chạy thí nghiệm đối chứng chuẩn học thuật ViLegal-TempBench (5 cấu hình Ablation + Paired Bootstrap + LaTeX)
+python benchmarks/run_benchmarks.py \
+  --suite legal-temporal \
+  --seed 42 \
+  --output results/vilegal_tempbench.json \
+  --markdown results/vilegal_tempbench.md
+
+# Hoặc xuất trực tiếp bảng LaTeX booktabs cho bài báo khoa học
+vai benchmark --suite legal-temporal --latex --output results/vilegal_tempbench.tex
+
+# Chạy bộ đo hệ thống Zero-GPU Edge AI & Rust Quantized Retrieval (ViEdge-SysBench)
+python benchmarks/run_benchmarks.py \
+  --suite edge-systems \
+  --scale 20000 \
+  --dim 384 \
+  --seed 42 \
+  --output results/viedge_sysbench.json \
+  --markdown results/viedge_sysbench.md
+
+# Xuất bảng LaTeX booktabs cho bài báo MLSys / Efficient NLP
+vai benchmark --suite edge-systems --scale 20000 --dim 384 --latex --output results/viedge_sysbench.tex
+
+# Chạy thực nghiệm đối chứng đa vòng ViAlign-SafeBench (Eval-Gated Continual Alignment)
+python benchmarks/run_benchmarks.py \
+  --suite align-safety \
+  --rounds 5 \
+  --seed 42 \
+  --output results/vialign_safebench.json \
+  --markdown results/vialign_safebench.md
+
+# Xuất bảng LaTeX booktabs cho bài báo Alignment / Safety
+vai benchmark --suite align-safety --rounds 5 --latex --output results/vialign_safebench.tex
 ```
 
 ## 2. Tái lập trong Docker Container cô lập
 
 ```bash
-docker build -f benchmarks/Dockerfile.benchmark -t vietnamese-ai-bench:31.0.4 .
-docker run --rm -v "$(pwd)/results:/results" vietnamese-ai-bench:31.0.4
+docker build -f benchmarks/Dockerfile.benchmark -t vietnamese-ai-bench:31.1.0 .
+docker run --rm -v "$(pwd)/results:/results" vietnamese-ai-bench:31.1.0
 ```
 
 Báo cáo JSON và Markdown kèm đầy đủ thông tin phần cứng (`x86_64`/`arm64`, số lõi, SIMD, Python, `seed`) sẽ được ghi vào `results/benchmark.json` và `results/benchmark.md`.

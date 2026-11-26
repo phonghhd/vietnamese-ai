@@ -122,6 +122,9 @@ class KhoTriThucVAIDB:
         self._hnsw_ef_search: int = 48
         self._hnsw_dirty: bool = True
 
+        self._quant_index: Optional[Any] = None
+        self._quant_dirty: bool = True
+
         self._khoi_tao_luoc_do()
         self._nap_bo_nho_dem_vector()
 
@@ -185,6 +188,14 @@ class KhoTriThucVAIDB:
                     tang INTEGER NOT NULL,
                     hang_xom_json TEXT NOT NULL,
                     PRIMARY KEY (nut_idx, tang)
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS vai_quant_index (
+                    khoa TEXT PRIMARY KEY,
+                    gia_tri BLOB NOT NULL
                 )
                 """
             )
@@ -266,6 +277,7 @@ class KhoTriThucVAIDB:
             self._vector_norms = np.asarray(norms, dtype=np.float32)
             self._vectors_normed = None
             self._nap_hnsw_sql()
+            self._nap_chi_muc_luong_tu_sql()
 
     def _cap_nhat_kich_thuoc_meta(self, kich_thuoc_moi: int) -> None:
         """Đồng bộ kích thước vector mới vào bảng `vai_meta` khi kho còn trống."""
@@ -345,6 +357,7 @@ class KhoTriThucVAIDB:
                 self._metadata[idx] = meta
                 self._ivf_dirty = True
                 self._hnsw_dirty = True
+                self._quant_dirty = True
                 return
 
             idx = len(self._ids)
@@ -353,6 +366,7 @@ class KhoTriThucVAIDB:
             self._id_to_idx[ma] = idx
             self._ivf_dirty = True
             self._hnsw_dirty = True
+            self._quant_dirty = True
             self._vectors_normed = None
 
             if self._vectors is None:
@@ -520,6 +534,7 @@ class KhoTriThucVAIDB:
             self._conn.execute("DELETE FROM vai_documents")
             self._conn.execute("DELETE FROM vai_hnsw_meta")
             self._conn.execute("DELETE FROM vai_hnsw_nodes")
+            self._conn.execute("DELETE FROM vai_quant_index")
             if self._co_fts5:
                 self._conn.execute("DELETE FROM vai_chunks_fts")
             self._conn.commit()
@@ -535,6 +550,8 @@ class KhoTriThucVAIDB:
             self._hnsw_entry_point = None
             self._hnsw_max_level = -1
             self._hnsw_dirty = True
+            self._quant_index = None
+            self._quant_dirty = True
 
     def lay_metadata(self, ma: str) -> Optional[Dict[str, Any]]:
         """Lấy metadata của một chunk theo mã ID."""
@@ -947,6 +964,99 @@ class KhoTriThucVAIDB:
                 "da_luu_ben_vung": bool(luu_xuong_dia),
             }
 
+    def _luu_chi_muc_luong_tu_sql(self) -> None:
+        """Lưu bền vững chỉ mục lượng tử hóa / Rust HNSW dạng BLOB an toàn trong `.vaidb`."""
+        self._conn.execute("DELETE FROM vai_quant_index")
+        if self._quant_index is None or self._quant_dirty:
+            self._conn.commit()
+            return
+        blob = self._quant_index.luu_bytes()
+        meta_json = json.dumps(
+            {
+                "che_do": self._quant_index.che_do,
+                "so_nut": len(self._ids),
+                "khoang_cach": self.khoang_cach,
+                "chu_ky_du_lieu": self._chu_ky_tap_ids(),
+            }
+        ).encode("utf-8")
+        self._conn.executemany(
+            "INSERT OR REPLACE INTO vai_quant_index(khoa, gia_tri) VALUES (?, ?)",
+            [("meta", meta_json), ("blob", sqlite3.Binary(blob))],
+        )
+        self._conn.commit()
+
+    def _nap_chi_muc_luong_tu_sql(self) -> bool:
+        """Khôi phục tự động chỉ mục lượng tử hóa / Rust HNSW từ `.vaidb` nếu dữ liệu chưa đổi."""
+        self._quant_index = None
+        self._quant_dirty = True
+        if not self._ids:
+            return False
+        try:
+            rows = self._conn.execute("SELECT khoa, gia_tri FROM vai_quant_index").fetchall()
+        except sqlite3.OperationalError:
+            return False
+        if not rows:
+            return False
+        data_map = {str(r["khoa"]): bytes(r["gia_tri"]) for r in rows}
+        if "meta" not in data_map or "blob" not in data_map:
+            return False
+        try:
+            meta = json.loads(data_map["meta"].decode("utf-8"))
+        except Exception:
+            return False
+        if (
+            int(meta.get("so_nut", -1)) != len(self._ids)
+            or meta.get("khoang_cach") != self.khoang_cach
+            or meta.get("chu_ky_du_lieu") != self._chu_ky_tap_ids()
+        ):
+            return False
+        try:
+            from vietnamese_ai.rag.quantized_index import ChiMucVectorLuongTu
+
+            self._quant_index = ChiMucVectorLuongTu.tai_bytes(data_map["blob"])
+            self._quant_dirty = False
+            return True
+        except Exception:
+            self._quant_index = None
+            self._quant_dirty = True
+            return False
+
+    def xay_dung_chi_muc_luong_tu(
+        self,
+        che_do: str = "hnsw_sq8",
+        m: int = 16,
+        ef_construction: int = 100,
+        ef_search: int = 64,
+        oversample: int = 8,
+        seed: int = 42,
+        luu_xuong_dia: bool = True,
+    ) -> Dict[str, Any]:
+        """Xây dựng chỉ mục vector lượng tử hóa (`sq8`, `binary`, `binary_rescore`, `hnsw_sq8`, `hnsw_fp32`) và lưu vào `.vaidb`."""
+        from vietnamese_ai.rag.quantized_index import ChiMucVectorLuongTu
+
+        with self._lock:
+            if self._vectors is None or len(self._ids) == 0:
+                self._quant_index = None
+                self._quant_dirty = True
+                if luu_xuong_dia:
+                    self._luu_chi_muc_luong_tu_sql()
+                return {"da_xay_dung": False, "che_do": che_do, "so_vector": 0}
+
+            idx = ChiMucVectorLuongTu(
+                che_do=che_do,
+                m=m,
+                ef_construction=ef_construction,
+                ef_search=ef_search,
+                oversample=oversample,
+                seed=seed,
+            )
+            stats = idx.xay_dung(self._vectors)
+            self._quant_index = idx
+            self._quant_dirty = False
+            if luu_xuong_dia:
+                self._luu_chi_muc_luong_tu_sql()
+            return {"da_xay_dung": True, "da_luu_ben_vung": bool(luu_xuong_dia), **stats}
+
     def _tim_kiem_hnsw(
         self,
         query: np.ndarray,
@@ -1021,8 +1131,14 @@ class KhoTriThucVAIDB:
                 raise ValueError(f"Query vector phải có {self.kich_thuoc} chiều, nhận được {query.shape[0]}")
 
             ranked_pairs: List[Tuple[int, float]] = []
-            hnsw_res = self._tim_kiem_hnsw(query, top_k=top_k, bo_loc=bo_loc)
-            if hnsw_res is not None:
+            if (
+                self._quant_index is not None
+                and not self._quant_dirty
+                and bo_loc is None
+                and self.khoang_cach == "cosine"
+            ):
+                ranked_pairs = self._quant_index.tim_kiem(query, top_k=top_k)
+            elif (hnsw_res := self._tim_kiem_hnsw(query, top_k=top_k, bo_loc=bo_loc)) is not None:
                 ranked_pairs = hnsw_res
             else:
                 cand_indices: Optional[np.ndarray] = None
@@ -1306,6 +1422,11 @@ class KhoTriThucVAIDB:
                 "chi_muc_ivf": self._ivf_centroids is not None and not self._ivf_dirty,
                 "chi_muc_hnsw": self._hnsw_entry_point is not None and not self._hnsw_dirty,
                 "so_nut_hnsw": len(self._hnsw_layers[0]) if (self._hnsw_layers and not self._hnsw_dirty) else 0,
+                "chi_muc_luong_tu": (
+                    self._quant_index.thong_ke_bo_nho()
+                    if (self._quant_index is not None and not self._quant_dirty)
+                    else None
+                ),
                 "kich_thuoc_tep_bytes": int(kich_thuoc_tep),
             }
 

@@ -360,7 +360,7 @@ image = (
         "peft>=0.7.0",
         "trl>=0.8.0",
         "datasets>=2.14.0",
-        "vietnamese-ai>=31.0.4",
+        "vietnamese-ai>=31.1.0",
     )
 )
 

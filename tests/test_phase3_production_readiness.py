@@ -81,7 +81,7 @@ class TestSemVerVaDongGoiDocLap:
         bc = QuanLyPhatHanhGoi.kiem_tra_tuan_thu_semver(ROOT_DIR)
         assert bc["hop_le_semver"] is True
         assert bc["dong_bo_phien_ban"] is True
-        assert bc["phien_ban_chuan"] == "31.0.4"
+        assert bc["phien_ban_chuan"] == "31.1.0"
         assert len(bc["cac_nguon"]) >= 8
 
         for ten_goi in (
@@ -337,7 +337,7 @@ class TestBenchmarkTaiLapVaTaiLieuChuanQuocTe:
         suite = BoDoLuongDoiDau()
         kq = suite.chay_benchmark_mo_rong(nhanh=True, seed=42, bat_lan_thuc_te=True)
 
-        assert kq["moi_truong"]["phien_ban_framework"] == "31.0.4"
+        assert kq["moi_truong"]["phien_ban_framework"] == "31.1.0"
         assert kq["suy_luan_llm"]["tai_dong_thoi"]["thong_luong_req_giay"] > 0
         assert len(kq["suy_luan_llm"]["hieu_nang_theo_kich_thuoc_mo_hinh"]) == 2
         assert kq["on_dinh_tai_nguyen"]["co_dau_hieu_ro_ri_bo_nho"] is False
@@ -349,7 +349,7 @@ class TestBenchmarkTaiLapVaTaiLieuChuanQuocTe:
 
         md = suite.xuat_bao_cao_mo_rong_markdown(kq)
         assert "Báo Cáo Benchmark Tái Lập" in md
-        assert "31.0.4" in md
+        assert "31.1.0" in md
 
         out_json = tmp_path / "bench.json"
         out_md = tmp_path / "bench.md"

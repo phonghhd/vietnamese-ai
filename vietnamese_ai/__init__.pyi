@@ -64,10 +64,31 @@ from vietnamese_ai.benchmark.comparative_benchmark import BoDoLuongDoiDau as BoD
 from vietnamese_ai.benchmark.comparative_benchmark import (
     ComparativeBenchmarkSuite as ComparativeBenchmarkSuite,
 )
+from vietnamese_ai.benchmark.continual_alignment_benchmark import (
+    BoDanhGiaCanChinhAnToan as BoDanhGiaCanChinhAnToan,
+)
+from vietnamese_ai.benchmark.continual_alignment_benchmark import (
+    ViAlignSafeBenchmark as ViAlignSafeBenchmark,
+)
+from vietnamese_ai.benchmark.edge_systems_benchmark import (
+    BoDanhGiaHeThongEdge as BoDanhGiaHeThongEdge,
+)
+from vietnamese_ai.benchmark.edge_systems_benchmark import (
+    ViEdgeSystemsBenchmark as ViEdgeSystemsBenchmark,
+)
+from vietnamese_ai.benchmark.legal_temporal_benchmark import (
+    BoDanhGiaLegalTemporalRAG as BoDanhGiaLegalTemporalRAG,
+)
+from vietnamese_ai.benchmark.legal_temporal_benchmark import (
+    ViLegalTemporalBenchmark as ViLegalTemporalBenchmark,
+)
 from vietnamese_ai.compression.distillation import HocRutGon as HocRutGon
 from vietnamese_ai.compression.extreme import BitLinear as BitLinear
 from vietnamese_ai.compression.extreme import BitNetTransformerBlock as BitNetTransformerBlock
 from vietnamese_ai.compression.extreme import RMSNorm as RMSNorm
+from vietnamese_ai.compression.extreme import co_rust_bitnet as co_rust_bitnet
+from vietnamese_ai.compression.extreme import dong_goi_bitnet_158 as dong_goi_bitnet_158
+from vietnamese_ai.compression.extreme import nhan_ma_tran_bitnet_158 as nhan_ma_tran_bitnet_158
 from vietnamese_ai.compression.pruning import CatTiaMoHinh as CatTiaMoHinh
 from vietnamese_ai.connectors.telegram_bot import KetNoiTelegram as KetNoiTelegram
 from vietnamese_ai.connectors.telegram_bot import TelegramBotConnector as TelegramBotConnector
@@ -146,6 +167,19 @@ from vietnamese_ai.federated.learning import HocLienKet as HocLienKet
 from vietnamese_ai.federated.rlhf import FederatedRLHF as FederatedRLHF
 from vietnamese_ai.fine_tuning.auto_finetuner import AutoFineTuner as AutoFineTuner
 from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh as BoTinhChinhMoHinh
+from vietnamese_ai.fine_tuning.continual_alignment import BoDemOnTapNeo as BoDemOnTapNeo
+from vietnamese_ai.fine_tuning.continual_alignment import (
+    ChinhSachUuTienTiengViet as ChinhSachUuTienTiengViet,
+)
+from vietnamese_ai.fine_tuning.continual_alignment import (
+    EvalGatedContinualAligner as EvalGatedContinualAligner,
+)
+from vietnamese_ai.fine_tuning.continual_alignment import (
+    KetQuaVongCanChinh as KetQuaVongCanChinh,
+)
+from vietnamese_ai.fine_tuning.continual_alignment import (
+    VongLapCanChinhAnToan as VongLapCanChinhAnToan,
+)
 from vietnamese_ai.fine_tuning.dataset import InstructionDataset as InstructionDataset
 from vietnamese_ai.fine_tuning.dpo_trainer import DPOTrainer as DPOTrainer
 from vietnamese_ai.fine_tuning.eval_gate import CongKiemDinhMoHinh as CongKiemDinhMoHinh
@@ -161,6 +195,15 @@ from vietnamese_ai.fine_tuning.lora import LoRAAdapter as LoRAAdapter
 from vietnamese_ai.fine_tuning.lora import QLoRAAdapter as QLoRAAdapter
 from vietnamese_ai.fine_tuning.lora_peft import LoRAPeft as LoRAPeft
 from vietnamese_ai.fine_tuning.peft_config import PEFTConfig as PEFTConfig
+from vietnamese_ai.fine_tuning.preference_filter import (
+    BoLocNhieuCapUuTien as BoLocNhieuCapUuTien,
+)
+from vietnamese_ai.fine_tuning.preference_filter import (
+    KetQuaLocCapUuTien as KetQuaLocCapUuTien,
+)
+from vietnamese_ai.fine_tuning.preference_filter import (
+    NoisyPreferenceFilter as NoisyPreferenceFilter,
+)
 from vietnamese_ai.fine_tuning.pytorch_trainer import HuanLuyenPyTorch as HuanLuyenPyTorch
 from vietnamese_ai.fine_tuning.remote_gpu import (
     BoDieuPhoiTinhChinhXa as BoDieuPhoiTinhChinhXa,
@@ -293,7 +336,18 @@ from vietnamese_ai.rag.legal.citation_graph import (
     DoThiThamChieuPhapLy as DoThiThamChieuPhapLy,
 )
 from vietnamese_ai.rag.legal.citation_graph import LegalCitationGraph as LegalCitationGraph
+from vietnamese_ai.rag.legal.citation_graph import NutDieuKhoanPhapLy as NutDieuKhoanPhapLy
+from vietnamese_ai.rag.legal.citation_graph import QuanHeDieuKhoan as QuanHeDieuKhoan
 from vietnamese_ai.rag.legal.citation_graph import QuanHePhapLy as QuanHePhapLy
+from vietnamese_ai.rag.legal.citation_verifier import (
+    BoKiemChungTrichDanPhapLy as BoKiemChungTrichDanPhapLy,
+)
+from vietnamese_ai.rag.legal.citation_verifier import (
+    KetQuaKiemChungTrichDan as KetQuaKiemChungTrichDan,
+)
+from vietnamese_ai.rag.legal.citation_verifier import (
+    LegalCitationVerifier as LegalCitationVerifier,
+)
 from vietnamese_ai.rag.legal.contract_review import (
     BoSoSanhRaSoatHopDong as BoSoSanhRaSoatHopDong,
 )
@@ -304,7 +358,27 @@ from vietnamese_ai.rag.legal.document_parser import BoDocTaiLieuPhapLy as BoDocT
 from vietnamese_ai.rag.legal.open_corpus import (
     tai_bo_hoi_dap_phap_ly_mo as tai_bo_hoi_dap_phap_ly_mo,
 )
+from vietnamese_ai.rag.legal.open_corpus import (
+    tai_bo_hoi_dap_phap_ly_thoi_gian as tai_bo_hoi_dap_phap_ly_thoi_gian,
+)
 from vietnamese_ai.rag.legal.open_corpus import tai_bo_phap_ly_mo as tai_bo_phap_ly_mo
+from vietnamese_ai.rag.legal.open_corpus import (
+    tai_bo_phap_ly_thoi_gian as tai_bo_phap_ly_thoi_gian,
+)
+from vietnamese_ai.rag.legal.open_corpus import (
+    tai_canh_do_thi_phap_ly_thoi_gian as tai_canh_do_thi_phap_ly_thoi_gian,
+)
+from vietnamese_ai.rag.legal.temporal_query import (
+    BoPhanTichThoiGianPhapLy as BoPhanTichThoiGianPhapLy,
+)
+from vietnamese_ai.rag.legal.temporal_query import (
+    KetQuaPhanTichThoiGian as KetQuaPhanTichThoiGian,
+)
+from vietnamese_ai.rag.legal.temporal_query import TemporalQueryParser as TemporalQueryParser
+from vietnamese_ai.rag.legal.temporal_rag import (
+    BoTruyHoiPhapLyThoiGian as BoTruyHoiPhapLyThoiGian,
+)
+from vietnamese_ai.rag.legal.temporal_rag import TemporalGraphLegalRAG as TemporalGraphLegalRAG
 from vietnamese_ai.rag.legal.validity_tracker import (
     BoTheoDoiHieuLucPhapLy as BoTheoDoiHieuLucPhapLy,
 )
@@ -324,6 +398,9 @@ from vietnamese_ai.rag.onnx_semantic import (
 from vietnamese_ai.rag.onnx_semantic import (
     VietnameseONNXReranker as VietnameseONNXReranker,
 )
+from vietnamese_ai.rag.quantized_index import ChiMucVectorLuongTu as ChiMucVectorLuongTu
+from vietnamese_ai.rag.quantized_index import QuantizedVectorIndex as QuantizedVectorIndex
+from vietnamese_ai.rag.quantized_index import co_rust_luong_tu as co_rust_luong_tu
 from vietnamese_ai.rag.rag_pipeline import RAGPipeline as RAGPipeline
 from vietnamese_ai.rag.reranker import SapXepLai as SapXepLai
 from vietnamese_ai.rag.retriever import TrichXuat as TrichXuat

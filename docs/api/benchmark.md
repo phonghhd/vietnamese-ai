@@ -47,3 +47,80 @@ class BoDoLuongDoiDau:
 - `BO_TRUY_HOI_DA_MIEN_VN`: Cặp câu hỏi – tài liệu đích cho đánh giá Multi-Domain RAG.
 - `BO_KIEM_THU_NER_VN`: Tập câu gán nhãn thực thể Việt Nam (CCCD, MST, Tổ chức, Văn bản pháp luật, Người, Địa danh).
 - `BO_KIEM_THU_CAM_XUC_VN`: Tập câu đánh giá cảm xúc tiếng Việt.
+
+## Bộ Chuẩn Học Thuật `ViLegal-TempBench` (`BoDanhGiaLegalTemporalRAG`)
+
+```python
+def tao_ham_sinh_llm(
+    nha_cung_cap: str = "gemini",
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    nhiet_do: float = 0.0,
+    timeout: float = 45.0,
+    do_tre_giua_goi_giay: float = 0.0,
+    so_lan_thu_lai: int = 2,
+) -> Callable[[str], str]
+
+class BoDanhGiaLegalTemporalRAG:
+    def chay_ablation(
+        cac_che_do: Optional[Sequence[str]] = None,
+        nhanh: bool = False,
+        seed: int = 42,
+        n_bootstrap: int = 1000,
+    ) -> Dict[str, Any]
+    def xuat_bao_cao_markdown(ket_qua: Dict[str, Any]) -> str
+    def xuat_bang_latex(ket_qua: Dict[str, Any]) -> str
+```
+
+Alias: `ViLegalTemporalBenchmark`. Hỗ trợ 5 cấu hình Ablation (`bm25`, `hybrid`, `temporal`, `temporal_graph`, `full`), kiểm định thống kê `kiem_dinh_bootstrap_cap` và xuất bảng LaTeX `booktabs` qua `vai benchmark --suite legal-temporal --latex`.
+
+## Bộ Chuẩn Hệ Thống Zero-GPU `ViEdge-SysBench` (`BoDanhGiaHeThongEdge`)
+
+```python
+class BoDanhGiaHeThongEdge:
+    def do_tim_kiem_vector_luong_tu(
+        n_vectors: int = 20000,
+        dim: int = 384,
+        n_queries: int = 80,
+        top_k: int = 10,
+        seed: int = 42,
+    ) -> Dict[str, Any]
+    def do_bitnet_158_dong_goi_2bit(
+        cac_kich_thuoc: Sequence[Tuple[int, int]] = ((512, 512), (1024, 1024), (2048, 2048)),
+        n_rows: int = 16,
+        so_vong_lap: int = 8,
+        seed: int = 42,
+    ) -> Dict[str, Any]
+    def do_chuoi_zero_gpu_dau_cuoi(
+        so_tai_lieu: int = 200,
+        dim: int = 128,
+        seed: int = 42,
+    ) -> Dict[str, Any]
+    def chay_toan_dien(
+        nhanh: bool = False,
+        n_vectors: int = 20000,
+        dim: int = 384,
+        seed: int = 42,
+    ) -> Dict[str, Any]
+    def xuat_bao_cao_markdown(ket_qua: Dict[str, Any]) -> str
+    def xuat_bang_latex(ket_qua: Dict[str, Any]) -> str
+```
+
+Alias: `ViEdgeSystemsBenchmark`. Tự động đối đầu thêm `faiss` và `hnswlib` nếu máy có cài, xuất Markdown & LaTeX `booktabs` qua `vai benchmark --suite edge-systems [--scale N] [--dim D] [--latex]`.
+
+## Bộ Chuẩn Continual Alignment `ViAlign-SafeBench` (`BoDanhGiaCanChinhAnToan`)
+
+```python
+class BoDanhGiaCanChinhAnToan:
+    def chay_ablation_da_vong(
+        so_vong: int = 5,
+        nhanh: bool = False,
+        seed: int = 42,
+        n_bootstrap: int = 1000,
+    ) -> Dict[str, Any]
+    def xuat_bao_cao_markdown(ket_qua: Dict[str, Any]) -> str
+    def xuat_bang_latex(ket_qua: Dict[str, Any]) -> str
+```
+
+Alias: `ViAlignSafeBenchmark`. Đối chứng 4 chiến lược (`naive_dpo`, `filtered_dpo`, `filtered_replay_cdpo`, `vialign_safeloop`) kèm Paired Bootstrap 95% CI và xuất LaTeX `booktabs` qua `vai benchmark --suite align-safety [--rounds 5] [--latex]`.

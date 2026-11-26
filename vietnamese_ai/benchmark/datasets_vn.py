@@ -205,6 +205,36 @@ def tai_bo_hoi_dap_phap_ly_mo(duong_dan: Optional[Path] = None) -> List[Dict[str
     return [q for q in BO_TRUY_HOI_DA_MIEN_VN if q.get("mien") == "phap_ly_hanh_chinh"]
 
 
+def tai_bo_phap_ly_thoi_gian(duong_dan: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Tải tập điều khoản pháp lý đa phiên bản theo mốc thời gian (`ViLegal-TempBench`, 60 điều khoản)."""
+    path = (
+        Path(duong_dan)
+        if duong_dan is not None
+        else _duong_dan_bo_du_lieu_ngoai("vilegal_tempbench_corpus.jsonl")
+    )
+    return _doc_jsonl(path)
+
+
+def tai_canh_do_thi_phap_ly_thoi_gian(duong_dan: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Tải danh sách cạnh quan hệ cấp Điều/Khoản có khoảng hiệu lực của `ViLegal-TempBench`."""
+    path = (
+        Path(duong_dan)
+        if duong_dan is not None
+        else _duong_dan_bo_du_lieu_ngoai("vilegal_tempbench_edges.jsonl")
+    )
+    return _doc_jsonl(path)
+
+
+def tai_bo_hoi_dap_phap_ly_thoi_gian(duong_dan: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Tải bộ 64 câu hỏi chuẩn `ViLegal-TempBench` gồm 4 phân nhóm T1, T2 (Contrast), T3 (Multi-Hop), T4 (Traps/Abstention)."""
+    path = (
+        Path(duong_dan)
+        if duong_dan is not None
+        else _duong_dan_bo_du_lieu_ngoai("vilegal_tempbench_qa.jsonl")
+    )
+    return _doc_jsonl(path)
+
+
 __all__ = [
     "TAP_DU_LIEU_DA_MIEN_VN",
     "BO_TRUY_HOI_DA_MIEN_VN",
@@ -212,4 +242,7 @@ __all__ = [
     "BO_KIEM_THU_CAM_XUC_VN",
     "tai_bo_phap_ly_mo",
     "tai_bo_hoi_dap_phap_ly_mo",
+    "tai_bo_phap_ly_thoi_gian",
+    "tai_canh_do_thi_phap_ly_thoi_gian",
+    "tai_bo_hoi_dap_phap_ly_thoi_gian",
 ]
