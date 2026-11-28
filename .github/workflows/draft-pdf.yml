@@ -30,9 +30,8 @@ jobs:
             openjournals/inara:latest \
             -o pdf,jats \
             paper.md
+          ls -lh paper/
           test -s paper/paper.pdf
-          test -s paper/paper.jats
-          ls -lh paper/paper.pdf paper/paper.jats
 
       - name: Upload JOSS Draft PDF & JATS Artifact
         uses: actions/upload-artifact@v4
@@ -40,5 +39,7 @@ jobs:
           name: joss-paper-draft-pdf
           path: |
             paper/paper.pdf
-            paper/paper.jats
+            paper/paper*.xml
+            paper/paper*.jats
+          if-no-files-found: error
           retention-days: 30
