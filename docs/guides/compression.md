@@ -156,7 +156,7 @@ ket_qua = pruner.cat_tia(model)
 
 | Chế độ | Mô tả |
 |---|---|
-| `"magnitude"` | Xóa trọng số nhỏ (|w| < threshold) |
+| `"magnitude"` | Xóa trọng số nhỏ (`|w| < threshold`) |
 | `"structured"` | Xóa nguyên neuron dựa trên L2 norm |
 | `"iterative"` | Prune dần + retrain (Lottery Ticket) |
 | `"random"` | Prune ngẫu nhiên (baseline) |

@@ -58,7 +58,7 @@ Let $C_t$ denote statutory clauses active at reference date $t$ where each claus
 
 ## Eval-Gated Continual Alignment (`ViAlign-SafeLoop`)
 
-To prevent preference-poisoning regressions during iterative feedback collection from Studio workspaces, `VongLapCanChinhAnToan` chains a 6-signal preference filter (`BoLocNhieuCapUuTien`), stratified anchor replay (`BoDemOnTapNeo`), weighted cDPO/SimPO training (`DPOTrainer` supporting both parameter L2 anchoring and token-level reverse KL penalty $D_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})$), and a 4-axis evaluation gate (`CongKiemDinhMoHinh`) with atomic rollback. On GPU backends (`NhaCungCapModal`, `NhaCungCapSSH`), `BoDieuPhoiTinhChinhXa` executes 4-bit QLoRA alignment with PII scrubbing, budget caps, and SHA-256/HMAC artifact verification.
+To prevent preference-poisoning regressions during iterative feedback collection from Studio workspaces, `VongLapCanChinhAnToan` chains a 6-signal preference filter (`BoLocNhieuCapUuTien`), stratified anchor replay (`BoDemOnTapNeo`), weighted cDPO/SimPO training (`DPOTrainer` supporting both parameter L2 anchoring and token-level reverse KL penalty $D_{\text{KL}}(\pi_\theta \Vert \pi_{\text{ref}})$), and a 4-axis evaluation gate (`CongKiemDinhMoHinh`) with atomic rollback. On GPU backends (`NhaCungCapModal`, `NhaCungCapSSH`), `BoDieuPhoiTinhChinhXa` executes 4-bit QLoRA alignment with PII scrubbing, budget caps, and SHA-256/HMAC artifact verification.
 
 # Empirical Evaluation & Benchmarks
 

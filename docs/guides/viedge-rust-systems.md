@@ -40,7 +40,7 @@ flowchart LR
    - Cài đặt thuật toán **Malkov & Yashunin (2018) Alg. 4 Diversity Heuristic** cho **cả cạnh thuận lẫn cắt tỉa cạnh ngược**, bảo toàn cầu nối liên cụm (inter-cluster bridges) trên không gian nhúng phân cụm đa chủ đề.
    - Hỗ trợ tìm kiếm theo lô song song Rayon (`search_batch_bytes`) và tuần tự hóa nhị phân nguyên khối định dạng `VQI1`/`VHNS` lưu thẳng vào bảng SQLite `vai_quant_index` của `KhoTriThucVAIDB` (tự động nạp lại sau khi mở tệp `.vaidb`, và tự vô hiệu hóa an toàn khi chèn tài liệu mới).
 4. **BitNet 1.58-bit đóng gói 2-bit thực (`4 trọng số/byte`, nén 16× RAM) với nhân T-MAC 4-bit Nibble LUT**:
-   - Trọng số tam phân $\{-1, 0, +1\}$ được mã hóa 2-bit theo hàng (`0 → -1`, `1 → 0`, `2 → +1`).
+   - Trọng số tam phân $\lbrace -1, 0, +1 \rbrace$ được mã hóa 2-bit theo hàng (`0 → -1`, `1 → 0`, `2 → +1`).
    - Thay vì dùng nhánh điều kiện `if/else` gây dự đoán sai nhánh, mỗi hàng đầu vào $x$ xây dựng bảng tra cứu **4-bit Nibble LUT** kích thước nhỏ gọn (`packed_cols × 2 × 16 × 4 bytes`, chỉ `64 KB` cho chiều `2048` — nằm trọn trong L1/L2 cache CPU) và dùng chung chỉ đọc cho toàn bộ `out_features` trên nhiều lõi Rayon: **0 phép nhân trọng số, 0 nhánh rẽ, độ chính xác khớp tuyệt đối $\le 2 \times 10^{-6}$**.
 
 ---

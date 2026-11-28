@@ -558,7 +558,7 @@ class DoThiThamChieuPhapLy:
                     nut_da_khai_bao.add(sh)
                     lines.append(f'    {_id_mermaid(sh)}["{sh}"]')
             nhan = nhan_quan_he.get(c.loai_quan_he, c.loai_quan_he)
-            lines.append(f'    {_id_mermaid(c.nguon)} -->|"{nhan}"| {_id_mermaid(c.dich)}')
+            lines.append(f'    {_id_mermaid(c.nguon)} -- "{nhan}" --> {_id_mermaid(c.dich)}')
         return "\n".join(lines)
 
     _TRONG_SO_CANH_DIEU_KHOAN: Dict[str, float] = {

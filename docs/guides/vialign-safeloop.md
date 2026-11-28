@@ -3,7 +3,7 @@
 > **Vòng lặp tự cải thiện mô hình sau triển khai chống hồi quy ngầm** — Kết hợp **Bộ lọc nhiễu cặp ưu tiên 6 tín hiệu** (`BoLocNhieuCapUuTien`), **Bộ đệm ôn tập neo phân tầng** (`BoDemOnTapNeo`), **cDPO/SimPO có trọng số tin cậy + Neo trọng số L2** (`DPOTrainer`) và **Cổng kiểm định 4 nhóm chỉ số kèm Auto-Rollback nguyên tử** (`CongKiemDinhMoHinh`).
 
 > [!NOTE]
-> **Minh bạch phạm vi khoa học (Scope Disclosure):** Bộ chuẩn `ViAlign-SafeBench` chạy trên CPU sử dụng `ChinhSachUuTienTiengViet` — một **mô hình proxy xếp hạng tuyến tính 256 chiều** (`w · phi(prompt, response)`) để kiểm chứng tất định toàn bộ cơ chế điều phối lọc nhiễu, bộ đệm ôn tập và Eval Gate Auto-Rollback (không phải tinh chỉnh trọng số LLM sinh văn bản đa tỷ tham số). Tham số `he_so_neo_kl` thực thi **điều chuẩn neo trọng số L2** ($\frac{\lambda}{2}\|w - w_{\text{ref}}\|_2^2$) về tham số gốc, không phải phân kỳ KL đảo cấp token. Khi mô hình không trả kèm danh sách nguồn truy hồi (`nguon`), `CongKiemDinhMoHinh` báo `diem_bam_sat_nguon = None` (`khong_ap_dung`) thay vì gán điểm `1.0`.
+> **Minh bạch phạm vi khoa học (Scope Disclosure):** Bộ chuẩn `ViAlign-SafeBench` chạy trên CPU sử dụng `ChinhSachUuTienTiengViet` — một **mô hình proxy xếp hạng tuyến tính 256 chiều** (`w · phi(prompt, response)`) để kiểm chứng tất định toàn bộ cơ chế điều phối lọc nhiễu, bộ đệm ôn tập và Eval Gate Auto-Rollback (không phải tinh chỉnh trọng số LLM sinh văn bản đa tỷ tham số). Tham số `he_so_neo_kl` thực thi **điều chuẩn neo trọng số L2** ($\frac{\lambda}{2}\lVert w - w_{\text{ref}} \rVert_2^2$) về tham số gốc, không phải phân kỳ KL đảo cấp token. Khi mô hình không trả kèm danh sách nguồn truy hồi (`nguon`), `CongKiemDinhMoHinh` báo `diem_bam_sat_nguon = None` (`khong_ap_dung`) thay vì gán điểm `1.0`.
 
 ---
 
@@ -22,11 +22,11 @@ Khi doanh nghiệp hoặc tổ chức triển khai Studio AI tiếng Việt (`Qu
 
 ```mermaid
 flowchart LR
-    WS["Studio Workspace<br/>Thumbs Up / Down + Đáp án sửa"] --> FLT["Tầng 1: BoLocNhieuCapUuTien<br/>6 tín hiệu + Cách ly độc tố<br/>Gán trọng số w_i & cDPO ε_i"]
+    WS["Studio Workspace<br/>Thumbs Up / Down + Đáp án sửa"] --> FLT["Tầng 1: BoLocNhieuCapUuTien<br/>6 tín hiệu + Cách ly độc tố<br/>Gán trọng số w_i và cDPO ε_i"]
     FLT --> REP["Tầng 2: BoDemOnTapNeo<br/>Trộn ôn tập phân tầng<br/>(An toàn / Pháp lý / Chung)"]
     REP --> TRN["Tầng 3: DPO / SimPO Candidate<br/>cDPO có trọng số w_i + L2 Anchor<br/>(Huấn luyện trên bản sao độc lập)"]
     TRN --> GATE["Tầng 4: CongKiemDinhMoHinh<br/>4 trục + Paired Bootstrap 95% CI"]
-    GATE -- "ĐẠT (0 trục suy giảm)" --> PROM["PROMOTE PRODUCTION<br/>Cập nhật SHA-256 & nạp mẫu neo"]
+    GATE -- "ĐẠT (0 trục suy giảm)" --> PROM["PROMOTE PRODUCTION<br/>Cập nhật SHA-256 và nạp mẫu neo"]
     GATE -- "SUY GIẢM / RỦI RO" --> RB["AUTO-ROLLBACK NGUYÊN TỬ<br/>Giữ nguyên snapshot Production"]
 ```
 

@@ -15,13 +15,13 @@ StateGraph mô hình hoá luồng thực thi của tác tử thành các Nút (N
 
 ```mermaid
 graph TD
-    A[Bắt đầu] --> B[Lập Kế Hoạch]
-    B --> C[Thực Thi Công Cụ]
-    C --> D{Kiểm Tra Kết Quả}
-    D -- Chưa Đạt / Lỗi --> E[Tự Sửa Lỗi]
+    A["Bắt đầu"] --> B["Lập Kế Hoạch"]
+    B --> C["Thực Thi Công Cụ"]
+    C --> D{"Kiểm Tra Kết Quả"}
+    D -- "Chưa Đạt / Lỗi" --> E["Tự Sửa Lỗi"]
     E --> C
-    D -- Đạt Yêu Cầu --> F[Tổng Hợp Phản Hồi]
-    F --> G[Kết Thúc]
+    D -- "Đạt Yêu Cầu" --> F["Tổng Hợp Phản Hồi"]
+    F --> G["Kết Thúc"]
 ```
 
 ---
