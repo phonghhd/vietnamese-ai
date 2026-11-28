@@ -42,6 +42,7 @@ nav:
     - Sử dụng nhanh: getting-started/quickstart.md
   - Trụ cột Chiến lược v31:
     - Báo cáo ViLegal-TemporalRAG & TempBench: guides/vilegal-temporal-rag.md
+    - Datasheet ViLegal-TempBench v2: research/DATASHEET_VILEGAL_TEMPBENCH_V2.md
     - Báo cáo ViEdge-RustEngine & SysBench (Zero-GPU): guides/viedge-rust-systems.md
     - Báo cáo ViAlign-SafeLoop & SafeBench (Continual Alignment): guides/vialign-safeloop.md
     - Trải nghiệm 5 Phút & Phát hành PyPI: guides/five-minute-dx-and-release.md

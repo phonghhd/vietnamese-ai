@@ -1,0 +1,44 @@
+name: JOSS Draft PDF
+
+on:
+  push:
+    paths:
+      - 'paper/paper.md'
+      - 'paper/paper.bib'
+      - '.github/workflows/draft-pdf.yml'
+  pull_request:
+    paths:
+      - 'paper/paper.md'
+      - 'paper/paper.bib'
+      - '.github/workflows/draft-pdf.yml'
+  workflow_dispatch:
+
+jobs:
+  draft-pdf:
+    name: Compile JOSS Draft PDF (Inara)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compile JOSS PDF & JATS XML via openjournals/inara
+        run: |
+          docker run --rm \
+            --volume "${{ github.workspace }}/paper:/data" \
+            --user "$(id -u):$(id -g)" \
+            --env JOURNAL=joss \
+            openjournals/inara:latest \
+            -o pdf,jats \
+            paper.md
+          test -s paper/paper.pdf
+          test -s paper/paper.jats
+          ls -lh paper/paper.pdf paper/paper.jats
+
+      - name: Upload JOSS Draft PDF & JATS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: joss-paper-draft-pdf
+          path: |
+            paper/paper.pdf
+            paper/paper.jats
+          retention-days: 30

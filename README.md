@@ -9,6 +9,14 @@
 </p>
 
 <p align="center">
+  <strong>🇬🇧 English Documentation &amp; JOSS Reviewer Guide:</strong>
+  <a href="README_EN.md">README_EN.md</a> •
+  <a href="CONTRIBUTING_EN.md">Contributing (EN)</a> •
+  <a href="CODE_OF_CONDUCT.md">Code of Conduct</a> •
+  <a href="paper/paper.md">JOSS Paper</a>
+</p>
+
+<p align="center">
   <a href="#cài-đặt">Cài đặt</a> •
   <a href="#tính-năng">Tính năng</a> •
   <a href="#sử-dụng-nhanh">Sử dụng nhanh</a> •
@@ -39,7 +47,7 @@
   - **Web Studio v2 SSE Streaming + MCP 1-Click**: Stream câu trả lời theo luồng (`/api/legal/temporal-ask/stream`, `/api/chat/stream`), Split-View trích dẫn (nhãn hiệu lực Xanh/Vàng/Đỏ), xem trực quan Diff hợp đồng, sinh cấu hình MCP trong 60 giây (`vai mcp-config --client cursor|claude|vscode|antigravity`), triển khai `docker compose up -d` và [Bộ Triển Khai Pilot Doanh Nghiệp](docs/guides/enterprise-pilot-kit.md).
 - **ViLegal-TemporalRAG & Bộ Chuẩn Học Thuật Mở `ViLegal-TempBench v2` (84 QA, 5 Splits)**:
   - **Truy hồi Đa bước Có Điều kiện Thời gian**: `BoPhanTichThoiGianPhapLy` (*Statute-Bounded Temporal Disambiguation*, **100% TQPA** trên 84/84 câu) + Đồ thị cấp Điều/Khoản `DoThiThamChieuPhapLy` (60 điều khoản đa phiên bản + 38 cạnh thời gian + 100 điều khoản nền) + `BoTruyHoiPhapLyThoiGian` (6 cấu hình Ablation gồm `naive_date_filter` và split đời thường `T5`, đạt **R@3 = 0.936**, **MRR@10 = 0.907**, **TVA = 0.987**, **TCA = 12/12**, **Multi-Hop@3 = 1.000**, **Trap = 1.000**, **T5-R@3 = 0.688**, **Abstention F1 = 0.923**; vượt `naive_date_filter` với $p < 0.0001$).
-  - **Kiểm chứng Trích dẫn Tất định 3 Tầng & Tái Lập Bài Báo**: `BoKiemChungTrichDanPhapLy` kiểm tra *Citation Grounding*, *Temporal Consistency* và *Numeric/Deadline Consistency*; đi kèm trọn bộ hồ sơ nghiên cứu [paper/paper.md](paper/paper.md) (JOSS), [paper/vilegal_tempbench_acl.tex](paper/vilegal_tempbench_acl.tex) (ACL/IEEE), [paper/DATASHEET_VILEGAL_TEMPBENCH_V2.md](paper/DATASHEET_VILEGAL_TEMPBENCH_V2.md) và kịch bản tái lập `scripts/generate_paper_tables.py` / `scripts/run_safeloop_qlora_experiment.py`.
+  - **Kiểm chứng Trích dẫn Tất định 3 Tầng & Tái Lập Bài Báo**: `BoKiemChungTrichDanPhapLy` kiểm tra *Citation Grounding*, *Temporal Consistency* và *Numeric/Deadline Consistency*; đi kèm trọn bộ hồ sơ nghiên cứu [paper/paper.md](paper/paper.md) (JOSS), [docs/research/vilegal_tempbench_acl.tex](docs/research/vilegal_tempbench_acl.tex) (ACL/IEEE), [docs/research/DATASHEET_VILEGAL_TEMPBENCH_V2.md](docs/research/DATASHEET_VILEGAL_TEMPBENCH_V2.md) và kịch bản tái lập `scripts/generate_paper_tables.py` / `scripts/run_safeloop_qlora_experiment.py`.
   - **Đồng bộ 5 Bề mặt & Tái lập 1 Lệnh**: CLI (`vai legal-ask`, `vai benchmark --suite legal-temporal --latex`), REST API (`/v1/legal/temporal-ask`, `/v1/legal/verify-citation`), MCP (`--temporal-legal-tools`), Web Studio UI (bộ chọn mốc ngày + kiểm chứng 3 tầng) và chuẩn trích dẫn [CITATION.cff](CITATION.cff). Xem [Báo cáo Kỹ thuật ViLegal-TemporalRAG](docs/guides/vilegal-temporal-rag.md).
 - **ViEdge-RustEngine & `ViEdge-SysBench` (Zero-GPU Systems for AI — Rust SIMD + HNSW + BitNet 1.58-bit 2-bit)**:
   - **Truy hồi Vector Lượng tử hóa & Native Rust HNSW-SQ8**: `ChiMucVectorLuongTu` (`SQ8 4× RAM` SSE4.1/AVX2, `Binary 1-bit POPCNT 32× RAM`, `Binary+SQ8 Rescore`, `RustHNSWIndex` lưu thẳng trong tệp `.vaidb`). Trên CPU văn phòng 6W Celeron N3050 (`20,000 × 384`), **HNSW-SQ8** đạt **p50 = `0.311 ms`** (**117× nhanh hơn FP32 NumPy**), **2,027.6 QPS lô**, **Recall@10 = 0.9688** và giảm **75% RAM vector**.

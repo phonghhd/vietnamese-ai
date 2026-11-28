@@ -193,10 +193,26 @@ def test_m3_dual_paper_artifacts_and_bibtex_consistency() -> None:
     root = Path(__file__).resolve().parents[1]
     paper_md = (root / "paper" / "paper.md").read_text(encoding="utf-8")
     paper_bib = (root / "paper" / "paper.bib").read_text(encoding="utf-8")
-    acl_tex = (root / "paper" / "vilegal_tempbench_acl.tex").read_text(encoding="utf-8")
-    datasheet = (root / "paper" / "DATASHEET_VILEGAL_TEMPBENCH_V2.md").read_text(encoding="utf-8")
+    acl_tex = (root / "docs" / "research" / "vilegal_tempbench_acl.tex").read_text(encoding="utf-8")
+    datasheet = (root / "docs" / "research" / "DATASHEET_VILEGAL_TEMPBENCH_V2.md").read_text(encoding="utf-8")
     checklist = (root / "paper" / "JOSS_CHECKLIST.md").read_text(encoding="utf-8")
     citation = (root / "CITATION.cff").read_text(encoding="utf-8")
+
+    for required_section in (
+        "# Summary",
+        "# Statement of need",
+        "# State of the field",
+        "# Software design",
+        "# Research impact statement",
+        "# AI usage disclosure",
+        "# References",
+    ):
+        assert required_section in paper_md
+
+    assert (root / "README_EN.md").is_file()
+    assert (root / "CONTRIBUTING_EN.md").is_file()
+    assert (root / "CODE_OF_CONDUCT.md").is_file()
+    assert (root / ".github" / "workflows" / "draft-pdf.yml").is_file()
 
     bib_keys = set(re.findall(r"@\w+\{([^,\s]+),", paper_bib))
     cited_keys = set(re.findall(r"@([a-z]+[0-9]{4}[a-z]+)", paper_md))

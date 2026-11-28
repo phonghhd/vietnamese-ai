@@ -1,5 +1,7 @@
 # Hướng dẫn đóng góp
 
+> 🇬🇧 English version: [CONTRIBUTING_EN.md](CONTRIBUTING_EN.md) • Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+
 Cảm ơn bạn đã quan tâm đến việc đóng góp cho Vietnamese AI Framework!
 
 ## Bắt đầu nhanh
