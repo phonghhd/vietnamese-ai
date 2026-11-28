@@ -125,12 +125,14 @@ jobs:
         with:
           packages-dir: dist/
           repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
 
       - name: Upload vietnamese-ai to PyPI via OIDC Trusted Publishing
         if: github.event_name != 'workflow_dispatch' || inputs.target == 'pypi'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+          skip-existing: true
 
       - name: Download native Rust wheel artifacts
         continue-on-error: true
@@ -157,6 +159,7 @@ jobs:
         with:
           packages-dir: dist_rust/
           repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
 
       - name: Upload optional vietnamese-ai-rust wheels to PyPI
         if: steps.check-rust-wheels.outputs.has_wheels == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'pypi')
@@ -164,3 +167,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist_rust/
+          skip-existing: true
