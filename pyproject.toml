@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai"
-version = "31.1.0"
+version = "31.2.0"
 description = "Framework AI thuần tiếng Việt cho Python - Vietnamese AI Framework"
 readme = "README.md"
 license = {text = "MIT"}
@@ -228,7 +228,20 @@ include = ["vietnamese_ai*"]
 exclude = ["tests*", "examples*", "docs*"]
 
 [tool.setuptools.package-data]
-vietnamese_ai = ["py.typed", "*.pyi", "*.so", "*.pyd", "*.dylib", "rag/legal/data/*.jsonl"]
+vietnamese_ai = [
+    "py.typed",
+    "*.pyi",
+    "rag/legal/data/*.jsonl",
+    "nlp/data/*.gz",
+    "nlp/data/*.txt",
+]
+
+[tool.setuptools.exclude-package-data]
+vietnamese_ai = [
+    "*.so",
+    "*.pyd",
+    "*.dylib",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -257,3 +270,12 @@ warn_return_any = false
 warn_unused_configs = true
 ignore_missing_imports = true
 no_implicit_optional = false
+
+[[tool.mypy.overrides]]
+module = [
+    "vietnamese_ai.rag.*",
+    "vietnamese_ai.security.*",
+    "vietnamese_ai.edge.*",
+    "vietnamese_ai.core.*",
+]
+check_untyped_defs = true

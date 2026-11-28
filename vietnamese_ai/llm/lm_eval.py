@@ -1,11 +1,48 @@
 """LMEvalHarness - Evaluation framework tương thích lm-eval-harness."""
 
 import time
+from collections import Counter
 from typing import Any, Dict, List, Optional
 
 import numpy as np
 
 from vietnamese_ai.utils.logger import Logger
+
+
+def _tinh_macro_f1(y_true: List[str], y_pred: List[str]) -> float:
+    """Tính Macro-F1 thực tế giữa danh sách nhãn chuẩn và nhãn dự đoán."""
+    if not y_true or len(y_true) != len(y_pred):
+        return 0.0
+    cac_lop = sorted(set(y_true) | set(y_pred))
+    if not cac_lop:
+        return 0.0
+    f1_list: List[float] = []
+    for lop in cac_lop:
+        tp = sum(1 for t, p in zip(y_true, y_pred) if t == lop and p == lop)
+        fp = sum(1 for t, p in zip(y_true, y_pred) if t != lop and p == lop)
+        fn = sum(1 for t, p in zip(y_true, y_pred) if t == lop and p != lop)
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = (2.0 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+        f1_list.append(f1)
+    return float(np.mean(f1_list))
+
+
+def _tinh_token_f1(reference: str, prediction: str) -> float:
+    """Tính Token-level F1 thực tế cho bài toán hỏi đáp (QA)."""
+    ref_toks = reference.lower().split()
+    pred_toks = prediction.lower().split()
+    if not ref_toks and not pred_toks:
+        return 1.0
+    if not ref_toks or not pred_toks:
+        return 0.0
+    common = Counter(ref_toks) & Counter(pred_toks)
+    so_khop = sum(common.values())
+    if so_khop == 0:
+        return 0.0
+    prec = so_khop / len(pred_toks)
+    rec = so_khop / len(ref_toks)
+    return 2.0 * prec * rec / (prec + rec)
 
 
 class EvalTask:
@@ -173,16 +210,20 @@ class LMEvalHarness:
         else:
             return self._eval_generic(model, task, limit)
 
-    def _eval_perplexity(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict:
-        """Đánh giá perplexity."""
+    def _eval_perplexity(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict[str, Any]:
+        """Đánh giá perplexity thực tế trên mô hình có phương thức `tinh_perplexity` hoặc `tien`."""
+        if not (hasattr(model, "tinh_perplexity") or hasattr(model, "tien")):
+            raise NotImplementedError(
+                "Mô hình không hỗ trợ tính perplexity (thiếu phương thức 'tinh_perplexity' hoặc 'tien')."
+            )
         texts = self._lay_du_lieu(task, limit)
-        perplexities = []
+        perplexities: List[float] = []
 
         for text in texts:
             try:
                 if hasattr(model, "tinh_perplexity"):
-                    ppl = model.tinh_perplexity(text)
-                elif hasattr(model, "tien"):
+                    ppl = float(model.tinh_perplexity(text))
+                else:
                     toks = [ord(c) % getattr(model, "so_tu_vung", 256) for c in text[:32]]
                     if len(toks) < 2:
                         toks = [1, 2]
@@ -197,138 +238,152 @@ class LMEvalHarness:
                         np.log(probs[0, np.arange(len(y_arr[0])), y_arr[0]] + 1e-9)
                     )
                     ppl = float(np.exp(min(nll, 10.0)))
-                else:
-                    ppl = float(max(2.0, len(set(text.split())) * 1.5))
                 perplexities.append(ppl)
             except Exception:
                 continue
 
         return {
-            "perplexity": round(float(np.mean(perplexities)), 4) if perplexities else 0,
-            "perplexity_std": round(float(np.std(perplexities)), 4) if perplexities else 0,
+            "perplexity": round(float(np.mean(perplexities)), 4) if perplexities else None,
+            "perplexity_std": round(float(np.std(perplexities)), 4) if perplexities else None,
             "so_mau": len(perplexities),
         }
 
-    def _eval_classification(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict:
+    def _eval_classification(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict[str, Any]:
+        """Đánh giá phân loại với Accuracy và Macro-F1 thực tế (không ngẫu nhiên hóa dự đoán)."""
+        if not (hasattr(model, "phan_tich_cam_xuc") or hasattr(model, "du_doan")):
+            raise NotImplementedError(
+                "Mô hình không hỗ trợ phân loại (thiếu phương thức 'phan_tich_cam_xuc' hoặc 'du_doan')."
+            )
         du_lieu = task.du_lieu[:limit] if limit else task.du_lieu
         if not du_lieu:
-            du_lieu = [{"text": "test", "label": "positive"}] * 10
+            du_lieu = [{"text": "Sản phẩm rất tốt", "label": "positive"}]
+
+        y_true: List[str] = []
+        y_pred: List[str] = []
+        for mau in du_lieu:
+            text = str(mau.get("text", ""))
+            label = str(mau.get("label", ""))
+
+            try:
+                if hasattr(model, "phan_tich_cam_xuc"):
+                    pred_raw = model.phan_tich_cam_xuc(text)
+                    pred = pred_raw.get("nhan", "") if isinstance(pred_raw, dict) else pred_raw
+                else:
+                    pred_raw = model.du_doan([text])
+                    pred = pred_raw[0] if isinstance(pred_raw, (list, tuple, np.ndarray)) and len(pred_raw) > 0 else pred_raw
+                y_true.append(label)
+                y_pred.append(str(pred))
+            except Exception:
+                continue
+
+        tong = len(y_true)
+        dung = sum(1 for t, p in zip(y_true, y_pred) if t == p)
+        accuracy = dung / tong if tong > 0 else 0.0
+        macro_f1 = _tinh_macro_f1(y_true, y_pred) if tong > 0 else 0.0
+
+        return {
+            "accuracy": round(accuracy, 4),
+            "f1": round(macro_f1, 4),
+            "so_mau": tong,
+        }
+
+    def _eval_generation(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict[str, Any]:
+        """Đánh giá sinh văn bản thực tế bằng BLEU khi có câu tham chiếu chuẩn."""
+        if not hasattr(model, "sinh_van_ban"):
+            raise NotImplementedError(
+                "Mô hình không hỗ trợ sinh văn bản (thiếu phương thức 'sinh_van_ban')."
+            )
+        du_lieu = task.du_lieu[:limit] if limit else task.du_lieu
+        if not du_lieu:
+            du_lieu = [{"prompt": "học máy là", "reference": ""}]
+
+        scores: List[float] = []
+        so_mau_sinh = 0
+        for mau in du_lieu:
+            prompt = str(mau.get("prompt", ""))
+            reference = str(mau.get("reference", "")).strip()
+
+            try:
+                generated = str(model.sinh_van_ban(prompt, do_dai=50))
+                so_mau_sinh += 1
+                if reference:
+                    scores.append(self._tinh_bleu(reference, generated))
+            except Exception:
+                continue
+
+        return {
+            "bleu": round(float(np.mean(scores)), 4) if scores else None,
+            "so_mau": so_mau_sinh,
+            "so_mau_co_tham_chieu": len(scores),
+        }
+
+    def _eval_qa(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict[str, Any]:
+        """Đánh giá hỏi đáp thực tế bằng độ khớp đáp án và Token-level F1."""
+        if not hasattr(model, "sinh_van_ban"):
+            raise NotImplementedError(
+                "Mô hình không hỗ trợ hỏi đáp sinh văn bản (thiếu phương thức 'sinh_van_ban')."
+            )
+        du_lieu = task.du_lieu[:limit] if limit else task.du_lieu
+        if not du_lieu:
+            du_lieu = [{"question": "AI là gì?", "answer": "trí tuệ nhân tạo"}]
+
+        dung = 0
+        f1_scores: List[float] = []
+        for mau in du_lieu:
+            question = str(mau.get("question", ""))
+            answer = str(mau.get("answer", ""))
+
+            try:
+                pred = str(model.sinh_van_ban(question, do_dai=30))
+                if answer.lower() in pred.lower():
+                    dung += 1
+                f1_scores.append(_tinh_token_f1(answer, pred))
+            except Exception:
+                continue
+
+        tong = len(f1_scores)
+        accuracy = dung / tong if tong > 0 else 0.0
+        mean_f1 = float(np.mean(f1_scores)) if f1_scores else 0.0
+        return {
+            "accuracy": round(accuracy, 4),
+            "f1": round(mean_f1, 4),
+            "so_mau": tong,
+        }
+
+    def _eval_cloze(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict[str, Any]:
+        """Đánh giá Cloze test trên mô hình có phương thức `lay_tu_ke_tiep`."""
+        if not hasattr(model, "lay_tu_ke_tiep"):
+            raise NotImplementedError(
+                "Mô hình không hỗ trợ Cloze test (thiếu phương thức 'lay_tu_ke_tiep')."
+            )
+        du_lieu = task.du_lieu[:limit] if limit else task.du_lieu
+        if not du_lieu:
+            du_lieu = [{"text": "học máy là một [MASK] của AI", "answer": "nhánh"}]
 
         dung = 0
         tong = 0
         for mau in du_lieu:
-            text = mau.get("text", "")
-            label = mau.get("label", "")
+            text = str(mau.get("text", ""))
+            answer = str(mau.get("answer", ""))
 
             try:
-                if hasattr(model, "phan_tich_cam_xuc"):
-                    pred = model.phan_tich_cam_xuc(text)
-                    if isinstance(pred, dict):
-                        pred = pred.get("nhan", "")
-                elif hasattr(model, "du_doan"):
-                    pred = "positive"
-                else:
-                    pred = np.random.choice(["positive", "negative", "neutral"])
-
-                if str(pred) == str(label):
+                prefix = text.split("[MASK]")[0]
+                goi_y = model.lay_tu_ke_tiep(prefix, top_n=5)
+                predictions = [g.get("tu", "") for g in goi_y]
+                if answer in predictions:
                     dung += 1
                 tong += 1
             except Exception:
                 continue
 
-        accuracy = dung / max(1, tong)
-
         return {
-            "accuracy": round(accuracy, 4),
-            "f1": round(accuracy * 0.95, 4),
+            "accuracy": round(dung / tong, 4) if tong > 0 else 0.0,
             "so_mau": tong,
         }
 
-    def _eval_generation(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict:
-        du_lieu = task.du_lieu[:limit] if limit else task.du_lieu
-        if not du_lieu:
-            du_lieu = [{"prompt": "học máy là"}] * 5
-
-        scores = []
-        for mau in du_lieu:
-            prompt = mau.get("prompt", "")
-            reference = mau.get("reference", "")
-
-            try:
-                if hasattr(model, "sinh_van_ban"):
-                    generated = model.sinh_van_ban(prompt, do_dai=50)
-                else:
-                    generated = "generated text"
-
-                score = self._tinh_bleu(reference, generated) if reference else 0.5
-                scores.append(score)
-            except Exception:
-                continue
-
-        return {
-            "bleu": round(float(np.mean(scores)), 4) if scores else 0,
-            "so_mau": len(scores),
-        }
-
-    def _eval_qa(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict:
-        du_lieu = task.du_lieu[:limit] if limit else task.du_lieu
-        if not du_lieu:
-            du_lieu = [{"question": "AI là gì?", "answer": "trí tuệ nhân tạo"}] * 5
-
-        dung = 0
-        tong = 0
-        for mau in du_lieu:
-            question = mau.get("question", "")
-            answer = mau.get("answer", "")
-
-            try:
-                if hasattr(model, "sinh_van_ban"):
-                    pred = model.sinh_van_ban(question, do_dai=30)
-                    if answer.lower() in pred.lower():
-                        dung += 1
-                tong += 1
-            except Exception:
-                continue
-
-        accuracy = dung / max(1, tong)
-        return {
-            "accuracy": round(accuracy, 4),
-            "f1": round(accuracy * 0.9, 4),
-            "so_mau": tong,
-        }
-
-    def _eval_cloze(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict:
-        du_lieu = task.du_lieu[:limit] if limit else task.du_lieu
-        if not du_lieu:
-            du_lieu = [{"text": "học máy là một [MASK] của AI", "answer": "nhánh"}] * 5
-
-        dung = 0
-        tong = 0
-        for mau in du_lieu:
-            text = mau.get("text", "")
-            answer = mau.get("answer", "")
-
-            try:
-                if hasattr(model, "lay_tu_ke_tiep"):
-                    prefix = text.split("[MASK]")[0]
-                    goi_y = model.lay_tu_ke_tiep(prefix, top_n=5)
-                    predictions = [g.get("tu", "") for g in goi_y]
-                    if answer in predictions:
-                        dung += 1
-                tong += 1
-            except Exception:
-                continue
-
-        return {
-            "accuracy": round(dung / max(1, tong), 4),
-            "so_mau": tong,
-        }
-
-    def _eval_generic(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict:
-        return {
-            "accuracy": round(np.random.uniform(0.3, 0.8), 4),
-            "so_mau": len(task.du_lieu) if task.du_lieu else 0,
-        }
+    def _eval_generic(self, model: Any, task: EvalTask, limit: Optional[int]) -> Dict[str, Any]:
+        """Báo lỗi rõ ràng cho loại task chưa có bộ chấm định lượng hợp lệ."""
+        raise NotImplementedError(f"Loại task đánh giá chưa được hỗ trợ: '{task.loai}'.")
 
     def _lay_du_lieu(self, task: EvalTask, limit: Optional[int]) -> List[str]:
         if task.du_lieu:
@@ -353,12 +408,13 @@ class LMEvalHarness:
         return bp * precision
 
     def _tong_hop(self, ket_qua: Dict[str, Dict]) -> Dict[str, float]:
-        tong_hop = {}
+        tong_hop: Dict[str, float] = {}
         for task_name, result in ket_qua.items():
             if isinstance(result, dict) and "error" not in result:
                 for metric in ["accuracy", "perplexity", "bleu", "f1"]:
-                    if metric in result:
-                        tong_hop[f"{task_name}/{metric}"] = result[metric]
+                    val = result.get(metric)
+                    if isinstance(val, (int, float)):
+                        tong_hop[f"{task_name}/{metric}"] = float(val)
         return tong_hop
 
     def bao_cao(self) -> str:

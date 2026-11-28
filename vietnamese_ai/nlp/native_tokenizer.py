@@ -6,10 +6,13 @@ Cung cấp khả năng tăng tốc native C/Rust, tùy chọn tích hợp `under
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
 import numpy as np
 
@@ -167,6 +170,90 @@ def _chuan_hoa_dau_van_ban_py(van_ban: str) -> str:
         norm = _chuan_hoa_am_tiet_tieng_viet(tu.lower())
         ket_qua.append(_giu_kieu_chu(tu, norm) if norm is not None else tu)
     return "".join(ket_qua)
+
+
+_RE_KY_TU_AN = re.compile(r"[\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]+")
+_DUONG_DAN_TU_DIEN_NEN = Path(__file__).resolve().parent / "data" / "tu_dien_tieng_viet.txt.gz"
+
+
+@lru_cache(maxsize=2)
+def tai_tu_dien_tieng_viet(chi_tu_ghep: bool = False) -> FrozenSet[str]:
+    """Nạp từ điển tiếng Việt nén (`tu_dien_tieng_viet.txt.gz`, ~38.000+ từ) có bộ nhớ đệm 1 lần/tiến trình."""
+    tap_tu: Set[str] = set()
+    if _DUONG_DAN_TU_DIEN_NEN.is_file():
+        with gzip.open(_DUONG_DAN_TU_DIEN_NEN, "rt", encoding="utf-8") as f:
+            for dong in f:
+                tu = dong.strip().lower()
+                if not tu:
+                    continue
+                if chi_tu_ghep:
+                    if " " in tu:
+                        tap_tu.add(tu)
+                else:
+                    tap_tu.add(tu)
+                    if " " in tu:
+                        for am in tu.split():
+                            if len(am) >= 2:
+                                tap_tu.add(am)
+    return frozenset(tap_tu)
+
+
+_CACHE_BASE_TOKENIZER_STATE: Optional[Dict[str, Any]] = None
+
+
+def _lay_trang_thai_tu_dien_co_so(tu_dien_mac_dinh: Set[str]) -> Dict[str, Any]:
+    """Khởi tạo và lưu đệm 1 lần cây Trie, bảng từ vựng và `RustViTokenizer` cho bộ từ điển mặc định."""
+    global _CACHE_BASE_TOKENIZER_STATE
+    if _CACHE_BASE_TOKENIZER_STATE is not None:
+        return _CACHE_BASE_TOKENIZER_STATE
+
+    tu_dien_day_du: Set[str] = set(tu_dien_mac_dinh)
+    tu_dien_day_du.update(tai_tu_dien_tieng_viet(chi_tu_ghep=True))
+
+    theo_do_dai: Dict[int, Set[str]] = {}
+    trie: Dict[str, Any] = {}
+    max_word_len = 1
+    for w in tu_dien_day_du:
+        parts = w.split()
+        do_dai = len(parts)
+        theo_do_dai.setdefault(do_dai, set()).add(w)
+        if do_dai > max_word_len:
+            max_word_len = do_dai
+        if do_dai >= 2:
+            node = trie
+            for p in parts:
+                nxt = node.get(p)
+                if nxt is None:
+                    nxt = {}
+                    node[p] = nxt
+                node = nxt
+            if "\0" not in node:
+                node["\0"] = float(do_dai) * 2.2 + 0.5
+
+    rust_tok: Any = None
+    if _rust_core is not None and hasattr(_rust_core, "RustViTokenizer"):
+        try:
+            rust_tok = _rust_core.RustViTokenizer(list(tu_dien_day_du))
+        except Exception:
+            rust_tok = None
+
+    vocab: Dict[str, int] = dict(BoTachTuTiengVietSieuToc.SPECIAL_TOKENS)
+    id_to_vocab: Dict[int, str] = {v: k for k, v in BoTachTuTiengVietSieuToc.SPECIAL_TOKENS.items()}
+    for idx, tu in enumerate(sorted(tu_dien_day_du), start=len(BoTachTuTiengVietSieuToc.SPECIAL_TOKENS)):
+        vocab[tu] = idx
+        vocab[tu.replace(" ", "_")] = idx
+        id_to_vocab[idx] = tu
+
+    _CACHE_BASE_TOKENIZER_STATE = {
+        "tu_dien": frozenset(tu_dien_day_du),
+        "theo_do_dai": theo_do_dai,
+        "trie": trie,
+        "max_word_len": max_word_len,
+        "rust_tokenizer": rust_tok,
+        "vocab": vocab,
+        "id_to_vocab": id_to_vocab,
+    }
+    return _CACHE_BASE_TOKENIZER_STATE
 
 
 class BoTachTuTiengVietSieuToc:
@@ -421,31 +508,54 @@ class BoTachTuTiengVietSieuToc:
         self,
         tu_dien_bo_sung: Optional[Set[str]] = None,
         su_dung_underthesea: bool = False,
+        nap_tu_dien_lon: bool = True,
     ) -> None:
-        self._tu_dien: Set[str] = set(self.TU_DIEN_TU_GHEP_MAC_DINH)
-        if tu_dien_bo_sung:
-            for t in tu_dien_bo_sung:
-                tu_sach = t.strip().lower()
-                if tu_sach:
-                    self._tu_dien.add(tu_sach)
+        self._dung_chung_bo_nho_dem = False
+        if nap_tu_dien_lon and not tu_dien_bo_sung:
+            co_so = _lay_trang_thai_tu_dien_co_so(self.TU_DIEN_TU_GHEP_MAC_DINH)
+            self._tu_dien: Set[str] = set(co_so["tu_dien"])
+            self._tu_dien_theo_do_dai: Dict[int, Set[str]] = co_so["theo_do_dai"]
+            self._trie_tu_ghep: Dict[str, Any] = co_so["trie"]
+            self._trong_so_don_am: Dict[str, float] = {}
+            self._max_word_len: int = int(co_so["max_word_len"])
+            self._rust_tokenizer: Any = co_so["rust_tokenizer"]
+            self._vocab: Dict[str, int] = dict(co_so["vocab"])
+            self._id_to_vocab: Dict[int, str] = dict(co_so["id_to_vocab"])
+            self._dung_chung_bo_nho_dem = True
+        else:
+            self._tu_dien = set(self.TU_DIEN_TU_GHEP_MAC_DINH)
+            if nap_tu_dien_lon:
+                self._tu_dien.update(tai_tu_dien_tieng_viet(chi_tu_ghep=True))
+            if tu_dien_bo_sung:
+                for t in tu_dien_bo_sung:
+                    tu_sach = t.strip().lower()
+                    if tu_sach:
+                        self._tu_dien.add(tu_sach)
 
-        self._tu_dien_theo_do_dai: Dict[int, Set[str]] = {}
-        self._trie_tu_ghep: Dict[str, Any] = {}
-        self._trong_so_don_am: Dict[str, float] = {}
-        self._max_word_len = 1
-        for w in self._tu_dien:
-            do_dai = len(w.split())
-            self._tu_dien_theo_do_dai.setdefault(do_dai, set()).add(w)
-            if do_dai > self._max_word_len:
-                self._max_word_len = do_dai
-            self._chen_trie(w)
+            self._tu_dien_theo_do_dai = {}
+            self._trie_tu_ghep = {}
+            self._trong_so_don_am = {}
+            self._max_word_len = 1
+            for w in self._tu_dien:
+                do_dai = len(w.split())
+                self._tu_dien_theo_do_dai.setdefault(do_dai, set()).add(w)
+                if do_dai > self._max_word_len:
+                    self._max_word_len = do_dai
+                self._chen_trie(w)
 
-        self._rust_tokenizer: Any = None
-        if _rust_core is not None and hasattr(_rust_core, "RustViTokenizer"):
-            try:
-                self._rust_tokenizer = _rust_core.RustViTokenizer(list(self._tu_dien))
-            except Exception:
-                self._rust_tokenizer = None
+            self._rust_tokenizer = None
+            if _rust_core is not None and hasattr(_rust_core, "RustViTokenizer"):
+                try:
+                    self._rust_tokenizer = _rust_core.RustViTokenizer(list(self._tu_dien))
+                except Exception:
+                    self._rust_tokenizer = None
+
+            self._vocab = dict(self.SPECIAL_TOKENS)
+            self._id_to_vocab = {v: k for k, v in self.SPECIAL_TOKENS.items()}
+            for idx, tu in enumerate(sorted(self._tu_dien), start=len(self.SPECIAL_TOKENS)):
+                self._vocab[tu] = idx
+                self._vocab[tu.replace(" ", "_")] = idx
+                self._id_to_vocab[idx] = tu
 
         self._underthesea_tokenize = None
         if su_dung_underthesea:
@@ -456,7 +566,7 @@ class BoTachTuTiengVietSieuToc:
             except ImportError:
                 self._underthesea_tokenize = None
 
-        self._re_spaces = re.compile(r"[\s\u200b\ufeff]+")
+        self._re_spaces = re.compile(r"[\s\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]+")
         self._re_punct = re.compile(r"([.,!?;:\"'()\[\]{}–—…/])")
         pattern_dau = "|".join(
             re.escape(k) for k in sorted(self.BANG_CHUAN_HOA_DAU.keys(), key=len, reverse=True)
@@ -464,12 +574,25 @@ class BoTachTuTiengVietSieuToc:
         self._re_dau_thanh = re.compile(rf"\b({pattern_dau})\b", flags=re.IGNORECASE)
         self._re_dau_cu_nhanh = re.compile(r"[oO][àáảãạèéẻẽẹÀÁẢÃẠÈÉẺẼẸ]|[uU][ỳýỷỹỵỲÝỶỸỴ]")
 
-        self._vocab: Dict[str, int] = dict(self.SPECIAL_TOKENS)
-        self._id_to_vocab: Dict[int, str] = {v: k for k, v in self.SPECIAL_TOKENS.items()}
-        for idx, tu in enumerate(sorted(self._tu_dien), start=len(self.SPECIAL_TOKENS)):
-            self._vocab[tu] = idx
-            self._vocab[tu.replace(" ", "_")] = idx
-            self._id_to_vocab[idx] = tu
+    def _tach_ban_sao_rieng(self) -> None:
+        """Sao chép cấu trúc dùng chung (copy-on-write) trước khi chỉnh sửa từ điển hoặc trọng số."""
+        if not self._dung_chung_bo_nho_dem:
+            return
+        self._dung_chung_bo_nho_dem = False
+        self._tu_dien_theo_do_dai = {}
+        self._trie_tu_ghep = {}
+        self._max_word_len = 1
+        for w in self._tu_dien:
+            do_dai = len(w.split())
+            self._tu_dien_theo_do_dai.setdefault(do_dai, set()).add(w)
+            if do_dai > self._max_word_len:
+                self._max_word_len = do_dai
+            self._chen_trie(w)
+        if _rust_core is not None and hasattr(_rust_core, "RustViTokenizer"):
+            try:
+                self._rust_tokenizer = _rust_core.RustViTokenizer(list(self._tu_dien))
+            except Exception:
+                self._rust_tokenizer = None
 
     @property
     def co_underthesea(self) -> bool:
@@ -499,6 +622,7 @@ class BoTachTuTiengVietSieuToc:
 
     def dat_trong_so_tu(self, trong_so: Dict[str, float]) -> None:
         """Thiết lập trọng số log-xác suất tùy biến cho từ đơn/từ ghép dùng trong giải mã Viterbi Word Lattice."""
+        self._tach_ban_sao_rieng()
         sach: Dict[str, float] = {}
         for tu, diem in trong_so.items():
             t = tu.strip().lower()
@@ -521,6 +645,7 @@ class BoTachTuTiengVietSieuToc:
 
     def them_tu_dien(self, ds_tu: List[str]) -> None:
         """Bổ sung thêm danh sách từ ghép vào từ điển phân tầng độ dài, cây tiền tố Trie và bảng từ vựng."""
+        self._tach_ban_sao_rieng()
         ds_sach: List[str] = []
         next_id = max(self._id_to_vocab.keys(), default=len(self.SPECIAL_TOKENS) - 1) + 1
         for tu in ds_tu:
@@ -547,7 +672,7 @@ class BoTachTuTiengVietSieuToc:
                 pass
 
     def chuan_hoa_unicode(self, van_ban: str) -> str:
-        """Chuẩn hóa văn bản sang dạng Unicode NFC và loại bỏ ký tự điều khiển ẩn."""
+        """Chuẩn hóa văn bản sang dạng Unicode NFC và loại bỏ ký tự điều khiển ẩn / BiDi đồng nhất Rust–Python."""
         if not van_ban:
             return ""
         if _rust_core is not None:
@@ -559,7 +684,7 @@ class BoTachTuTiengVietSieuToc:
             except Exception:
                 pass
         vb = van_ban if van_ban.isascii() else unicodedata.normalize("NFC", van_ban)
-        vb = re.sub(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\u00ad]+", "", vb)
+        vb = _RE_KY_TU_AN.sub("", vb)
         return self._re_spaces.sub(" ", vb).strip()
 
     def chuan_hoa_dau_thanh(self, van_ban: str) -> str:
@@ -924,23 +1049,30 @@ class BoNhungVanBanSieuToc:
 
         tokens = self.tokenizer.tach_tu(van_ban, noi_tu_ghep=True)
         vec = np.zeros(self.so_chieu, dtype=np.float32)
-        lower_tokens = [token.lower() for token in tokens]
+        lower_tokens = [token.lower() for token in tokens if any(c.isalnum() for c in token)]
+        if not lower_tokens:
+            lower_tokens = [token.lower() for token in tokens]
 
         for idx, t in enumerate(lower_tokens):
-            h1 = self._bam_chuoi(t) % self.so_chieu
-            weight = 1.0 / (1.0 + 0.01 * idx)
-            vec[h1] += weight
+            h1_raw = self._bam_chuoi(t)
+            vec[(h1_raw >> 1) % self.so_chieu] += (
+                (1.5 if "_" in t else 1.0) * (1.0 if (h1_raw & 1) else -1.0)
+            )
+
+            cac_am = [a for a in t.split("_") if a] if "_" in t else [t]
+            if "_" in t:
+                for am_tiet in cac_am:
+                    h_am_raw = self._bam_chuoi(am_tiet)
+                    vec[(h_am_raw >> 1) % self.so_chieu] += (
+                        0.65 * (1.0 if (h_am_raw & 1) else -1.0)
+                    )
 
             if idx + 1 < len(lower_tokens):
                 bigram = f"{t}|{lower_tokens[idx + 1]}"
-                h_bi = self._bam_chuoi(bigram) % self.so_chieu
-                vec[h_bi] += 0.45 * weight
-
-            if len(t) >= 4:
-                for j in range(len(t) - 2):
-                    sub = t[j : j + 3]
-                    h_sub = self._bam_chuoi(sub) % self.so_chieu
-                    vec[h_sub] += 0.3 * weight
+                h_bi_raw = self._bam_chuoi(bigram)
+                vec[(h_bi_raw >> 1) % self.so_chieu] += (
+                    0.4 * (1.0 if (h_bi_raw & 1) else -1.0)
+                )
 
         norm = np.linalg.norm(vec)
         if norm > 1e-9:
@@ -959,13 +1091,46 @@ class BoNhungVanBanSieuToc:
         v2 = self.nhung(vb2)
         return float(np.dot(v1, v2))
 
+    def tim_kiem_top_k(
+        self,
+        query_vec: Union[np.ndarray, List[float]],
+        ma_tran_vectors: Union[np.ndarray, List[List[float]]],
+        top_k: int = 5,
+    ) -> List[Tuple[int, float]]:
+        """Tìm nhanh top-k vector tương đồng nhất qua buffer nhị phân zero-copy `fast_top_k_cosine_bytes` của Rust."""
+        if len(ma_tran_vectors) == 0 or top_k <= 0:
+            return []
+        q = np.ascontiguousarray(query_vec, dtype="<f4").reshape(-1)
+        m = np.ascontiguousarray(ma_tran_vectors, dtype="<f4")
+        if m.ndim == 1:
+            m = m.reshape(1, -1)
+        n_docs, dim = int(m.shape[0]), int(m.shape[1])
+        k = min(int(top_k), n_docs)
+
+        if (
+            _rust_core is not None
+            and hasattr(_rust_core, "fast_top_k_cosine_bytes")
+            and q.shape[0] == dim
+        ):
+            try:
+                pairs = _rust_core.fast_top_k_cosine_bytes(
+                    q.tobytes(), m.tobytes(), n_docs, dim, k
+                )
+                return [(int(idx), float(diem)) for idx, diem in pairs]
+            except Exception:
+                pass
+
+        scores = self.tim_kiem_tuong_dong_hang_loat(q, m)
+        order = np.argsort(-scores)[:k]
+        return [(int(idx), float(scores[idx])) for idx in order]
+
     def tim_kiem_tuong_dong_hang_loat(
         self,
         query_vec: Union[np.ndarray, List[float]],
         ma_tran_vectors: Union[np.ndarray, List[List[float]]],
     ) -> np.ndarray:
         """
-        Tính toán Cosine Similarity hàng loạt trên đa lõi CPU (Rust Rayon / NumPy SIMD).
+        Tính toán Cosine Similarity hàng loạt trên đa lõi CPU bằng bộ đệm nhị phân zero-copy Rust hoặc NumPy SIMD.
 
         Tham số:
             query_vec: Vector truy vấn (1D).
@@ -977,21 +1142,28 @@ class BoNhungVanBanSieuToc:
         if len(ma_tran_vectors) == 0:
             return np.zeros(0, dtype=np.float32)
 
-        if _rust_core is not None:
+        q = np.ascontiguousarray(query_vec, dtype="<f4").reshape(-1)
+        m = np.ascontiguousarray(ma_tran_vectors, dtype="<f4")
+        if m.ndim == 1:
+            m = m.reshape(1, -1)
+        n_docs, dim = int(m.shape[0]), int(m.shape[1])
+
+        if (
+            _rust_core is not None
+            and hasattr(_rust_core, "fast_top_k_cosine_bytes")
+            and q.shape[0] == dim
+        ):
             try:
-                q_list = query_vec.tolist() if isinstance(query_vec, np.ndarray) else list(query_vec)
-                m_list = (
-                    ma_tran_vectors.tolist()
-                    if isinstance(ma_tran_vectors, np.ndarray)
-                    else [list(v) for v in ma_tran_vectors]
+                pairs = _rust_core.fast_top_k_cosine_bytes(
+                    q.tobytes(), m.tobytes(), n_docs, dim, n_docs
                 )
-                res = _rust_core.fast_batch_cosine_similarity(q_list, m_list)
-                return np.array(res, dtype=np.float32)
+                scores = np.zeros(n_docs, dtype=np.float32)
+                for idx, diem in pairs:
+                    scores[int(idx)] = float(diem)
+                return scores
             except Exception:
                 pass
 
-        q = np.asarray(query_vec, dtype=np.float32)
-        m = np.asarray(ma_tran_vectors, dtype=np.float32)
         q_norm = np.linalg.norm(q)
         m_norms = np.linalg.norm(m, axis=1)
         dots = np.dot(m, q)
@@ -1011,4 +1183,5 @@ __all__ = [
     "BoNhungVanBanSieuToc",
     "FastVietnameseEmbedder",
     "co_ho_tro_rust",
+    "tai_tu_dien_tieng_viet",
 ]

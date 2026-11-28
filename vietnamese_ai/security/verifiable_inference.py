@@ -49,13 +49,14 @@ from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_
 
 _LEAF_DOMAIN_PREFIX = b"\x00"
 _NODE_DOMAIN_PREFIX = b"\x01"
+_SINGLE_NODE_DOMAIN_PREFIX = b"\x02"
 
 
 class CayMerkleSuyLuan:
     """
     Cây băm mật mã Merkle Tree cho các bước suy luận AI (Inference Execution Merkle Tree):
-    - Đóng gói chuỗi băm của hidden states, layer IDs và model weights hash với tách miền 0x00/0x01.
-    - Sinh Root Hash và Merkle Audit Path (Proof) với độ phức tạp kiểm tra O(log N).
+    - Đóng gói chuỗi băm của hidden states, layer IDs và model weights hash với tách miền 0x00/0x01/0x02.
+    - Sinh Root Hash và Merkle Audit Path (Proof) với độ phức tạp kiểm tra O(log N), chống malleability lá lẻ.
     """
 
     def __init__(
@@ -75,6 +76,11 @@ class CayMerkleSuyLuan:
         return hashlib.sha256(_NODE_DOMAIN_PREFIX + f"{trai}:{phai}".encode("ascii")).hexdigest()
 
     @staticmethod
+    def _bam_nut_don(trai: str) -> str:
+        """Băm nút lẻ không ghép cặp với tiền tố tách miền 0x02 chống nhân đôi lá lẻ (CVE-2012-2459)."""
+        return hashlib.sha256(_SINGLE_NODE_DOMAIN_PREFIX + trai.encode("ascii")).hexdigest()
+
+    @staticmethod
     def bam_du_lieu(du_lieu: Union[str, bytes, np.ndarray]) -> str:
         """Hàm băm SHA-256 tách miền lá (0x00) cho chuỗi, byte hoặc mảng tensor NumPy."""
         h = hashlib.sha256(_LEAF_DOMAIN_PREFIX)
@@ -83,7 +89,9 @@ class CayMerkleSuyLuan:
         elif isinstance(du_lieu, bytes):
             h.update(du_lieu)
         elif isinstance(du_lieu, np.ndarray):
-            h.update(du_lieu.tobytes())
+            arr = np.ascontiguousarray(du_lieu)
+            h.update(f"{arr.dtype.str}:{arr.shape}:".encode("ascii"))
+            h.update(arr.tobytes())
         else:
             h.update(str(du_lieu).encode("utf-8"))
         return h.hexdigest()
@@ -106,8 +114,10 @@ class CayMerkleSuyLuan:
             tang_tiep_theo: List[str] = []
             for i in range(0, len(tang_hien_tai), 2):
                 trai = tang_hien_tai[i]
-                phai = tang_hien_tai[i + 1] if i + 1 < len(tang_hien_tai) else trai
-                nut_cha = self._bam_nut_noi_bo(trai, phai)
+                if i + 1 < len(tang_hien_tai):
+                    nut_cha = self._bam_nut_noi_bo(trai, tang_hien_tai[i + 1])
+                else:
+                    nut_cha = self._bam_nut_don(trai)
                 tang_tiep_theo.append(nut_cha)
             cac_tang.append(tang_tiep_theo)
             tang_hien_tai = tang_tiep_theo
@@ -139,18 +149,12 @@ class CayMerkleSuyLuan:
         for tang in self.cay[:-1]:
             la_ben_trai = idx % 2 == 0
             if la_ben_trai:
-                dong_hanh_idx = idx + 1 if idx + 1 < len(tang) else idx
-                huong = "phai"
+                if idx + 1 < len(tang):
+                    proof_path.append({"huong": "phai", "hash": tang[idx + 1]})
+                else:
+                    proof_path.append({"huong": "don", "hash": ""})
             else:
-                dong_hanh_idx = idx - 1
-                huong = "trai"
-
-            proof_path.append(
-                {
-                    "huong": huong,
-                    "hash": tang[dong_hanh_idx],
-                }
-            )
+                proof_path.append({"huong": "trai", "hash": tang[idx - 1]})
             idx //= 2
 
         return {
@@ -180,25 +184,12 @@ class CayMerkleSuyLuan:
         if index_la < 0:
             return False
         leaf_hash = self.bam_du_lieu(du_lieu)
-        current = leaf_hash
-        idx = index_la
-
-        for step in proof_path:
-            sibling = step.get("hash", "")
-            huong = step.get("huong", "")
-            la_chan = idx % 2 == 0
-            if la_chan and huong != "phai":
-                return False
-            if not la_chan and huong != "trai":
-                return False
-
-            if huong == "phai":
-                current = self._bam_nut_noi_bo(current, sibling)
-            else:
-                current = self._bam_nut_noi_bo(sibling, current)
-            idx //= 2
-
-        return hmac.compare_digest(current.lower(), root.lower())
+        return self.xac_minh_merkle_proof(
+            root_ky_vong=root,
+            leaf_hash=leaf_hash,
+            proof_path=proof_path,
+            leaf_index=index_la,
+        )
 
     @classmethod
     def xac_minh_merkle_proof(
@@ -206,18 +197,41 @@ class CayMerkleSuyLuan:
         root_ky_vong: str,
         leaf_hash: str,
         proof_path: List[Dict[str, str]],
+        leaf_index: Optional[int] = None,
     ) -> bool:
-        """Xác minh tính hợp lệ của một Merkle Proof độc lập."""
+        """Xác minh tính hợp lệ của một Merkle Proof độc lập kèm kiểm tra chẵn lẻ và độ sâu khi có `leaf_index`."""
+        if leaf_index is not None and leaf_index < 0:
+            return False
         current_hash = leaf_hash
+        idx = leaf_index
         for step in proof_path:
             sibling_hash = step.get("hash", "")
             huong = step.get("huong", "")
+            if idx is not None:
+                la_chan = idx % 2 == 0
+                if la_chan and huong not in ("phai", "don"):
+                    return False
+                if not la_chan and huong != "trai":
+                    return False
             if huong == "phai":
+                if not sibling_hash:
+                    return False
                 current_hash = cls._bam_nut_noi_bo(current_hash, sibling_hash)
             elif huong == "trai":
+                if not sibling_hash:
+                    return False
                 current_hash = cls._bam_nut_noi_bo(sibling_hash, current_hash)
+            elif huong == "don":
+                if sibling_hash != "":
+                    return False
+                current_hash = cls._bam_nut_don(current_hash)
             else:
                 return False
+            if idx is not None:
+                idx //= 2
+
+        if idx is not None and idx != 0:
+            return False
 
         return hmac.compare_digest(current_hash.lower(), root_ky_vong.lower())
 
@@ -254,8 +268,10 @@ class XacThucSuyLuanMaoHiem:
 
     @staticmethod
     def bam_tensor(tensor: np.ndarray) -> str:
-        """Băm tensor NumPy an toàn SHA-256."""
-        return hashlib.sha256(tensor.tobytes()).hexdigest()
+        """Băm tensor NumPy an toàn SHA-256 gắn chặt với hình dạng (shape) và kiểu dữ liệu (dtype)."""
+        arr = np.ascontiguousarray(tensor)
+        header = f"vai-tensor-v1:{arr.dtype.str}:{arr.shape}:".encode("ascii")
+        return hashlib.sha256(header + arr.tobytes()).hexdigest()
 
     @staticmethod
     def _la_thanh_vien_nhom_con(phan_tu: int) -> bool:
@@ -267,10 +283,18 @@ class XacThucSuyLuanMaoHiem:
         return sinh_nonce_hedged(self.secret.encode("utf-8"), payload, tien_to_mien=b"zkml1-nonce:")
 
     @staticmethod
-    def _tinh_thach_thuc_tensor(a: int, y: int, tensor_hash: str) -> int:
-        """Tính giá trị thách thức Fiat-Shamir e gắn chặt với cam kết a, khóa công khai y và băm tensor."""
+    def _tinh_thach_thuc_tensor(
+        a: int,
+        y: int,
+        tensor_hash: str,
+        node_id: str = "node_local",
+        layer_id: int = 0,
+    ) -> int:
+        """Tính giá trị thách thức Fiat-Shamir e gắn chặt với cam kết a, khóa công khai y, băm tensor và metadata."""
         c_hash = hashlib.sha256(
-            f"zkml1-tensor:{a:0{_P_HEX_WIDTH}x}:{y:0{_P_HEX_WIDTH}x}:{tensor_hash}".encode("ascii")
+            f"zkml1-tensor:{a:0{_P_HEX_WIDTH}x}:{y:0{_P_HEX_WIDTH}x}:{node_id}:{int(layer_id)}:{tensor_hash}".encode(
+                "utf-8"
+            )
         ).digest()
         return (int.from_bytes(c_hash, "big") % (_RFC5114_Q - 1)) + 1
 
@@ -299,7 +323,13 @@ class XacThucSuyLuanMaoHiem:
         a = luy_thua_modulo_rfc5114(_RFC5114_G, k)
         y = self.khoa_cong_khai
 
-        e = self._tinh_thach_thuc_tensor(a=a, y=y, tensor_hash=h_tensor)
+        e = self._tinh_thach_thuc_tensor(
+            a=a,
+            y=y,
+            tensor_hash=h_tensor,
+            node_id=node_id,
+            layer_id=layer_id,
+        )
         z = (k + e * self.scalar_secret) % _RFC5114_Q
 
         chuoi_cam_ket = (
@@ -326,17 +356,32 @@ class XacThucSuyLuanMaoHiem:
         e: int,
         z: int,
         tensor_hash: Optional[str] = None,
+        node_id: str = "node_local",
+        layer_id: int = 0,
+        cho_phep_khong_rang_buoc: bool = False,
     ) -> bool:
         """
         Xác thực phương trình Schnorr Fiat-Shamir NIZK: g^z == a * y^e (mod p).
-        Kiểm tra miền giá trị, thành viên nhóm con cấp q, và đối chiếu lại thách thức e nếu cung cấp `tensor_hash`.
+        Bắt buộc đối chiếu lại thách thức Fiat-Shamir e qua `tensor_hash` (từ chối mặc định nếu thiếu
+        để chặn giả mạo transcript không cần khóa bí mật).
         """
         if not (0 < e < _RFC5114_Q) or not (0 <= z < _RFC5114_Q):
             return False
         if not cls._la_thanh_vien_nhom_con(y) or not cls._la_thanh_vien_nhom_con(a):
             return False
-        if tensor_hash is not None:
-            e_ky_vong = cls._tinh_thach_thuc_tensor(a=a, y=y, tensor_hash=tensor_hash)
+        if tensor_hash is None:
+            if not cho_phep_khong_rang_buoc:
+                return False
+        else:
+            if not isinstance(tensor_hash, str) or len(tensor_hash) != 64:
+                return False
+            e_ky_vong = cls._tinh_thach_thuc_tensor(
+                a=a,
+                y=y,
+                tensor_hash=tensor_hash,
+                node_id=node_id,
+                layer_id=layer_id,
+            )
             if e != e_ky_vong:
                 return False
         lhs = luy_thua_modulo_rfc5114(_RFC5114_G, z)
@@ -348,8 +393,11 @@ class XacThucSuyLuanMaoHiem:
         cls,
         chuoi_cam_ket: str,
         tensor_hash: Optional[str] = None,
+        node_id: str = "node_local",
+        layer_id: int = 0,
+        cho_phep_khong_rang_buoc: bool = False,
     ) -> bool:
-        """Xác thực chuỗi cam kết zkML định dạng `zkml1:a:z:y:e` (ràng buộc Fiat-Shamir nếu có `tensor_hash`)."""
+        """Xác thực chuỗi cam kết zkML định dạng `zkml1:a:z:y:e` có ràng buộc Fiat-Shamir bắt buộc qua `tensor_hash`."""
         if not isinstance(chuoi_cam_ket, str) or not chuoi_cam_ket.startswith("zkml1:"):
             return False
         parts = chuoi_cam_ket.split(":")
@@ -362,7 +410,16 @@ class XacThucSuyLuanMaoHiem:
             e = int(parts[4], 16)
         except ValueError:
             return False
-        return cls.xac_thuc_cam_ket(y=y, a=a, e=e, z=z, tensor_hash=tensor_hash)
+        return cls.xac_thuc_cam_ket(
+            y=y,
+            a=a,
+            e=e,
+            z=z,
+            tensor_hash=tensor_hash,
+            node_id=node_id,
+            layer_id=layer_id,
+            cho_phep_khong_rang_buoc=cho_phep_khong_rang_buoc,
+        )
 
     @classmethod
     def xac_thuc_cam_ket_nghiem_ngat(
@@ -372,18 +429,27 @@ class XacThucSuyLuanMaoHiem:
     ) -> bool:
         """
         Xác thực nghiêm ngặt gói cam kết zkML từ `tao_cam_ket_zkml`:
-        bắt buộc kiểm tra đối chiếu `tensor_hash`, tính lại thách thức Fiat-Shamir `e`,
+        bắt buộc kiểm tra đối chiếu `tensor_hash`, `node_id`, `layer_id`, tính lại thách thức Fiat-Shamir `e`,
         kiểm tra nhất quán chuỗi `chuoi_cam_ket`, thành viên nhóm con và phương trình Schnorr.
         """
         tensor_hash = cam_ket.get("tensor_hash")
         chuoi_cam_ket = cam_ket.get("chuoi_cam_ket")
+        node_id = cam_ket.get("node_id")
+        layer_id = cam_ket.get("layer_id")
         if not isinstance(tensor_hash, str) or len(tensor_hash) != 64:
+            return False
+        if not isinstance(node_id, str) or not isinstance(layer_id, int) or isinstance(layer_id, bool):
             return False
         if tensor is not None and not hmac.compare_digest(cls.bam_tensor(tensor), tensor_hash):
             return False
         if not isinstance(chuoi_cam_ket, str):
             return False
-        if not cls.xac_nhan_cam_ket_chuoi(chuoi_cam_ket, tensor_hash=tensor_hash):
+        if not cls.xac_nhan_cam_ket_chuoi(
+            chuoi_cam_ket,
+            tensor_hash=tensor_hash,
+            node_id=node_id,
+            layer_id=layer_id,
+        ):
             return False
         parts = chuoi_cam_ket.split(":")
         try:
@@ -423,15 +489,16 @@ class XacThucSuyLuanMaoHiem:
         - Tính băm SHA-256 đầu vào, đầu ra và Merkle Root tách miền cho các phân đoạn tensor đầu ra.
         - Sinh chữ ký Schnorr/Fiat-Shamir trên nhóm con RFC 5114.
         """
-        h_in = hashlib.sha256(tensor_dau_vao.tobytes()).hexdigest()
-        h_out = hashlib.sha256(tensor_dau_ra.tobytes()).hexdigest()
+        h_in = self.bam_tensor(tensor_dau_vao)
+        h_out = self.bam_tensor(tensor_dau_ra)
 
+        flat_out = np.ascontiguousarray(tensor_dau_ra).reshape(-1)
         slices = [
-            tensor_dau_ra.flat[i : i + 32].tobytes()
-            for i in range(0, min(len(tensor_dau_ra.flat), 256), 32)
+            flat_out[i : i + 32].tobytes()
+            for i in range(0, min(len(flat_out), 256), 32)
         ]
         if not slices:
-            slices = [tensor_dau_ra.tobytes()]
+            slices = [flat_out.tobytes()]
 
         merkle_tree = CayMerkleSuyLuan(slices)
         merkle_root = merkle_tree.lay_goc_merkle()
@@ -482,22 +549,18 @@ class XacThucSuyLuanMaoHiem:
         pub_key = cam_ket.get("public_key", "")
 
         if tensor_dau_vao is not None:
-            hash_vao = hashlib.sha256(tensor_dau_vao.tobytes()).hexdigest()
+            hash_vao = cls.bam_tensor(tensor_dau_vao)
             if not hmac.compare_digest(hash_vao, h_in):
-                h_in_fp16 = hashlib.sha256(
-                    tensor_dau_vao.astype(np.float16).astype(np.float32).tobytes()
-                ).hexdigest()
-                h_in_raw16 = hashlib.sha256(tensor_dau_vao.astype(np.float16).tobytes()).hexdigest()
+                h_in_fp16 = cls.bam_tensor(tensor_dau_vao.astype(np.float16).astype(np.float32))
+                h_in_raw16 = cls.bam_tensor(tensor_dau_vao.astype(np.float16))
                 if not (hmac.compare_digest(h_in_fp16, h_in) or hmac.compare_digest(h_in_raw16, h_in)):
                     return False
 
         if tensor_dau_ra is not None:
-            hash_ra = hashlib.sha256(tensor_dau_ra.tobytes()).hexdigest()
+            hash_ra = cls.bam_tensor(tensor_dau_ra)
             if not hmac.compare_digest(hash_ra, h_out):
-                h_out_fp16 = hashlib.sha256(
-                    tensor_dau_ra.astype(np.float16).astype(np.float32).tobytes()
-                ).hexdigest()
-                h_out_raw16 = hashlib.sha256(tensor_dau_ra.astype(np.float16).tobytes()).hexdigest()
+                h_out_fp16 = cls.bam_tensor(tensor_dau_ra.astype(np.float16).astype(np.float32))
+                h_out_raw16 = cls.bam_tensor(tensor_dau_ra.astype(np.float16))
                 if not (hmac.compare_digest(h_out_fp16, h_out) or hmac.compare_digest(h_out_raw16, h_out)):
                     return False
 

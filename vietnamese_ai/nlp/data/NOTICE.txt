@@ -1,0 +1,9 @@
+Từ điển tiếng Việt nén (`tu_dien_tieng_viet.txt.gz`) được tổng hợp và chuẩn hóa Unicode NFC + vị trí dấu thanh hiện đại từ:
+
+1. `@vntk/dictionary` (`data/Viet39K.txt`, https://github.com/vntk/dictionary)
+   Copyright (c) 2017 Vietnamese Natural Language Processing (VNTK)
+   Giấy phép: MIT License
+
+2. Danh mục thuật ngữ hành chính, pháp lý và AI tiếng Việt thuộc Vietnamese AI Framework
+   Copyright (c) EvoNet AI Team
+   Giấy phép: MIT License

@@ -54,15 +54,15 @@ def test_p1_viterbi_dag_giai_nhap_nhang_rust_va_python_khop_nhau(monkeypatch: py
     import vietnamese_ai.nlp.native_tokenizer as nt_mod
     from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
 
-    tu_bo_sung = {"cơ quan", "nhà nước pháp quyền", "cơ quan nhà nước"}
-    cau = "cơ quan nhà nước pháp quyền"
+    tu_bo_sung = {"cơ quan", "nhà nước pháp quyền mới", "cơ quan nhà nước"}
+    cau = "cơ quan nhà nước pháp quyền mới"
 
     tok_rs = BoTachTuTiengVietSieuToc(tu_dien_bo_sung=tu_bo_sung)
     greedy = tok_rs.tach_tu(cau, noi_tu_ghep=True, phuong_phap="max_match")
     viterbi_rs = tok_rs.tach_tu(cau, noi_tu_ghep=True, phuong_phap="viterbi")
 
-    assert greedy == ["cơ_quan_nhà_nước", "pháp", "quyền"]
-    assert viterbi_rs == ["cơ_quan", "nhà_nước_pháp_quyền"]
+    assert greedy == ["cơ_quan_nhà_nước", "pháp_quyền", "mới"]
+    assert viterbi_rs == ["cơ_quan", "nhà_nước_pháp_quyền_mới"]
 
     tok_rs.dat_trong_so_tu({"học sinh": 1.0, "sinh học": 4.0})
     viterbi_w_rs = tok_rs.tach_tu_viterbi("học sinh học", noi_tu_ghep=True)

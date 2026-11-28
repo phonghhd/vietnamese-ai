@@ -10,12 +10,11 @@ Bao gồm:
 - PluginManager: Bộ quản trị hook/metric kiểu legacy (tương thích ngược).
 """
 
+import importlib
+import warnings
 from typing import Any, Dict, Tuple
 
 from .legacy_manager import PluginManager
-from .market_feed import BoDieuPhoiThiTruong, BoPhatGiaGiaLap
-from .market_predictor import BoDuDoanXuHuongNganHan
-from .micro_features import trich_xuat_24_dac_trung_vi_mo
 from .plugin_base import (
     PluginCongCu,
     PluginCoSo,
@@ -23,7 +22,6 @@ from .plugin_base import (
     PluginTriThuc,
 )
 from .plugin_manager import QuanLyPlugin
-from .quant_indicators import phan_tich_tin_hieu_tong_hop, tinh_quan_tri_rui_ro
 
 _LAZY_DOMAIN_PLUGINS: Dict[str, Tuple[str, str]] = {
     "PluginTaiChinh": ("vietnamese_ai.plugins.plugin_taichinh", "PluginTaiChinh"),
@@ -31,15 +29,37 @@ _LAZY_DOMAIN_PLUGINS: Dict[str, Tuple[str, str]] = {
     "PluginChungKhoanCrypto": ("vietnamese_ai.plugins.plugin_chungkhoan_crypto", "PluginChungKhoanCrypto"),
 }
 
+_LAZY_FINANCE_EXPORTS: Dict[str, Tuple[str, str]] = {
+    "BoDieuPhoiThiTruong": ("vietnamese_ai.plugins.finance.market_feed", "BoDieuPhoiThiTruong"),
+    "BoPhatGiaGiaLap": ("vietnamese_ai.plugins.finance.market_feed", "BoPhatGiaGiaLap"),
+    "BoDuDoanXuHuongNganHan": ("vietnamese_ai.plugins.finance.market_predictor", "BoDuDoanXuHuongNganHan"),
+    "trich_xuat_24_dac_trung_vi_mo": (
+        "vietnamese_ai.plugins.finance.micro_features",
+        "trich_xuat_24_dac_trung_vi_mo",
+    ),
+    "phan_tich_tin_hieu_tong_hop": (
+        "vietnamese_ai.plugins.finance.quant_indicators",
+        "phan_tich_tin_hieu_tong_hop",
+    ),
+    "tinh_quan_tri_rui_ro": ("vietnamese_ai.plugins.finance.quant_indicators", "tinh_quan_tri_rui_ro"),
+}
+
 DANH_MUC_PLUGIN_CHUYEN_NGANH = tuple(_LAZY_DOMAIN_PLUGINS.keys())
 
 
 def __getattr__(name: str) -> Any:
-    """Tải lười các plugin chuyên ngành hợp nhất từ `vietnamese_ai.plugins` vào không gian tên chuẩn `vietnamese_ai.plugin`."""
+    """Tải lười các plugin chuyên ngành từ `vietnamese_ai.plugins` và shim tương thích ngược cho nhóm tài chính."""
     if name in _LAZY_DOMAIN_PLUGINS:
-        import importlib
-
         mod_path, attr = _LAZY_DOMAIN_PLUGINS[name]
+        return getattr(importlib.import_module(mod_path), attr)
+    if name in _LAZY_FINANCE_EXPORTS:
+        mod_path, attr = _LAZY_FINANCE_EXPORTS[name]
+        warnings.warn(
+            f"Nhập '{name}' từ 'vietnamese_ai.plugin' đã lỗi thời từ v31.2.0; "
+            f"hãy đổi sang 'from vietnamese_ai.plugins.finance import {name}'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return getattr(importlib.import_module(mod_path), attr)
     raise AttributeError(f"Module 'vietnamese_ai.plugin' không có thuộc tính '{name}'")
 

@@ -121,36 +121,56 @@ class PhanTichCamXuc:
                 self.che_do = "tu_dien"
 
     def _diem_tu_dien(self, text: str) -> Dict[str, float]:
-        """Tính điểm cảm xúc bằng từ điển tiếng Việt có xử lý cụm từ và phủ định cục bộ."""
-        tu_list = self._xl.tach_tu(text)
-        text_lower = text.lower()
-        tich_cuc_chuan = {w.replace("_", " ") for w in self.TU_CAM_XUC_TICH_CUC}
-        tieu_cuc_chuan = {w.replace("_", " ") for w in self.TU_CAM_XUC_TIEU_CUC}
-        tu_phu_dinh = {"không", "chưa", "chẳng", "không hề"}
+        """Tính điểm cảm xúc bằng từ điển tiếng Việt khớp cụm từ dài nhất và xử lý phủ định không tính kép."""
+        van_ban_chuan = self._xl.chuan_hoa(text)
+        cac_tu = van_ban_chuan.split()
+        if not cac_tu:
+            return {"positive": 0.5, "negative": 0.5}
+
+        tu_phu_dinh_don = {"không", "chưa", "chẳng"}
+        tu_phu_dinh_kep = {("không", "hề"), ("không", "được"), ("chưa", "được"), ("chẳng", "hề")}
+
+        bang_cum: Dict[tuple, int] = {}
+        do_dai_toi_da = 1
+        for tu_goc in self.TU_CAM_XUC_TICH_CUC:
+            khoa = tuple(self._xl.chuan_hoa(tu_goc.replace("_", " ")).split())
+            if khoa:
+                bang_cum[khoa] = 1
+                if len(khoa) > do_dai_toi_da:
+                    do_dai_toi_da = len(khoa)
+        for tu_goc in self.TU_CAM_XUC_TIEU_CUC:
+            khoa = tuple(self._xl.chuan_hoa(tu_goc.replace("_", " ")).split())
+            if khoa:
+                bang_cum[khoa] = -1
+                if len(khoa) > do_dai_toi_da:
+                    do_dai_toi_da = len(khoa)
 
         diem_tich_cuc = 0
         diem_tieu_cuc = 0
-
-        for idx, tu in enumerate(tu_list):
-            tu_chuan = tu.lower().replace("_", " ")
-            bi_phu_dinh = idx > 0 and tu_list[idx - 1].lower().replace("_", " ") in tu_phu_dinh
-            if tu_chuan in tich_cuc_chuan:
-                if bi_phu_dinh:
-                    diem_tieu_cuc += 1
-                else:
-                    diem_tich_cuc += 1
-            elif tu_chuan in tieu_cuc_chuan:
-                if bi_phu_dinh:
-                    diem_tich_cuc += 1
-                else:
-                    diem_tieu_cuc += 1
-
-        for cum in tich_cuc_chuan:
-            if " " in cum and cum in text_lower:
+        i = 0
+        n = len(cac_tu)
+        while i < n:
+            khop_cuc: int = 0
+            buoc = 1
+            gioi_han = min(do_dai_toi_da, n - i)
+            for do_dai in range(gioi_han, 0, -1):
+                cum = tuple(cac_tu[i : i + do_dai])
+                if cum in bang_cum:
+                    khop_cuc = bang_cum[cum]
+                    buoc = do_dai
+                    cum_da_chua_phu_dinh = cum[0] in tu_phu_dinh_don
+                    if not cum_da_chua_phu_dinh:
+                        bi_phu_dinh = (i >= 1 and cac_tu[i - 1] in tu_phu_dinh_don) or (
+                            i >= 2 and (cac_tu[i - 2], cac_tu[i - 1]) in tu_phu_dinh_kep
+                        )
+                        if bi_phu_dinh:
+                            khop_cuc = -khop_cuc
+                    break
+            if khop_cuc > 0:
                 diem_tich_cuc += 1
-        for cum in tieu_cuc_chuan:
-            if " " in cum and cum in text_lower:
+            elif khop_cuc < 0:
                 diem_tieu_cuc += 1
+            i += buoc
 
         tong = diem_tich_cuc + diem_tieu_cuc
         if tong == 0:
@@ -183,7 +203,7 @@ class PhanTichCamXuc:
 
         if self._da_huan_luyen and self._mo_hinh is not None:
             try:
-                vec = self._xl.ma_hoa_tfidf([text])
+                vec = self._xl.transform_tfidf([text])
                 nhan_idx = self._mo_hinh.du_doan(vec)[0]
                 nhan = self._nhan_map.get(nhan_idx, "neutral")
                 return {"nhan": nhan, "xac_suat": {nhan: 1.0}, "nguon": "tu_huan"}
@@ -222,8 +242,7 @@ class PhanTichCamXuc:
 
         self.logger.info(f"Huấn luyện mô hình cảm xúc ({len(cac_van_ban)} mẫu)")
 
-        # Mã hóa văn bản
-        tfidf = self._xl.ma_hoa_tfidf(cac_van_ban)
+        tfidf = self._xl.fit_tfidf(cac_van_ban)
 
         # Mã hóa nhãn
         nhan_duy_nhat = sorted(set(cac_nhan))

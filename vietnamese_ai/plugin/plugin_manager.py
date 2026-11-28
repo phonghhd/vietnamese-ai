@@ -6,6 +6,7 @@ Hỗ trợ phân loại: PluginCongCu (Tools), PluginTriThuc (Knowledge), Plugin
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import inspect
 import logging
@@ -27,8 +28,8 @@ class QuanLyPlugin:
     """Hệ thống Quản trị & Điều phối V-Plugin 2.0."""
 
     def __init__(self) -> None:
-        # Lưu trữ các đối tượng Plugin đã khởi tạo: { ten_module: object_plugin }
         self.cac_plugin_dang_chay: Dict[str, PluginCoSo] = {}
+        self._plugin_sys_modules: Dict[str, str] = {}
 
     @property
     def cac_plugin_cong_cu(self) -> Dict[str, PluginCongCu]:
@@ -126,17 +127,18 @@ class QuanLyPlugin:
                 logger.error(f"[Plugin] Đã chặn nạp Plugin '{ten_module}': {ly_do}")
                 raise LoiAnNinh(ly_do)
 
-        # 2. Sử dụng importlib để nạp động (Dynamic Loading)
+        path_hash = hashlib.sha256(os.path.abspath(duong_dan_file).encode("utf-8")).hexdigest()[:12]
+        ten_sys_module = f"vietnamese_ai._loaded_plugins.{ten_module}_{path_hash}"
         try:
-            spec = importlib.util.spec_from_file_location(ten_module, duong_dan_file)
+            spec = importlib.util.spec_from_file_location(ten_sys_module, duong_dan_file)
             if spec is None or spec.loader is None:
                 raise ImportError(f"Không thể tạo Spec cho {duong_dan_file}")
 
             module_nap = importlib.util.module_from_spec(spec)
-            sys.modules[ten_module] = module_nap
+            sys.modules[ten_sys_module] = module_nap
+            self._plugin_sys_modules[ten_module] = ten_sys_module
             spec.loader.exec_module(module_nap)
 
-            # 3. Quét tìm Lớp kế thừa từ PluginCoSo
             for _, kieu_thanh_phan in inspect.getmembers(module_nap, inspect.isclass):
                 if issubclass(kieu_thanh_phan, PluginCoSo) and kieu_thanh_phan not in _BASE_CLASSES:
                     thuc_the_plugin = kieu_thanh_phan()
@@ -161,8 +163,8 @@ class QuanLyPlugin:
 
         except Exception as e:
             logger.error(f"[Plugin] Lỗi trong quá trình nạp '{ten_module}': {e}")
-            if ten_module in sys.modules:
-                del sys.modules[ten_module]
+            sys.modules.pop(ten_sys_module, None)
+            self._plugin_sys_modules.pop(ten_module, None)
             return None
 
     def go_plugin(self, ten_module: str) -> bool:
@@ -178,9 +180,10 @@ class QuanLyPlugin:
                 logger.warning(f"[Plugin] Lỗi khi gọi tat() cho '{plugin.ten}': {e}")
             del self.cac_plugin_dang_chay[ten_module]
 
-        if ten_module in sys.modules:
-            del sys.modules[ten_module]
-            logger.debug(f"[Plugin] Đã gỡ '{ten_module}' khỏi sys.modules.")
+        ten_sys_module = self._plugin_sys_modules.pop(ten_module, None)
+        if ten_sys_module and ten_sys_module in sys.modules:
+            del sys.modules[ten_sys_module]
+            logger.debug(f"[Plugin] Đã gỡ '{ten_sys_module}' khỏi sys.modules.")
 
         return True
 

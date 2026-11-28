@@ -42,7 +42,7 @@ class RAGPipeline:
         top_k: int = 5,
         nguong_diem: Optional[float] = None,
         toi_da_tu_vung: int = 3000,
-        enable_extreme_hardware: bool = True,
+        enable_extreme_hardware: bool = False,
         tu_dong_embed: bool = True,
         backend: str = "memory",
         thu_muc_chroma: Optional[str] = "./chroma_db",
@@ -749,36 +749,6 @@ class RAGPipeline:
 
         if self.dung_semantic_cache and self._semantic_cache is not None:
             self._semantic_cache.luu(cau_hoi, ket_qua_cuoi)
-
-        if self.enable_extreme_hardware and self.ring_attention is not None and ket_qua:
-            try:
-                vecs_ctx: List[np.ndarray] = []
-                for item in ket_qua:
-                    noi_dung_item = str(
-                        item.get("noi_dung")
-                        or item.get("metadata", {}).get("noi_dung", "")
-                    )
-                    if self.ham_embed is not None and noi_dung_item:
-                        v_raw = np.asarray(self.ham_embed(noi_dung_item), dtype=np.float32).ravel()
-                    else:
-                        v_raw = np.ones(self.ring_attention.d_model, dtype=np.float32)
-                    d_ring = self.ring_attention.d_model
-                    if v_raw.shape[0] < d_ring:
-                        v_raw = np.pad(v_raw, (0, d_ring - v_raw.shape[0]))
-                    else:
-                        v_raw = v_raw[:d_ring]
-                    vecs_ctx.append(v_raw)
-                ctx_mat = np.stack(vecs_ctx, axis=0)[None, :, :]
-                ring_out = self.ring_attention.forward_ring(ctx_mat, ctx_mat, ctx_mat)
-                ket_qua_cuoi["extreme_hardware"] = {
-                    "che_do": "ring_attention_thuc_te",
-                    "so_chunk_chu_y": len(vecs_ctx),
-                    "chuan_l2_dau_ra": round(float(np.linalg.norm(ring_out)), 4),
-                }
-            except Exception:
-                ket_qua_cuoi["extreme_hardware"] = self.flash_attention
-        elif self.enable_extreme_hardware and self.flash_attention:
-            ket_qua_cuoi["extreme_hardware"] = self.flash_attention
 
         self._lich_su.append(ket_qua_cuoi)
         return ket_qua_cuoi

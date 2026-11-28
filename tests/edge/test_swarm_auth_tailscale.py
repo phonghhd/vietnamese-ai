@@ -142,7 +142,7 @@ def test_nut_swarm_lan_server_xac_thuc_thanh_cong():
         assert proof is not None
         assert "proof_zk" in proof
         assert "merkle_root" in proof
-        assert server_node.verifier.xac_nhan_cam_ket_chuoi(proof["proof_zk"]) is True
+        assert server_node.verifier.xac_minh_cam_ket(proof, tensor_dau_vao=x_in, tensor_dau_ra=x_out) is True
         assert client_node.thoi_gian_tinh_toan_gan_nhat_ms >= 0
     finally:
         server_node.dung_server_lan()

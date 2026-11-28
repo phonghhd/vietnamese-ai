@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import List
 
-__version__ = "31.1.0"
+__version__ = "31.2.0"
 __author__ = "EvoNet AI Team"
 
 

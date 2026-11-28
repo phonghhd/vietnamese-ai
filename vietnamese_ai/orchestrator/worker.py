@@ -5,7 +5,7 @@ NutPhu (Worker Node) - Chạy tiến trình xử lý kèm giới hạn Payload v
 import hmac
 import json
 import logging
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable, Optional
 
 logger = logging.getLogger("V-Orchestrator")
@@ -50,7 +50,21 @@ class WorkerHandler(BaseHTTPRequestHandler):
                     self._tra_json(401, {"thanh_cong": False, "loi": "Từ chối truy cập: Khóa cụm không hợp lệ"})
                     return
 
-            content_length = int(self.headers.get("Content-Length", 0))
+            raw_content_length = self.headers.get("Content-Length", "0")
+            try:
+                content_length = int(raw_content_length)
+            except (TypeError, ValueError):
+                self._tra_json(
+                    400,
+                    {"thanh_cong": False, "loi": "Header Content-Length không hợp lệ"},
+                )
+                return
+            if content_length < 0:
+                self._tra_json(
+                    400,
+                    {"thanh_cong": False, "loi": "Header Content-Length không được âm"},
+                )
+                return
             if content_length > MAX_WORKER_BODY_BYTES:
                 self._tra_json(
                     413,
@@ -96,7 +110,7 @@ class NutPhu:
         self.host = host
         self.port = port
         self.ma_bi_mat_cum = ma_bi_mat_cum
-        self.server: Optional[HTTPServer] = None
+        self.server: Optional[ThreadingHTTPServer] = None
 
     def kiem_tra_token_cum(self, token: str) -> bool:
         """Xác thực khóa cụm bằng `hmac.compare_digest` chống tấn công định thời."""
@@ -109,7 +123,7 @@ class NutPhu:
     def chay(self):
         """Khởi động Worker Server."""
         handler_class = tao_handler(self.bo_xu_ly, self.ma_bi_mat_cum)
-        self.server = HTTPServer((self.host, self.port), handler_class)
+        self.server = ThreadingHTTPServer((self.host, self.port), handler_class)
         logger.info(f"[NutPhu] Khởi động thành công tại http://{self.host}:{self.port}")
 
         try:

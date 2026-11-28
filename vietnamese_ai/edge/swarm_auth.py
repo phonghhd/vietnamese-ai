@@ -19,6 +19,7 @@ import secrets
 import shutil
 import socket
 import subprocess
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -115,12 +116,15 @@ class XacThucCumSwarm:
         yeu_cau_phe_duyet: bool = False,
         so_lan_sai_toi_da: int = 5,
         thoi_gian_khoa_giay: float = 900.0,
+        thoi_gian_song_session_giay: float = 3600.0,
     ):
         self.ma_pin = str(ma_pin) if ma_pin is not None else tao_ma_pin_ngau_nhien(6)
         self.yeu_cau_phe_duyet = yeu_cau_phe_duyet
         self.so_lan_sai_toi_da = so_lan_sai_toi_da
         self.thoi_gian_khoa_giay = thoi_gian_khoa_giay
+        self.thoi_gian_song_session_giay = float(thoi_gian_song_session_giay)
 
+        self._lock = threading.RLock()
         self._ip_bi_khoa: Dict[str, float] = {}
         self._lich_su_that_bai: Dict[str, List[float]] = {}
         self._phien_hoat_dong: Dict[str, Dict[str, Any]] = {}
@@ -130,37 +134,38 @@ class XacThucCumSwarm:
 
     def kiem_tra_ip_bi_khoa(self, ip: str) -> bool:
         """Kiểm tra xem địa chỉ IP này có đang nằm trong danh sách đen tạm thời hay không."""
-        bay_gio = time.time()
-        het_han = self._ip_bi_khoa.get(ip)
-        if het_han is not None:
-            if bay_gio < het_han:
-                return True
-            # Đã hết thời gian phạt
-            del self._ip_bi_khoa[ip]
-            self._lich_su_that_bai.pop(ip, None)
-        return False
+        with self._lock:
+            bay_gio = time.time()
+            het_han = self._ip_bi_khoa.get(ip)
+            if het_han is not None:
+                if bay_gio < het_han:
+                    return True
+                del self._ip_bi_khoa[ip]
+                self._lich_su_that_bai.pop(ip, None)
+            return False
 
     def ghi_nhan_that_bai(self, ip: str) -> bool:
         """
         Ghi nhận một lần xác thực thất bại từ IP.
         Trả về True nếu IP này đã bị khóa do vượt ngưỡng cho phép.
         """
-        bay_gio = time.time()
-        ds = self._lich_su_that_bai.setdefault(ip, [])
-        # Chỉ giữ lại các lần thử trong 60 giây qua
-        ds = [t for t in ds if bay_gio - t <= 60.0]
-        ds.append(bay_gio)
-        self._lich_su_that_bai[ip] = ds
+        with self._lock:
+            bay_gio = time.time()
+            ds = self._lich_su_that_bai.setdefault(ip, [])
+            ds = [t for t in ds if bay_gio - t <= 60.0]
+            ds.append(bay_gio)
+            self._lich_su_that_bai[ip] = ds
 
-        if len(ds) >= self.so_lan_sai_toi_da:
-            self._ip_bi_khoa[ip] = bay_gio + self.thoi_gian_khoa_giay
-            return True
-        return False
+            if len(ds) >= self.so_lan_sai_toi_da:
+                self._ip_bi_khoa[ip] = bay_gio + self.thoi_gian_khoa_giay
+                return True
+            return False
 
     def xoa_lich_su_that_bai(self, ip: str) -> None:
         """Xóa lịch sử thất bại của IP khi xác thực thành công."""
-        self._lich_su_that_bai.pop(ip, None)
-        self._ip_bi_khoa.pop(ip, None)
+        with self._lock:
+            self._lich_su_that_bai.pop(ip, None)
+            self._ip_bi_khoa.pop(ip, None)
 
     def _don_dep_nonces_het_han(self, bay_gio: float) -> None:
         het_han = [
@@ -173,15 +178,16 @@ class XacThucCumSwarm:
 
     def tao_thach_thuc(self) -> str:
         """Tạo một chuỗi Nonce dùng một lần kèm thời hạn sống chống tấn công phát lại (Replay Attack)."""
-        bay_gio = time.time()
-        self._don_dep_nonces_het_han(bay_gio)
-        if len(self._nonces_da_cap) >= 4096:
-            cu_nhat = sorted(self._nonces_da_cap.items(), key=lambda x: x[1])[:512]
-            for n, _ in cu_nhat:
-                self._nonces_da_cap.pop(n, None)
-        nonce = secrets.token_hex(16)
-        self._nonces_da_cap[nonce] = bay_gio
-        return nonce
+        with self._lock:
+            bay_gio = time.time()
+            self._don_dep_nonces_het_han(bay_gio)
+            if len(self._nonces_da_cap) >= 4096:
+                cu_nhat = sorted(self._nonces_da_cap.items(), key=lambda x: x[1])[:512]
+                for n, _ in cu_nhat:
+                    self._nonces_da_cap.pop(n, None)
+            nonce = secrets.token_hex(16)
+            self._nonces_da_cap[nonce] = bay_gio
+            return nonce
 
     def ky_thach_thuc(self, nonce: str, pin: Optional[str] = None) -> str:
         """
@@ -196,31 +202,49 @@ class XacThucCumSwarm:
         """
         Xác minh chữ ký thách thức dùng một lần từ máy đối tác qua hmac.compare_digest chống timing & replay attack.
         """
-        bay_gio = time.time()
-        self._don_dep_nonces_het_han(bay_gio)
-        ts = self._nonces_da_cap.pop(nonce, None)
-        if ts is None or (bay_gio - ts) > self.thoi_gian_song_nonce_giay:
-            return False
-        chu_ky_mong_doi = self.ky_thach_thuc(nonce, pin=pin)
-        return hmac.compare_digest(chu_ky_mong_doi, chu_ky_nhan_duoc)
+        with self._lock:
+            bay_gio = time.time()
+            self._don_dep_nonces_het_han(bay_gio)
+            ts = self._nonces_da_cap.pop(nonce, None)
+            if ts is None or (bay_gio - ts) > self.thoi_gian_song_nonce_giay:
+                return False
+            chu_ky_mong_doi = self.ky_thach_thuc(nonce, pin=pin)
+            return hmac.compare_digest(chu_ky_mong_doi, chu_ky_nhan_duoc)
 
-    def tao_session_token(self, nut_id: str, ip: str = "") -> str:
-        """Cấp Session Token ủy quyền phiên suy luận có giá trị bảo mật cao."""
-        token = secrets.token_hex(24)
-        self._phien_hoat_dong[token] = {
-            "nut_id": nut_id,
-            "ip": ip,
-            "tao_luc": time.time(),
-        }
-        return token
+    def tao_session_token(self, nut_id: str, ip: str = "", ttl_giay: Optional[float] = None) -> str:
+        """Cấp Session Token ủy quyền phiên suy luận kèm thời hạn sống (TTL) và địa chỉ IP gắn kết."""
+        with self._lock:
+            token = secrets.token_hex(24)
+            bay_gio = time.time()
+            ttl = float(ttl_giay) if ttl_giay is not None else self.thoi_gian_song_session_giay
+            self._phien_hoat_dong[token] = {
+                "nut_id": nut_id,
+                "ip": ip,
+                "tao_luc": bay_gio,
+                "het_han_luc": bay_gio + max(0.0, ttl),
+            }
+            return token
 
-    def xac_minh_session_token(self, token: str) -> bool:
-        """Kiểm tra tính hợp lệ của token phiên suy luận."""
-        return token in self._phien_hoat_dong
+    def xac_minh_session_token(self, token: str, ip: Optional[str] = None) -> bool:
+        """Kiểm tra tính hợp lệ, hạn sử dụng (TTL) và khớp IP của token phiên suy luận."""
+        with self._lock:
+            info = self._phien_hoat_dong.get(token)
+            if info is None:
+                return False
+            bay_gio = time.time()
+            het_han = float(info.get("het_han_luc", float(info.get("tao_luc", 0.0)) + self.thoi_gian_song_session_giay))
+            if bay_gio > het_han:
+                self._phien_hoat_dong.pop(token, None)
+                return False
+            ip_dang_ky = str(info.get("ip", "") or "")
+            if ip is not None and ip_dang_ky and ip != ip_dang_ky:
+                return False
+            return True
 
     def thu_hoi_session_token(self, token: str) -> None:
         """Thu hồi session token khi ngắt kết nối."""
-        self._phien_hoat_dong.pop(token, None)
+        with self._lock:
+            self._phien_hoat_dong.pop(token, None)
 
     def dang_ky_cho_duyet(
         self,
@@ -232,33 +256,44 @@ class XacThucCumSwarm:
         """Đưa thiết bị mới vào hàng đợi phê duyệt 1 chạm của chủ máy."""
         vong_lap = loop or asyncio.get_event_loop()
         future: asyncio.Future = vong_lap.create_future()
-        self._hang_doi_phe_duyet[nut_id] = {
-            "nut_id": nut_id,
-            "ip": ip,
-            "thong_tin": thong_tin,
-            "thoi_gian": time.time(),
-            "future": future,
-        }
+        with self._lock:
+            self._hang_doi_phe_duyet[nut_id] = {
+                "nut_id": nut_id,
+                "ip": ip,
+                "thong_tin": thong_tin,
+                "thoi_gian": time.time(),
+                "future": future,
+            }
         return future
 
     def phe_duyet_nut(self, nut_id: str, cho_phep: bool) -> bool:
-        """Chủ máy phê duyệt (True) hoặc từ chối (False) yêu cầu gia nhập của thiết bị."""
-        muc = self._hang_doi_phe_duyet.pop(nut_id, None)
+        """Chủ máy phê duyệt (True) hoặc từ chối (False) yêu cầu gia nhập an toàn đa luồng."""
+        with self._lock:
+            muc = self._hang_doi_phe_duyet.pop(nut_id, None)
         if not muc:
             return False
         fut: asyncio.Future = muc["future"]
-        if not fut.done():
+        if fut.done():
+            return True
+        loop = fut.get_loop()
+        if loop.is_running():
+            def _hoan_tat() -> None:
+                if not fut.done():
+                    fut.set_result(cho_phep)
+            loop.call_soon_threadsafe(_hoan_tat)
+        else:
             fut.set_result(cho_phep)
         return True
 
     def lay_danh_sach_cho_duyet(self) -> List[Dict[str, Any]]:
         """Lấy danh sách các thiết bị đang đợi phê duyệt trên giao diện Web."""
-        return [
-            {
-                "nut_id": k,
-                "ip": v["ip"],
-                "thong_tin": v["thong_tin"],
-                "thoi_gian": v["thoi_gian"],
-            }
-            for k, v in self._hang_doi_phe_duyet.items()
-        ]
+        with self._lock:
+            return [
+                {
+                    "nut_id": k,
+                    "ip": v["ip"],
+                    "thong_tin": v["thong_tin"],
+                    "thoi_gian": v["thoi_gian"],
+                }
+                for k, v in self._hang_doi_phe_duyet.items()
+            ]

@@ -66,20 +66,20 @@ class PowerManager:
         percent, plugged = cls.get_battery_status()
 
         if plugged or percent > 60:
-            logger.info(f"Năng lượng dồi dào (Pin {percent}%). Chọn 4-bit (Chất lượng cao).")
-            return {
-                "precision": "4-bit",
-                "load_in_4bit": True,
-                "load_in_8bit": False,
-                "use_bitnet": False,
-            }
-
-        if 20 <= percent <= 60:
-            logger.info(f"Pin trung bình (Pin {percent}%). Chọn 8-bit (Cân bằng).")
+            logger.info(f"Năng lượng dồi dào (Pin {percent}%). Chọn 8-bit (Chất lượng cao).")
             return {
                 "precision": "8-bit",
                 "load_in_4bit": False,
                 "load_in_8bit": True,
+                "use_bitnet": False,
+            }
+
+        if 20 <= percent <= 60:
+            logger.info(f"Pin trung bình (Pin {percent}%). Chọn 4-bit (Cân bằng).")
+            return {
+                "precision": "4-bit",
+                "load_in_4bit": True,
+                "load_in_8bit": False,
                 "use_bitnet": False,
             }
 

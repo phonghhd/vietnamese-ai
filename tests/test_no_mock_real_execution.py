@@ -229,19 +229,24 @@ def test_rag_ring_attention_swarm_lm_head_mobile_honest_va_p2p_rpc():
 
     from vietnamese_ai.agents.decentralized_swarm import P2PSwarmOrchestrator
     from vietnamese_ai.agents.swarm import TacTuSwarm
+    from vietnamese_ai.distributed.ring_attention import RingAttentionNode
     from vietnamese_ai.edge import DieuPhoiSwarmCPU, P2PTracker
     from vietnamese_ai.mobile.deployment import TriKhaiDiDong
     from vietnamese_ai.rag.rag_pipeline import RAGPipeline
 
-    rag = RAGPipeline(enable_extreme_hardware=True)
+    rag = RAGPipeline()
     rag.them_tai_lieu(
         ma="luat_10",
         van_ban="Điều 10 Luật Giao dịch điện tử quy định giá trị pháp lý của thông điệp dữ liệu.",
     )
     kq_rag = rag.hoi("Giá trị pháp lý của thông điệp dữ liệu là gì?")
-    assert "extreme_hardware" in kq_rag
-    assert kq_rag["extreme_hardware"]["che_do"] == "ring_attention_thuc_te"
-    assert kq_rag["extreme_hardware"]["so_chunk_chu_y"] >= 1
+    assert "extreme_hardware" not in kq_rag
+    assert kq_rag["so_luong_nguon"] >= 1
+
+    ring_node = RingAttentionNode(d_model=32, node_id=0, total_nodes=1)
+    x_ring = np.random.RandomState(42).randn(1, 4, 32).astype(np.float32)
+    ring_out = ring_node.forward_ring(x_ring, x_ring, x_ring)
+    assert ring_out.shape == x_ring.shape
 
     cum = DieuPhoiSwarmCPU(d_model=16, tong_so_layer=4)
     cum.khoi_tao_cum_gia_lap(so_node=2)

@@ -148,50 +148,45 @@ class TestVietnameseAdministrativeRAG:
 
 
 class TestComparativeBenchmarkSuite:
-    """Kiểm tra Bộ Đo Lường Đối Đầu Định Lượng vs LangChain / LlamaIndex."""
+    """Kiểm tra Bộ Đo Lường Định Lượng Tái Lập (chỉ số thực đo, không dùng baseline tĩnh bịa đặt)."""
 
     def test_chay_benchmark_toan_dien(self):
         suite = BoDoLuongDoiDau()
         kq = suite.chay_benchmark_toan_dien()
 
         assert "vietnamese_ai" in kq
-        assert "langchain" in kq
-        assert "llamaindex" in kq
-        assert "uu_the_so_voi_langchain" in kq
+        assert "doi_sanh_truc_tiep" in kq
+        assert "du_lieu_danh_gia" in kq
+        assert "uu_the_so_voi_langchain" not in kq
 
         vai = kq["vietnamese_ai"]
         assert vai["thoi_gian_khoi_dong_ms"] > 0
         assert vai["ram_tieu_thu_mb"] > 0
         assert vai["toc_do_tach_tu_wps"] > 1000
         assert vai["hit_rate_top1_pct"] >= 50.0
-
-        adv = kq["uu_the_so_voi_langchain"]
-        assert adv["nhanh_hon_khoi_dong_lan"] > 10.0
-        assert adv["tiet_kiem_ram_pct"] > 50.0
+        assert vai["so_dieu_khoan"] == 100
+        assert vai["so_cau_hoi"] == 35
 
     def test_xuat_bao_cao_markdown_va_latex(self, tmp_path: Path):
         suite = BoDoLuongDoiDau()
         kq = suite.chay_benchmark_toan_dien()
 
-        # 1. Báo cáo Markdown
         md = suite.xuat_bang_so_sanh_markdown(kq)
         assert "QUANTITATIVE BENCHMARK" in md
-        assert "Vietnamese AI (v30.2)" in md
-        assert "LangChain" in md
+        assert f"Vietnamese AI (v{vietnamese_ai.__version__})" in md
+        assert "100 điều khoản" in md
 
-        # 2. Báo cáo LaTeX
         latex = suite.xuat_bang_so_sanh_latex(kq)
         assert "\\begin{table}" in latex
         assert "\\caption{" in latex
         assert "\\end{table}" in latex
 
-        # 3. Xuất JSON
         json_path = tmp_path / "bench_out.json"
         data_json = suite.xuat_du_lieu_json(json_path)
         assert data_json is not None
         assert json_path.exists()
         loaded = json.loads(json_path.read_text(encoding="utf-8"))
-        assert loaded["vietnamese_ai"]["ten"] == "Vietnamese AI (v30.2)"
+        assert loaded["vietnamese_ai"]["ten"] == f"Vietnamese AI (v{vietnamese_ai.__version__})"
 
 
 def test_cli_benchmark_va_tokenize(tmp_path: Path):
@@ -216,7 +211,7 @@ def test_cli_benchmark_va_tokenize(tmp_path: Path):
 
 def test_public_symbols_and_version_v30_2():
     """Kiểm tra các symbols công khai và phiên bản 31.0.0 qua lazy loader."""
-    assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2", "31.0.3", "31.0.4", "31.1.0")
+    assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2", "31.0.3", "31.0.4", "31.1.0", "31.2.0")
 
     # Kiểm tra lazy imports các symbols mới
     assert getattr(vietnamese_ai, "BoTachTuTiengVietSieuToc") is BoTachTuTiengVietSieuToc

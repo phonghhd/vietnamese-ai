@@ -2,10 +2,16 @@ include LICENSE
 include README.md
 include CHANGELOG.md
 include CONTRIBUTING.md
+include CITATION.cff
 include requirements.txt
 include pyproject.toml
+include vietnamese_ai/py.typed
+include vietnamese_ai/*.pyi
 recursive-include vietnamese_ai *.py
+recursive-include vietnamese_ai/rag/legal/data *.jsonl
+recursive-include vietnamese_ai/nlp/data *.gz *.txt
 recursive-include tests *.py
 recursive-include examples *.py
+recursive-exclude vietnamese_ai *.so *.pyd *.dylib
 recursive-exclude * __pycache__
 recursive-exclude * *.py[cod]

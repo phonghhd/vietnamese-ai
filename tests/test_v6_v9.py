@@ -772,7 +772,7 @@ class TestV6V9Integration:
     def test_version(self):
         import vietnamese_ai
 
-        assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2", "31.0.3", "31.0.4", "31.1.0")
+        assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2", "31.0.3", "31.0.4", "31.1.0", "31.2.0")
 
     def test_all_exports_count(self):
         import vietnamese_ai

@@ -70,6 +70,7 @@ class DoThiThucThi:
         checkpointer: Optional[BoLuuDiemKiemTra] = None,
         interrupt_before: Optional[List[str]] = None,
         interrupt_after: Optional[List[str]] = None,
+        gioi_han_buoc: int = 25,
     ):
         self.cac_nut = cac_nut
         self.cac_canh = cac_canh
@@ -79,6 +80,7 @@ class DoThiThucThi:
         self.checkpointer = checkpointer or BoLuuDiemKiemTra()
         self.interrupt_before: Set[str] = set(interrupt_before or [])
         self.interrupt_after: Set[str] = set(interrupt_after or [])
+        self.gioi_han_buoc = int(gioi_han_buoc)
 
         self._trang_thai_hien_tai: Dict[str, Any] = {}
         self._nut_hien_tai: Optional[str] = None
@@ -150,12 +152,13 @@ class DoThiThucThi:
         self,
         trang_thai_khoi_tao: Dict[str, Any],
         session_id: Optional[str] = None,
-        gioi_han_buoc: int = 25,
+        gioi_han_buoc: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Khởi chạy đồ thị trạng thái từ điểm bắt đầu (cô lập trạng thái theo từng `session_id`).
         """
         sid = session_id or f"sess_{uuid.uuid4().hex[:8]}"
+        gioi_han = self.gioi_han_buoc if gioi_han_buoc is None else int(gioi_han_buoc)
         state = copy.deepcopy(trang_thai_khoi_tao)
         so_buoc = 0
 
@@ -164,8 +167,8 @@ class DoThiThucThi:
         nut_ke_tiep = self.diem_bat_dau
         nhat_ky_buoc: List[Dict[str, Any]] = []
 
-        while nut_ke_tiep != END and so_buoc < gioi_han_buoc:
-            if nut_ke_tiep in self.interrupt_before and so_buoc > 0:
+        while nut_ke_tiep != END and so_buoc < gioi_han:
+            if nut_ke_tiep in self.interrupt_before:
                 self._luu_trang_thai_phien(sid, state, nut_ke_tiep, so_buoc, True, nut_ke_tiep)
                 return {
                     "trang_thai": copy.deepcopy(state),
@@ -227,7 +230,7 @@ class DoThiThucThi:
         trang_thai_khoi_tao: Dict[str, Any],
         session_id: Optional[str] = None,
         thread_id: Optional[str] = None,
-        gioi_han_buoc: int = 25,
+        gioi_han_buoc: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Thực thi đồ thị trạng thái và trả về kết quả hợp nhất (chuẩn LangGraph / StateGraph)."""
         sid = thread_id or session_id
@@ -255,12 +258,13 @@ class DoThiThucThi:
         session_id: Optional[str] = None,
         thread_id: Optional[str] = None,
         trang_thai_cap_nhat: Optional[Dict[str, Any]] = None,
-        gioi_han_buoc: int = 25,
+        gioi_han_buoc: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Tiếp tục thực thi đồ thị cho đúng phiên (`session_id`/`thread_id`) sau khi con người can thiệp hoặc điều chỉnh State.
         """
         sid = thread_id or session_id or self._session_id
+        gioi_han = self.gioi_han_buoc if gioi_han_buoc is None else int(gioi_han_buoc)
         phien = self._phien_state.get(sid)
         if phien is None:
             if not self._dang_tam_dung or not self._nut_hien_tai:
@@ -281,7 +285,7 @@ class DoThiThucThi:
         nhat_ky_buoc: List[Dict[str, Any]] = []
         da_bo_qua_ngat_dau = False
 
-        while nut_ke_tiep != END and so_buoc < gioi_han_buoc:
+        while nut_ke_tiep != END and so_buoc < gioi_han:
             if nut_ke_tiep in self.interrupt_before and da_bo_qua_ngat_dau:
                 self._luu_trang_thai_phien(sid, state, nut_ke_tiep, so_buoc, True, nut_ke_tiep)
                 out = copy.deepcopy(state)
@@ -419,6 +423,8 @@ class DoThiTrangThai:
             task_id = f"task_{uuid.uuid4().hex[:6]}"
             if hasattr(nut_chinh, "dieu_phoi_nhiem_vu"):
                 kq = nut_chinh.dieu_phoi_nhiem_vu({"id": task_id, "data": payload})
+            elif hasattr(nut_chinh, "dieu_huong_suy_luan_swarm"):
+                kq = nut_chinh.dieu_huong_suy_luan_swarm(prompt=str(payload))
             elif hasattr(nut_chinh, "gui_nhiem_vu"):
                 kq = nut_chinh.gui_nhiem_vu(task_id, payload)
             else:
@@ -474,6 +480,7 @@ class DoThiTrangThai:
             checkpointer=checkpointer or self.bo_luu_diem,
             interrupt_before=interrupt_before,
             interrupt_after=interrupt_after,
+            gioi_han_buoc=gioi_han_buoc,
         )
 
     # LangGraph & English method aliases

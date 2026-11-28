@@ -59,7 +59,11 @@ class TongDaiCSKH:
         self.asr = asr or NhanDienGiongNoi()
         self.tts = tts or TongHopGiongNoi()
 
-    def _chuan_hoa_dau_vao(self, yeu_cau: Union[str, Path, np.ndarray, bytes]) -> Tuple[str, bool]:
+    def _chuan_hoa_dau_vao(
+        self,
+        yeu_cau: Union[str, Path, np.ndarray, bytes],
+        cho_phep_doc_tep: bool = True,
+    ) -> Tuple[str, bool]:
         """Chuẩn hóa yêu cầu đầu vào từ text, file wav, numpy array hoặc binary PCM."""
         if isinstance(yeu_cau, bytes):
             from vietnamese_ai.audio.stream_processor import LuongAmThanhThoiGianThuc
@@ -67,9 +71,9 @@ class TongDaiCSKH:
             arr_f32 = LuongAmThanhThoiGianThuc.pcm16_sang_float32(yeu_cau)
             res_asr = self.asr.nhan_dien(arr_f32)
             return res_asr.get("van_ban", ""), True
-        if isinstance(yeu_cau, (str, Path)) and Path(str(yeu_cau)).is_file():
-            p = Path(str(yeu_cau))
-            if p.suffix.lower() == ".wav":
+        if isinstance(yeu_cau, Path) or (cho_phep_doc_tep and isinstance(yeu_cau, str)):
+            p = yeu_cau if isinstance(yeu_cau, Path) else Path(yeu_cau)
+            if p.is_file() and p.suffix.lower() == ".wav":
                 res_asr = self.asr.nhan_dien(p)
                 return res_asr.get("van_ban", ""), True
         if isinstance(yeu_cau, np.ndarray):
@@ -89,11 +93,14 @@ class TongDaiCSKH:
         yeu_cau: Union[str, Path, np.ndarray, bytes],
         co_tra_ve_am_thanh: bool = False,
         duong_dan_luu_am_thanh: Optional[Union[str, Path]] = None,
+        cho_phep_doc_tep: bool = True,
     ) -> Dict[str, Any]:
         """
         Xử lý yêu cầu của khách hàng, tự động tra cứu nghiệp vụ và trả lời.
         """
-        van_ban_khach, la_giong_noi = self._chuan_hoa_dau_vao(yeu_cau)
+        van_ban_khach, la_giong_noi = self._chuan_hoa_dau_vao(
+            yeu_cau, cho_phep_doc_tep=cho_phep_doc_tep
+        )
 
         # 1. Quét bảo mật Tường lửa AI
         kt_dau_vao = self.tuong_lua.kiem_tra_dau_vao(van_ban_khach)
@@ -141,7 +148,10 @@ class TongDaiCSKH:
             y_dinh = "THOI_GIAN_LAM_VIEC"
             tra_loi = f"Dạ, {self.THOI_GIAN_LAM_VIEC}"
 
-        elif "chào" in text_lower or "hello" in text_lower or "hi" in text_lower:
+        elif (
+            "chào" in text_lower
+            or re.search(r"\b(?:hello|hi|hey)\b", text_lower) is not None
+        ):
             y_dinh = "CHAO_HOI"
             tra_loi = f"Dạ {self.ten_thuong_hieu} xin chào quý khách! Em có thể hỗ trợ gì cho mình hôm nay ạ?"
 

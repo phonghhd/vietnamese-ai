@@ -4,7 +4,8 @@ import math
 import operator
 import os
 import tempfile
-from typing import Any, Callable, Dict
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional, Tuple
 
 
 class CongCu:
@@ -164,28 +165,55 @@ _TEP_CAM_DOC = (
 )
 
 
+def _la_duong_dan_con(dich: Path, goc: Path) -> bool:
+    try:
+        dich.relative_to(goc)
+        return True
+    except ValueError:
+        return False
+
+
+def _kiem_tra_duong_dan_tep_an_toan(duong_dan: str) -> Tuple[Optional[Path], Optional[str]]:
+    if not isinstance(duong_dan, str) or not duong_dan.strip():
+        return None, "Lỗi bảo mật: Đường dẫn tệp không hợp lệ."
+    duong_dan_norm = duong_dan.replace("\\", "/").lower()
+    if ".." in duong_dan_norm.split("/"):
+        return None, "Lỗi bảo mật: Phát hiện hành vi Path Traversal ('..'). Không được phép truy cập."
+    for cam in _TEP_CAM_DOC:
+        if cam in duong_dan_norm:
+            return None, f"Lỗi bảo mật: Từ chối đọc tệp nhạy cảm '{cam}'."
+
+    try:
+        real_path = Path(duong_dan).resolve()
+    except OSError:
+        return None, "Lỗi bảo mật: Không thể phân giải đường dẫn tệp."
+
+    real_norm = str(real_path).replace("\\", "/").lower()
+    for cam in _TEP_CAM_DOC:
+        if cam in real_norm:
+            return None, f"Lỗi bảo mật: Từ chối đọc tệp nhạy cảm '{cam}'."
+
+    cwd_path = Path.cwd().resolve()
+    tmp_path = Path(tempfile.gettempdir()).resolve()
+    if not (_la_duong_dan_con(real_path, cwd_path) or _la_duong_dan_con(real_path, tmp_path)):
+        return None, "Lỗi bảo mật: Đường dẫn nằm ngoài phạm vi thư mục làm việc cho phép."
+
+    return real_path, None
+
+
 @cong_cu(
     ten="doc_file",
     mo_ta="Đọc nội dung của một file văn bản. Tham số 'duong_dan' là đường dẫn tuyệt đối hoặc tương đối tới file.",
 )
 def cong_cu_doc_file(duong_dan: str) -> str:
-    duong_dan_norm = duong_dan.replace("\\", "/").lower()
-    if ".." in duong_dan_norm.split("/"):
-        return "Lỗi bảo mật: Phát hiện hành vi Path Traversal ('..'). Không được phép truy cập."
-    for cam in _TEP_CAM_DOC:
-        if cam in duong_dan_norm:
-            return f"Lỗi bảo mật: Từ chối đọc tệp nhạy cảm '{cam}'."
+    real_path, loi_bm = _kiem_tra_duong_dan_tep_an_toan(duong_dan)
+    if loi_bm is not None or real_path is None:
+        return loi_bm or "Lỗi bảo mật: Đường dẫn không hợp lệ."
 
-    abs_path = os.path.abspath(duong_dan)
-    cwd = os.path.abspath(os.getcwd())
-    tmp_dir = os.path.abspath(tempfile.gettempdir())
-    if not (abs_path.startswith(cwd) or abs_path.startswith(tmp_dir)):
-        return "Lỗi bảo mật: Đường dẫn nằm ngoài phạm vi thư mục làm việc cho phép."
-
-    if not os.path.exists(abs_path):
+    if not real_path.exists():
         return f"Lỗi: File '{duong_dan}' không tồn tại."
     try:
-        with open(abs_path, "r", encoding="utf-8") as f:
+        with open(real_path, "r", encoding="utf-8") as f:
             return f.read(100_000)
     except Exception as e:
         return f"Lỗi khi đọc file: {str(e)}"
@@ -249,7 +277,11 @@ def cong_cu_python_repl(ma_nguon: str) -> str:
 )
 def cong_cu_phan_tich_anh(duong_dan_anh: str) -> str:
     """Tích hợp Multi-modal RAG (v14) vào hệ thống Agent Swarm (v24)."""
-    if not os.path.exists(duong_dan_anh):
+    real_path, loi_bm = _kiem_tra_duong_dan_tep_an_toan(duong_dan_anh)
+    if loi_bm is not None or real_path is None:
+        return loi_bm or "Lỗi bảo mật: Đường dẫn ảnh không hợp lệ."
+
+    if not real_path.exists():
         return f"Lỗi: Không tìm thấy file ảnh tại '{duong_dan_anh}'"
 
     try:
@@ -257,13 +289,20 @@ def cong_cu_phan_tich_anh(duong_dan_anh: str) -> str:
         from PIL import Image
 
         from vietnamese_ai.rag.multimodal.image_embedder import ImageEmbedder
+        from vietnamese_ai.security.data_defense import KhienBaoVeHinhAnh
+
+        khien = KhienBaoVeHinhAnh()
+        bao_cao = khien.quet_anh(str(real_path), chan_khi_nguy_hiem=False)
+        de_doa = bao_cao.get("moi_de_doa", [])
+        if any("Decompression Bomb" in str(m) or "không phải ảnh" in str(m).lower() for m in de_doa):
+            return f"Lỗi bảo mật: Ảnh bị từ chối bởi KhienBaoVeHinhAnh ({'; '.join(map(str, de_doa))})."
 
         embedder = ImageEmbedder()
-        vector = embedder.nhung_hinh_anh([duong_dan_anh])[0]
+        vector = embedder.nhung_hinh_anh([str(real_path)])[0]
 
         thong_tin_anh = ""
         try:
-            with Image.open(duong_dan_anh) as img:
+            with Image.open(real_path) as img:
                 width, height = img.size
                 dinh_dang = img.format or "RAW"
                 che_do = img.mode

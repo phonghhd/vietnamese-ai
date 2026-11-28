@@ -184,6 +184,65 @@ DANH_MUC_MO_HINH_VIET: Dict[str, ThongTinMoHinhEdge] = {
     ),
 }
 
+@dataclass
+class ThongTinMoHinhONNX:
+    """Siêu dữ liệu chuẩn cho mô hình nhúng hoặc Cross-Encoder ONNX INT8 tiếng Việt kèm `tokenizer.json`."""
+
+    ma_mo_hinh: str
+    ten_hien_thi: str
+    repo_hf: str
+    loai: str
+    tep_onnx: str
+    tep_tokenizer: str
+    so_chieu: int
+    dung_luong_mb: float
+    ram_toi_thieu_gb: float
+    mo_ta: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Chuyển thông tin mô hình ONNX sang từ điển JSON."""
+        return asdict(self)
+
+
+DANH_MUC_MO_HINH_ONNX_VIET: Dict[str, ThongTinMoHinhONNX] = {
+    "multilingual-e5-small-onnx": ThongTinMoHinhONNX(
+        ma_mo_hinh="multilingual-e5-small-onnx",
+        ten_hien_thi="Multilingual-E5-Small INT8 ONNX (384 chiều, siêu nhẹ CPU)",
+        repo_hf="Xenova/multilingual-e5-small",
+        loai="embedding",
+        tep_onnx="onnx/model_quantized.onnx",
+        tep_tokenizer="tokenizer.json",
+        so_chieu=384,
+        dung_luong_mb=118.0,
+        ram_toi_thieu_gb=0.5,
+        mo_ta="Mô hình nhúng đa ngữ hỗ trợ tiếng Việt tốt, lượng tử hóa INT8 chạy trực tiếp trên CPU qua ONNX Runtime.",
+    ),
+    "bge-m3-onnx": ThongTinMoHinhONNX(
+        ma_mo_hinh="bge-m3-onnx",
+        ten_hien_thi="BGE-M3 INT8 ONNX (1024 chiều, truy hồi ngữ nghĩa pháp lý/đa ngữ)",
+        repo_hf="Xenova/bge-m3",
+        loai="embedding",
+        tep_onnx="onnx/model_quantized.onnx",
+        tep_tokenizer="tokenizer.json",
+        so_chieu=1024,
+        dung_luong_mb=570.0,
+        ram_toi_thieu_gb=1.5,
+        mo_ta="Bộ nhúng BGE-M3 lượng tử INT8 kèm `tokenizer.json` cho truy hồi văn bản dài tiếng Việt.",
+    ),
+    "bge-reranker-v2-m3-onnx": ThongTinMoHinhONNX(
+        ma_mo_hinh="bge-reranker-v2-m3-onnx",
+        ten_hien_thi="BGE-Reranker-v2-M3 INT8 ONNX (Cross-Encoder sắp xếp lại tiếng Việt)",
+        repo_hf="onnx-community/bge-reranker-v2-m3-ONNX",
+        loai="reranker",
+        tep_onnx="onnx/model_int8.onnx",
+        tep_tokenizer="tokenizer.json",
+        so_chieu=1,
+        dung_luong_mb=570.0,
+        ram_toi_thieu_gb=1.5,
+        mo_ta="Cross-Encoder INT8 tiếng Việt/đa ngữ dùng trực tiếp cho `BoSapXepLaiONNXTiengViet`.",
+    ),
+}
+
 _BI_DANH_LUONG_TU: Dict[str, str] = {
     "q3": "Q3_K_M",
     "q3_k_m": "Q3_K_M",
@@ -341,6 +400,7 @@ class QuanLyMoHinhEdge:
         self._tep_chi_muc = self.thu_muc_luu / "models_index.json"
         self.logger = Logger("EdgeModelHub")
         self.danh_muc: Dict[str, ThongTinMoHinhEdge] = dict(DANH_MUC_MO_HINH_VIET)
+        self.danh_muc_onnx: Dict[str, ThongTinMoHinhONNX] = dict(DANH_MUC_MO_HINH_ONNX_VIET)
         if danh_muc_bo_sung:
             self.danh_muc.update(danh_muc_bo_sung)
 
@@ -579,6 +639,160 @@ class QuanLyMoHinhEdge:
             "sha256": sha_thuc,
         }
 
+    def danh_sach_mo_hinh_onnx(self) -> List[Dict[str, Any]]:
+        """Liệt kê danh mục mô hình nhúng & reranker ONNX INT8 tiếng Việt kèm `tokenizer.json`."""
+        chi_muc = self._doc_chi_muc()
+        ket_qua: List[Dict[str, Any]] = []
+        for ma, info in self.danh_muc_onnx.items():
+            khoa = f"{ma}:INT8"
+            item = chi_muc.get(khoa, {})
+            da_tai = bool(
+                item
+                and Path(item.get("duong_dan", "")).is_file()
+                and Path(item.get("duong_dan_tokenizer", "")).is_file()
+            )
+            ket_qua.append(
+                {
+                    **info.to_dict(),
+                    "khoa_mo_hinh": khoa,
+                    "da_tai_cuc_bo": da_tai,
+                    "duong_dan_onnx": item.get("duong_dan") if da_tai else None,
+                    "duong_dan_tokenizer": item.get("duong_dan_tokenizer") if da_tai else None,
+                }
+            )
+        return ket_qua
+
+    def _tai_tep_don_gian(
+        self,
+        url: str,
+        dich: Path,
+        hf_token: Optional[str] = None,
+        timeout_giay: float = 60.0,
+    ) -> int:
+        """Tải một tệp HTTP(S) an toàn về tệp tạm rồi di chuyển nguyên tử sang đường dẫn đích."""
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"Giao thức URL không được phép: {parsed.scheme}")
+        headers: Dict[str, str] = {"User-Agent": "vietnamese-ai/31.2.0"}
+        token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
+        if token and "huggingface.co" in (parsed.netloc or ""):
+            headers["Authorization"] = f"Bearer {token}"
+        dich.parent.mkdir(parents=True, exist_ok=True)
+        part = dich.with_suffix(dich.suffix + ".part")
+        req = urllib.request.Request(url, headers=headers, method="GET")
+        tong = 0
+        with urllib.request.urlopen(req, timeout=timeout_giay) as resp:
+            with open(part, "wb") as out_f:
+                while True:
+                    chunk = resp.read(262144)
+                    if not chunk:
+                        break
+                    out_f.write(chunk)
+                    tong += len(chunk)
+        shutil.move(str(part), str(dich))
+        return tong
+
+    def tai_mo_hinh_onnx(
+        self,
+        ma_mo_hinh: str,
+        chay_that: bool = True,
+        tai_lai: bool = False,
+        hf_token: Optional[str] = None,
+        timeout_giay: float = 60.0,
+    ) -> Dict[str, Any]:
+        """Tải bộ đôi tệp ONNX INT8 và `tokenizer.json` vào thư mục cục bộ cho `BoNhungONNXTiengViet` / `BoSapXepLaiONNXTiengViet`."""
+        ma = ma_mo_hinh.strip().lower()
+        if ma not in self.danh_muc_onnx:
+            hop_le = ", ".join(sorted(self.danh_muc_onnx.keys()))
+            raise ValueError(f"Không tìm thấy preset ONNX '{ma_mo_hinh}'. Hỗ trợ: {hop_le}")
+        info = self.danh_muc_onnx[ma]
+        thu_muc_onnx = self.thu_muc_luu / "onnx" / ma
+        dich_onnx = thu_muc_onnx / Path(info.tep_onnx).name
+        dich_tok = thu_muc_onnx / Path(info.tep_tokenizer).name
+        url_onnx = f"https://huggingface.co/{info.repo_hf}/resolve/main/{info.tep_onnx}"
+        url_tok = f"https://huggingface.co/{info.repo_hf}/resolve/main/{info.tep_tokenizer}"
+        khoa_luu = f"{ma}:INT8"
+
+        ke_hoach: Dict[str, Any] = {
+            "ma_mo_hinh": ma,
+            "loai_mo_hinh": info.loai,
+            "muc_luong_tu": "INT8",
+            "ten_tep": dich_onnx.name,
+            "url": url_onnx,
+            "url_tokenizer": url_tok,
+            "repo_hf": info.repo_hf,
+            "so_chieu": info.so_chieu,
+            "dung_luong_mb": info.dung_luong_mb,
+            "ly_do": f"Tải preset ONNX INT8 ({info.loai}) kèm tokenizer.json chuẩn từ {info.repo_hf}.",
+        }
+        if not chay_that:
+            return {
+                "trang_thai": "xem_truoc_dry_run",
+                "khoa_mo_hinh": khoa_luu,
+                "duong_dan": str(dich_onnx),
+                "duong_dan_onnx": str(dich_onnx),
+                "duong_dan_tokenizer": str(dich_tok),
+                "da_ton_tai": dich_onnx.is_file() and dich_tok.is_file(),
+                **ke_hoach,
+            }
+
+        if dich_onnx.is_file() and dich_tok.is_file() and not tai_lai:
+            json.loads(dich_tok.read_text(encoding="utf-8"))
+            sha_onnx = _tinh_sha256_tep(dich_onnx)
+            return {
+                "trang_thai": "da_co_san",
+                "khoa_mo_hinh": khoa_luu,
+                "duong_dan": str(dich_onnx),
+                "duong_dan_onnx": str(dich_onnx),
+                "duong_dan_tokenizer": str(dich_tok),
+                "sha256": sha_onnx,
+                "kich_thuoc_bytes": dich_onnx.stat().st_size,
+                **ke_hoach,
+            }
+
+        self._tai_tep_don_gian(url_tok, dich_tok, hf_token=hf_token, timeout_giay=timeout_giay)
+        try:
+            json.loads(dich_tok.read_text(encoding="utf-8"))
+        except Exception as exc:
+            if dich_tok.exists():
+                dich_tok.unlink()
+            raise ValueError(f"Tệp tokenizer.json tải về không hợp lệ JSON: {exc}") from exc
+
+        size_onnx = self._tai_tep_don_gian(url_onnx, dich_onnx, hf_token=hf_token, timeout_giay=timeout_giay)
+        if size_onnx <= 0:
+            if dich_onnx.exists():
+                dich_onnx.unlink()
+            raise ValueError("Tệp mô hình ONNX tải về rỗng.")
+        sha_onnx = _tinh_sha256_tep(dich_onnx)
+        chu_ky = LuuTai.ky_file(str(dich_onnx))
+
+        chi_muc = self._doc_chi_muc()
+        chi_muc[khoa_luu] = {
+            "ma_mo_hinh": ma,
+            "loai_mo_hinh": info.loai,
+            "muc_luong_tu": "INT8",
+            "ten_tep": dich_onnx.name,
+            "duong_dan": str(dich_onnx),
+            "duong_dan_tokenizer": str(dich_tok),
+            "sha256": sha_onnx,
+            "chu_ky_hmac": chu_ky,
+            "kich_thuoc_bytes": size_onnx,
+            "url": url_onnx,
+            "url_tokenizer": url_tok,
+        }
+        self._luu_chi_muc(chi_muc)
+        return {
+            "trang_thai": "da_tai_thanh_cong",
+            "khoa_mo_hinh": khoa_luu,
+            "duong_dan": str(dich_onnx),
+            "duong_dan_onnx": str(dich_onnx),
+            "duong_dan_tokenizer": str(dich_tok),
+            "sha256": sha_onnx,
+            "chu_ky_hmac": chu_ky,
+            "kich_thuoc_bytes": size_onnx,
+            **ke_hoach,
+        }
+
     def tai_mo_hinh(
         self,
         ten_hoac_nguon: str,
@@ -591,11 +805,20 @@ class QuanLyMoHinhEdge:
         ham_tien_do: Optional[Callable[[int, int], None]] = None,
     ) -> Dict[str, Any]:
         """
-        Tải mô hình GGUF tiếng Việt về bộ nhớ đệm cục bộ:
-        - Tự chọn mức lượng tử khớp RAM khi `muc_luong_tu='auto'`.
+        Tải mô hình GGUF hoặc preset ONNX INT8 tiếng Việt về bộ nhớ đệm cục bộ:
+        - Tự phát hiện preset ONNX INT8 (tải trọn bộ `.onnx` + `tokenizer.json`).
+        - Tự chọn mức lượng tử GGUF khớp RAM khi `muc_luong_tu='auto'`.
         - Hỗ trợ tiếp tục tải khi đứt mạng qua HTTP `Range` (`206 Partial Content`).
         - Kiểm tra magic bytes `GGUF`, đối chiếu SHA-256 và ký toàn vẹn HMAC-SHA256 cục bộ.
         """
+        if ten_hoac_nguon.strip().lower() in self.danh_muc_onnx:
+            return self.tai_mo_hinh_onnx(
+                ten_hoac_nguon,
+                chay_that=chay_that,
+                tai_lai=tai_lai,
+                hf_token=hf_token,
+                timeout_giay=timeout_giay,
+            )
         ke_hoach = self._xay_dung_thong_so_tai(
             ten_hoac_nguon,
             muc_luong_tu=muc_luong_tu,
@@ -634,7 +857,7 @@ class QuanLyMoHinhEdge:
             part_file.unlink()
 
         da_co_bytes = part_file.stat().st_size if part_file.is_file() else 0
-        headers: Dict[str, str] = {"User-Agent": "vietnamese-ai/31.1.0"}
+        headers: Dict[str, str] = {"User-Agent": "vietnamese-ai/31.2.0"}
         token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
         if token and "huggingface.co" in (parsed_url.netloc or ""):
             headers["Authorization"] = f"Bearer {token}"
@@ -811,7 +1034,9 @@ VietnameseModelPuller = QuanLyMoHinhEdge
 __all__ = [
     "BienTheGGUF",
     "ThongTinMoHinhEdge",
+    "ThongTinMoHinhONNX",
     "DANH_MUC_MO_HINH_VIET",
+    "DANH_MUC_MO_HINH_ONNX_VIET",
     "do_ram_he_thong_gb",
     "dinh_dang_prompt_chat",
     "QuanLyMoHinhEdge",

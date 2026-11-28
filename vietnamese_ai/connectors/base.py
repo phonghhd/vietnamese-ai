@@ -91,7 +91,9 @@ class KetNoiKenhCoSo(ABC):
             from vietnamese_ai.rag.legal.contract_review import BoSoSanhRaSoatHopDong
 
             noi_dung_hd = text.split(None, 1)[1].strip()
-            kq_hd = BoSoSanhRaSoatHopDong().so_sanh_va_ra_soat(hop_dong_doi_tac=noi_dung_hd)
+            kq_hd = BoSoSanhRaSoatHopDong().so_sanh_va_ra_soat(
+                hop_dong_doi_tac=noi_dung_hd, cho_phep_doc_tep=False
+            )
             lines_hd = [
                 f"Rà soát nhanh hợp đồng (Mức rủi ro: {kq_hd['xep_loai_rui_ro']} | Điểm an toàn: {kq_hd['diem_an_toan_phap_ly']}/100):"
             ]
@@ -152,7 +154,10 @@ class KetNoiKenhCoSo(ABC):
             res = handler.tra_cuu(text)
             return str(res.get("tra_loi", res) if isinstance(res, dict) else res)
         if hasattr(handler, "xu_ly_yeu_cau"):
-            res = handler.xu_ly_yeu_cau(text)
+            try:
+                res = handler.xu_ly_yeu_cau(text, cho_phep_doc_tep=False)
+            except TypeError:
+                res = handler.xu_ly_yeu_cau(text)
             return str(res.get("tra_loi", res) if isinstance(res, dict) else res)
         if hasattr(handler, "hoi"):
             res = handler.hoi(text)

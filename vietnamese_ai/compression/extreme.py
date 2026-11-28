@@ -1,7 +1,7 @@
 """Kiến trúc BitNet b1.58 (Ternary Weights -1, 0, +1) hỗ trợ song song PyTorch, thuần NumPy và kernel 2-bit Rust."""
 
 import math
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
@@ -133,6 +133,10 @@ if _CO_TORCH:
         def __init__(self, in_features: int, out_features: int, bias: bool = True):
             super().__init__(in_features, out_features, bias)
             self.weight_quantizer = self._quantize_weight_1_58_bit
+            self._packed_2bit_cache: Optional[bytes] = None
+            self._packed_scale_cache: float = 0.0
+            self._packed_weight_version: Optional[int] = None
+            self._da_nen_tai_cho: bool = False
 
         def _quantize_weight_1_58_bit(self, weight: "torch.Tensor") -> "torch.Tensor":
             scale = torch.clamp(weight.abs().mean(), min=1e-5)
@@ -146,18 +150,25 @@ if _CO_TORCH:
 
         def forward(self, x: Any) -> Any:
             la_numpy = isinstance(x, np.ndarray)
+            if self._da_nen_tai_cho or self.weight is None:
+                out_np = self.suy_luan_2bit(x)
+                if la_numpy:
+                    return out_np
+                out_t = torch.from_numpy(out_np)
+                if hasattr(x, "device"):
+                    out_t = out_t.to(x.device)
+                return out_t
             if la_numpy:
-                x_tensor = torch.from_numpy(x)
+                x_tensor = torch.from_numpy(x).to(dtype=self.weight.dtype)
             else:
                 x_tensor = x
+            scale_w = torch.clamp(self.weight.abs().mean(), min=1e-5)
             quantized_weight = self.weight_quantizer(self.weight)
+            scale_x = torch.clamp(x_tensor.abs().max() / 127.0, min=1e-5)
             quantized_x = self._quantize_activation_8_bit(x_tensor)
-            if x_tensor.device.type == "cpu":
-                output = EvoKernelCPU.add_only_matmul(quantized_x, quantized_weight.t())
-                if self.bias is not None:
-                    output = output + self.bias
-            else:
-                output = F.linear(quantized_x, quantized_weight, self.bias)
+            output = F.linear(quantized_x, quantized_weight, None) * (scale_w * scale_x)
+            if self.bias is not None:
+                output = output + self.bias
             if la_numpy:
                 return output.detach().cpu().numpy()
             return output
@@ -168,12 +179,37 @@ if _CO_TORCH:
             return packed
 
         def dong_goi_2bit_kem_ty_le(self, bat_rust: bool = True) -> Tuple[bytes, float]:
-            """Đóng gói ma trận trọng số sang 2-bit theo từng hàng kèm hệ số tỷ lệ absmean."""
+            """Đóng gói ma trận trọng số sang 2-bit theo từng hàng kèm hệ số tỷ lệ absmean (có cache bộ đệm)."""
+            if self._da_nen_tai_cho or self.weight is None:
+                if self._packed_2bit_cache is None:
+                    raise RuntimeError("Trọng số đã bị giải phóng nhưng không tìm thấy bộ đệm 2-bit.")
+                return self._packed_2bit_cache, self._packed_scale_cache
+            cur_ver = getattr(self.weight, "_version", None)
+            if self._packed_2bit_cache is not None and self._packed_weight_version == cur_ver:
+                return self._packed_2bit_cache, self._packed_scale_cache
             w_np = self.weight.detach().cpu().numpy()
-            return dong_goi_bitnet_158(w_np, bat_rust=bat_rust)
+            packed, scale = dong_goi_bitnet_158(w_np, bat_rust=bat_rust)
+            self._packed_2bit_cache = packed
+            self._packed_scale_cache = float(scale)
+            self._packed_weight_version = cur_ver
+            return packed, float(scale)
+
+        def nen_tai_cho(self, bat_rust: bool = True) -> Dict[str, Any]:
+            """Đóng gói trọng số sang 2-bit và giải phóng ma trận FP32 `self.weight` để tiết kiệm thực sự 16x RAM suy luận."""
+            packed, scale = self.dong_goi_2bit_kem_ty_le(bat_rust=bat_rust)
+            self.register_parameter("weight", None)
+            self._da_nen_tai_cho = True
+            fp32_bytes = int(self.in_features * self.out_features * 4)
+            return {
+                "da_nen_tai_cho": True,
+                "fp32_bytes_giai_phong": fp32_bytes,
+                "packed_2bit_bytes": len(packed),
+                "ti_le_nen": round(fp32_bytes / max(1, len(packed)), 2),
+                "ty_le_absmean": round(scale, 6),
+            }
 
         def suy_luan_2bit(self, x: Any, bat_rust: bool = True) -> np.ndarray:
-            """Suy luận trực tiếp trên trọng số nén 2-bit (không giải nén toàn bộ ma trận, dùng kernel Rust khi có)."""
+            """Suy luận trực tiếp trên trọng số nén 2-bit đã cache (không giải nén toàn bộ ma trận)."""
             x_np = x.detach().cpu().numpy() if hasattr(x, "detach") else np.asarray(x, dtype=np.float32)
             packed, scale = self.dong_goi_2bit_kem_ty_le(bat_rust=bat_rust)
             out = nhan_ma_tran_bitnet_158(
@@ -195,6 +231,7 @@ if _CO_TORCH:
                 "ti_le_nen": round(fp32_bytes / max(1, len(packed)), 2),
                 "ty_le_absmean": round(scale, 6),
                 "dung_rust": co_rust_bitnet(),
+                "da_nen_tai_cho": self._da_nen_tai_cho,
             }
 
     class RMSNorm(nn.Module):
@@ -270,8 +307,12 @@ else:
             self.in_features = in_features
             self.out_features = out_features
             bound = 1.0 / math.sqrt(max(1, in_features))
-            self.weight = np.random.uniform(-bound, bound, size=(out_features, in_features))
+            self.weight: Optional[np.ndarray] = np.random.uniform(-bound, bound, size=(out_features, in_features))
             self.bias = np.zeros(out_features, dtype=np.float64) if bias else None
+            self._packed_2bit_cache: Optional[bytes] = None
+            self._packed_scale_cache: float = 0.0
+            self._packed_weight_sig: Optional[bytes] = None
+            self._da_nen_tai_cho: bool = False
 
         def _quantize_weight_1_58_bit(self, weight: np.ndarray) -> Tuple[np.ndarray, float]:
             scale = max(float(np.mean(np.abs(weight))), 1e-5)
@@ -279,6 +320,8 @@ else:
             return q_w, scale
 
         def forward(self, x: Any) -> np.ndarray:
+            if self._da_nen_tai_cho or self.weight is None:
+                return self.suy_luan_2bit(x)
             x_arr = np.asarray(x, dtype=np.float64)
             scale_w = max(float(np.mean(np.abs(self.weight))), 1e-5)
             q_w = np.clip(np.round(self.weight / scale_w), -1.0, 1.0).astype(np.int8)
@@ -297,11 +340,38 @@ else:
             return packed
 
         def dong_goi_2bit_kem_ty_le(self, bat_rust: bool = True) -> Tuple[bytes, float]:
-            """Đóng gói ma trận trọng số sang 2-bit theo từng hàng kèm hệ số tỷ lệ absmean."""
-            return dong_goi_bitnet_158(self.weight, bat_rust=bat_rust)
+            """Đóng gói ma trận trọng số sang 2-bit theo từng hàng kèm hệ số tỷ lệ absmean (có cache bộ đệm)."""
+            if self._da_nen_tai_cho or self.weight is None:
+                if self._packed_2bit_cache is None:
+                    raise RuntimeError("Trọng số đã bị giải phóng nhưng không tìm thấy bộ đệm 2-bit.")
+                return self._packed_2bit_cache, self._packed_scale_cache
+            w_f32 = np.ascontiguousarray(self.weight, dtype=np.float32)
+            sig = w_f32.tobytes()
+            if self._packed_2bit_cache is not None and self._packed_weight_sig == sig:
+                return self._packed_2bit_cache, self._packed_scale_cache
+            packed, scale = dong_goi_bitnet_158(w_f32, bat_rust=bat_rust)
+            self._packed_2bit_cache = packed
+            self._packed_scale_cache = float(scale)
+            self._packed_weight_sig = sig
+            return packed, float(scale)
+
+        def nen_tai_cho(self, bat_rust: bool = True) -> Dict[str, Any]:
+            """Đóng gói trọng số sang 2-bit và giải phóng ma trận FP32/FP64 `self.weight` để tiết kiệm thực sự 16x RAM suy luận."""
+            packed, scale = self.dong_goi_2bit_kem_ty_le(bat_rust=bat_rust)
+            self.weight = None
+            self._packed_weight_sig = None
+            self._da_nen_tai_cho = True
+            fp32_bytes = int(self.in_features * self.out_features * 4)
+            return {
+                "da_nen_tai_cho": True,
+                "fp32_bytes_giai_phong": fp32_bytes,
+                "packed_2bit_bytes": len(packed),
+                "ti_le_nen": round(fp32_bytes / max(1, len(packed)), 2),
+                "ty_le_absmean": round(scale, 6),
+            }
 
         def suy_luan_2bit(self, x: Any, bat_rust: bool = True) -> np.ndarray:
-            """Suy luận trực tiếp trên trọng số nén 2-bit (dùng kernel Rust không phép nhân trọng số khi có)."""
+            """Suy luận trực tiếp trên trọng số nén 2-bit đã cache (dùng kernel Rust không phép nhân trọng số khi có)."""
             packed, scale = self.dong_goi_2bit_kem_ty_le(bat_rust=bat_rust)
             out = nhan_ma_tran_bitnet_158(
                 np.asarray(x, dtype=np.float32),
@@ -327,6 +397,7 @@ else:
                 "ti_le_nen": round(fp32_bytes / max(1, len(packed)), 2),
                 "ty_le_absmean": round(scale, 6),
                 "dung_rust": co_rust_bitnet(),
+                "da_nen_tai_cho": self._da_nen_tai_cho,
             }
 
         def __call__(self, x: Any) -> np.ndarray:

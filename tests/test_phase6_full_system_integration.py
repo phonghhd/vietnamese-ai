@@ -280,9 +280,9 @@ def test_moi_noi_6_dong_bo_packaging_cargo_va_9_bieu_tuong_top_level() -> None:
     bc_semver = vietnamese_ai.QuanLyPhatHanhGoi.kiem_tra_tuan_thu_semver()
     assert bc_semver["hop_le_semver"] is True
     assert bc_semver["dong_bo_phien_ban"] is True
-    assert bc_semver["phien_ban_chuan"] == "31.1.0"
+    assert bc_semver["phien_ban_chuan"] == "31.2.0"
     assert "rust_core/Cargo.toml" in bc_semver["cac_nguon"]
-    assert bc_semver["cac_nguon"]["rust_core/Cargo.toml"] == "31.1.0"
+    assert bc_semver["cac_nguon"]["rust_core/Cargo.toml"] == "31.2.0"
 
     goi_legal = vietnamese_ai.QuanLyPhatHanhGoi.danh_sach_goi()["vietnamese-ai-legal"]
     deps_legal = goi_legal["phu_thuoc_tuy_chon"]["ocr-pdf"]

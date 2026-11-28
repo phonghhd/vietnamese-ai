@@ -1,5 +1,6 @@
 """BoTinhChinhMoHinh (AutoFineTuner) - Bộ tinh chỉnh hợp nhất cho mọi mô hình trong Vietnamese AI."""
 
+import copy
 import json
 import math
 import time
@@ -334,9 +335,13 @@ class BoTinhChinhMoHinh:
                 for m in samples
                 if isinstance(m, dict)
             ]
+            try:
+                ref_snapshot = copy.deepcopy(target_m)
+            except Exception:
+                ref_snapshot = None
             kq = rlhf.chay_day_du(
                 model=target_m,
-                ref_model=target_m,
+                ref_model=ref_snapshot,
                 reward_model=target_m,
                 sft_data=sft_samples,
                 preference_data=pref_samples,
@@ -370,7 +375,11 @@ class BoTinhChinhMoHinh:
                     kich_thuoc_batch=kich_thuoc_batch,
                     toc_do_hoc=toc_do_hoc,
                 )
-                kq = dpo.huan_luyen(self.model, self.model, list(du_lieu_train), callback=callback)
+                try:
+                    ref_snapshot = copy.deepcopy(self.model)
+                except Exception:
+                    ref_snapshot = None
+                kq = dpo.huan_luyen(self.model, ref_snapshot, list(du_lieu_train), callback=callback)
             self.lich_su_huan_luyen = kq
             return kq
 
@@ -579,11 +588,24 @@ class BoTinhChinhMoHinh:
 
     def xuat_gguf(self, duong_dan: str, quantization: str = "q8_0") -> Dict[str, Any]:
         """Xuất mô hình đã fine-tune ra file GGUF chuẩn."""
+        if self._unsloth_wrapper is not None:
+            path_str = self._unsloth_wrapper.xuat_gguf(duong_dan, quantization=quantization)
+            p_out = Path(path_str)
+            return {
+                "duong_dan": str(p_out),
+                "quantization": quantization,
+                "kich_thuoc_bytes": p_out.stat().st_size if p_out.is_file() else 0,
+            }
         if self._hf_wrapper is not None:
             return self._hf_wrapper.xuat_gguf(duong_dan, quantization=quantization)
+        if not hasattr(self.model, "embedding") or not isinstance(getattr(self.model, "embedding"), np.ndarray):
+            raise RuntimeError(
+                "Mô hình hiện tại không phải GPTModel NumPy có trọng số `embedding` hợp lệ để xuất GGUF trực tiếp. "
+                "Hãy dùng `UnslothWrapper.xuat_gguf()` hoặc `llama.cpp/convert_hf_to_gguf.py`."
+            )
         from vietnamese_ai.export.gguf import XuatGGUF
 
-        weights = {"embedding.weight": getattr(self.model, "embedding", np.ones((16, 16), dtype=np.float32))}
+        weights = {"embedding.weight": self.model.embedding}
         path_str = XuatGGUF().xuat_tu_numpy(weights, duong_dan, quantization=quantization)
         return {
             "duong_dan": path_str,

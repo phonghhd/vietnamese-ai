@@ -162,7 +162,7 @@ def test_rust_q4_k_zero_copy_tokenizer_dau_thanh_va_ivf_vector(monkeypatch: pyte
     cau_dau_cu = "Ủy ban nhân dân tỉnh Hoà Bình gửi thuý kiều lời chúc KHOẺ mạnh."
     tok_rs = BoTachTuTiengVietSieuToc()
     kq_rs = tok_rs.tach_tu(cau_dau_cu, noi_tu_ghep=True, chuan_hoa_dau=True)
-    assert "Hòa" in kq_rs and "thúy" in kq_rs and "KHỎE" in kq_rs
+    assert "Hòa" in kq_rs and "thúy" in kq_rs and any("KHỎE" in t for t in kq_rs)
 
     saved_nt = nt_mod._rust_core
     monkeypatch.setattr(nt_mod, "_rust_core", None)

@@ -34,7 +34,7 @@ class UngDungWeb:
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
-        .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 2rem; text-align: center; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; text-align: center; }
         .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
         .header p { opacity: 0.9; }
         .container { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
@@ -42,12 +42,12 @@ class UngDungWeb:
         .card h2 { color: #667eea; margin-bottom: 1rem; font-size: 1.2rem; }
         label { display: block; margin-bottom: 0.3rem; font-weight: 600; color: #555; }
         select, input[type="file"], input[type="number"], input[type="text"] {
-            width: 100%%; padding: 0.7rem; border: 2px solid #e0e0e0; border-radius: 8px;
+            width: 100%; padding: 0.7rem; border: 2px solid #e0e0e0; border-radius: 8px;
             margin-bottom: 1rem; font-size: 1rem; transition: border-color 0.3s;
         }
         select:focus, input:focus { outline: none; border-color: #667eea; }
         button {
-            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white; border: none; padding: 0.8rem 2rem; border-radius: 8px;
             font-size: 1rem; cursor: pointer; transition: transform 0.2s;
         }
@@ -61,8 +61,8 @@ class UngDungWeb:
         .status.error { background: #f8d7da; color: #721c24; }
         .status.loading { background: #fff3cd; color: #856404; }
         #loading { display: none; text-align: center; padding: 2rem; }
-        #loading .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
-        @keyframes spin { 0%% { transform: rotate(0deg); } 100%% { transform: rotate(360deg); } }
+        #loading .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -98,7 +98,7 @@ class UngDungWeb:
                     </select>
                 </div>
                 <div>
-                    <label>Tỷ lệ test (%%):</label>
+                    <label>Tỷ lệ test (%):</label>
                     <input type="number" id="testSize" value="20" min="5" max="50">
                 </div>
             </div>
@@ -121,6 +121,26 @@ class UngDungWeb:
         let dataLoaded = false;
         let modelTrained = false;
 
+        function renderResult(targetId, data) {
+            const container = document.getElementById(targetId);
+            container.textContent = '';
+            const box = document.createElement('div');
+            box.className = 'result';
+            const pre = document.createElement('pre');
+            pre.textContent = JSON.stringify(data, null, 2);
+            box.appendChild(pre);
+            container.appendChild(box);
+        }
+
+        function renderError(targetId, message) {
+            const container = document.getElementById(targetId);
+            container.textContent = '';
+            const box = document.createElement('div');
+            box.className = 'status error';
+            box.textContent = 'Lỗi: ' + String(message || 'Không xác định');
+            container.appendChild(box);
+        }
+
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
             showLoading(true);
@@ -130,15 +150,13 @@ class UngDungWeb:
             try {
                 const res = await fetch('/api/upload', { method: 'POST', body: formData });
                 const data = await res.json();
-                document.getElementById('uploadResult').innerHTML =
-                    '<div class="result"><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                renderResult('uploadResult', data);
                 if (data.status === 'success') {
                     dataLoaded = true;
                     document.getElementById('trainBtn').disabled = false;
                 }
             } catch(err) {
-                document.getElementById('uploadResult').innerHTML =
-                    '<div class="status error">Lỗi: ' + err.message + '</div>';
+                renderError('uploadResult', err.message);
             }
             showLoading(false);
         };
@@ -155,15 +173,13 @@ class UngDungWeb:
                     })
                 });
                 const data = await res.json();
-                document.getElementById('trainResult').innerHTML =
-                    '<div class="result"><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                renderResult('trainResult', data);
                 if (data.status === 'success') {
                     modelTrained = true;
                     document.getElementById('predictBtn').disabled = false;
                 }
             } catch(err) {
-                document.getElementById('trainResult').innerHTML =
-                    '<div class="status error">Lỗi: ' + err.message + '</div>';
+                renderError('trainResult', err.message);
             }
             showLoading(false);
         }
@@ -179,11 +195,9 @@ class UngDungWeb:
                     body: JSON.stringify({ data: [values] })
                 });
                 const data = await res.json();
-                document.getElementById('predictResult').innerHTML =
-                    '<div class="result"><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+                renderResult('predictResult', data);
             } catch(err) {
-                document.getElementById('predictResult').innerHTML =
-                    '<div class="status error">Lỗi: ' + err.message + '</div>';
+                renderError('predictResult', err.message);
             }
             showLoading(false);
         }
@@ -195,7 +209,9 @@ class UngDungWeb:
 </body>
 </html>"""
 
-    def __init__(self, port: int = 5000, host: str = "0.0.0.0"):
+    MAX_BODY_BYTES = 16 * 1024 * 1024
+
+    def __init__(self, port: int = 5000, host: str = "127.0.0.1"):
         self.port = port
         self.host = host
         self.logger = Logger("WebApp")
@@ -315,12 +331,32 @@ class UngDungWeb:
                         self.end_headers()
 
                 def do_POST(self):
-                    content_length = int(self.headers.get("Content-Length", 0))
-                    body = self.rfile.read(content_length)
+                    raw_len = self.headers.get("Content-Length", "0")
+                    try:
+                        content_length = int(raw_len)
+                    except (TypeError, ValueError):
+                        self.send_response(400)
+                        self.send_header("Content-Type", "application/json; charset=utf-8")
+                        self.end_headers()
+                        self.wfile.write(
+                            json.dumps({"status": "error", "message": "Content-Length không hợp lệ"}, ensure_ascii=False).encode("utf-8")
+                        )
+                        return
+                    if content_length < 0 or content_length > app.MAX_BODY_BYTES:
+                        status_code = 413 if content_length > app.MAX_BODY_BYTES else 400
+                        self.send_response(status_code)
+                        self.send_header("Content-Type", "application/json; charset=utf-8")
+                        self.end_headers()
+                        self.wfile.write(
+                            json.dumps({"status": "error", "message": "Kích thước yêu cầu vượt quá giới hạn cho phép"}, ensure_ascii=False).encode("utf-8")
+                        )
+                        return
+                    body = self.rfile.read(content_length) if content_length > 0 else b""
+                    status_code = 200
 
                     if self.path == "/api/upload":
                         content_type = self.headers.get("Content-Type", "")
-                        if "multipart/form-data" in content_type:
+                        if "multipart/form-data" in content_type and "boundary=" in content_type:
                             boundary = content_type.split("boundary=")[1].encode()
                             parts = body.split(b"--" + boundary)
                             file_data = None
@@ -328,33 +364,42 @@ class UngDungWeb:
                             for part in parts:
                                 if b"Content-Disposition" in part:
                                     header_end = part.find(b"\r\n\r\n")
-                                    header = part[:header_end].decode()
+                                    header = part[:header_end].decode(errors="replace")
                                     content = part[header_end + 4 :]
                                     if content.endswith(b"\r\n"):
                                         content = content[:-2]
                                     if 'name="file"' in header:
                                         file_data = content
                                     elif 'name="target"' in header:
-                                        form_data["target"] = content.decode()
+                                        form_data["target"] = content.decode(errors="replace")
                             if file_data:
                                 ket_qua = app._xu_ly_upload(form_data, file_data)
                             else:
                                 ket_qua = {"status": "error", "message": "Không tìm thấy file"}
                         else:
+                            status_code = 400
                             ket_qua = {"status": "error", "message": "Sai Content-Type"}
 
-                    elif self.path == "/api/train":
-                        params = json.loads(body)
-                        ket_qua = app._xu_ly_train(params)
-
-                    elif self.path == "/api/predict":
-                        params = json.loads(body)
-                        ket_qua = app._xu_ly_predict(params)
+                    elif self.path in ("/api/train", "/api/predict"):
+                        try:
+                            params = json.loads(body.decode("utf-8"))
+                            if not isinstance(params, dict):
+                                raise ValueError("JSON phải là object")
+                        except Exception:
+                            status_code = 400
+                            ket_qua = {"status": "error", "message": "Dữ liệu JSON không hợp lệ"}
+                        else:
+                            ket_qua = (
+                                app._xu_ly_train(params)
+                                if self.path == "/api/train"
+                                else app._xu_ly_predict(params)
+                            )
 
                     else:
+                        status_code = 404
                         ket_qua = {"status": "error", "message": "Endpoint không tồn tại"}
 
-                    self.send_response(200)
+                    self.send_response(status_code)
                     self.send_header("Content-Type", "application/json; charset=utf-8")
                     self.end_headers()
                     self.wfile.write(json.dumps(ket_qua, ensure_ascii=False).encode("utf-8"))

@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import hmac
 import json
+import os
 import queue
 import sys
+import tempfile
 import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TextIO, Union
+from typing import Any, Dict, List, Optional, TextIO, Tuple, Union
 from urllib.parse import parse_qs, urlparse
 
 from vietnamese_ai.agents.mcp import MCPServer
@@ -17,6 +20,7 @@ from vietnamese_ai.agents.tools import CongCu
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
 
 MAX_MCP_BODY_BYTES = 16 * 1024 * 1024
+MAX_MCP_SSE_SESSIONS = 64
 
 
 @gan_nhan_tinh_nang(
@@ -44,7 +48,7 @@ class MayChuMCPThucTe(MCPServer):
     def __init__(
         self,
         ten: str = "vietnamese-ai-mcp",
-        phien_ban: str = "31.1.0",
+        phien_ban: str = "31.2.0",
         duong_dan_vaidb: Optional[Union[str, Path]] = None,
         nap_kho_phap_ly_mo: bool = True,
         bat_tuong_lua: bool = True,
@@ -52,11 +56,26 @@ class MayChuMCPThucTe(MCPServer):
         tro_ly_phap_ly: Optional[Any] = None,
         bat_cong_cu_mo_rong: bool = False,
         bat_cong_cu_phap_ly_thoi_gian: bool = False,
+        thu_muc_cho_phep: Optional[Union[str, Path]] = None,
+        allowed_origins: Optional[List[str]] = None,
+        ma_bi_mat_api: Optional[str] = None,
     ) -> None:
         super().__init__(ten=ten, phien_ban=phien_ban, bat_tuong_lua=bat_tuong_lua)
         self.duong_dan_vaidb = str(duong_dan_vaidb) if duong_dan_vaidb else None
         self.nap_kho_phap_ly_mo = nap_kho_phap_ly_mo
         self.quan_ly_plugin = quan_ly_plugin
+        self.thu_muc_cho_phep = Path(thu_muc_cho_phep).resolve() if thu_muc_cho_phep else None
+        self.allowed_origins: Tuple[str, ...] = tuple(
+            allowed_origins
+            if allowed_origins is not None
+            else [
+                "http://127.0.0.1:8090",
+                "http://localhost:8090",
+            ]
+        )
+        self.ma_bi_mat_api: Optional[str] = (
+            ma_bi_mat_api if ma_bi_mat_api is not None else (os.environ.get("VAI_MCP_TOKEN") or None)
+        )
         self._tro_ly_phap_ly: Optional[Any] = tro_ly_phap_ly
         self._bo_so_sanh_hd: Optional[Any] = None
         self._dong_co_edge: Optional[Any] = None
@@ -69,6 +88,34 @@ class MayChuMCPThucTe(MCPServer):
         if quan_ly_plugin is not None:
             self.gan_quan_ly_plugin(quan_ly_plugin)
         self._dang_ky_tai_nguyen_mac_dinh()
+
+    def _kiem_tra_duong_dan_mcp(self, duong_dan: str, duoi_cho_phep: Tuple[str, ...]) -> Path:
+        raw_norm = str(duong_dan).replace("\\", "/")
+        if ".." in raw_norm.split("/"):
+            raise PermissionError("Đường dẫn MCP không được phép chứa ký tự '..'.")
+        p_in = Path(duong_dan)
+        if self.thu_muc_cho_phep is not None:
+            cac_goc = [self.thu_muc_cho_phep]
+        else:
+            cac_goc = [Path.cwd().resolve(), Path(tempfile.gettempdir()).resolve()]
+            if self.duong_dan_vaidb:
+                cac_goc.append(Path(self.duong_dan_vaidb).resolve().parent)
+        candidate = (cac_goc[0] / p_in).resolve() if not p_in.is_absolute() else p_in.resolve()
+        cand_norm = str(candidate).replace("\\", "/").lower()
+        for cam in ("/.ssh/", "/etc/", "/root/", ".bashrc", ".profile"):
+            if cam in cand_norm:
+                raise PermissionError("Đường dẫn MCP trỏ tới khu vực nhạy cảm bị cấm.")
+        if candidate.suffix.lower() not in duoi_cho_phep:
+            raise PermissionError(
+                f"Phần mở rộng tệp '{candidate.suffix}' không nằm trong danh sách cho phép {duoi_cho_phep}."
+            )
+        for goc in cac_goc:
+            try:
+                candidate.relative_to(goc)
+                return candidate
+            except ValueError:
+                continue
+        raise PermissionError("Đường dẫn tệp MCP nằm ngoài thư mục được phép truy cập.")
 
     def gan_quan_ly_plugin(self, quan_ly_plugin: Any) -> int:
         """Tự động khám phá và đăng ký toàn bộ công cụ từ hệ sinh thái V-Plugin 2.0 (`QuanLyPlugin`) lên MCP Server."""
@@ -185,9 +232,13 @@ class MayChuMCPThucTe(MCPServer):
                 hop_dong_doi_tac=hop_dong_doi_tac,
                 hop_dong_chuan=chuan,
                 ngay_tra_cuu=ngay,
+                cho_phep_doc_tep=False,
             )
             if xuat_track_changes_docx.strip():
-                out_p = engine.xuat_bao_cao_track_changes_docx(kq, xuat_track_changes_docx.strip())
+                safe_docx = self._kiem_tra_duong_dan_mcp(
+                    xuat_track_changes_docx.strip(), (".docx",)
+                )
+                out_p = engine.xuat_bao_cao_track_changes_docx(kq, safe_docx)
                 kq["track_changes_docx_path"] = str(out_p)
             return json.dumps(kq, ensure_ascii=False)
 
@@ -308,7 +359,13 @@ class MayChuMCPThucTe(MCPServer):
             ef_construction: int = 64,
             ef_search: int = 48,
         ) -> str:
-            path_db = duong_dan_vaidb.strip() or self.duong_dan_vaidb
+            raw_db = duong_dan_vaidb.strip()
+            if raw_db:
+                path_db: Optional[str] = str(
+                    self._kiem_tra_duong_dan_mcp(raw_db, (".vaidb", ".db", ".sqlite", ".sqlite3"))
+                )
+            else:
+                path_db = self.duong_dan_vaidb
             if path_db:
                 from vietnamese_ai.rag.vaidb_store import KhoTriThucVAIDB
 
@@ -438,6 +495,12 @@ class MayChuMCPThucTe(MCPServer):
 
     def xu_ly_jsonrpc(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Mở rộng `MCPServer.xu_ly_jsonrpc` để hỗ trợ chuẩn `ping` và thông báo `notifications/*`."""
+        if not isinstance(request, dict):
+            return {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": -32600, "message": "Yêu cầu JSON-RPC phải là một đối tượng JSON."},
+            }
         method = str(request.get("method", ""))
         req_id = request.get("id")
         if method == "ping":
@@ -536,6 +599,15 @@ class MayChuMCPThucTe(MCPServer):
                 self._ghi_thong_diep_stdio(dst, err_resp, use_content_length)
                 continue
 
+            if not isinstance(req, dict):
+                err_resp = {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32600, "message": "Yêu cầu JSON-RPC phải là một đối tượng JSON."},
+                }
+                self._ghi_thong_diep_stdio(dst, err_resp, use_content_length)
+                continue
+
             resp = self.xu_ly_jsonrpc(req)
             da_xu_ly += 1
             if resp and req.get("id") is not None:
@@ -561,14 +633,49 @@ class MayChuMCPThucTe(MCPServer):
         sse_lock = threading.Lock()
 
         class _MCPHTTPHandler(BaseHTTPRequestHandler):
+            def _lay_cors_origin(self) -> Optional[str]:
+                origin = self.headers.get("Origin", "").strip()
+                if not origin:
+                    return None
+                allowed = set(mcp_instance.allowed_origins)
+                actual_port = getattr(self.server, "server_port", None)
+                if actual_port:
+                    allowed.add(f"http://127.0.0.1:{actual_port}")
+                    allowed.add(f"http://localhost:{actual_port}")
+                if origin in allowed:
+                    return origin
+                return None
+
+            def _kiem_tra_xac_thuc(self) -> bool:
+                secret = mcp_instance.ma_bi_mat_api
+                if not secret:
+                    return True
+                auth_hdr = self.headers.get("Authorization", "").strip()
+                if auth_hdr.startswith("Bearer "):
+                    cand = auth_hdr[7:].strip()
+                    return hmac.compare_digest(secret, cand)
+                return False
+
             def _gui_json(self, obj: Dict[str, Any], status: int = 200) -> None:
                 data = json.dumps(obj, ensure_ascii=False).encode("utf-8")
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(data)))
-                self.send_header("Access-Control-Allow-Origin", "*")
+                cors_origin = self._lay_cors_origin()
+                if cors_origin is not None:
+                    self.send_header("Access-Control-Allow-Origin", cors_origin)
+                    self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
                 self.end_headers()
                 self.wfile.write(data)
+
+            def do_OPTIONS(self) -> None:
+                self.send_response(200)
+                cors_origin = self._lay_cors_origin()
+                if cors_origin is not None:
+                    self.send_header("Access-Control-Allow-Origin", cors_origin)
+                    self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                    self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+                self.end_headers()
 
             def do_GET(self) -> None:
                 parsed = urlparse(self.path)
@@ -586,14 +693,22 @@ class MayChuMCPThucTe(MCPServer):
                     )
                     return
                 if path == "/sse":
+                    if not self._kiem_tra_xac_thuc():
+                        self._gui_json(
+                            {"jsonrpc": "2.0", "id": None, "error": {"code": -32001, "message": "Thiếu hoặc sai mã xác thực MCP."}},
+                            status=401,
+                        )
+                        return
                     accept = self.headers.get("Accept", "").lower()
                     yeu_cau_stream = "text/event-stream" in accept or qs.get("stream", [""])[0] == "1"
+                    cors_origin = self._lay_cors_origin()
                     if not yeu_cau_stream:
                         payload = b"event: endpoint\ndata: /messages\n\n"
                         self.send_response(200)
                         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
                         self.send_header("Cache-Control", "no-cache")
-                        self.send_header("Access-Control-Allow-Origin", "*")
+                        if cors_origin is not None:
+                            self.send_header("Access-Control-Allow-Origin", cors_origin)
                         self.send_header("Content-Length", str(len(payload)))
                         self.end_headers()
                         self.wfile.write(payload)
@@ -603,12 +718,23 @@ class MayChuMCPThucTe(MCPServer):
                     session_id = uuid.uuid4().hex
                     ev_queue: queue.Queue[Optional[str]] = queue.Queue()
                     with sse_lock:
+                        if len(sse_sessions) >= MAX_MCP_SSE_SESSIONS:
+                            self._gui_json(
+                                {
+                                    "jsonrpc": "2.0",
+                                    "id": None,
+                                    "error": {"code": -32002, "message": "Vượt quá giới hạn số phiên SSE đồng thời."},
+                                },
+                                status=429,
+                            )
+                            return
                         sse_sessions[session_id] = ev_queue
                     self.send_response(200)
                     self.send_header("Content-Type", "text/event-stream; charset=utf-8")
                     self.send_header("Cache-Control", "no-cache")
                     self.send_header("Connection", "keep-alive")
-                    self.send_header("Access-Control-Allow-Origin", "*")
+                    if cors_origin is not None:
+                        self.send_header("Access-Control-Allow-Origin", cors_origin)
                     self.end_headers()
                     try:
                         ep_msg = f"event: endpoint\ndata: /messages?session_id={session_id}\n\n".encode("utf-8")
@@ -640,6 +766,12 @@ class MayChuMCPThucTe(MCPServer):
                 if path not in ("/messages", "/rpc"):
                     self.send_error(404, "Not Found")
                     return
+                if not self._kiem_tra_xac_thuc():
+                    self._gui_json(
+                        {"jsonrpc": "2.0", "id": None, "error": {"code": -32001, "message": "Thiếu hoặc sai mã xác thực MCP."}},
+                        status=401,
+                    )
+                    return
                 raw_len = self.headers.get("Content-Length", "0")
                 try:
                     length = int(raw_len)
@@ -661,6 +793,16 @@ class MayChuMCPThucTe(MCPServer):
                 except Exception as exc:
                     self._gui_json(
                         {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}},
+                        status=400,
+                    )
+                    return
+                if not isinstance(req, dict):
+                    self._gui_json(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": None,
+                            "error": {"code": -32600, "message": "Yêu cầu JSON-RPC phải là một đối tượng JSON."},
+                        },
                         status=400,
                     )
                     return

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from vietnamese_ai.llm.lm_eval import LMEvalHarness
+from vietnamese_ai.llm.lm_eval import LMEvalHarness, _tinh_macro_f1, _tinh_token_f1
 from vietnamese_ai.utils.logger import Logger
 
 
@@ -115,128 +115,190 @@ class BenchmarkRunner:
 
     def _bench_perplexity(self, model: Any) -> Dict[str, Any]:
         self.logger.info("  Perplexity benchmark...")
-        perplexities = []
+        if not (hasattr(model, "tinh_perplexity") or hasattr(model, "tien")):
+            return {
+                "trang_thai": "khong_ho_tro",
+                "loi": "Mô hình không hỗ trợ tính perplexity (thiếu phương thức 'tinh_perplexity' hoặc 'tien').",
+                "perplexity_mean": None,
+                "perplexity_std": None,
+                "perplexity_min": None,
+                "perplexity_max": None,
+                "so_mau": 0,
+            }
+        perplexities: List[float] = []
 
         for text in self.CORPUS_TIENG_VIET:
             try:
                 if hasattr(model, "tinh_perplexity"):
-                    ppl = model.tinh_perplexity(text)
+                    ppl = float(model.tinh_perplexity(text))
                 else:
-                    ppl = np.random.uniform(15, 80)
+                    toks = [ord(c) % getattr(model, "so_tu_vung", 256) for c in text[:32]]
+                    if len(toks) < 2:
+                        toks = [1, 2]
+                    x_arr = np.array([toks[:-1]], dtype=int)
+                    y_arr = np.array([toks[1:]], dtype=int)
+                    logits = model.tien(x_arr)
+                    logits_shifted = logits - np.max(logits, axis=-1, keepdims=True)
+                    probs = np.exp(logits_shifted) / np.sum(
+                        np.exp(logits_shifted), axis=-1, keepdims=True
+                    )
+                    nll = -np.mean(
+                        np.log(probs[0, np.arange(len(y_arr[0])), y_arr[0]] + 1e-9)
+                    )
+                    ppl = float(np.exp(min(nll, 10.0)))
                 perplexities.append(ppl)
             except Exception:
                 continue
 
         return {
-            "perplexity_mean": round(float(np.mean(perplexities)), 4) if perplexities else 0,
-            "perplexity_std": round(float(np.std(perplexities)), 4) if perplexities else 0,
-            "perplexity_min": round(float(np.min(perplexities)), 4) if perplexities else 0,
-            "perplexity_max": round(float(np.max(perplexities)), 4) if perplexities else 0,
+            "trang_thai": "hoan_thanh" if perplexities else "loi_thuc_thi",
+            "perplexity_mean": round(float(np.mean(perplexities)), 4) if perplexities else None,
+            "perplexity_std": round(float(np.std(perplexities)), 4) if perplexities else None,
+            "perplexity_min": round(float(np.min(perplexities)), 4) if perplexities else None,
+            "perplexity_max": round(float(np.max(perplexities)), 4) if perplexities else None,
             "so_mau": len(perplexities),
         }
 
     def _bench_generation(self, model: Any) -> Dict[str, Any]:
         self.logger.info("  Generation benchmark...")
+        if not hasattr(model, "sinh_van_ban"):
+            return {
+                "trang_thai": "khong_ho_tro",
+                "loi": "Mô hình không hỗ trợ sinh văn bản (thiếu phương thức 'sinh_van_ban').",
+                "so_prompts": 0,
+                "do_dai_trung_binh": None,
+                "chi_tiet": [],
+            }
         prompts = ["học máy là", "trí tuệ nhân tạo", "xử lý ngôn ngữ"]
-        results = []
+        results: List[Dict[str, Any]] = []
 
         for prompt in prompts:
             try:
-                if hasattr(model, "sinh_van_ban"):
-                    start = time.time()
-                    text = model.sinh_van_ban(prompt, do_dai=30)
-                    gen_time = time.time() - start
-                    results.append(
-                        {
-                            "prompt": prompt,
-                            "generated": text,
-                            "do_dai": len(text.split()),
-                            "thoi_gian": round(gen_time, 4),
-                        }
-                    )
-                else:
-                    results.append({"prompt": prompt, "generated": "N/A", "do_dai": 0})
-            except Exception:
-                results.append({"prompt": prompt, "error": True})
+                start = time.perf_counter()
+                text = str(model.sinh_van_ban(prompt, do_dai=30))
+                gen_time = time.perf_counter() - start
+                results.append(
+                    {
+                        "prompt": prompt,
+                        "generated": text,
+                        "do_dai": len(text.split()),
+                        "thoi_gian": round(gen_time, 4),
+                    }
+                )
+            except Exception as exc:
+                results.append({"prompt": prompt, "error": str(exc)})
 
-        avg_len = np.mean([r.get("do_dai", 0) for r in results])
+        do_dai_hop_le = [r["do_dai"] for r in results if "do_dai" in r]
         return {
+            "trang_thai": "hoan_thanh" if do_dai_hop_le else "loi_thuc_thi",
             "so_prompts": len(results),
-            "do_dai_trung_binh": round(float(avg_len), 1),
+            "do_dai_trung_binh": round(float(np.mean(do_dai_hop_le)), 1) if do_dai_hop_le else None,
             "chi_tiet": results,
         }
 
     def _bench_sentiment(self, model: Any) -> Dict[str, Any]:
         self.logger.info("  Sentiment benchmark...")
-        dung = 0
-        tong = 0
+        if not (hasattr(model, "phan_tich_cam_xuc") or hasattr(model, "du_doan")):
+            return {
+                "trang_thai": "khong_ho_tro",
+                "loi": "Mô hình không hỗ trợ phân tích cảm xúc (thiếu phương thức 'phan_tich_cam_xuc' hoặc 'du_doan').",
+                "accuracy": None,
+                "f1": None,
+                "so_mau": 0,
+            }
+        y_true: List[str] = []
+        y_pred: List[str] = []
 
         for mau in self.SENTIMENT_TIENG_VIET:
             text = mau["text"]
             label = mau["label"]
             try:
                 if hasattr(model, "phan_tich_cam_xuc"):
-                    pred = model.phan_tich_cam_xuc(text)
-                    if isinstance(pred, dict):
-                        pred = pred.get("nhan", "")
+                    pred_raw = model.phan_tich_cam_xuc(text)
+                    pred = pred_raw.get("nhan", "") if isinstance(pred_raw, dict) else pred_raw
                 else:
-                    pred = np.random.choice(["positive", "negative", "neutral"])
-
-                if str(pred) == label:
-                    dung += 1
-                tong += 1
+                    pred_raw = model.du_doan([text])
+                    pred = pred_raw[0] if isinstance(pred_raw, (list, tuple, np.ndarray)) and len(pred_raw) > 0 else pred_raw
+                y_true.append(label)
+                y_pred.append(str(pred))
             except Exception:
                 continue
 
+        tong = len(y_true)
+        dung = sum(1 for t, p in zip(y_true, y_pred) if t == p)
         return {
-            "accuracy": round(dung / max(1, tong), 4),
+            "trang_thai": "hoan_thanh" if tong > 0 else "loi_thuc_thi",
+            "accuracy": round(dung / tong, 4) if tong > 0 else None,
+            "f1": round(_tinh_macro_f1(y_true, y_pred), 4) if tong > 0 else None,
             "so_mau": tong,
         }
 
     def _bench_speed(self, model: Any) -> Dict[str, Any]:
         self.logger.info("  Speed benchmark...")
+        if not (hasattr(model, "sinh_van_ban") or hasattr(model, "tien")):
+            return {
+                "trang_thai": "khong_ho_tro",
+                "loi": "Mô hình không hỗ trợ đo tốc độ suy luận (thiếu phương thức 'sinh_van_ban' hoặc 'tien').",
+                "latency_mean_ms": None,
+                "latency_p50_ms": None,
+                "latency_p95_ms": None,
+                "latency_p99_ms": None,
+                "so_lan_chay": 0,
+            }
         text = "Đoạn văn bản tiếng Việt để kiểm tra tốc độ xử lý của mô hình."
+        x_sample = np.array([[ord(c) % getattr(model, "so_tu_vung", 256) for c in text[:16]]], dtype=int)
 
-        latencies = []
+        latencies: List[float] = []
         for _ in range(10):
             try:
-                start = time.time()
+                start = time.perf_counter()
                 if hasattr(model, "sinh_van_ban"):
                     model.sinh_van_ban(text[:10], do_dai=10)
-                elif hasattr(model, "tien"):
-                    pass
-                latency = (time.time() - start) * 1000
+                else:
+                    model.tien(x_sample)
+                latency = (time.perf_counter() - start) * 1000.0
                 latencies.append(latency)
             except Exception:
                 continue
 
         return {
-            "latency_mean_ms": round(float(np.mean(latencies)), 2) if latencies else 0,
-            "latency_p50_ms": round(float(np.percentile(latencies, 50)), 2) if latencies else 0,
-            "latency_p95_ms": round(float(np.percentile(latencies, 95)), 2) if latencies else 0,
-            "latency_p99_ms": round(float(np.percentile(latencies, 99)), 2) if latencies else 0,
+            "trang_thai": "hoan_thanh" if latencies else "loi_thuc_thi",
+            "latency_mean_ms": round(float(np.mean(latencies)), 2) if latencies else None,
+            "latency_p50_ms": round(float(np.percentile(latencies, 50)), 2) if latencies else None,
+            "latency_p95_ms": round(float(np.percentile(latencies, 95)), 2) if latencies else None,
+            "latency_p99_ms": round(float(np.percentile(latencies, 99)), 2) if latencies else None,
             "so_lan_chay": len(latencies),
         }
 
     def _bench_qa(self, model: Any) -> Dict[str, Any]:
         self.logger.info("  QA benchmark...")
+        if not hasattr(model, "sinh_van_ban"):
+            return {
+                "trang_thai": "khong_ho_tro",
+                "loi": "Mô hình không hỗ trợ hỏi đáp (thiếu phương thức 'sinh_van_ban').",
+                "accuracy": None,
+                "f1": None,
+                "so_mau": 0,
+            }
         dung = 0
-        tong = 0
+        f1_scores: List[float] = []
 
         for mau in self.QA_TIENG_VIET:
             question = mau["question"]
             answer = mau["answer"]
             try:
-                if hasattr(model, "sinh_van_ban"):
-                    pred = model.sinh_van_ban(question, do_dai=30)
-                    if answer.lower() in pred.lower():
-                        dung += 1
-                tong += 1
+                pred = str(model.sinh_van_ban(question, do_dai=30))
+                if answer.lower() in pred.lower():
+                    dung += 1
+                f1_scores.append(_tinh_token_f1(answer, pred))
             except Exception:
                 continue
 
+        tong = len(f1_scores)
         return {
-            "accuracy": round(dung / max(1, tong), 4),
+            "trang_thai": "hoan_thanh" if tong > 0 else "loi_thuc_thi",
+            "accuracy": round(dung / tong, 4) if tong > 0 else None,
+            "f1": round(float(np.mean(f1_scores)), 4) if f1_scores else None,
             "so_mau": tong,
         }
 
@@ -251,30 +313,49 @@ class BenchmarkRunner:
         if "perplexity" in self._ket_qua:
             ppl = self._ket_qua["perplexity"]
             lines.append("\n📊 Perplexity:")
-            lines.append(f"  Mean: {ppl.get('perplexity_mean', 0):.4f}")
-            lines.append(f"  Std:  {ppl.get('perplexity_std', 0):.4f}")
-            lines.append(f"  Min:  {ppl.get('perplexity_min', 0):.4f}")
+            if ppl.get("perplexity_mean") is None:
+                lines.append(f"  Status: {ppl.get('loi') or ppl.get('trang_thai', 'N/A')}")
+            else:
+                lines.append(f"  Mean: {ppl['perplexity_mean']:.4f}")
+                lines.append(f"  Std:  {ppl['perplexity_std']:.4f}")
+                lines.append(f"  Min:  {ppl['perplexity_min']:.4f}")
 
         if "generation" in self._ket_qua:
             gen = self._ket_qua["generation"]
             lines.append("\n📝 Generation:")
-            lines.append(f"  Avg length: {gen.get('do_dai_trung_binh', 0)} words")
+            if gen.get("do_dai_trung_binh") is None:
+                lines.append(f"  Status: {gen.get('loi') or gen.get('trang_thai', 'N/A')}")
+            else:
+                lines.append(f"  Avg length: {gen['do_dai_trung_binh']} words")
 
         if "sentiment" in self._ket_qua:
             sent = self._ket_qua["sentiment"]
             lines.append("\n😊 Sentiment:")
-            lines.append(f"  Accuracy: {sent.get('accuracy', 0):.4f}")
+            if sent.get("accuracy") is None:
+                lines.append(f"  Status: {sent.get('loi') or sent.get('trang_thai', 'N/A')}")
+            else:
+                lines.append(f"  Accuracy: {sent['accuracy']:.4f}")
+                if sent.get("f1") is not None:
+                    lines.append(f"  Macro-F1: {sent['f1']:.4f}")
 
         if "speed" in self._ket_qua:
             spd = self._ket_qua["speed"]
             lines.append("\n⚡ Speed:")
-            lines.append(f"  Mean latency: {spd.get('latency_mean_ms', 0):.2f} ms")
-            lines.append(f"  P95 latency:  {spd.get('latency_p95_ms', 0):.2f} ms")
+            if spd.get("latency_mean_ms") is None:
+                lines.append(f"  Status: {spd.get('loi') or spd.get('trang_thai', 'N/A')}")
+            else:
+                lines.append(f"  Mean latency: {spd['latency_mean_ms']:.2f} ms")
+                lines.append(f"  P95 latency:  {spd['latency_p95_ms']:.2f} ms")
 
         if "qa" in self._ket_qua:
             qa = self._ket_qua["qa"]
             lines.append("\n❓ Q&A:")
-            lines.append(f"  Accuracy: {qa.get('accuracy', 0):.4f}")
+            if qa.get("accuracy") is None:
+                lines.append(f"  Status: {qa.get('loi') or qa.get('trang_thai', 'N/A')}")
+            else:
+                lines.append(f"  Accuracy: {qa['accuracy']:.4f}")
+                if qa.get("f1") is not None:
+                    lines.append(f"  Token-F1: {qa['f1']:.4f}")
 
         lines.append(f"\n⏱️  Total time: {self._ket_qua.get('tong_thoi_gian', 0):.1f}s")
         lines.append("=" * 60)

@@ -94,6 +94,7 @@ class KiemToanMatMa:
             a=phan_tu_bac_2,
             e=1,
             z=0,
+            cho_phep_khong_rang_buoc=True,
         )
         phan_tu_ngoai_nhom = 2
         if pow(phan_tu_ngoai_nhom, int(THONG_SO_NHOM_SCHNORR["q"]), p) == 1:
@@ -103,6 +104,7 @@ class KiemToanMatMa:
             a=phan_tu_ngoai_nhom,
             e=1,
             z=1,
+            cho_phep_khong_rang_buoc=True,
         )
         return {
             "hang_muc": "chong_nhom_con_nho",
@@ -137,6 +139,12 @@ class KiemToanMatMa:
             z=z_gia,
             tensor_hash=tensor_hash,
         )
+        bi_tu_choi_mac_dinh = not XacThucSuyLuanMaoHiem.xac_thuc_cam_ket(
+            y=y,
+            a=a_gia,
+            e=e_gia,
+            z=z_gia,
+        )
 
         cam_ket_that = verifier.tao_cam_ket_zkml(tensor)
         hop_le_that = XacThucSuyLuanMaoHiem.xac_thuc_cam_ket_nghiem_ngat(cam_ket_that, tensor=tensor)
@@ -146,9 +154,10 @@ class KiemToanMatMa:
 
         return {
             "hang_muc": "chong_gia_mao_fiat_shamir_va_nonce",
-            "dat": bi_tu_choi_khi_rang_buoc and hop_le_that and nonce_khac_nhau,
+            "dat": bi_tu_choi_khi_rang_buoc and bi_tu_choi_mac_dinh and hop_le_that and nonce_khac_nhau,
             "chi_tiet": {
                 "tu_choi_bang_chung_gia_mao_khong_co_khoa": bi_tu_choi_khi_rang_buoc,
+                "tu_choi_mac_dinh_khi_thieu_tensor_hash": bi_tu_choi_mac_dinh,
                 "chap_nhan_bang_chung_nghiem_ngat": hop_le_that,
                 "nonce_ngau_nhien_khac_nhau_moi_lan_ky": nonce_khac_nhau,
             },

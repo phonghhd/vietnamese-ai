@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import os
+import warnings
 from typing import Any, Dict
+
+warnings.warn(
+    "Module 'vietnamese_ai.edge.tee_zkp_node' (mô phỏng nút TEE/ZKP) được đánh dấu lỗi thời "
+    "(deprecated) từ v31.2.0; dự kiến tách sang nhánh thử nghiệm ở v32.0.0. "
+    "Hãy dùng 'vietnamese_ai.crypto.schnorr' hoặc 'vietnamese_ai.security.verifiable_inference'.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from vietnamese_ai.crypto.schnorr import (
     P_HEX_WIDTH as _P_HEX_WIDTH,

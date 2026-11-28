@@ -65,42 +65,53 @@ where hidden states $\mathbf{x}_l$ are passed sequentially through worker nodes 
 
 ## 3. Cryptographic Verifiable AI Inference (Proof of Inference)
 
-To safeguard decentralized swarm inference against Byzantine workers that return falsified tensors or poisoned weights, `XacThucSuyLuanMaoHiem` implements a Schnorr-based Fiat-Shamir NIZK identification protocol on a 256-bit prime field ($p = 2^{256} - 189$):
+To safeguard decentralized swarm inference against Byzantine workers that return falsified tensors or poisoned weights, `XacThucSuyLuanMaoHiem` implements a Schnorr-based Fiat-Shamir NIZK identification protocol over the RFC 5114 2048-bit MODP Group with a 256-bit prime-order subgroup ($p$: 2048-bit prime, $q$: 256-bit prime, $g$ of order $q$):
 
-$$e = H(g \parallel y \parallel a \parallel H(\mathbf{x}_{in}) \parallel H(\mathbf{x}_{out})) \pmod q$$
+$$e = H(\text{domain} \parallel g \parallel y \parallel a \parallel \text{node\_id} \parallel \text{layer\_id} \parallel H(\mathbf{x}_{in}) \parallel H(\mathbf{x}_{out})) \pmod q$$
 $$z = (r + e \cdot s) \pmod q$$
 $$\text{Verification: } g^z \equiv a \cdot y^e \pmod p$$
 
-Concurrently, `CayMerkleSuyLuan` constructs a cryptographic Merkle Tree over hidden-state activation slices, outputting compact $O(\log N)$ audit proofs. If any worker alters a single activation floating-point value or generates an invalid Schnorr proof, the orchestrator immediately rejects the inference transaction and flags the malicious node.
+Concurrently, `CayMerkleSuyLuan` constructs an RFC 6962 domain-separated cryptographic Merkle Tree (using `0x00` leaf and `0x01` internal node prefixes without odd-leaf duplication) over hidden-state activation slices, outputting compact $O(\log N)$ audit proofs. For single-layer linear projections $\mathbf{Y} = \mathbf{X}\mathbf{W} + \mathbf{b}$, `KiemChungFreivalds` optionally performs randomized $O(k \cdot n^2)$ matrix multiplication verification.
 
 # Empirical Evaluation & Benchmarks
 
 ## Experimental Setup & Methodology
 
-Benchmarks were conducted on an Intel Core i5-1135G7 CPU @ 2.40 GHz (4 cores / 8 threads) with 16 GB DDR4 RAM running Ubuntu 22.04 LTS (Kernel 5.15), executed with standard Python without GPU hardware. 
+All benchmarks were executed directly without GPU acceleration on a commodity low-power office machine: **Intel Celeron N3050 @ 1.60 GHz (2 physical cores, 6W TDP, SSE4.2/POPCNT, no AVX2, no discrete GPU)** with **3.2 GiB RAM**, running Linux `x86_64` and Python `3.14.4` with the compiled `vietnamese_ai_rust` extension (`abi3-py39`).
 
-The evaluation dataset comprises 50 official statutory Vietnamese legal texts (including the Civil Code, Enterprise Law, Land Law, and Decree 13/2023/ND-CP on Personal Data Protection) paired with 500 gold-standard question-clause query ground truths verified by legal domain experts. Measurements followed 100 warmup iterations followed by 1,000 official benchmark rounds (reported as Mean $\pm$ Standard Deviation). Statistical significance was confirmed with $p < 0.001$ across both Student's paired $t$-test and Wilcoxon signed-rank tests.
+Two open, version-controlled Vietnamese legal datasets bundled directly in the package (`vietnamese_ai/rag/legal/data/`, verified via SHA-256 parity with `benchmarks/datasets/`) are used for reproducible evaluation:
+1. **Open Vietnamese Legal Corpus (`legal_vn_corpus.jsonl` & `legal_vn_qa.jsonl`)**: `100` statutory clauses spanning key Vietnamese laws paired with `35` ground-truth question-clause queries evaluated via `Hit@1`, `Hit@3`, and `MRR`.
+2. **`ViLegal-TempBench` (`vilegal_tempbench_*.jsonl`)**: `160` indexed statutory clauses (`60` multi-version temporal clauses + `100` open background clauses), `38` clause-level temporal graph edges, and `68` queries across 4 splits (`T1`: 16 single-hop, `T2`: 24 temporal contrast pairs, `T3`: 14 multi-hop Law–Decree–Circular chains, `T4`: 8 expired-statute traps + 6 out-of-scope abstention queries).
 
-## Comparative Quantitative Results
+Process startup and memory metrics are measured in isolated Python subprocesses using `time.perf_counter()` and Linux `/proc/self/status` (`VmRSS`) to eliminate parent-process peak RSS contamination. External frameworks (e.g., LangChain or LlamaIndex) are only benchmarked head-to-head when explicitly installed in the same runtime environment; no static external baseline tables are fabricated.
 
-| Evaluation Metric | **Vietnamese AI (v31.0)** | **LangChain** | **LlamaIndex** | **Relative Advantage** |
-|:---|:---:|:---:|:---:|:---:|
-| **Cold-Start Import Latency** | **1.20 ms** | 2,150.0 ms | 2,680.0 ms | ⚡ **~1,790x faster** |
-| **Peak Resident RAM** | **14.0 MB** | 142.5 MB | 165.0 MB | 🍃 **90.2% RAM reduction** |
-| **Tokenization Throughput** | **> 20,000 words/s** | 8,200 words/s | 9,100 words/s | 🚀 **2.4x higher throughput** |
-| **Statutory Retrieval Hit@1** | **96.5%** | 71.5% | 73.8% | 🎯 **+25.0% accuracy gain** |
-| **Top-3 Retrieval Hit@3** | **100.0%** | 84.0% | 86.5% | 🎯 **100.0% coverage** |
-| **Mean Reciprocal Rank (MRR)** | **0.88** | 0.77 | 0.79 | 📈 **Highest precision** |
+## Direct Quantitative Results (`v31.1.0`)
 
-## Computational vs. Physical LAN Latency Breakdown
+| Evaluation Metric | **Measured Value (`v31.1.0`)** | Measurement Protocol |
+|:---|:---:|:---|
+| **Cold-Start Import Latency** | **24.68 ms** | Isolated subprocess `import vietnamese_ai` |
+| **Core Import Resident RAM (`VmRSS`)** | **12.82 MB** | `/proc/self/status` `VmRSS` after core import |
+| **Legal RAG Resident RAM (`VmRSS`)** | **37.39 MB** | `/proc/self/status` `VmRSS` indexing + querying 100 clauses |
+| **Tokenization Throughput (Rust Trie)** | **354,047.7 words/s** | `BoTachTuTiengVietSieuToc` on 100-clause legal corpus |
+| **Open Legal RAG Hit@1 / Hit@3 / MRR** | **100.0% / 100.0% / 1.000** | `RAGPipeline` (`onnx_viet`) on 100 clauses / 35 QA |
+| **`ViLegal-TempBench` Temporal Parsing (TQPA)** | **100.0% (68/68)** | `BoPhanTichThoiGianPhapLy` zero-leak evaluation |
+| **`ViLegal-TempBench` Full Ablation (`full`)** | **R@3 = 1.000, MRR@10 = 0.968, TVA = 1.000** | TCA = `12/12`, Multi-Hop@3 = `1.000`, Trap = `1.000`, Abstention F1 = `1.000` (`47.02 ms`/query) |
 
-When deployed across a physical LAN cluster composed of two mini PCs connected via a 1 Gbps Ethernet switch, `Vietnamese AI` records a fine-grained latency breakdown:
+## Ablation Study on `ViLegal-TempBench` (68 Queries, `seed=42`)
 
-- **CPU Compute Latency**: $11.00 \pm 0.35$ ms per pipeline pass.
-- **Network I/O Latency**: $1.50 \pm 0.12$ ms per forward payload.
-- **Merkle & zkML Verification Latency**: $0.22 \pm 0.03$ ms ($O(\log N)$ overhead).
+| Configuration | R@1 | R@3 | MRR@10 | TVA | TCA (T2) | Multi-Hop (T3) | Trap (T4) | Abst. F1 | Latency (ms) |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `bm25` (VN Tokenizer) | 0.562 | 0.973 | 0.839 | 0.720 | 0.000 (0/12) | 0.786 | 0.125 | 0.000 | 6.64 |
+| `hybrid` (BM25 + Dense RRF) | 0.562 | 0.949 | 0.827 | 0.694 | 0.167 (2/12) | 0.714 | 0.125 | 0.000 | 15.13 |
+| `temporal` (+ Point-in-Time) | 0.836 | 0.981 | 0.968 | 1.000 | 1.000 (12/12) | 0.857 | 1.000 | 0.000 | 20.10 |
+| `temporal_graph` (+ Clause Graph) | 0.836 | 1.000 | 0.968 | 1.000 | 1.000 (12/12) | 1.000 | 1.000 | 0.000 | 22.67 |
+| **`full` (ViLegal-TemporalRAG)** | **0.836** | **1.000** | **0.968** | **1.000** | **1.000 (12/12)** | **1.000** | **1.000** | **1.000** | **47.02** |
 
-This explicit separation demonstrates that physical network overhead remains negligible relative to single-node GPU offloading while preserving complete cryptographic integrity.
+Paired bootstrap testing (`n=1000`, `seed=42`) confirms statistically significant improvements of `full` over `bm25` on MRR@10 (`+0.1290`, $p=0.0010$) and TVA (`+0.2796`, $p<0.0001$), and over `hybrid` across Recall@3 (`+0.0511`, $p=0.0290$), MRR@10 (`+0.1411`, $p<0.0001$), TVA (`+0.3065`, $p<0.0001$), and Multi-Hop@3 (`+0.2857`, $p=0.0370$).
+
+## Edge Systems & Computational Transparency
+
+In addition to legal retrieval, the framework provides reproducible edge systems benchmarks (`vai benchmark --suite edge-systems`) measuring Rust SIMD SQ8/Binary/HNSW vector search and 2-bit packed BitNet 1.58-bit T-MAC LUT inference directly on the same Celeron N3050 host, as well as physical vs. in-process latency breakdown (`phan_ra_do_tre`) for Swarm CPU pipeline parallelism.
 
 # Software Quality & Reproducibility
 

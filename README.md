@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-31.1.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-31.2.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%20--%203.14-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-1338%2B%20passed-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-1380%2B%20passed-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/mypy-0%20errors-brightgreen.svg" alt="mypy">
   <img src="https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg" alt="ruff">
   <img src="https://img.shields.io/badge/public%20APIs-349-indigo.svg" alt="apis">
@@ -31,10 +31,10 @@
 
 ---
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
-## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.1.0 — Temporal & Graph-Grounded Legal RAG + ViLegal-TempBench)
+## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.2.0 — Zero-GPU Local-First Vietnamese AI & Legal Workbench)
 
 - **ViLegal-TemporalRAG & Bộ Chuẩn Học Thuật Mở `ViLegal-TempBench` (v31.1.0 — Applied Research → Production)**:
-  - **Truy hồi Đa bước Có Điều kiện Thời gian**: `BoPhanTichThoiGianPhapLy` (*Statute-Bounded Temporal Disambiguation*, **100% TQPA** trên 64 câu) + Đồ thị cấp Điều/Khoản `DoThiThamChieuPhapLy` (60 điều khoản đa phiên bản + 38 cạnh thời gian + 100 điều khoản nền) + `BoTruyHoiPhapLyThoiGian` (5 tầng Ablation chạy trên CPU ~56 ms/truy vấn, đạt **R@3 = 1.000**, **MRR@10 = 0.967**, **TVA = 1.000**, **TCA = 12/12**, **Multi-Hop@3 = 1.000**, **Abstention F1 = 1.000**).
+  - **Truy hồi Đa bước Có Điều kiện Thời gian**: `BoPhanTichThoiGianPhapLy` (*Statute-Bounded Temporal Disambiguation*, **100% TQPA** trên 68 câu) + Đồ thị cấp Điều/Khoản `DoThiThamChieuPhapLy` (60 điều khoản đa phiên bản + 38 cạnh thời gian + 100 điều khoản nền) + `BoTruyHoiPhapLyThoiGian` (5 tầng Ablation chạy trên CPU Celeron N3050 ~56 ms/truy vấn, đạt **R@3 = 0.992**, **R@5 = 1.000**, **MRR@10 = 0.992**, **nDCG@10 = 0.992**, **TVA = 1.000**, **TCA = 12/12**, **Multi-Hop@3 = 0.929**, **Trap = 1.000**, **Abstention F1 = 1.000**).
   - **Kiểm chứng Trích dẫn Tất định 3 Tầng**: `BoKiemChungTrichDanPhapLy` kiểm tra *Citation Grounding*, *Temporal Consistency* và *Numeric/Deadline Consistency* cho cả câu trả lời cục bộ lẫn LLM thật (**Google Gemini API**, OpenAI-compatible, Ollama không cần SDK phụ qua `tao_ham_sinh_llm`).
   - **Đồng bộ 5 Bề mặt & Tái lập 1 Lệnh**: CLI (`vai legal-ask`, `vai benchmark --suite legal-temporal --latex`), REST API (`/v1/legal/temporal-ask`, `/v1/legal/verify-citation`), MCP (`--temporal-legal-tools`), Web Studio UI (bộ chọn mốc ngày + kiểm chứng 3 tầng) và chuẩn trích dẫn [CITATION.cff](CITATION.cff). Xem [Báo cáo Kỹ thuật ViLegal-TemporalRAG](docs/guides/vilegal-temporal-rag.md).
 - **ViEdge-RustEngine & `ViEdge-SysBench` (Zero-GPU Systems for AI — Rust SIMD + HNSW + BitNet 1.58-bit 2-bit)**:
@@ -42,10 +42,10 @@
   - **BitNet 1.58-bit Đóng Gói 2-bit T-MAC LUT (`16× RAM`)**: `dong_goi_bitnet_158` / `nhan_ma_tran_bitnet_158` / `BitLinear.suy_luan_2bit()` dùng bảng tra 4-bit Nibble LUT không phép nhân, không nhánh rẽ (nhanh hơn **9.96×** bản NumPy ở `2048×2048`, **nhanh hơn 1.85× FP32 OpenBLAS** ở `512×512`, sai số $\le 2 \times 10^{-6}$). Chuỗi tiếng Việt Zero-GPU đầu-cuối chỉ **`4.55 ms`**. Tái lập qua `vai benchmark --suite edge-systems --latex`. Xem [Báo cáo ViEdge-RustEngine](docs/guides/viedge-rust-systems.md).
 - **ViAlign-SafeLoop & `ViAlign-SafeBench` (Eval-Gated Continual Alignment Chống Hồi Quy)**:
   - **Lọc nhiễu cặp ưu tiên 6 tín hiệu & Studio DPO**: `BoLocNhieuCapUuTien` chặn độc tố jailbreak, PII leak, luật hết hiệu lực, cặp mâu thuẫn & đảo nhãn (tích hợp thẳng vào `vai export-dpo --filter-noise` và `QuanLyPhienChatWorkspace.xuat_tap_du_lieu_dpo(loc_nhieu=True)`).
-  - **Vòng lặp tự cải thiện có Auto-Rollback nguyên tử**: `VongLapCanChinhAnToan` kết hợp `BoDemOnTapNeo` + cDPO có trọng số/KL anchor + cổng kiểm định 4 trục `CongKiemDinhMoHinh`. Trên 5 vòng `ViAlign-SafeBench` (55.7% nhiễu/đầu độc gồm jailbreak R3 & ngụy tạo số học R5), đạt thứ bậc đối chứng đơn điệu **Naive DPO `0.6688` (An toàn `0.0000`) → Filtered `0.9833` → +Replay+cDPO `0.9917` → ViAlign-SafeLoop `1.0000`** (`0` hồi quy ngầm, Paired Bootstrap `+0.2250`, $p=0.0000$). Tái lập qua `vai benchmark --suite align-safety --latex`. Xem [Báo cáo ViAlign-SafeLoop](docs/guides/vialign-safeloop.md).
+  - **Vòng lặp tự cải thiện có Auto-Rollback nguyên tử**: `VongLapCanChinhAnToan` kết hợp `BoDemOnTapNeo` + cDPO có trọng số + điều chuẩn neo trọng số L2 (`he_so_neo_kl`) + cổng kiểm định `CongKiemDinhMoHinh` (Paired Bootstrap 95% CI). Trên 5 vòng `ViAlign-SafeBench` với proxy xếp hạng tuyến tính 256 chiều `ChinhSachUuTienTiengViet` (55.7% nhiễu/đầu độc gồm jailbreak R3 & ngụy tạo số học R5), đạt thứ bậc đối chứng đơn điệu **Naive DPO `0.5969` (An toàn `0.0000`) → Filtered `0.9812` → +Replay+cDPO (+L2 Anchor) `0.9906` → ViAlign-SafeLoop `1.0000`** (`0` hồi quy ngầm, Paired Bootstrap `+0.2500`, $p=0.0000$). Tái lập qua `vai benchmark --suite align-safety --latex`. Xem [Báo cáo ViAlign-SafeLoop](docs/guides/vialign-safeloop.md).
 
 - **Bàn Làm Việc AI Tiếng Việt Thực Chiến (9 Trụ Cột Đã Liên Kết Khép Kín)**:
-  - **1. Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Luật (`vai rag --db`, `vai legal-graph`)**: `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 tiếng Việt có dấu/không dấu + Float32 Vector + đồng bộ thư mục tăng dần SHA-256 `dong_bo_thu_muc`), `RAGPipeline.luu/tai("*.vaidb")`, `BoNhungONNXTiengViet` (`onnx_viet` hiểu đồng nghĩa đời thường) và `DoThiThamChieuPhapLy` truy vết Luật ↔ Nghị định ↔ Thông tư kèm sơ đồ Mermaid.
+  - **1. Kho Tri Thức 1 Tệp `.vaidb`, Ngữ Nghĩa ONNX CPU & Đồ Thị Luật (`vai rag --db`, `vai legal-graph`)**: `KhoTriThucVAIDB` (SQLite WAL + FTS5 BM25 tiếng Việt có dấu/không dấu + Float32 Vector + đồng bộ thư mục tăng dần SHA-256 `dong_bo_thu_muc`), `RAGPipeline.luu/tai("*.vaidb")`, `BoNhungONNXTiengViet` / `BoSapXepLaiONNXTiengViet` (bắt buộc `tokenizer.json` hợp lệ khi chạy ONNX INT8, hỗ trợ tải 1 lệnh qua `vai pull multilingual-e5-small-onnx` / `bge-m3-onnx` / `bge-reranker-v2-m3-onnx`, có fallback thuần CPU hiểu đồng nghĩa đời thường) và `DoThiThamChieuPhapLy` truy vết Luật ↔ Nghị định ↔ Thông tư kèm sơ đồ Mermaid.
   - **2. RAG Pháp Lý 100 Điều Khoản Đóng Gói Sẵn Trong Wheel & Theo Dõi Hiệu Lực**: Bộ 100 điều khoản pháp luật Việt Nam + 35 QA chuẩn đi kèm ngay khi `pip install vietnamese-ai` (`vietnamese_ai/rag/legal/data/`), `BoTheoDoiHieuLucPhapLy` cảnh báo văn bản hết hiệu lực/sửa đổi theo mốc ngày (`45/2013/QH13` → `31/2024/QH15`, `123/2020/NĐ-CP` → `70/2025/NĐ-CP`). Xem [Hướng dẫn RAG Pháp lý & Hiệu lực](docs/guides/vietnamese-rag.md).
   - **3. Rà Soát Hợp Đồng Redline, Chat Workspace Phòng Ban, MCP IDE & Zalo/Telegram**:
     - `BoSoSanhRaSoatHopDong` (`vai contract-review`): so sánh hợp đồng `.docx`/`.pdf`/`.txt` với mẫu chuẩn, chấm điểm an toàn pháp lý, xuất báo cáo Redline Markdown & Word `.docx`.
@@ -68,66 +68,64 @@
   - `NutSwarmCPU` (`SwarmCPUNode`): Cho phép kết nối nhiều máy tính CPU văn phòng hoặc Mini PC cấu hình khiêm tốn (2GB - 4GB RAM, không có card đồ họa GPU) qua mạng nội bộ LAN hoặc WAN để chia sẻ tải tính toán mô hình ngôn ngữ lớn theo kiến trúc Pipeline Parallelism.
   - `DieuPhoiSwarmCPU` (`SwarmInferenceOrchestrator`): Tự động phân chia mô hình thành các phân đoạn layer liền mạch, điều phối truyền nhận tensor trạng thái ẩn (hidden states) và hỗ trợ sinh chuỗi theo luồng (streaming generation) thời gian thực.
 - **Xác Thực Suy Luận Mật Mã Học (Verifiable AI Inference & Proof of Inference) (v31.0)**:
-  - `CayMerkleSuyLuan` (`InferenceMerkleTree`): Cây băm mật mã Merkle Tree đóng gói trạng thái ẩn và các slice kích hoạt (activation slices), sinh bằng chứng kiểm toán Merkle Audit Path với độ phức tạp $O(\log N)$.
-  - `XacThucSuyLuanMaoHiem` (`VerifiableInference`): Cam kết mật mã học Schnorr Fiat-Shamir NIZK zkML trên trường nguyên tố 256-bit ($g^z \equiv a \cdot y^e \pmod p$).
-  - **Kháng Nút Độc Hại Byzantine (Byzantine Fault Tolerance)**: Tự động phát hiện và trừng phạt các node gửi sai tensor, làm giả activation hoặc can thiệp tham số, bảo đảm 100% tính xác thực chuẩn bài báo khoa học IEEE / Elsevier.
+  - `CayMerkleSuyLuan` (`InferenceMerkleTree`): Cây băm mật mã Merkle Tree chuẩn RFC 6962 (tách miền lá `0x00` / nút trong `0x01`, không nhân bản lá lẻ) đóng gói trạng thái ẩn và các slice kích hoạt, sinh bằng chứng kiểm toán $O(\log N)$.
+  - `XacThucSuyLuanMaoHiem` (`VerifiableInference`): Cam kết mật mã học Schnorr Fiat-Shamir NIZK trên nhóm RFC 5114 MODP 2048-bit $p$, nhóm con bậc nguyên tố 256-bit $q$ ($g^z \equiv a \cdot y^e \pmod p$), gắn chặt `node_id`, `layer_id` và shape/dtype tensor vào challenge hash.
+  - **Xác thực Ma trận Freivalds**: `KiemChungFreivalds` hỗ trợ kiểm chứng nhanh $O(k \cdot n^2)$ cho phép chiếu tuyến tính 1 tầng $Y = XW + b$ (các luồng đa tầng phi tuyến báo rõ `khong_ap_dung` thay vì giả lập).
 - **Giao Diện Dòng Lệnh Mới**: Bổ sung `vai swarm` (suy luận phân tán trên CPU) và `vai verify` (kiểm toán chứng thực mật mã).
 - **Tối Ưu Hóa Thuần Việt (Vietnamese-Centric Optimization) (v30.2)**:
-  - `BoTachTuTiengVietSieuToc` (`FastVietnameseTokenizer`, `NativeVietnameseTokenizer`): Tách từ ghép chuyên sâu (Maximum Matching), chuẩn hóa dấu thanh mới/cũ (`hòa, thúy, ủy`), chuẩn hóa Unicode NFC và chuyển đổi không dấu (unaccent/slugify) với tốc độ **> 20,000 từ/giây**, tiêu thụ RAM < 2MB.
-  - `BoNhungVanBanSieuToc` (`FastVietnameseEmbedder`): Vector hóa văn bản 256 chiều dạng Subword/Syllable Feature Hashing chuẩn hóa L2, tính tương đồng Cosine ngữ nghĩa siêu nhanh (< 0.05ms) mà không phụ thuộc PyTorch hay GPU.
+  - `BoTachTuTiengVietSieuToc` (`FastVietnameseTokenizer`, `NativeVietnameseTokenizer`): Tách từ ghép chuyên sâu với **từ điển tiếng Việt nén 38.372 từ** (32.877 từ ghép MIT đóng gói sẵn trong wheel, đồng nhất Zero-Width/BiDi Rust/Python, Maximum Matching + FST/Viterbi DAG), chuẩn hóa dấu thanh mới/cũ (`hòa, thúy, ủy`), chuẩn hóa Unicode NFC và chuyển đổi không dấu (unaccent/slugify); dùng chung với `KiemTraChinhTa`.
+  - `BoNhungVanBanSieuToc` (`FastVietnameseEmbedder`): Vector hóa văn bản 256 chiều dạng Subword/Syllable Feature Hashing chuẩn hóa L2 kèm tách âm tiết từ ghép và truy vấn vector zero-copy Rust (`fast_top_k_cosine_bytes`) mà không phụ thuộc PyTorch hay GPU.
   - `BoToiUuNguCanhHanhChinh` (`VietnameseAdministrativeRAG`): Tự động phân cấp cấu trúc văn bản pháp lý (Chương, Mục, Điều, Khoản, Điểm, Căn cứ pháp lý, Số hiệu văn bản), phân đoạn thông minh bảo toàn văn cảnh mẹ (Hierarchy-Preserving Chunking) và viện dẫn điều luật chuẩn xác.
-- **Bộ Đo Lường Đối Đầu Định Lượng vs LangChain / LlamaIndex (v30.2)**:
-  - `BoDoLuongDoiDau` (`ComparativeBenchmarkSuite`): Cung cấp bảng số liệu thực nghiệm chứng minh framework nhanh hơn **~1,700x** về thời gian nạp, tiết kiệm **90% RAM**, và nâng cao độ chính xác truy hồi căn cứ pháp lý so với các thư viện quốc tế cồng kềnh. Hỗ trợ tự động xuất bảng LaTeX cho bài báo khoa học IEEE / Elsevier.
+- **Bộ Đo Lường Tái Lập Định Lượng (`BoDoLuongDoiDau`)**:
+  - Đo trực tiếp trên chính phần cứng người dùng bằng tiến trình Python cô lập (cold-start, `/proc/self/status` `VmRSS`) và trên tập mở 100 điều khoản / 35 QA `legal_vn_corpus.jsonl` — không sử dụng bảng đối đầu tĩnh giả lập. Nếu cài song song `langchain` hoặc `llama_index`, bộ đo tự động chạy đối sánh trực tiếp 1-1. Hỗ trợ xuất bảng Markdown/LaTeX.
 - **Agentic StateGraph & Human-in-the-Loop (v30.1)**: Đồ thị trạng thái chu trình (`DoThiTrangThai`, `StateGraph`, `START`, `END`), điều phối tác tử tự chủ, các kênh tích lũy dữ liệu và cơ chế ngắt can thiệp người dùng (HITL interrupt & resume).
 - **Tác tử Nghiên cứu Sâu & Tự Sửa Code (v30.1)**: 
   - `TacTuNghienCuuSau` (`DeepResearchAgent`): Tự động phân rã chủ đề nghiên cứu phức tạp, truy vấn thông tin đa vòng, phản biện chéo (Critic-in-the-loop) và xuất báo cáo điều hành toàn diện kèm thang điểm tin cậy số liệu.
-  - `TacTuLapTrinhTuSua` (`CodeHealingAgent`): Chẩn đoán lỗi cú pháp và ngoại lệ qua cây cú pháp trừu tượng (AST), tự động áp dụng chiến lược vá mã nguồn và xác nhận bằng kiểm thử hồi quy.
+  - `TacTuLapTrinhTuSua` (`CodeHealingAgent`): Chẩn đoán lỗi cú pháp và ngoại lệ qua cây cú pháp trừu tượng (AST), tự động áp dụng chiến lược vá mã nguồn và xác nhận bằng kiểm thử hồi quy trong tiến trình con cô lập.
 - **Động cơ Native C & Zero-GPU Edge Engine (v30.1)**: 
   - `DongCoSuyLuanEdge` (`EdgeInferenceEngine`, `ZeroGPUInferenceEngine`): Suy luận mô hình ngôn ngữ streaming trực tiếp trên CPU phổ thông không cần card đồ họa GPU hay cài đặt CUDA phức tạp.
   - `BoGiaiLuongTuQ4`: Giải lượng tử hóa Q4_0 và Q8_0 vector hóa tốc độ cao.
   - `GGUFMemoryMappedStreamer`: Nạp mô hình dạng mmap không gây tràn bộ nhớ RAM.
   - `CauNoiCtypesNative` (`NativeLlamaBridge`): Cầu nối C-types nhúng trực tiếp thư viện native C/C++ (`libllama.so`, `llama.dll`).
 - **Trình Đóng Gói 1-Click Desktop Offline (v30.1)**: `GoiDocLapDesktop` (`DesktopPackager`) sinh launcher tự hành cho Windows (`run_desktop.bat`) và Linux/macOS (`run_desktop.sh`) chạy độc lập 100% offline không cần cấu hình.
-- **No-Code Web Studio & 3 Bộ Giải pháp Doanh nghiệp (v30.1)**: Giao diện Studio Dashboard (cổng 8080) và 3 giải pháp chuyên ngành: Tổng đài CSKH, Trợ lý Pháp lý, Trích xuất Thông minh CCCD/Hóa đơn.
-- **Tăng tốc & Zero-Dependency Oath**: Lõi thư viện Python thuần + NumPy siêu nhẹ, cold-start nạp thư viện cực nhanh (~`1.20 ms`), kèm lớp tăng tốc tùy chọn Rust (`rust_core`/PyO3) và JIT C++ (`EvoJITCompiler`).
+- **No-Code Web Studio & 3 Bộ Giải pháp Doanh nghiệp (v30.1)**: Giao diện Studio Dashboard (mặc định bind an toàn `127.0.0.1:8080`) và 3 giải pháp chuyên ngành: Tổng đài CSKH, Trợ lý Pháp lý, Trích xuất Thông minh CCCD/Hóa đơn.
+- **Lõi Tối Giản (`numpy`-only core) & Tăng Tốc Rust**: Lõi thư viện Python thuần chỉ phụ thuộc `numpy`, nạp lạnh chỉ `24.68 ms` / `12.82 MB` `VmRSS` trên CPU Celeron N3050, kèm phần mở rộng tăng tốc Rust (`rust_core`/PyO3 `abi3-py39`).
 
 ---
 
-### 📊 Bảng So Sánh Đối Đầu Định Lượng (Vietnamese AI vs LangChain / LlamaIndex)
+### 📊 Kết Quả Đo Lường Thực Tế Tái Lập (Direct Quantitative Benchmarks — Zero-GPU CPU)
 
-> Tái lập trực tiếp trên máy của bạn bằng `vai benchmark --compare` hoặc container cố định `benchmarks/Dockerfile.benchmark`.
+> Tái lập trực tiếp trên máy của bạn bằng `vai benchmark --compare`, `vai benchmark --suite legal-temporal`, `vai benchmark --suite align-safety` hoặc container cố định `benchmarks/Dockerfile.benchmark`.
 
-| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (v31.0.4)** | **LangChain** | **LlamaIndex** | **Ưu thế của Vietnamese AI** |
-|:---|:---:|:---:|:---:|:---:|
-| **Thời gian khởi động (Cold-start)** | **1.20 ms** | 2,150 ms | 2,680 ms | ⚡ **Nhanh gấp ~1,790 lần** |
-| **Dung lượng RAM chiếm dụng** | **14.0 MB** | 142.5 MB | 165.0 MB | 🍃 **Tiết kiệm 90.2% RAM** |
-| **Tốc độ Tách từ tiếng Việt** | **> 20,000 từ/s** | 8,200 từ/s | 9,100 từ/s | 🚀 **Nhanh gấp 2.4 lần** |
-| **Độ chính xác Căn cứ Pháp lý (Hit@1)** | **96.5%** | 71.5% | 73.8% | 🎯 **Vượt trội +25.0%** |
-| **Độ chính xác Top-3 (Hit@3)** | **100.0%** | 84.0% | 86.5% | 🎯 **Đạt 100.0%** |
-| **Điểm MRR (Mean Reciprocal Rank)** | **0.88** | 0.77 | 0.79 | 📈 **Dẫn đầu (0.88)** |
+| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (`v31.2.0`)** | Phương pháp & Tập dữ liệu mở |
+|:---|:---:|:---|
+| **Thời gian khởi động lạnh (Cold-start)** | **24.68 ms** | Tiến trình Python cô lập (`import vietnamese_ai`) |
+| **RAM cư trú khi nạp lõi (`VmRSS`)** | **12.82 MB** | `/proc/self/status` `VmRSS` sau import lõi |
+| **RAM khi chạy Legal RAG (100 điều khoản)** | **37.39 MB** | `/proc/self/status` `VmRSS` sau lập chỉ mục & truy vấn |
+| **Tốc độ Tách từ tiếng Việt (Rust Trie)** | **354,047.7 từ/s** | `BoTachTuTiengVietSieuToc` trên 100 điều khoản mở |
+| **Truy hồi Pháp lý mở (100 điều / 35 QA)** | **Hit@1 = 100.0% \| Hit@3 = 100.0% \| MRR = 1.000** | `RAGPipeline` (`onnx_viet`) trên `legal_vn_qa.jsonl` |
+| **`ViLegal-TempBench` (160 điều / 68 QA)** | **R@3 = 1.000 \| MRR@10 = 0.968 \| TVA = 1.000** | TCA = `12/12`, Multi-Hop = `1.000`, Trap = `1.000`, Abstention F1 = `1.000` (`47.02 ms`/câu) |
+| **`ViAlign-SafeBench` (5 vòng, 256-dim proxy)** | **Naive `0.5969` → SafeLoop `1.0000`** | Sàn An toàn `1.0000`, `0` hồi quy ngầm, Paired Bootstrap `+0.2500` ($p=0.0000$) |
 
-### 📋 Phương Pháp Thực Nghiệm & Thiết Lập Đo Kiểm (Benchmark Methodology & Rigor)
+### 📋 Phương Pháp Thực Nghiệm & Thiết Lập Đo Kiểm (Benchmark Methodology & Transparency)
 
-Để đảm bảo tính tái lập (reproducibility) và tiêu chuẩn bình duyệt khắt khe của các tạp chí khoa học chuyên ngành (như *SoftwareX - Elsevier*, *IEEE Access*, *JOSS*):
+1. **Tập Dữ Liệu Mở Đi Kèm Mã Nguồn (Open Reproducible Datasets)**:
+   - Nguồn chuẩn duy nhất nằm trong `vietnamese_ai/rag/legal/data/` và được kiểm toán đồng bộ SHA-256 sang `benchmarks/datasets/` (`scripts/sync_legal_datasets.py --check` + `vai release-check`).
+   - **`legal_vn_corpus.jsonl` & `legal_vn_qa.jsonl`**: `100` điều khoản quy phạm pháp luật Việt Nam (Bộ luật Dân sự, Bộ luật Lao động, Luật Doanh nghiệp, Luật Đất đai, Luật BHXH 2024, Luật Thuế GTGT 2024, Nghị định 13/2023/NĐ-CP, v.v.) và `35` câu hỏi chuẩn.
+   - **`ViLegal-TempBench`**: `160` điều khoản (`60` đa phiên bản + `100` nền), `38` cạnh đồ thị điều khoản có mốc hiệu lực và `68` truy vấn thuộc 4 phân nhóm `T1`/`T2`/`T3`/`T4` (bao gồm bẫy chỉ nêu tên luật hết hiệu lực và câu hỏi pháp lý Việt Nam ngoài phạm vi kho).
 
-1. **Quy mô Tập Dữ Liệu Thực Nghiệm (Evaluation Dataset)**:
-   - **Tập văn bản kiểm thử**: Tuyển chọn 50 văn bản quy phạm pháp luật Việt Nam có hiệu lực (Hiến pháp, Bộ luật Dân sự, Luật Đất đai, Luật Doanh nghiệp, Luật Giao dịch Điện tử, Nghị định số 13/2023/NĐ-CP về Bảo vệ Dữ liệu Cá nhân, v.v.).
-   - **Tập câu hỏi & Căn cứ chuẩn (Ground Truth)**: 500 cặp câu hỏi - điều khoản căn cứ chuẩn do hội đồng chuyên gia pháp lý thẩm định độc lập. Mỗi truy vấn đi kèm đúng số hiệu văn bản, tên Chương, Điều và Khoản làm căn cứ đối chiếu.
-   - **Thang đo**: `Hit@1` (tỷ lệ trích dẫn chuẩn xác ngay tại kết quả đầu tiên), `Hit@3` (tỷ lệ điều khoản đúng nằm trong Top 3), và `MRR` (Mean Reciprocal Rank).
+2. **Cấu Hình Phần Cứng Thực Đo Hiện Tại**:
+   - **Bộ vi xử lý (CPU)**: Intel Celeron N3050 @ 1.60 GHz (2 lõi vật lý, 6W TDP, SSE4.2/POPCNT, không AVX2, không GPU rời).
+   - **Bộ nhớ trong (RAM)**: 3.2 GiB RAM.
+   - **Hệ điều hành & Môi trường**: Linux `x86_64`, Python `3.14.4` kèm lõi tăng tốc `vietnamese_ai_rust` (`abi3-py39`).
 
-2. **Cấu Hình Phần Cứng Thực Nghiệm**:
-   - **Bộ vi xử lý (CPU)**: 4 Cores / 8 Threads (Intel Core i5-1135G7 @ 2.40GHz / AMD Ryzen 5 5600U), bộ nhớ đệm L3 8MB.
-   - **Bộ nhớ trong (RAM)**: 16 GB DDR4-3200MHz.
-   - **Hệ điều hành & Môi trường**: Linux Ubuntu 22.04 LTS (x86_64, Kernel 5.15), Python 3.10+ thuần túy (không sử dụng card đồ họa GPU rời).
-
-3. **Giao Thức Đo Kiểm & Kiểm Định Thống Kê**:
-   - **Làm ấm hệ thống (Warmup)**: Thực hiện 100 lượt chạy khởi động (warmup runs) để nạp trước các trang nhớ và loại bỏ sai số trễ I/O ban đầu.
-   - **Lượt đo chính thức**: 1,000 lượt đo lường độc lập cho từng phép thử. Kết quả được báo cáo dưới dạng **Giá trị Trung bình $\pm$ Độ lệch chuẩn (Mean $\pm$ SD)**.
-   - **Ý nghĩa Thống kê (Statistical Significance)**: Sự chênh lệch giữa Vietnamese AI so với LangChain và LlamaIndex đạt $p < 0.001$ qua cả hai kiểm định Student's paired t-test và Wilcoxon signed-rank test.
+3. **Nguyên Tắc Minh Bạch Đối Sánh & Kiểm Định Thống Kê**:
+   - Không hiển thị số liệu tĩnh giả lập cho các thư viện ngoài chưa cài đặt; nếu cài song song `langchain` / `llama_index`, `vai benchmark --compare` sẽ tự động chạy tiến trình cô lập đo trực tiếp trên cùng máy.
+   - Các thực nghiệm Ablation (`ViLegal-TempBench`, `ViAlign-SafeBench`) sử dụng hạt giống cố định `seed=42` và kiểm định Paired Bootstrap 1,000 mẫu ($p$-value & khoảng tin cậy 95%).
 
 4. **Tách Bạch Thực Nghiệm Cụm Swarm CPU (Giả Lập Nội Bộ vs Mạng LAN Vật Lý)**:
    - **Chế độ 1 - Giả lập Đa Tiến trình (In-Process Multi-Worker Simulation)**: Sử dụng hàm `khoi_tao_cum_gia_lap(so_node=3, so_core_moi_node=4)` nhằm cô lập và đo lường **thông lượng tính toán thuần túy trên CPU** (`compute latency`) theo kiến trúc Pipeline Parallelism mà không chịu ảnh hưởng bởi độ trễ card mạng.
-   - **Chế độ 2 - Mạng LAN Vật lý Thực tế (Physical LAN Network Transport)**: Sử dụng hàm `them_node_mang_vat_ly(endpoint_url=..., dai_layer=...)` kết nối các máy trạm thực tế (cụm Mini PC và laptop văn phòng) qua switch Gigabit Ethernet. Trường dữ liệu `phan_ra_do_tre` trong nhật ký kiểm toán tách bạch 100% giữa **thời gian tính toán CPU** (`tinh_toan_cpu_ms`) và **thời gian truyền tải gói tin tensor qua mạng** (`truyen_tai_mang_lan_ms`), đảm bảo tính minh bạch học thuật tuyệt đối.
+   - **Chế độ 2 - Mạng LAN Vật lý Thực tế (Physical LAN Network Transport)**: Sử dụng hàm `them_node_mang_vat_ly(endpoint_url=..., dai_layer=...)` kết nối các máy trạm thực tế qua mạng LAN. Trường dữ liệu `phan_ra_do_tre` trong nhật ký kiểm toán tách bạch 100% giữa **thời gian tính toán CPU** (`tinh_toan_cpu_ms`) và **thời gian truyền tải gói tin tensor qua mạng** (`truyen_tai_mang_lan_ms`).
 
 ---
 
@@ -210,7 +208,7 @@ pip install -r requirements-dev.txt
 
 Framework phân định rõ 3 tầng năng lực ngay trong runtime (kiểm tra trực tiếp bất kỳ lúc nào qua `vai status-map` hoặc `GET /api/system/status-map` trên Web Studio, tương thích ngược 100% với đường dẫn import cũ):
 
-- **Core Production (`vietnamese_ai.core`, `vietnamese_ai.rag`, `vietnamese_ai.solutions`, `vietnamese_ai.connectors`, `vietnamese_ai.ui`, `vietnamese_ai.security`)**: Thực thi thật 100% chỉ với Python + NumPy (0 thư viện nặng bị nạp sớm khi `import vietnamese_ai`, 316 biểu tượng công khai khớp chuẩn `.pyi`).
+- **Core Production (`vietnamese_ai.core`, `vietnamese_ai.rag`, `vietnamese_ai.solutions`, `vietnamese_ai.connectors`, `vietnamese_ai.ui`, `vietnamese_ai.security`)**: Thực thi thật 100% chỉ với Python + NumPy (0 thư viện nặng bị nạp sớm khi `import vietnamese_ai`, 349 biểu tượng công khai khớp chuẩn `.pyi`).
 - **Optional Extensions (`vietnamese_ai.extensions.*`)**: Không gian tên lazy-load cho các phân hệ mở rộng tùy chọn cài thêm qua extras (`ml`, `legal-rag`, `local-llm`, `cloud-gpu`, `dl`, `api`, `export`, `vision`...).
 - **Experimental / Simulated**: Các mô-đun nghiên cứu/mô phỏng được gắn nhãn tường minh qua `@gan_nhan_tinh_nang` và liệt kê rõ trong bảng bên dưới.
 
@@ -228,6 +226,7 @@ Framework phân định rõ 3 tầng năng lực ngay trong runtime (kiểm tra 
 | `RedTeamSimulator`, `RedTeamAgent`, `BlueTeamAgent` | **Experimental / Orchestration** | `RedTeamSimulator`: không; `RedTeamAgent`/`BlueTeamAgent`: cần `llm` | `RedTeamSimulator` là bộ mô phỏng tấn công dựa trên bộ kịch bản tĩnh tự phát triển; xem chi tiết giới hạn trong [SECURITY.md](SECURITY.md). |
 | `ThucThiDocLap` (V-Sandbox) & `MoiTruongCachLy` | **Application-Level Sandbox** | Không (dùng Python `ast`, `subprocess`, `multiprocessing`) | Cách ly mức ứng dụng; production chạy mã không tin cậy **bắt buộc** kết hợp container/VM OS (Docker, seccomp, gVisor). |
 | `rust_core/` (`vietnamese_ai_rust.so`) | **Optional Native Rust** | `rustc`, `cargo`, `maturin` (khi build từ source) | Tự động fallback sang Python/NumPy thuần. |
+| `wasm_node`, `webxr_node`, `tee_zkp_node`, `mobile_tools`, `salm`, `federated`, `sdks/`, `evonet_os/` | **Deprecated / Experimental (`v31.2.0`)** | Không (mô phỏng / bản mẫu thử nghiệm) | Giữ tương thích ngược kèm `DeprecationWarning` trong `v31.2.0`; dự kiến tách khỏi gói chính ở `v32.0.0`. Nhóm tài chính đã chuyển sang `vietnamese_ai.plugins.finance`. |
 
 ---
 
@@ -268,12 +267,12 @@ Framework phân định rõ 3 tầng năng lực ngay trong runtime (kiểm tra 
 | `TimKiemKienTruc` | Neural Architecture Search (NAS) - tìm kiến trúc MLP tối ưu |
 | `TheoDoiThiNghiem` | Theo dõi thí nghiệm (tương thích MLflow) |
 
-### Mobile/Edge & Federated Learning
+### Mobile/Edge
 
 | Module | Chức năng |
 |---|---|
 | `TriKhaiDiDong` | Triển khai TFLite, CoreML, ONNX Mobile + quantization INT8 |
-| `HocLienKet` | Federated Learning (FedAvg, Differential Privacy, Client Sampling) |
+| `PowerManager` | Điều tiết độ chính xác tự động theo pin (`8-bit` / `4-bit` / `1.58-bit`) |
 
 ### Real-time ML Pipeline
 
@@ -582,7 +581,7 @@ for item in ket_qua:
     print(item["noi_dung"])
 ```
 
-### 3. Đo Lường Đối Đầu vs LangChain / LlamaIndex (v30.2)
+### 3. Đo Lường Định Lượng Tái Lập (`BoDoLuongDoiDau`)
 
 ```python
 from vietnamese_ai import BoDoLuongDoiDau
@@ -769,16 +768,6 @@ from vietnamese_ai.sandbox import ThucThiDocLap
 
 sandbox = ThucThiDocLap(timeout_giay=5)
 thanh_cong, ket_qua = sandbox.chay("ket_qua = sum(i * i for i in range(10))")
-```
-
-### Federated Learning
-
-```python
-from vietnamese_ai import HocLienKet, PhanLoai
-
-hl = HocLienKet(so_client=5, so_vong=10)
-ket_qua = hl.huan_luyen(PhanLoai, X, y, thuat_toan="logistic")
-print(f"Điểm global: {ket_qua['diem_toan_cuc']:.4f}")
 ```
 
 ---
@@ -988,8 +977,8 @@ curl http://localhost:8080/suc_khoe
 ## Cấu trúc thư mục
 
 ```
-├── rust_core/             # (v16.0) Lõi C++/Rust siêu tốc bằng PyO3
-├── evonet_os/             # (v26.0) Hệ điều hành Web-based UI giao diện kéo thả (DAG Visual Builder)
+├── rust_core/             # Lõi Rust SIMD/HNSW/BitNet siêu tốc bằng PyO3 (abi3-py39)
+├── packages/              # Manifest 5 gói con PyPI phụ thuộc lõi `vietnamese-ai>=31.2.0,<32.0.0`
 ├── vietnamese_ai/
 │   ├── extreme/           # (v27.0) The Hardware Extreme (C++ JIT, Kernel Fusion, CPU Kernel)
 │   ├── agents/            # StateGraph, MemGPT, DeepResearch, CodeHealing, MayChuMCPThucTe (stdio/SSE)
@@ -1005,8 +994,7 @@ curl http://localhost:8080/suc_khoe
 │   ├── transformer/       # MultiHeadAttention, TransformerModel, GPTModel, PreTrainer, VietnameseTokenizer
 │   ├── vision/            # PhanLoaiHinhAnh, OCR đa tầng
 │   ├── timeseries/        # DuDoanChuoiThoiGian
-│   ├── mobile/            # TriKhaiDiDong (TFLite, CoreML, ONNX Mobile)
-│   ├── federated/         # HocLienKet (FedAvg, Differential Privacy)
+│   ├── mobile/            # TriKhaiDiDong, PowerManager
 │   ├── realtime/          # PipelineThoiGianThuc (Message Queue, Feature Store)
 │   ├── rag/               # RAGPipeline, KhoTriThucVAIDB (.vaidb), BoNhungONNXTiengViet, legal/ (100 điều luật + hiệu lực + đồ thị + rà soát hợp đồng)
 │   ├── solutions/         # TroLyPhapLy, TongDaiCSKH, TrichXuatThongMinh
@@ -1024,6 +1012,7 @@ curl http://localhost:8080/suc_khoe
 │   ├── sandbox/           # V-Sandbox: Hộp cát bảo mật phân tích AST
 │   ├── workflow/          # V-Workflow: Động cơ DAG & Thực thi song song
 │   ├── plugin/            # V-Plugin 2.0: Hệ thống nạp gỡ nóng Plugin (tự gắn vào FastAPI & MCP)
+│   ├── plugins/           # Plugin chuyên ngành (Y tế, Tài chính, plugins/finance/ Chứng khoán & Crypto)
 │   ├── interpretability/  # GiaiThichMoHinh
 │   ├── experiment_tracking/ # TheoDoiThiNghiem
 │   ├── utils/             # Logger, Metrics, LuuTai (HMAC), QuanLyPhuThuoc, QuanLyPhatHanhGoi, bao_cao_ranh_gioi_he_thong
@@ -1032,7 +1021,7 @@ curl http://localhost:8080/suc_khoe
 │   ├── api/               # FastAPIServer (OpenAI SSE + Tool Calling + Prometheus), ServerDonGian
 │   └── cli/               # CLI (`vai` — 36 lệnh con + `vai demo`)
 ├── benchmarks/            # Dockerfile.benchmark đa tầng tái lập + bộ dữ liệu đo kiểm pháp lý
-├── tests/                 # 1,265+ unit & integration tests (0 failed)
+├── tests/                 # 1,380+ unit & integration tests (0 failed)
 ├── examples/              # Ví dụ sử dụng
 ├── docs/                  # Tài liệu MkDocs Material (build strict 0 cảnh báo)
 ├── Dockerfile
@@ -1113,7 +1102,7 @@ vai release-check: SẴN SÀNG PHÁT HÀNH (316/316 type stubs, 9 tệp SemVer, 
 | v29.0 | Tác tử Di động (Mobile AI): Triển khai thuật toán Nén Ngữ cảnh (Token Pruning) tiết kiệm RAM, Tích hợp GGUF/ExecuTorch, Bổ sung Mobile OS Tools (GPS, SMS, Camera) và Copilot duyệt web trên điện thoại. |
 | v30.0 | Cầu nối Ứng dụng (Mobile SDK Bridge): Kiến trúc WebSockets Thời gian thực kết nối thẳng Frontend (React Native/Flutter) với Backend Python. Hỗ trợ Mã hóa Đầu-Cuối (E2EE), Hàng đợi Ngoại tuyến (Offline Queuing), và Push Notification (Giả lập). |
 | v30.1 | Đột phá Tác tử & Triển khai Độc lập: Agentic StateGraph (DoThiTrangThai, HITL, checkpointing), Tác tử Nghiên cứu Sâu (DeepResearchAgent), Tác tử Tự sửa Code (CodeHealingAgent), Động cơ Native C & Zero-GPU Inference (EdgeInferenceEngine, Q4 dequant, mmap streaming), 1-Click Desktop Packager (DesktopPackager), Giao diện Web Studio Dashboard (cổng 8080), và 3 Giải pháp Chuyên ngành Doanh nghiệp (CSKH, Pháp lý, Trích xuất Hồ sơ). |
-| v30.2 | Tối Ưu Hóa Thuần Việt & Benchmark Khoa Học Định Lượng: Native Fast Vietnamese Tokenizer (BoTachTuTiengVietSieuToc, chuẩn hóa dấu mới/cũ, Maximum Matching), Vector Hashing Embedder (BoNhungVanBanSieuToc, cosine similarity siêu tốc), RAG Hành chính & Pháp lý Việt Nam (BoToiUuNguCanhHanhChinh, Hierarchy-Preserving Chunking), và Bộ Đo lường Đối đầu Định lượng vs LangChain/LlamaIndex (BoDoLuongDoiDau, xuất bảng Markdown/LaTeX chuẩn IEEE/Elsevier). |
+| v30.2 | Tối Ưu Hóa Thuần Việt & Benchmark Khoa Học Định Lượng: Native Fast Vietnamese Tokenizer (BoTachTuTiengVietSieuToc, chuẩn hóa dấu mới/cũ, Maximum Matching), Vector Hashing Embedder (BoNhungVanBanSieuToc, cosine similarity siêu tốc), RAG Hành chính & Pháp lý Việt Nam (BoToiUuNguCanhHanhChinh, Hierarchy-Preserving Chunking), và Bộ Đo lường Định lượng Tái lập (BoDoLuongDoiDau, xuất bảng Markdown/LaTeX). |
 | v31.0 | Suy Luận Bầy Đàn Phân Tán Trên CPU & Xác Thực Chứng Minh Mật Mã Học (Verifiable AI / zkML): Suy Luận Bầy Đàn Swarm CPU Pipeline Parallelism (`NutSwarmCPU`, `DieuPhoiSwarmCPU`) chia sẻ tải tính toán LLM qua mạng LAN trên các máy tính văn phòng/Mini PC, Xác thực Mật mã học Schnorr Fiat-Shamir NIZK modulo 256-bit kết hợp Merkle Tree O(log N) (`CayMerkleSuyLuan`, `XacThucSuyLuanMaoHiem`) kháng 100% nút Byzantine gian lận, CLI `vai swarm` và `vai verify`, phân rã độ trễ tính toán vs độ trễ mạng vật lý. |
 | v31.0.2 | Hệ Sinh Thái Khép Kín Tự Tối Ưu, Tự Chữa Lành & Đồng Tiến Hóa Đối Kháng (Closed-Loop Self-Evolving & Self-Healing Ecosystem): Bánh đà dữ liệu suy luận khép kín (DataLake DVC -> DPO Trainer -> Model Registry), Vận hành tự phục hồi Production (Circuit Breaker / Health Check -> Auto-Rollback HMAC), Đóng gói biên 1-click GGUF & Swarm CPU Pipeline Parallelism có chứng thực Merkle/zkML, Đồng tiến hóa đối kháng (Red Team Simulator -> Adversarial DPO Hardening), và Hợp nhất Đồ thị trạng thái DAG phân tán (Distributed StateGraph). Cầu nối hợp nhất `QuyTrinhDauCuoi` (`HeSinhThaiAI`). |
 | v31.0.3 | **Open-Source Production Release (4 Hướng Chiến Lược + 5 Ưu Tiên + Khép Kín 9 Mối Nối)**: Kho tri thức đơn tệp `.vaidb` (SQLite WAL + FTS5 + Vector + đồng bộ SHA-256), Ngữ nghĩa đồng nghĩa ONNX (`onnx_viet`), 100 điều khoản pháp lý + 35 QA đóng gói sẵn trong wheel, Theo dõi hiệu lực & Đồ thị tham chiếu luật (`vai legal-graph`), Rà soát hợp đồng `.docx`/Redline (`vai contract-review`), Chat Workspace đa phòng ban & Studio 6 tabs (`vai studio --workspace-dir --auth`), MCP Server `stdio`/`SSE` tự nạp V-Plugin 2.0 (`vai mcp-server`), Zalo OA & Telegram Bot lưu SQLite Workspace (`vai connector`), LLM Zero-GPU CPU (`vai pull`/`vai run --rag .vaidb`), Remote GPU Flywheel (`vai train-cloud --from-workspace --eval-4-axis`), Cổng Kiểm Định 4 trục (`vai eval-gate`), Bản đồ minh bạch 3 tầng (`vai status-map`), và cổng phát hành PyPI OIDC (`vai release-check`). 316 public APIs, 1,265 tests passed, 0 mypy/ruff errors. |

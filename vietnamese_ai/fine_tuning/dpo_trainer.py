@@ -1,5 +1,6 @@
 """DPOTrainer - Direct Preference Optimization Trainer."""
 
+import copy
 import time
 from typing import Any, Callable, Dict, List, Optional
 
@@ -27,11 +28,11 @@ class DPOTrainer:
         L_DPO = -E[log σ(β(log π(y_w|x)/π_ref(y_w|x)) - log π(y_l|x)/π_ref(y_l|x)))]
 
     Tính năng:
-    - DPO loss với reference model
-    - KL divergence regularization
-    - Beta annealing
-    - Label smoothing
-    - Support PyTorch và NumPy fallback
+    - DPO loss với reference model và SimPO không cần reference model
+    - Điều chuẩn neo trọng số L2 (`he_so_neo_kl`: phạt (lambda / 2) * ||w - w_ref||_2^2 về tham số gốc, không phải token-level reverse KL)
+    - Beta scaling & trọng số tin cậy theo mẫu (`trong_so`)
+    - Label smoothing (cDPO)
+    - Hỗ trợ PyTorch `nn.Module` và nhánh NumPy 256-dim linear proxy trên CPU
 
     Sử dụng:
         >>> dpo = DPOTrainer(so_vong=1, beta=0.1)
@@ -112,6 +113,15 @@ class DPOTrainer:
         self.logger.info(f"Bắt đầu {self.che_do.upper()} training ({self.so_vong} epochs)")
         self.logger.info(f"  Preference samples: {len(preference_data)}")
         self.logger.info(f"  Beta: {self.beta}")
+
+        if ref_model is model:
+            if self.che_do == "simpo":
+                ref_model = None
+            else:
+                try:
+                    ref_model = copy.deepcopy(model)
+                except Exception:
+                    ref_model = None
 
         if _CO_PYTORCH and isinstance(model, nn.Module):
             return self._huan_luyen_pytorch(model, ref_model, preference_data, tokenizer, callback)

@@ -5,7 +5,10 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import threading
+import time
 import urllib.request
+from collections import OrderedDict
 from typing import Any, Callable, Dict, Optional, Union
 
 from vietnamese_ai.connectors.base import KetNoiKenhCoSo, PhanHoiKenh, TinNhanKenh
@@ -44,6 +47,9 @@ class KetNoiZaloOA(KetNoiKenhCoSo):
         timeout_giay: int = 15,
         quan_ly_workspace: Optional[Any] = None,
         ma_workspace: str = "mac_dinh",
+        cho_phep_khong_xac_thuc: bool = False,
+        han_lech_timestamp_giay: Optional[int] = 300,
+        kich_thuoc_bo_nho_replay: int = 4096,
     ) -> None:
         super().__init__(
             bo_xu_ly=bo_xu_ly,
@@ -56,12 +62,41 @@ class KetNoiZaloOA(KetNoiKenhCoSo):
         self.oa_secret_key = oa_secret_key
         self.access_token = access_token
         self.timeout_giay = max(1, int(timeout_giay))
+        self.cho_phep_khong_xac_thuc = bool(cho_phep_khong_xac_thuc)
+        self.han_lech_timestamp_giay = han_lech_timestamp_giay
+        self._kich_thuoc_bo_nho_replay = max(16, int(kich_thuoc_bo_nho_replay))
+        self._msg_id_da_xu_ly: "OrderedDict[str, float]" = OrderedDict()
+        self._replay_lock = threading.Lock()
 
     def tao_chu_ky_mac(self, raw_body: Union[str, bytes], timestamp: str) -> str:
         """Tính chữ ký MAC SHA-256 theo đặc tả Zalo OA Webhook (`mac=<hex>`)."""
         body_str = raw_body.decode("utf-8") if isinstance(raw_body, bytes) else str(raw_body)
         chuoi = f"{self.app_id}{body_str}{timestamp}{self.oa_secret_key}"
         return "mac=" + hashlib.sha256(chuoi.encode("utf-8")).hexdigest()
+
+    def _kiem_tra_timestamp_hop_le(self, timestamp: str) -> bool:
+        if self.han_lech_timestamp_giay is None or self.cho_phep_khong_xac_thuc:
+            return True
+        if not timestamp or not str(timestamp).strip():
+            return False
+        try:
+            ts_val = float(str(timestamp).strip())
+        except ValueError:
+            return False
+        ts_sec = ts_val / 1000.0 if ts_val > 1e11 else ts_val
+        return abs(time.time() - ts_sec) <= float(self.han_lech_timestamp_giay)
+
+    def _ghi_nhan_va_kiem_tra_replay(self, msg_id: str) -> bool:
+        if not msg_id:
+            return True
+        now = time.time()
+        with self._replay_lock:
+            if msg_id in self._msg_id_da_xu_ly:
+                return False
+            self._msg_id_da_xu_ly[msg_id] = now
+            while len(self._msg_id_da_xu_ly) > self._kich_thuoc_bo_nho_replay:
+                self._msg_id_da_xu_ly.popitem(last=False)
+        return True
 
     def xac_thuc_chu_ky(
         self,
@@ -71,8 +106,10 @@ class KetNoiZaloOA(KetNoiKenhCoSo):
     ) -> bool:
         """Xác thực header `X-ZEvent-Signature` bằng so sánh hằng thời gian `hmac.compare_digest`."""
         if not self.oa_secret_key:
-            return True
+            return bool(self.cho_phep_khong_xac_thuc)
         if not signature_header:
+            return False
+        if not self._kiem_tra_timestamp_hop_le(timestamp):
             return False
         ky_vong = self.tao_chu_ky_mac(raw_body, str(timestamp))
         return hmac.compare_digest(ky_vong.strip().lower(), signature_header.strip().lower())
@@ -138,8 +175,13 @@ class KetNoiZaloOA(KetNoiKenhCoSo):
         signature_header: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Xác thực MAC, phân tích sự kiện Zalo OA và trả về kết quả xử lý đầy đủ."""
-        body_str = raw_body.decode("utf-8") if isinstance(raw_body, bytes) else str(raw_body)
-        payload = json.loads(body_str) if body_str.strip() else {}
+        try:
+            body_str = raw_body.decode("utf-8") if isinstance(raw_body, bytes) else str(raw_body)
+            payload = json.loads(body_str) if body_str.strip() else {}
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return {"thanh_cong": False, "ma_http": 400, "loi": "Payload JSON Zalo OA không hợp lệ."}
+        if not isinstance(payload, dict):
+            return {"thanh_cong": False, "ma_http": 400, "loi": "Payload JSON Zalo OA phải là đối tượng JSON."}
         timestamp = str(payload.get("timestamp", ""))
         if not self.xac_thuc_chu_ky(body_str, timestamp, signature_header):
             return {"thanh_cong": False, "ma_http": 401, "loi": "Chữ ký MAC Zalo OA không hợp lệ."}
@@ -147,6 +189,8 @@ class KetNoiZaloOA(KetNoiKenhCoSo):
         tin = self.phan_tich_webhook(payload)
         if tin is None:
             return {"thanh_cong": True, "bo_qua": True, "ly_do": "Sự kiện không phải tin nhắn văn bản."}
+        if tin.ma_tin_nhan and not self._ghi_nhan_va_kiem_tra_replay(tin.ma_tin_nhan):
+            return {"thanh_cong": False, "ma_http": 409, "loi": "Tin nhắn Zalo OA bị trùng lặp (replay)."}
 
         phan_hoi: PhanHoiKenh = self.xu_ly_tin_nhan(tin)
         return {"thanh_cong": True, "bo_qua": False, "phan_hoi": phan_hoi.to_dict()}

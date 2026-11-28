@@ -2,7 +2,7 @@
 
 ## Project Info
 - **Name**: Vietnamese AI Framework (`vietnamese-ai`)
-- **Version**: 31.1.0
+- **Version**: 31.2.0
 - **Language**: Python 3.8+
 - **Package dir**: `vietnamese_ai/`
 
@@ -72,7 +72,7 @@ vietnamese_ai/
 ├── prompts/             # Prompt Templates, Chains, Guardrails
 ├── compression/         # Distillation, Pruning, BitNet
 ├── production/          # Health, Circuit Breaker, Logging, Metrics
-├── nlp/                 # Native Tokenizer, NER, QA, Summarization, Translation, Spelling
+├── nlp/                 # Native Tokenizer (38k+ từ nén + Rust parity), NER, QA, Summarization, Translation, Spelling (38k+ từ)
 ├── models/              # PhanLoai, HoiQuy, PhanCum, MangNron
 ├── core/                # Engine, Pipeline, CrossValidation, QuyTrinhDauCuoi
 ├── preprocessing/       # XuLyVanBan, XuLySo, TaoDacTrung
@@ -100,6 +100,6 @@ vietnamese_ai/
 - Follow existing code patterns (see models/base.py for base class pattern)
 - New modules need: `__init__.py` with exports, implementation file, tests (and update `__init__.pyi` if adding top-level exports)
 - Một số module Edge/DePIN/multimodal/WASM là **mô phỏng** — kiểm tra trực tiếp qua `vai status-map` hoặc docstring từng class
-- Version canonical: **31.1.0** (`__init__.py` == `pyproject.toml` == `setup.py` == `packages/*/pyproject.toml` == `rust_core/Cargo.toml`)
-- Plugin: `QuanLyPlugin` = hot-swap (tự gắn vào FastAPI & MCP); `PluginManager` = legacy hooks (cả hai đều hợp lệ)
-- Baseline test (v31.1.0): 1,338+ passed, 0 mypy errors, 349 public exports (bao gồm Temporal-Graph Legal RAG, ViEdge-RustEngine & ViAlign-SafeLoop)
+- Version canonical: **31.2.0** (`__init__.py` == `pyproject.toml` == `setup.py` == `packages/*/pyproject.toml` == `rust_core/Cargo.toml`)
+- Plugin: `QuanLyPlugin` = hot-swap (tự gắn vào FastAPI & MCP); `PluginManager` = legacy hooks (cả hai đều hợp lệ); tài chính tách tại `vietnamese_ai/plugins/finance/`
+- Baseline test (v31.2.0): 1,400+ passed, 0 mypy errors (`check_untyped_defs = true` cho `rag/`, `security/`, `edge/`, `core/`), 349 public exports (đã hoàn tất trọn bộ P0 → P4)

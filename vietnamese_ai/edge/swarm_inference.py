@@ -547,16 +547,17 @@ class NutSwarmCPU:
 
     def dung_server_lan(self) -> None:
         """Dừng máy chủ TCP Socket LAN."""
-        if self._server_loop is not None and self._server_loop.is_running():
-            def _stop():
+        loop = self._server_loop
+        if loop is not None and loop.is_running():
+            def _stop() -> None:
                 if self._server_lan is not None:
                     self._server_lan.close()
-                for task in asyncio.all_tasks(self._server_loop):
-                    if task is not asyncio.current_task(self._server_loop):
+                for task in asyncio.all_tasks(loop):
+                    if task is not asyncio.current_task(loop):
                         task.cancel()
-                self._server_loop.stop()
+                loop.stop()
 
-            self._server_loop.call_soon_threadsafe(_stop)
+            loop.call_soon_threadsafe(_stop)
         if self._server_thread is not None:
             self._server_thread.join(timeout=1.0)
             self._server_thread = None
@@ -1186,7 +1187,12 @@ class DieuPhoiSwarmCPU:
     ) -> Dict[str, Any]:
         """Kiểm chứng xác suất Freivalds cho phép chiếu tuyến tính của một nút đơn tầng không bão hòa."""
         if node._transformer_shard is not None or node.so_layer != 1:
-            return {"hop_le": True, "bo_qua": True, "ly_do": "Nút nhiều tầng hoặc Transformer phi tuyến"}
+            return {
+                "hop_le": None,
+                "bo_qua": True,
+                "trang_thai": "khong_ap_dung",
+                "ly_do": "Nút nhiều tầng hoặc Transformer phi tuyến không hỗ trợ kiểm chứng Freivalds đơn tầng",
+            }
         x_2d = np.asarray(h_in, dtype=np.float64)
         if x_2d.ndim == 1:
             x_2d = x_2d.reshape(1, -1)
@@ -1259,14 +1265,14 @@ class DieuPhoiSwarmCPU:
                 if kiem_chung_freivalds:
                     fv = self.xac_minh_freivalds_nut(node, h_curr, h_next)
                     proof["freivalds"] = fv
-                    if not fv.get("hop_le", False):
+                    if fv.get("hop_le") is False:
                         raise ValueError(
                             f"Phát hiện sai lệch tính toán ma trận qua kiểm chứng Freivalds tại nút {node.node_id}"
                         )
                 cam_kets.append(proof)
             elif kiem_chung_freivalds:
                 fv = self.xac_minh_freivalds_nut(node, h_curr, h_next)
-                if not fv.get("hop_le", False):
+                if fv.get("hop_le") is False:
                     raise ValueError(
                         f"Phát hiện sai lệch tính toán ma trận qua kiểm chứng Freivalds tại nút {node.node_id}"
                     )

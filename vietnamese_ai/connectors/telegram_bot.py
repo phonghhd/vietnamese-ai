@@ -42,6 +42,7 @@ class KetNoiTelegram(KetNoiKenhCoSo):
         timeout_giay: int = 15,
         quan_ly_workspace: Optional[Any] = None,
         ma_workspace: str = "mac_dinh",
+        cho_phep_khong_xac_thuc: bool = False,
     ) -> None:
         super().__init__(
             bo_xu_ly=bo_xu_ly,
@@ -53,11 +54,12 @@ class KetNoiTelegram(KetNoiKenhCoSo):
         self.bot_token = bot_token
         self.webhook_secret = webhook_secret
         self.timeout_giay = max(1, int(timeout_giay))
+        self.cho_phep_khong_xac_thuc = bool(cho_phep_khong_xac_thuc)
 
     def xac_thuc_secret_token(self, secret_header: Optional[str]) -> bool:
         """Xác thực header `X-Telegram-Bot-Api-Secret-Token` bằng so sánh hằng thời gian."""
         if not self.webhook_secret:
-            return True
+            return bool(self.cho_phep_khong_xac_thuc)
         if not secret_header:
             return False
         return hmac.compare_digest(self.webhook_secret, secret_header.strip())
@@ -151,8 +153,13 @@ class KetNoiTelegram(KetNoiKenhCoSo):
         """Xác thực secret token, phân tích bản tin Telegram Update và trả về kết quả xử lý."""
         if not self.xac_thuc_secret_token(secret_header):
             return {"thanh_cong": False, "ma_http": 401, "loi": "Telegram secret token không hợp lệ."}
-        body_str = raw_body.decode("utf-8") if isinstance(raw_body, bytes) else str(raw_body)
-        payload = json.loads(body_str) if body_str.strip() else {}
+        try:
+            body_str = raw_body.decode("utf-8") if isinstance(raw_body, bytes) else str(raw_body)
+            payload = json.loads(body_str) if body_str.strip() else {}
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return {"thanh_cong": False, "ma_http": 400, "loi": "Payload JSON Telegram không hợp lệ."}
+        if not isinstance(payload, dict):
+            return {"thanh_cong": False, "ma_http": 400, "loi": "Payload JSON Telegram phải là đối tượng JSON."}
         tin = self.phan_tich_webhook(payload)
         if tin is None:
             return {"thanh_cong": True, "bo_qua": True, "ly_do": "Update không chứa tin nhắn văn bản."}

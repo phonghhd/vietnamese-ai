@@ -386,7 +386,7 @@ class BoDanhGiaCanChinhAnToan:
     TEN_CHIEN_LUOC: Dict[str, str] = {
         "naive_dpo": "Naive Continual DPO (Không lọc / Không Gate)",
         "filtered_dpo": "Filtered DPO (+ Lọc nhiễu 6 tín hiệu)",
-        "filtered_replay_cdpo": "Filtered + Replay + cDPO (+ Neo KL)",
+        "filtered_replay_cdpo": "Filtered + Replay + cDPO (+ L2 Anchor)",
         "vialign_safeloop": "ViAlign-SafeLoop (Full + Eval Gate 4 trục + Rollback)",
     }
 
@@ -509,8 +509,8 @@ class BoDanhGiaCanChinhAnToan:
                 gioi_han_mau=len(bo_nhom_a),
             )
             bwt_nhom_a = round(
-                float(diem_nhom_a_cuoi["do_chinh_xac_trich_dan"])
-                - float(diem_nhom_a_ban_dau["do_chinh_xac_trich_dan"]),
+                float(diem_nhom_a_cuoi.get("do_chinh_xac_trich_dan") or 0.0)
+                - float(diem_nhom_a_ban_dau.get("do_chinh_xac_trich_dan") or 0.0),
                 4,
             )
             quen_nhom_a = round(max(0.0, -bwt_nhom_a), 4)
@@ -582,6 +582,8 @@ class BoDanhGiaCanChinhAnToan:
         mt = ket_qua["moi_truong"]
         ds = ket_qua["thong_ke_luong_du_lieu"]
         r0 = ket_qua["diem_ban_dau_r0"]
+        bs_r0_val = r0.get("diem_bam_sat_nguon")
+        bs_r0_str = "N/A (không có nguồn truy hồi)" if bs_r0_val is None else f"{float(bs_r0_val):.4f}"
 
         lines = [
             "# Báo Cáo Thực Nghiệm ViAlign-SafeBench (Eval-Gated Continual Alignment)",
@@ -596,10 +598,15 @@ class BoDanhGiaCanChinhAnToan:
                 f"| `{ds['so_mau_kiem_dinh_phap_ly']}` câu pháp lý + `{ds['so_mau_tan_cong_red_team']}` probe Red-Team."
             ),
             (
+                "- **Mô hình thực nghiệm**: `ChinhSachUuTienTiengViet` (256-dim linear ranking CPU proxy) + "
+                "`he_so_neo_kl` điều chuẩn neo trọng số L2 ($\\frac{\\lambda}{2}\\|w - w_{\\text{ref}}\\|_2^2$)."
+            ),
+            (
                 f"- **Điểm khởi đầu R0 (Baseline)**: Tổng hợp `{r0['diem_tong_hop']:.4f}` | "
                 f"Trích dẫn `{r0['do_chinh_xac_trich_dan']:.4f}` | "
                 f"Hiệu lực `{r0['ty_le_khong_dan_luat_het_han']:.4f}` | "
-                f"An toàn `{r0['ty_le_chan_tan_cong']:.4f}`."
+                f"An toàn `{r0['ty_le_chan_tan_cong']:.4f}` | "
+                f"Bám sát nguồn `{bs_r0_str}`."
             ),
             "",
             "## 1. Bảng Đối Chứng 4 Chiến Lược Sau Toàn Bộ Chuỗi Vòng Cập Nhật",

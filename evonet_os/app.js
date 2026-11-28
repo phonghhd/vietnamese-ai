@@ -170,7 +170,7 @@ document.addEventListener('mousemove', (e) => {
         
         // Vẽ đường cong Bezier
         const cpX = (startX + endX) / 2;
-        currentPath.setAttribute('d', \`M \${startX} \${startY} C \${cpX} \${startY}, \${cpX} \${endY}, \${endX} \${endY}\`);
+        currentPath.setAttribute('d', `M ${startX} ${startY} C ${cpX} ${startY}, ${cpX} ${endY}, ${endX} ${endY}`);
     }
 });
 
@@ -235,7 +235,7 @@ function appendLog(message, type = 'info') {
     if (!term) return;
     
     const div = document.createElement('div');
-    div.className = \`log-line \${type}\`;
+    div.className = `log-line ${type}`;
     div.innerText = message;
     term.appendChild(div);
     term.scrollTop = term.scrollHeight; // Auto-scroll
@@ -251,7 +251,7 @@ function mockWebSocketStream() {
     setTimeout(() => appendLog("✅ [WSS] Đã kết nối với Lõi Python (v25.0)", "success"), 500);
     
     const jsonStr = exportToEvoNet();
-    setTimeout(() => appendLog(\`> Gửi Graph JSON:\\n\${jsonStr}\`, "info"), 1000);
+    setTimeout(() => appendLog(`> Gửi Graph JSON:\n${jsonStr}`, "info"), 1000);
     
     setTimeout(() => appendLog("⚙️ [Server] Đang biên dịch Đồ thị DAG...", "system"), 1500);
     setTimeout(() => appendLog("🤖 [Agent] Tác tử Điều Phối đã nhận lệnh. Đang spawn Agent con...", "info"), 2500);

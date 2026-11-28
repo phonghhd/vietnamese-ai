@@ -1,3 +1,4 @@
+import html as html_lib
 from typing import Any, Callable, Dict
 
 from vietnamese_ai.ui.core import Component
@@ -21,7 +22,7 @@ class GiaoDienChat(Component):
             <div class="bg-gray-900 p-4 border-b border-gray-700 font-semibold text-blue-400">
                 Agentic Chat
             </div>
-            <div id="{self.id}_messages" class="flex-1 p-4 overflow-y-auto" style="height: {self.chieu_cao};">
+            <div id="{self.id}_messages" class="flex-1 p-4 overflow-y-auto" style="height: {html_lib.escape(self.chieu_cao, quote=True)};">
                 <!-- Tin nhắn sẽ hiện ở đây -->
                 <div class="mb-4 text-center text-gray-500 text-sm">Bắt đầu cuộc trò chuyện...</div>
             </div>
@@ -55,7 +56,7 @@ class GiaoDienChat(Component):
             messages_el.innerHTML += `
                 <div class="mb-4 flex justify-end">
                     <div class="bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm max-w-[80%] shadow">
-                        ${{text}}
+                        ${{escapeHtml(text)}}
                     </div>
                 </div>`;
             input_el.value = '';
@@ -76,8 +77,8 @@ class GiaoDienChat(Component):
                 const res = await goi_python('{self.api_endpoint}', {{ "text": text }});
                 document.getElementById(loading_id).remove();
 
-                // Parse Markdown and Highlight code
-                let html_content = marked.parse(res.reply);
+                let safe_reply = escapeHtml(res.reply || '');
+                let html_content = marked.parse(safe_reply).replace(/href\\s*=\\s*["']\\s*javascript:/gi, 'href="#blocked:');
 
                 messages_el.innerHTML += `
                     <div class="mb-4 flex justify-start">
@@ -127,7 +128,7 @@ class BangThongKe(Component):
         return f"""
         <div class="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6 flex flex-col">
             <h3 class="text-xl font-bold mb-4 text-purple-400 flex items-center justify-between">
-                {self.tieu_de}
+                {html_lib.escape(self.tieu_de, quote=True)}
                 <span id="{self.id}_dot" class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
             </h3>
             <div id="{self.id}_content" class="grid grid-cols-2 gap-4 flex-1">
@@ -146,8 +147,8 @@ class BangThongKe(Component):
                 for (const [key, val] of Object.entries(res.data)) {{
                     html += `
                         <div class="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                            <div class="text-sm text-gray-400 mb-1">${{key}}</div>
-                            <div class="text-2xl font-bold text-white">${{val}}</div>
+                            <div class="text-sm text-gray-400 mb-1">${{escapeHtml(key)}}</div>
+                            <div class="text-2xl font-bold text-white">${{escapeHtml(val)}}</div>
                         </div>
                     `;
                 }}
@@ -214,7 +215,7 @@ class KhuVucTaiTaiLieu(Component):
 
         async function handleFile_{self.id}(file) {{
             if (!file) return;
-            status_{self.id}.innerHTML = `<span class="text-yellow-400">Đang xử lý ${{file.name}}...</span>`;
+            status_{self.id}.innerHTML = `<span class="text-yellow-400">Đang xử lý ${{escapeHtml(file.name)}}...</span>`;
 
             const reader = new FileReader();
             reader.onload = async (e) => {{
@@ -224,7 +225,7 @@ class KhuVucTaiTaiLieu(Component):
                         name: file.name,
                         content: base64_content
                     }});
-                    status_{self.id}.innerHTML = `<span class="text-green-400">Thành công: ${{res.msg}}</span>`;
+                    status_{self.id}.innerHTML = `<span class="text-green-400">Thành công: ${{escapeHtml(res.msg)}}</span>`;
                 }} catch(err) {{
                     status_{self.id}.innerHTML = `<span class="text-red-400">Lỗi upload.</span>`;
                 }}
@@ -323,7 +324,7 @@ class CameraVaMicro(Component):
 
             try {{
                 const res = await goi_python('{self.api_endpoint}', {{ image: base64_image }});
-                result_{self.id}.innerHTML = `<div class="bg-gray-700 p-3 rounded-lg border border-gray-600"><b>AI:</b> ${{res.reply}}</div>`;
+                result_{self.id}.innerHTML = `<div class="bg-gray-700 p-3 rounded-lg border border-gray-600"><b>AI:</b> ${{escapeHtml(res.reply)}}</div>`;
             }} catch(err) {{
                 result_{self.id}.innerHTML = `<span class="text-red-400">Lỗi phân tích.</span>`;
             }}
@@ -549,7 +550,7 @@ class ChiaSeManHinh(Component):
 
                         try {{
                             const res = await goi_python('{self.api_endpoint}', {{image: b64}});
-                            reply_{self.id}.innerHTML = "<b>Copilot:</b> " + res.reply;
+                            reply_{self.id}.innerHTML = "<b>Copilot:</b> " + escapeHtml(res.reply);
                         }} catch(e) {{}}
                     }}, 5000);
 
@@ -761,7 +762,7 @@ class TinhToanGPU(Component):
                 }}
 
                 const res = await goi_python('{self.api_endpoint}', {{ result: sum }});
-                st.innerHTML = `<span class="text-green-400">Tính xong! Server nói: ${{res.reply}}</span>`;
+                st.innerHTML = `<span class="text-green-400">Tính xong! Server nói: ${{escapeHtml(res.reply)}}</span>`;
             }}, 100);
         }});
         """
@@ -799,7 +800,7 @@ class DieuKhienIoT(Component):
                     const device = await navigator.bluetooth.requestDevice({{
                         acceptAllDevices: true
                     }});
-                    st.innerHTML = `<span class="text-blue-400">Đã kết nối: ${{device.name || 'Thiết bị lạ'}}</span>`;
+                    st.innerHTML = `<span class="text-blue-400">Đã kết nối: ${{escapeHtml(device.name || 'Thiết bị lạ')}}</span>`;
                 }} catch(err) {{
                     st.innerHTML = `<span class="text-red-400">Hủy quét hoặc lỗi.</span>`;
                 }}
@@ -1080,7 +1081,7 @@ class KhungKeoThaDAG(Component):
                 const finalEdges = allEdges.map(e => ({{...e, color: {{ color: '#10B981', inherit: false }}, dashes: false, width: 3 }}));
                 edgesDataset_{self.id}.update(finalEdges);
 
-                statusBox.innerHTML = `Thành công!<br/>Thời gian: ${{res.tong_thoi_gian}}s<br/>Số Node OK: ${{res.so_node_thanh_cong}}`;
+                statusBox.innerHTML = `Thành công!<br/>Thời gian: ${{escapeHtml(res.tong_thoi_gian)}}s<br/>Số Node OK: ${{escapeHtml(res.so_node_thanh_cong)}}`;
             }} catch(e) {{
                 clearInterval(flowAnim);
                 statusBox.innerHTML = `<span class="text-red-400">Lỗi thực thi.</span>`;

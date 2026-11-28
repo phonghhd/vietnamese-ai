@@ -1,12 +1,17 @@
 """VongLapCanChinhAnToan (EvalGatedContinualAligner) - Vòng Lặp Căn Chỉnh Liên Tục Có Cổng Kiểm Định Chống Hồi Quy.
 
-Giải quyết trọn vẹn bài toán Continual Alignment (DPO/SimPO) từ phản hồi người dùng thực tế mà không bao giờ
-làm "hỏng ngầm" mô hình Production:
+Giải quyết bài toán điều phối Continual Alignment (DPO/SimPO) từ phản hồi người dùng thực tế nhằm chống "hỏng ngầm"
+mô hình Production:
 1. `BoLocNhieuCapUuTien`: lọc 6 tín hiệu (độc tố, PII, luật hết hiệu lực, mâu thuẫn, đảo nhãn, biên thưởng).
 2. `BoDemOnTapNeo`: trộn mẫu ôn tập phân tầng (an toàn / pháp lý / chung) chống quên kiến thức cũ.
-3. `DPOTrainer` có trọng số tin cậy (`trong_so`), làm mượt nhãn thích nghi (cDPO) và neo KL (`he_so_neo_kl`).
-4. `CongKiemDinhMoHinh`: cổng kiểm định 4 trục + Paired Bootstrap 95% CI quyết định `PROMOTE` hoặc `AUTO-ROLLBACK`
+3. `DPOTrainer` có trọng số tin cậy (`trong_so`), làm mượt nhãn thích nghi (cDPO) và điều chuẩn neo trọng số L2
+   (`he_so_neo_kl`: phạt $\\frac{\\lambda}{2}\\|w - w_{\\text{ref}}\\|_2^2$, không phải phân kỳ KL đảo cấp token).
+4. `CongKiemDinhMoHinh`: cổng kiểm định 4 nhóm chỉ số + Paired Bootstrap 95% CI quyết định `PROMOTE` hoặc `AUTO-ROLLBACK`
    nguyên tử về bản snapshot đã ký SHA-256 trước vòng cập nhật.
+
+Lưu ý minh bạch phạm vi: lớp `ChinhSachUuTienTiengViet` đi kèm là mô hình proxy xếp hạng tuyến tính 256 chiều
+(`w · phi(prompt, response)`) chạy trên CPU để kiểm thử/đo lường tất định luồng điều phối lọc nhiễu, ôn tập và
+Eval Gate — không phải tinh chỉnh trọng số LLM sinh văn bản nhiều tỷ tham số.
 """
 
 from __future__ import annotations
@@ -34,11 +39,11 @@ def _chuan_hoa_key(text: str) -> str:
 
 
 class ChinhSachUuTienTiengViet:
-    """Chính sách phản hồi tiếng Việt huấn luyện trực tiếp bằng gradient DPO/SimPO trên CPU (không cần GPU).
+    """Mô hình proxy xếp hạng tuyến tính 256 chiều chạy CPU cho kiểm thử & benchmark vòng lặp DPO/SimPO.
 
-    Dùng vector trọng số `_dpo_weights` (256 chiều) tương thích trực tiếp với `DPOTrainer` để chấm điểm
-    và chọn phản hồi tối ưu giữa các ứng viên trả lời cho từng câu hỏi, đồng thời hỗ trợ snapshot/rollback
-    nguyên tử và mã băm SHA-256 kiểm toán.
+    Sử dụng vector trọng số tuyến tính `_dpo_weights` (256 chiều) để chấm điểm `w · phi(prompt, response)` và
+    chọn phản hồi từ tập ứng viên đã đăng ký. Đây là proxy xếp hạng tất định phục vụ kiểm chứng cơ chế lọc nhiễu,
+    ôn tập neo và Eval Gate Auto-Rollback (không phải mô hình ngôn ngữ sinh tự hồi quy).
     """
 
     def __init__(
@@ -203,9 +208,9 @@ class KetQuaVongCanChinh:
     thong_ke_loc: Dict[str, Any] = field(default_factory=dict)
     thong_ke_huan_luyen: Dict[str, Any] = field(default_factory=dict)
     ket_qua_kiem_dinh: Optional[Dict[str, Any]] = None
-    diem_truoc_vong: Dict[str, float] = field(default_factory=dict)
-    diem_ung_vien: Dict[str, float] = field(default_factory=dict)
-    diem_hien_hanh_sau_vong: Dict[str, float] = field(default_factory=dict)
+    diem_truoc_vong: Dict[str, Optional[float]] = field(default_factory=dict)
+    diem_ung_vien: Dict[str, Optional[float]] = field(default_factory=dict)
+    diem_hien_hanh_sau_vong: Dict[str, Optional[float]] = field(default_factory=dict)
     ly_do: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -471,19 +476,19 @@ class VongLapCanChinhAnToan:
         so_promote = sum(1 for r in ket_qua_vong if r.da_thang_hang)
         so_rollback = sum(1 for r in ket_qua_vong if r.da_rollback)
         diem_tong_hop_cac_vong = [
-            float(r.diem_hien_hanh_sau_vong.get("diem_tong_hop", 0.0)) for r in ket_qua_vong
+            float(r.diem_hien_hanh_sau_vong.get("diem_tong_hop") or 0.0) for r in ket_qua_vong
         ]
         diem_an_toan_cac_vong = [
-            float(r.diem_hien_hanh_sau_vong.get("ty_le_chan_tan_cong", 0.0)) for r in ket_qua_vong
+            float(r.diem_hien_hanh_sau_vong.get("ty_le_chan_tan_cong") or 0.0) for r in ket_qua_vong
         ]
         diem_hieu_luc_cac_vong = [
-            float(r.diem_hien_hanh_sau_vong.get("ty_le_khong_dan_luat_het_han", 0.0)) for r in ket_qua_vong
+            float(r.diem_hien_hanh_sau_vong.get("ty_le_khong_dan_luat_het_han") or 0.0) for r in ket_qua_vong
         ]
         so_hoi_quy_ngam = sum(
             1
             for r in ket_qua_vong
-            if float(r.diem_hien_hanh_sau_vong.get("diem_tong_hop", 0.0)) + self.nguong_sut_giam_toi_da
-            < float(r.diem_truoc_vong.get("diem_tong_hop", 0.0))
+            if float(r.diem_hien_hanh_sau_vong.get("diem_tong_hop") or 0.0) + self.nguong_sut_giam_toi_da
+            < float(r.diem_truoc_vong.get("diem_tong_hop") or 0.0)
         )
 
         tong_tp = sum(

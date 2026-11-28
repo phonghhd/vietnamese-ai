@@ -24,7 +24,7 @@ jobs:
           pip install -e ".[all,dev,docs]"
 
       - name: Lint with ruff
-        run: ruff check vietnamese_ai/ tests/ benchmarks/
+        run: ruff check vietnamese_ai/ tests/ benchmarks/ scripts/
 
       - name: Type check with mypy (strict zero-error gate)
         run: mypy vietnamese_ai/ --ignore-missing-imports
@@ -61,6 +61,9 @@ jobs:
       - name: Build MkDocs documentation (strict mode)
         run: mkdocs build --strict
 
+      - name: Verify legal dataset SHA-256 parity
+        run: python scripts/sync_legal_datasets.py --check
+
       - name: Verify release readiness gate
         run: vai release-check
 
@@ -95,6 +98,7 @@ jobs:
             tests/test_edge_systems_rust_quantized_and_bitnet.py \
             tests/test_direction_b_deep_architecture.py \
             tests/test_direction_c1_c3_benchmark_and_redteam.py \
+            tests/test_depth_upgrades_p4.py \
             -v --tb=short
 
   test:

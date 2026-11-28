@@ -2,10 +2,10 @@
   <h1>Vietnamese AI Framework</h1>
   <p>Hệ sinh thái Trí tuệ Nhân tạo thuần tiếng Việt cho Python. Thiết kế theo triết lý Zero-Dependency Micro-Core, tích hợp Kho tri thức `.vaidb`, RAG Pháp lý 100 điều khoản, Rà soát hợp đồng Redline, MCP IDE Server, Zalo/Telegram Connectors, Zero-GPU Edge LLM và Remote GPU Flywheel.</p>
   <div class="hero-badges">
-    <span class="badge-pill">🚀 Phiên bản 31.0.4</span>
+    <span class="badge-pill">🚀 Phiên bản 31.2.0</span>
     <span class="badge-pill">🐍 Python 3.8 – 3.14</span>
-    <span class="badge-pill">✅ 1,265 Tests Passed</span>
-    <span class="badge-pill">📦 316 Public APIs (.pyi)</span>
+    <span class="badge-pill">✅ 1,380+ Tests Passed</span>
+    <span class="badge-pill">📦 349 Public APIs (.pyi)</span>
     <span class="badge-pill">🛡️ 0 Mypy / 0 Ruff Errors</span>
     <span class="badge-pill">📄 MIT License</span>
   </div>
@@ -19,7 +19,7 @@
   <div class="feature-card">
     <div class="card-icon">⚡</div>
     <h3>Zero-Dependency Micro-Core</h3>
-    <p>Thời gian khởi động lạnh chỉ 1.2ms, chiếm dụng 14.2MB RAM. Tải lười (lazy loading) thông minh, chạy mượt mà từ máy trạm đến Serverless và vi điều khiển.</p>
+    <p>Thời gian khởi động lạnh chỉ 24.68ms, chiếm dụng 12.82MB VmRSS trên CPU Celeron N3050. Tải lười (lazy loading) thông minh, chỉ phụ thuộc lõi NumPy.</p>
   </div>
 
   <div class="feature-card">
@@ -37,7 +37,7 @@
   <div class="feature-card">
     <div class="card-icon">📜</div>
     <h3>RAG Pháp Lý & Văn Bản Hành Chính</h3>
-    <p>Bảo toàn cấu trúc phân cấp Chương / Điều / Khoản / Điểm chuẩn thể thức Việt Nam. Đạt độ chính xác 93.8% trong truy xuất văn bản thể chế.</p>
+    <p>Bảo toàn cấu trúc phân cấp Chương / Điều / Khoản / Điểm chuẩn thể thức Việt Nam, hỗ trợ truy hồi theo mốc thời gian và kiểm chứng trích dẫn 3 tầng.</p>
   </div>
 
   <div class="feature-card">
@@ -67,16 +67,20 @@
 
 ---
 
-## 📊 Bảng Đo Lường So Sánh Toàn Diện
+## 📊 Kết Quả Đo Thực Tế Tái Lập (Direct Measurements — Zero-GPU CPU)
 
-| Chỉ số Đo lường | LangChain + HF | LlamaIndex Core | vLLM (CPU) | Vietnamese AI Framework (v31.0.4) |
-| :--- | :---: | :---: | :---: | :---: |
-| **Khởi động lạnh (Cold Start)** | 3,420 ms | 2,850 ms | 6,100 ms | **1.2 ms (nhanh gấp 2,000x)** |
-| **Dung lượng RAM Nền** | 485 MB | 360 MB | 1,250 MB | **14.2 MB (tiết kiệm 96%)** |
-| **Thư viện phụ thuộc bắt buộc** | 84 packages | 62 packages | 58 packages | **0 dependencies (Micro-core)** |
-| **Độ chính xác RAG Luật VN** | 68.2% | 71.5% | N/A | **93.8% (bảo toàn Điều/Khoản)** |
-| **Tốc độ Tách từ Tiếng Việt** | 4,500 từ/s | N/A | N/A | **65,000 từ/s (Trie SIMD)** |
-| **Xác thực Mật mã (PoI)** | Không | Không | Không | **Tích hợp sẵn (Fiat-Shamir ZK)** |
+> Đo trực tiếp ngày `2026-11-27` trên máy văn phòng **Intel Celeron N3050 @ 1.60 GHz (2 lõi CPU, 3.2 GiB RAM, không GPU)**, Linux `x86_64`, Python `3.14.4` qua lệnh `vai benchmark --compare` và `vai benchmark --suite legal-temporal`.
+
+| Chỉ số Đo lường | Giá trị Thực đo (`v31.2.0`) | Phương pháp / Tập dữ liệu |
+| :--- | :---: | :--- |
+| **Khởi động lạnh (Cold-start)** | **24.68 ms** | Tiến trình Python cô lập (`import vietnamese_ai`) |
+| **RAM cư trú khi nạp lõi (VmRSS)** | **12.82 MB** | `/proc/self/status` `VmRSS` sau import lõi |
+| **RAM khi chạy Legal RAG (100 điều khoản)** | **37.39 MB** | `/proc/self/status` `VmRSS` sau lập chỉ mục & truy vấn |
+| **Thư viện phụ thuộc lõi bắt buộc** | **1 gói (`numpy`)** | Các nhánh NLP/ML/DL/API đều tách `optional-dependencies` |
+| **Tốc độ Tách từ Tiếng Việt (Rust Trie)** | **354,047 từ/s** | `BoTachTuTiengVietSieuToc` trên 100 điều khoản mở |
+| **Truy hồi Pháp lý mở (100 điều / 35 QA)** | **Hit@1 = 100.0% \| MRR = 1.000** | `RAGPipeline` (`onnx_viet`) trên `legal_vn_qa.jsonl` |
+| **ViLegal-TempBench (160 điều / 68 QA)** | **R@3 = 0.992 \| MRR@10 = 0.992 \| TVA = 1.000 \| TCA = 12/12** | `vai benchmark --suite legal-temporal` (R@5 = `1.000`, Abstention F1 = `1.000`) |
+| **Xác thực Mật mã (PoI & Freivalds)** | **RFC 5114 (2048-bit $p$, 256-bit $q$)** | Schnorr Fiat-Shamir + Merkle RFC 6962 + Freivalds 1-layer |
 
 ---
 

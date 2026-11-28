@@ -233,8 +233,12 @@ class VietnameseLLM:
         else:
             tokens = []
 
-        padding = ["<START>"] * (self.bac - 1)
-        context = tuple(padding + tokens[-(self.bac - 1) :])
+        do_dai_ngu_canh = max(0, self.bac - 1)
+        if do_dai_ngu_canh == 0:
+            context: Tuple[str, ...] = ()
+        else:
+            padding = ["<START>"] * do_dai_ngu_canh
+            context = tuple((padding + tokens)[-do_dai_ngu_canh:])
 
         ket_qua = list(tokens)
 
@@ -243,7 +247,8 @@ class VietnameseLLM:
             if tu_moi == "<END>":
                 break
             ket_qua.append(tu_moi)
-            context = tuple(list(context[1:]) + [tu_moi])
+            if do_dai_ngu_canh > 0:
+                context = tuple(list(context[1:]) + [tu_moi])
 
         return " ".join(ket_qua)
 
@@ -332,9 +337,12 @@ class VietnameseLLM:
             raise RuntimeError("Chưa huấn luyện.")
 
         cac_tu = self._tach_tu(text)
-        padding = ["<START>"] * (self.bac - 1)
-        context_tu = padding + cac_tu[-(self.bac - 1) :]
-        context = tuple(context_tu)
+        do_dai_ngu_canh = max(0, self.bac - 1)
+        if do_dai_ngu_canh == 0:
+            context: Tuple[str, ...] = ()
+        else:
+            padding = ["<START>"] * do_dai_ngu_canh
+            context = tuple((padding + cac_tu)[-do_dai_ngu_canh:])
 
         if context in self._ngram_counts:
             candidates = self._ngram_counts[context]

@@ -104,6 +104,7 @@ class TroLyPhapLy:
         nap_kho_mo: bool = False,
         duong_dan_vaidb: Optional[Union[str, Path]] = None,
         dung_onnx_semantic: bool = False,
+        rag_chia_se: Optional[RAGPipeline] = None,
     ):
         from vietnamese_ai.rag.legal.citation_graph import DoThiThamChieuPhapLy
         from vietnamese_ai.rag.legal.citation_verifier import BoKiemChungTrichDanPhapLy
@@ -120,16 +121,19 @@ class TroLyPhapLy:
             bo_theo_doi=self.bo_theo_doi_hieu_luc,
             bo_phan_tich_thoi_gian=self.bo_phan_tich_thoi_gian,
         )
-        self.rag = RAGPipeline(
-            nguong_diem=0.05,
-            top_k=3,
-            backend="vaidb" if duong_dan_vaidb is not None else "memory",
-            duong_dan_vaidb=duong_dan_vaidb,
-            che_do_nhung="onnx_viet" if dung_onnx_semantic else "auto",
-            che_do_rerank="onnx_viet" if dung_onnx_semantic else "mmr",
-            che_do_hanh_chinh=True,
-            bo_toi_uu_hanh_chinh=self.bo_toi_uu,
-        )
+        if rag_chia_se is not None:
+            self.rag = rag_chia_se
+        else:
+            self.rag = RAGPipeline(
+                nguong_diem=0.05,
+                top_k=3,
+                backend="vaidb" if duong_dan_vaidb is not None else "memory",
+                duong_dan_vaidb=duong_dan_vaidb,
+                che_do_nhung="onnx_viet" if dung_onnx_semantic else "auto",
+                che_do_rerank="onnx_viet" if dung_onnx_semantic else "mmr",
+                che_do_hanh_chinh=True,
+                bo_toi_uu_hanh_chinh=self.bo_toi_uu,
+            )
         self.rag._bo_theo_doi_hieu_luc = self.bo_theo_doi_hieu_luc
         self.rag._do_thi_tham_chieu = self.do_thi_tham_chieu
         if duong_dan_vaidb is not None:
@@ -141,11 +145,12 @@ class TroLyPhapLy:
                 self.do_thi_tham_chieu,
             )
         self.kho_tai_lieu = list(bo_du_lieu_luat or self.DU_LIEU_LUAT_MAC_DINH)
-        if duong_dan_vaidb is None or self.rag.csdl_vector.so_luong() == 0:
+        if (duong_dan_vaidb is None and rag_chia_se is None) or self.rag.csdl_vector.so_luong() == 0:
             self._nap_du_lieu_luat()
             if nap_kho_mo:
                 self.nap_kho_phap_ly_mo()
-        elif nap_kho_mo and self.rag.csdl_vector.so_tai_lieu() < 50:
+        elif nap_kho_mo and self.rag.csdl_vector.so_luong() < 50:
+            self._nap_du_lieu_luat()
             self.nap_kho_phap_ly_mo()
 
     def tra_cuu_van_ban_lien_quan(

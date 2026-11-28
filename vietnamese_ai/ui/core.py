@@ -1,7 +1,10 @@
+import html as html_lib
 import json
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Callable, Dict, List
+
+MAX_VUI_BODY_BYTES = 16 * 1024 * 1024
 
 
 class KieuDang:
@@ -47,6 +50,7 @@ class UIApp:
         bg_color = (
             "bg-gray-900 text-white" if self.theme == KieuDang.DARK else "bg-gray-50 text-gray-900"
         )
+        tieu_de_an_toan = html_lib.escape(self.tieu_de, quote=True)
 
         html_blocks = [c.render_html() for c in self.components]
         js_blocks = [c.render_js() for c in self.components]
@@ -55,7 +59,7 @@ class UIApp:
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>{self.tieu_de}</title>
+    <title>{tieu_de_an_toan}</title>
     <link rel="manifest" href="/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -73,7 +77,7 @@ class UIApp:
 <body class="{bg_color} min-h-screen p-8 font-sans">
     <div class="max-w-7xl mx-auto">
         <h1 class="text-3xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-            {self.tieu_de}
+            {tieu_de_an_toan}
         </h1>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             {"".join(html_blocks)}
@@ -81,7 +85,16 @@ class UIApp:
     </div>
 
     <script>
-        // JS Core để gọi API Python
+        function escapeHtml(value) {{
+            return String(value ?? '').replace(/[&<>"']/g, (ch) => ({{
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }}[ch]));
+        }}
+
         async function goi_python(endpoint, data) {{
             const res = await fetch('/api/' + endpoint, {{
                 method: 'POST',
@@ -93,7 +106,6 @@ class UIApp:
 
         {"".join(js_blocks)}
 
-        // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {{
             navigator.serviceWorker.register('/sw.js').then(reg => {{
                 console.log('PWA Service Worker registered!', reg.scope);
@@ -105,7 +117,7 @@ class UIApp:
 """
         return html
 
-    def chay(self, port: int = 8080):
+    def chay(self, port: int = 8080, host: str = "127.0.0.1"):
         """Chạy server Zero-Dependency (chỉ dùng chuẩn Python)."""
         app = self
         html_content = self._sinh_html().encode("utf-8")
@@ -152,11 +164,33 @@ class UIApp:
                 if self.path.startswith("/api/"):
                     endpoint = self.path[5:]
                     if endpoint in app.api_handlers:
-                        content_len = int(self.headers.get("Content-Length", 0))
-                        body = self.rfile.read(content_len)
+                        raw_len = self.headers.get("Content-Length", "0")
                         try:
-                            data = json.loads(body)
-                            # Gọi hàm Python đã đăng ký
+                            content_len = int(raw_len)
+                        except (TypeError, ValueError):
+                            self.send_response(400)
+                            self.send_header("Content-type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"error": "Content-Length không hợp lệ"}).encode("utf-8"))
+                            return
+                        if content_len < 0 or content_len > MAX_VUI_BODY_BYTES:
+                            self.send_response(413 if content_len > MAX_VUI_BODY_BYTES else 400)
+                            self.send_header("Content-type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"error": "Kích thước yêu cầu vượt giới hạn"}).encode("utf-8"))
+                            return
+                        body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+                        try:
+                            data = json.loads(body.decode("utf-8"))
+                            if not isinstance(data, dict):
+                                raise ValueError("JSON phải là object")
+                        except Exception:
+                            self.send_response(400)
+                            self.send_header("Content-type", "application/json")
+                            self.end_headers()
+                            self.wfile.write(json.dumps({"error": "JSON không hợp lệ"}).encode("utf-8"))
+                            return
+                        try:
                             ket_qua = app.api_handlers[endpoint](data)
 
                             self.send_response(200)
@@ -165,6 +199,7 @@ class UIApp:
                             self.wfile.write(json.dumps(ket_qua).encode("utf-8"))
                         except Exception as e:
                             self.send_response(500)
+                            self.send_header("Content-type", "application/json")
                             self.end_headers()
                             self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
                     else:
@@ -172,10 +207,10 @@ class UIApp:
                         self.end_headers()
 
             def log_message(self, format, *args):
-                pass  # Tắt log rác
+                pass
 
-        server = HTTPServer(("0.0.0.0", port), VUIHandler)
-        print(f"🚀 V-UI đang chạy tại: http://localhost:{port}")
+        server = HTTPServer((host, port), VUIHandler)
+        print(f"🚀 V-UI đang chạy tại: http://{host}:{port}")
 
         try:
             server.serve_forever()

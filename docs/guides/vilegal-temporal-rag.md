@@ -41,38 +41,40 @@ flowchart LR
 
 ---
 
-## 3. Bộ Dữ liệu Mở `ViLegal-TempBench` (v1.0)
+## 3. Bộ Dữ liệu Mở `ViLegal-TempBench` (v1.1)
 
-Bộ chuẩn được lưu đồng bộ trong `benchmarks/datasets/` và đóng gói sẵn trong wheel (`vietnamese_ai/rag/legal/data/`):
+Bộ chuẩn sử dụng nguồn chuẩn duy nhất trong gói `vietnamese_ai/rag/legal/data/` và được đồng bộ kiểm toán SHA-256 sang `benchmarks/datasets/` (`scripts/sync_legal_datasets.py --check`):
 
 - **Kho chỉ mục (`160` điều khoản)**: `60` điều khoản đa phiên bản có mốc hiệu lực/hết hiệu lực thuộc 12 nhóm luật cốt lõi (*Hóa đơn điện tử, BHXH, Thuế GTGT, Đất đai, Giao dịch điện tử, Nhà ở, KDBĐS, Đấu thầu, BVQLNTD, Lao động, Doanh nghiệp, An ninh mạng/DLCN/Dân sự*) ghép cùng `100` điều khoản nền làm nhiễu thực tế.
 - **Đồ thị điều khoản (`38` cạnh có điều kiện thời gian)**: Gồm cạnh sửa đổi, thay thế, hướng dẫn thi hành và viện dẫn chéo 2-hop (*BLDS 2015 Điều 119 → Luật GDĐT 2023 Điều 22 → Nghị định 137/2024 Điều 10*).
-- **Tập truy vấn (`64` câu hỏi chia 4 phân nhóm)**:
+- **Tập truy vấn (`68` câu hỏi chia 4 phân nhóm)**:
   - **`T1` (16 câu)**: Tra cứu điều luật hiện hành 1-hop.
   - **`T2` (24 câu = 12 cặp tương phản thời gian)**: Cùng một câu hỏi pháp lý ở hai mốc $t_1 < t_{\text{sửa đổi}} \le t_2$ để đo **Temporal Contrast Accuracy (TCA)**.
   - **`T3` (14 câu)**: Chuỗi đa bước 1–2 hop *Luật ↔ Nghị định ↔ Thông tư* (không rò rỉ đáp án định lượng trong câu hỏi) để đo **Multi-Hop Bridge Recall@3**.
-  - **`T4` (10 câu)**: `6` câu bẫy cố tình viện dẫn luật đã bãi bỏ sau ngày hết hạn (**Trap Correction Rate**) + `4` câu ngoài phạm vi / nghị định hư cấu (**Abstention F1**).
+  - **`T4` (14 câu)**: `8` câu bẫy cố tình viện dẫn luật đã bãi bỏ sau ngày hết hạn (gồm `6` câu ghi số hiệu + `2` câu chỉ nêu tên luật như *"Luật Đất đai 2013"*, *"Luật Bảo hiểm xã hội 2014"* — **Trap Correction Rate**) + `6` câu ngoài phạm vi (gồm `2` nghị định hư cấu, `2` câu ngoài lĩnh vực pháp lý và `2` câu thuộc đúng lĩnh vực pháp luật Việt Nam ngoài kho: *Luật Hôn nhân và gia đình 2014*, *Luật Trật tự, an toàn giao thông đường bộ 2024* — **Abstention F1**).
 
 ---
 
 ## 4. Kết Quả Thực Nghiệm Ablation trên CPU (`seed=42`)
 
-Độ chính xác bóc tách mốc thời gian tự động không rò rỉ nhãn (**TQPA**): **`100.00%` (64/64)**.
+*Đo trực tiếp trên **Intel Celeron N3050 @ 1.60 GHz (2 lõi CPU, 3.2 GiB RAM, Zero-GPU)**, Linux `x86_64`, Python `3.14.4` qua lệnh `vai benchmark --suite legal-temporal`.*
+
+Độ chính xác bóc tách mốc thời gian tự động không rò rỉ nhãn (**TQPA**): **`100.00%` (68/68)**.
 
 | Cấu hình | R@1 | R@3 | MRR@10 | nDCG@10 | TVA | TCA (T2) | Multi-Hop@3 (T3) | Trap (T4) | Faith. | Temp.Conf ↓ | Abst. F1 | Latency (ms) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `bm25` (BM25-only VN Tokenizer) | 0.581 | 0.972 | 0.850 | 0.877 | 0.722 | 0.000 (0/12) | 0.786 | 0.167 | 1.000 | 0.312 | 0.000 | 6.87 |
-| `hybrid` (BM25 + Dense RRF) | 0.581 | 0.947 | 0.838 | 0.871 | 0.694 | 0.167 (2/12) | 0.714 | 0.167 | 1.000 | 0.312 | 0.000 | 14.25 |
-| `temporal` (+ Point-in-Time) | 0.831 | 0.981 | 0.967 | 0.970 | 1.000 | 1.000 (12/12) | 0.857 | 1.000 | 1.000 | 0.000 | 0.000 | 49.45 |
-| `temporal_graph` (+ Clause Graph) | 0.831 | 1.000 | 0.967 | 0.976 | 1.000 | 1.000 (12/12) | 1.000 | 1.000 | 1.000 | 0.000 | 0.000 | 26.32 |
-| **`full` (ViLegal-TemporalRAG)** | **0.831** | **1.000** | **0.967** | **0.976** | **1.000** | **1.000 (12/12)** | **1.000** | **1.000** | **1.000** | **0.000** | **1.000** | **56.62** |
+| `bm25` (BM25-only VN Tokenizer) | 0.562 | 0.973 | 0.839 | 0.869 | 0.720 | 0.000 (0/12) | 0.786 | 0.125 | 1.000 | 0.309 | 0.000 | 6.64 |
+| `hybrid` (BM25 + Dense RRF) | 0.562 | 0.949 | 0.827 | 0.863 | 0.694 | 0.167 (2/12) | 0.714 | 0.125 | 1.000 | 0.309 | 0.000 | 15.13 |
+| `temporal` (+ Point-in-Time) | 0.836 | 0.981 | 0.968 | 0.971 | 1.000 | 1.000 (12/12) | 0.857 | 1.000 | 0.990 | 0.000 | 0.000 | 20.10 |
+| `temporal_graph` (+ Clause Graph) | 0.836 | 1.000 | 0.968 | 0.977 | 1.000 | 1.000 (12/12) | 1.000 | 1.000 | 0.991 | 0.000 | 0.000 | 22.67 |
+| **`full` (ViLegal-TemporalRAG)** | **0.836** | **1.000** | **0.968** | **0.977** | **1.000** | **1.000 (12/12)** | **1.000** | **1.000** | **0.991** | **0.000** | **1.000** | **47.02** |
 
 ### Kiểm định ý nghĩa thống kê (Paired Bootstrap, `n=1000`, `seed=42`)
 
 | So sánh | Δ Recall@3 (`p`) | Δ MRR@10 (`p`) | Δ TVA (`p`) | Δ Multi-Hop@3 (`p`) |
 |---|---:|---:|---:|---:|
-| `full` vs `bm25` | `+0.0278` (`0.1160`) | **`+0.1167` (`0.0000*`)** | **`+0.2778` (`0.0000*`)** | `+0.2143` (`0.0910`) |
-| `full` vs `hybrid` | **`+0.0528` (`0.0300*`)** | **`+0.1292` (`0.0000*`)** | **`+0.3056` (`0.0000*`)** | **`+0.2857` (`0.0370*`)** |
+| `full` vs `bm25` | `+0.0269` (`0.1140`) | **`+0.1290` (`0.0010*`)** | **`+0.2796` (`0.0000*`)** | `+0.2143` (`0.0910`) |
+| `full` vs `hybrid` | **`+0.0511` (`0.0290*`)** | **`+0.1411` (`0.0000*`)** | **`+0.3065` (`0.0000*`)** | **`+0.2857` (`0.0370*`)** |
 
 ---
 

@@ -256,7 +256,7 @@ def test_vilegal_tempbench_dataset_sync_ablation_and_exports() -> None:
 
     assert len(tai_bo_phap_ly_thoi_gian()) == 60
     assert len(tai_canh_do_thi_phap_ly_thoi_gian()) == 38
-    assert len(tai_bo_hoi_dap_phap_ly_thoi_gian()) == 64
+    assert len(tai_bo_hoi_dap_phap_ly_thoi_gian()) == 68
 
     assert tinh_ndcg_at_k(["a", "b"], ["a"], k=10) == pytest.approx(1.0)
     boot = kiem_dinh_bootstrap_cap([1.0] * 20, [0.5] * 20, n_bootstrap=300, seed=42)
@@ -316,7 +316,7 @@ def test_stage3_zero_dep_llm_adapter_gemini_openai_ollama_and_citation_cff() -> 
     goc = Path(__file__).resolve().parents[1]
     cff = yaml.safe_load((goc / "CITATION.cff").read_text(encoding="utf-8"))
     assert cff["cff-version"] == "1.2.0"
-    assert cff["version"] == "31.1.0"
+    assert cff["version"] == "31.2.0"
     assert "zenodo" in cff["doi"]
     assert (goc / "docs" / "guides" / "vilegal-temporal-rag.md").is_file()
 

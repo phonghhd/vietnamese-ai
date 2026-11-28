@@ -118,8 +118,17 @@ class TestXacThucSuyLuanMaoHiem:
             a=cam_ket["a"],
             e=cam_ket["e"],
             z=cam_ket["z"],
+            tensor_hash=cam_ket["tensor_hash"],
+            node_id=cam_ket["node_id"],
+            layer_id=cam_ket["layer_id"],
         )
         assert hop_le is True
+        assert verifier.xac_thuc_cam_ket(
+            y=cam_ket["y"],
+            a=cam_ket["a"],
+            e=cam_ket["e"],
+            z=cam_ket["z"],
+        ) is False
 
     def test_phat_hien_can_thiep_activation(self):
         verifier = XacThucSuyLuanMaoHiem()
@@ -139,11 +148,11 @@ class TestXacThucSuyLuanMaoHiem:
         ck = verifier.tao_cam_ket_zkml(activation)
 
         chuoi = ck["chuoi_cam_ket"]
-        assert verifier.xac_nhan_cam_ket_chuoi(chuoi) is True
+        assert verifier.xac_nhan_cam_ket_chuoi(chuoi, tensor_hash=ck["tensor_hash"]) is True
+        assert verifier.xac_nhan_cam_ket_chuoi(chuoi) is False
 
-        # Chuỗi bị sai cấu trúc hoặc sai số
-        assert verifier.xac_nhan_cam_ket_chuoi("invalid_format") is False
-        assert verifier.xac_nhan_cam_ket_chuoi("zkml1:abc:def:gh") is False
+        assert verifier.xac_nhan_cam_ket_chuoi("invalid_format", tensor_hash=ck["tensor_hash"]) is False
+        assert verifier.xac_nhan_cam_ket_chuoi("zkml1:abc:def:gh", tensor_hash=ck["tensor_hash"]) is False
 
     def test_ky_va_xac_thuc_ket_qua(self):
         verifier = XacThucSuyLuanMaoHiem()
@@ -181,7 +190,7 @@ class TestNutSwarmCPU:
         assert not np.allclose(x_in, x_out)  # Đã qua biến đổi layer
         assert cam_ket["node_id"] == "cpu_node_1"
         assert "chuoi_cam_ket" in cam_ket
-        assert node.verifier.xac_nhan_cam_ket_chuoi(cam_ket["chuoi_cam_ket"]) is True
+        assert node.verifier.xac_minh_cam_ket(cam_ket, tensor_dau_vao=x_in, tensor_dau_ra=x_out) is True
 
     def test_alias_swarm_cpu_node(self):
         node = SwarmCPUNode("node_test", dai_layer=(2, 4))
@@ -322,10 +331,19 @@ class TestCLISwarmVaVerify:
         assert kq_txt["hop_le"] is True
         assert len(kq_txt["root"]) == 64
 
-        # 3. Chạy với chuỗi cam kết hợp lệ
         v = XacThucSuyLuanMaoHiem()
         ck = v.tao_cam_ket_zkml(np.array([1.0, 2.0], dtype=np.float32))
-        args_proof = Namespace(proof=ck["chuoi_cam_ket"], text=None, tamper_check=False)
+        args_proof_thieu = Namespace(proof=ck["chuoi_cam_ket"], text=None, tamper_check=False)
+        assert cmd_verify(args_proof_thieu)["hop_le"] is False
+
+        args_proof = Namespace(
+            proof=ck["chuoi_cam_ket"],
+            tensor_hash=ck["tensor_hash"],
+            node_id=ck["node_id"],
+            layer_id=ck["layer_id"],
+            text=None,
+            tamper_check=False,
+        )
         kq_proof = cmd_verify(args_proof)
         assert kq_proof["hop_le"] is True
 
@@ -334,7 +352,7 @@ class TestVersionAndPublicExportsV31:
     """Kiểm tra đồng bộ phiên bản 31.0.0 và symbols công khai."""
 
     def test_version_canonical_v31(self):
-        assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2", "31.0.3", "31.0.4", "31.1.0")
+        assert vietnamese_ai.__version__ in ("31.0.0", "31.0.2", "31.0.3", "31.0.4", "31.1.0", "31.2.0")
 
     def test_lazy_loaded_public_symbols_v31(self):
         assert getattr(vietnamese_ai, "CayMerkleSuyLuan") is CayMerkleSuyLuan
@@ -408,14 +426,12 @@ class TestBaoVeTuongLuaVaBaoMatV302V31:
         arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
         cam_ket = v.tao_cam_ket_zkml(arr)
 
-        # Trạng thái ban đầu hợp lệ
-        assert v.xac_nhan_cam_ket_chuoi(cam_ket["chuoi_cam_ket"]) is True
+        assert v.xac_nhan_cam_ket_chuoi(cam_ket["chuoi_cam_ket"], tensor_hash=cam_ket["tensor_hash"]) is True
+        assert v.xac_thuc_cam_ket_nghiem_ngat(cam_ket, tensor=arr) is True
 
-        # Khi kẻ tấn công (Byzantine) cố ý làm sai lệch activation
         arr_tampered = arr.copy()
         arr_tampered[0] = 999.0
-        hash_tampered = v.bam_tensor(arr_tampered)
-        assert hash_tampered != cam_ket["tensor_hash"]
+        assert v.xac_thuc_cam_ket_nghiem_ngat(cam_ket, tensor=arr_tampered) is False
 
     def test_chuan_hoa_loc_ky_tu_vo_hinh_native_tokenizer(self):
         """Kiểm tra BoTachTuTiengVietSieuToc (v30.2) tự động lọc bỏ ký tự tàng hình Zero-Width."""

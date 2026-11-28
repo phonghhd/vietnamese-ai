@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai-edge"
-version = "31.1.0"
+version = "31.2.0"
 description = "Động cơ suy luận Zero-GPU Edge CPU: GGUF mmap, Q2_K/Q3_K/Q4_K/Q4_0/Q4_1/Q8_0, Swarm CPU LAN"
 license = {text = "MIT"}
 requires-python = ">=3.8"
 dependencies = [
+    "vietnamese-ai>=31.2.0,<32.0.0",
     "numpy>=1.20.0,<3.0.0",
 ]
 

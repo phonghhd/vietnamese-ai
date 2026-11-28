@@ -1807,7 +1807,8 @@ class DongCoSuyLuanEdge:
         q_vec = self._embedder_edge.nhung(prompt_sach)
         h_state = self._transformer.buoc_suy_luan(q_vec, vi_tri=0)[0]
         h_norm = h_state / (float(np.linalg.norm(h_state)) + 1e-9)
-        q_blend = 0.75 * q_vec + 0.25 * h_norm
+        he_so_h = 0.25 if self._so_tensor_gguf_da_nap > 0 else 0.05
+        q_blend = (1.0 - he_so_h) * q_vec + he_so_h * h_norm
 
         ma_tran_doc = np.vstack([v for _, v in self._kho_tri_thuc_edge])
         logits_doc = ma_tran_doc @ q_blend

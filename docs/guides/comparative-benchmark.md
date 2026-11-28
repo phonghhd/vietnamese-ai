@@ -1,6 +1,6 @@
 # Bảng Đo Lường & Benchmark Tái Lập (Reproducible Quantitative Benchmarks)
 
-Tài liệu này mô tả phương pháp đo lường minh bạch, dễ tái lập cho **Vietnamese AI Framework** (`v31.0.4`) bằng các công cụ chuẩn (`time.perf_counter`, `tracemalloc`, `resource`, `cProfile`, `ThreadPoolExecutor` và TCP Socket thực tế).
+Tài liệu này mô tả phương pháp đo lường minh bạch, dễ tái lập cho **Vietnamese AI Framework** (`v31.1.0`) bằng các công cụ chuẩn (tiến trình Python cô lập đo cold-start & `/proc/self/status` `VmRSS`, `time.perf_counter`, `tracemalloc`, `resource`, `cProfile`, `ThreadPoolExecutor` và TCP Socket thực tế).
 
 ---
 
@@ -70,8 +70,14 @@ docker run --rm -v "$(pwd)/results:/results" vietnamese-ai-bench:31.0.4
 
 ---
 
-## 4. Minh Bạch Về Dữ Liệu So Sánh (Baseline Disclosure)
+## 4. Minh Bạch Về Số Liệu & Phương Pháp Đo (Measurement Integrity)
 
-- Mọi chỉ số của **Vietnamese AI Framework** trong báo cáo JSON/Markdown đều được **đo trực tiếp trong thời gian chạy** trên chính phần cứng người dùng và gắn kèm siêu dữ liệu môi trường (OS, Python, kiến trúc CPU, cờ SIMD, `seed`, thời điểm UTC).
-- Các giá trị của `LangChain` và `LlamaIndex` trong `BoDoLuongDoiDau.BASELINE_LANGCHAIN` / `BASELINE_LLAMAINDEX` là **mốc tham chiếu tĩnh (reference baselines)** để tránh buộc người dùng cài thêm hai framework nặng này khi chạy lõi tối thiểu. Để đối chiếu trực tiếp 1-1 trên cùng phần cứng, hãy cài đặt song song trong container benchmark và đo trên cùng bộ dữ liệu đầu vào.
-- Bảng phụ thuộc cốt lõi của `vietnamese-ai`: chỉ yêu cầu duy nhất `numpy>=1.20.0,<3.0.0` (các nhóm `[vietnamese-nlp]`, `[classic-ml]`, `[legal-rag]`, `[dl]`, `[rag]`, `[api]` là tùy chọn).
+- Mọi chỉ số của **Vietnamese AI Framework** trong báo cáo JSON/Markdown đều được **đo trực tiếp trong thời gian chạy** trên chính phần cứng người dùng (tiến trình Python cô lập cho cold-start & `VmRSS` thực tế từ `/proc/self/status`) và gắn kèm siêu dữ liệu môi trường (OS, Python, kiến trúc CPU, cờ SIMD, `seed`, thời điểm UTC).
+- `BoDoLuongDoiDau` **không còn sử dụng bảng số liệu tham chiếu tĩnh** cho bất kỳ thư viện ngoài nào. Khi chạy `vai benchmark --compare`, framework chỉ đo đối sánh trực tiếp cho `langchain` / `llama_index` nếu chúng thực sự được cài đặt trong cùng môi trường; nếu chưa cài đặt, báo cáo ghi rõ trạng thái `chua_cai_dat`.
+- Kết quả đo cốt lõi thực tế ngày `2026-11-27` trên **Intel Celeron N3050 @ 1.60 GHz (2 lõi CPU, 3.2 GiB RAM, Linux `x86_64`, Python `3.14.4`)** với lệnh `vai benchmark --compare`:
+  - Cold-start `import vietnamese_ai` (subprocess cô lập): **`24.68 ms`**
+  - RAM cư trú khi nạp lõi (`VmRSS`): **`12.82 MB`**
+  - RAM cư trú khi lập chỉ mục & truy vấn 100 điều khoản pháp lý (`VmRSS`): **`37.39 MB`**
+  - Tốc độ tách từ tiếng Việt (`BoTachTuTiengVietSieuToc` + Rust Trie trên 100 điều khoản): **`354,047.7 từ/s`**
+  - Truy hồi pháp lý mở (`legal_vn_corpus.jsonl` 100 điều khoản / `legal_vn_qa.jsonl` 35 câu hỏi, `RAGPipeline onnx_viet`): **Hit@1 = `100.0%`**, **Hit@3 = `100.0%`**, **MRR = `1.000`**.
+- Bảng phụ thuộc cốt lõi của `vietnamese-ai`: yêu cầu duy nhất `numpy>=1.20.0,<3.0.0` (các nhóm `[vietnamese-nlp]`, `[classic-ml]`, `[legal-rag]`, `[dl]`, `[rag]`, `[api]` là tùy chọn).

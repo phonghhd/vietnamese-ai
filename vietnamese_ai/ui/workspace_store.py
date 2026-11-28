@@ -49,7 +49,7 @@ class QuanLyPhienChatWorkspace:
 
         self._db_path = self.thu_muc / "studio_chat.sqlite3"
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+        self._conn = sqlite3.connect(str(self._db_path), timeout=30.0, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._rag_cache: Dict[str, RAGPipeline] = {}
 
@@ -70,6 +70,7 @@ class QuanLyPhienChatWorkspace:
         with self._lock:
             cur = self._conn.cursor()
             cur.execute("PRAGMA journal_mode=WAL;")
+            cur.execute("PRAGMA busy_timeout=5000;")
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS workspaces (
@@ -163,7 +164,7 @@ class QuanLyPhienChatWorkspace:
         """Kiểm tra quyền sở hữu phiên chat để chặn IDOR giữa các tài khoản khi bật xác thực."""
         if not self.bat_xac_thuc:
             return
-        if vai_tro == "admin" or nguoi_tao == user or nguoi_tao in ("local", "connector", "system"):
+        if vai_tro == "admin" or nguoi_tao == user:
             return
         raise PermissionError(f"Tài khoản '{user}' không có quyền truy cập phiên chat '{ma_phien}'.")
 
@@ -181,27 +182,51 @@ class QuanLyPhienChatWorkspace:
         token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Tạo mới một Không gian làm việc có tệp `.vaidb` tách biệt."""
-        user = chu_so_huu if chu_so_huu == "system" else self._kiem_tra_token(token, quyen="manage")
+        if chu_so_huu == "system":
+            user, vai_tro = "system", "admin"
+        else:
+            user, vai_tro = self._lay_thong_tin_token(token, quyen="manage")
         ma = self._chuan_hoa_ma_workspace(ma_workspace or f"ws_{uuid.uuid4().hex[:8]}")
         vaidb_file = self.thu_muc / f"{ma}.vaidb"
         now_iso = datetime.now(timezone.utc).isoformat()
         with self._lock:
-            self._conn.execute(
-                """
-                INSERT OR REPLACE INTO workspaces (ma_workspace, ten, mo_ta, chu_so_huu, duong_dan_vaidb, tao_luc)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (ma, ten.strip() or ma, mo_ta, user, str(vaidb_file), now_iso),
-            )
+            existing = self._conn.execute(
+                "SELECT chu_so_huu, tao_luc FROM workspaces WHERE ma_workspace = ?",
+                (ma,),
+            ).fetchone()
+            if existing is not None:
+                chu_hien_tai = str(existing["chu_so_huu"])
+                if self.bat_xac_thuc and vai_tro != "admin" and chu_hien_tai != user:
+                    raise PermissionError(
+                        f"Tài khoản '{user}' không được phép ghi đè workspace '{ma}' của '{chu_hien_tai}'."
+                    )
+                self._conn.execute(
+                    """
+                    UPDATE workspaces SET ten = ?, mo_ta = ? WHERE ma_workspace = ?
+                    """,
+                    (ten.strip() or ma, mo_ta, ma),
+                )
+                user_ket_qua = chu_hien_tai
+                tao_luc_ket_qua = str(existing["tao_luc"])
+            else:
+                self._conn.execute(
+                    """
+                    INSERT INTO workspaces (ma_workspace, ten, mo_ta, chu_so_huu, duong_dan_vaidb, tao_luc)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (ma, ten.strip() or ma, mo_ta, user, str(vaidb_file), now_iso),
+                )
+                user_ket_qua = user
+                tao_luc_ket_qua = now_iso
             self._conn.commit()
         self._ghi_audit("tao_workspace", user, f"Tạo workspace {ma}", {"ten": ten})
         return {
             "ma_workspace": ma,
             "ten": ten.strip() or ma,
             "mo_ta": mo_ta,
-            "chu_so_huu": user,
+            "chu_so_huu": user_ket_qua,
             "duong_dan_vaidb": str(vaidb_file),
-            "tao_luc": now_iso,
+            "tao_luc": tao_luc_ket_qua,
         }
 
     def danh_sach_workspace(self, token: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -295,11 +320,7 @@ class QuanLyPhienChatWorkspace:
                 ).fetchall()
             ds = [dict(r) for r in rows]
             if self.bat_xac_thuc and vai_tro != "admin":
-                ds = [
-                    r
-                    for r in ds
-                    if r["nguoi_tao"] == user or r["nguoi_tao"] in ("local", "connector", "system")
-                ]
+                ds = [r for r in ds if r["nguoi_tao"] == user]
             return ds
 
     def gui_tin_nhan(
@@ -569,6 +590,7 @@ class QuanLyPhienChatWorkspace:
         token: Optional[str] = None,
         loc_nhieu: bool = False,
         mo_hinh_tham_chieu: Optional[Any] = None,
+        thu_muc_xuat_cho_phep: Optional[Union[str, Path]] = None,
     ) -> Dict[str, Any]:
         """
         Xuất toàn bộ phản hồi `thumbs_up` / `thumbs_down` (kèm đáp án sửa) trong Workspace thành tập dữ liệu
@@ -576,29 +598,56 @@ class QuanLyPhienChatWorkspace:
         """
         from vietnamese_ai.security.data_sanitizer import DataSanitizer
 
-        user = self._kiem_tra_token(token, quyen="view")
-        with self._lock:
-            if ma_workspace:
-                rows = self._conn.execute(
-                    """
-                    SELECT m.id, m.ma_phien, m.noi_dung, m.danh_gia, m.cau_tra_loi_sua, s.ma_workspace
-                    FROM chat_messages m
-                    JOIN chat_sessions s ON m.ma_phien = s.ma_phien
-                    WHERE m.vai_tro = 'assistant' AND m.danh_gia IS NOT NULL AND s.ma_workspace = ?
-                    ORDER BY m.id ASC
-                    """,
-                    (ma_workspace,),
-                ).fetchall()
+        user, vai_tro = self._lay_thong_tin_token(token, quyen="view")
+        co_quyen_quan_tri = (not self.bat_xac_thuc) or vai_tro == "admin"
+        if self.bat_xac_thuc and not co_quyen_quan_tri and self.xac_thuc is not None and token:
+            co_quyen_quan_tri = bool(self.xac_thuc.kiem_tra_quyen(token, "manage"))
+
+        if duong_dan_jsonl is not None and self.bat_xac_thuc and not co_quyen_quan_tri:
+            raise PermissionError(
+                f"Tài khoản '{user}' cần quyền 'manage' để xuất tập DPO ra tệp trên máy chủ."
+            )
+
+        p_out_resolved: Optional[Path] = None
+        if duong_dan_jsonl is not None:
+            raw_path = Path(duong_dan_jsonl)
+            if thu_muc_xuat_cho_phep is not None:
+                base_dir = Path(thu_muc_xuat_cho_phep).resolve()
+                if ".." in str(duong_dan_jsonl).replace("\\", "/").split("/"):
+                    raise PermissionError("Đường dẫn xuất DPO không được phép chứa '..'.")
+                candidate = (base_dir / raw_path).resolve() if not raw_path.is_absolute() else raw_path.resolve()
+                try:
+                    candidate.relative_to(base_dir)
+                except ValueError as exc:
+                    raise PermissionError(
+                        "Đường dẫn xuất DPO nằm ngoài thư mục Workspace được phép."
+                    ) from exc
+                if candidate.suffix.lower() not in (".jsonl", ".json"):
+                    raise PermissionError("Tệp xuất DPO chỉ chấp nhận phần mở rộng '.jsonl' hoặc '.json'.")
+                p_out_resolved = candidate
             else:
-                rows = self._conn.execute(
-                    """
-                    SELECT m.id, m.ma_phien, m.noi_dung, m.danh_gia, m.cau_tra_loi_sua, s.ma_workspace
-                    FROM chat_messages m
-                    JOIN chat_sessions s ON m.ma_phien = s.ma_phien
-                    WHERE m.vai_tro = 'assistant' AND m.danh_gia IS NOT NULL
-                    ORDER BY m.id ASC
-                    """
-                ).fetchall()
+                p_out_resolved = raw_path
+
+        with self._lock:
+            clauses = ["m.vai_tro = 'assistant'", "m.danh_gia IS NOT NULL"]
+            params: List[Any] = []
+            if ma_workspace:
+                clauses.append("s.ma_workspace = ?")
+                params.append(ma_workspace)
+            if self.bat_xac_thuc and not co_quyen_quan_tri:
+                clauses.append("s.nguoi_tao = ?")
+                params.append(user)
+            where_sql = " AND ".join(clauses)
+            rows = self._conn.execute(
+                f"""
+                SELECT m.id, m.ma_phien, m.noi_dung, m.danh_gia, m.cau_tra_loi_sua, s.ma_workspace
+                FROM chat_messages m
+                JOIN chat_sessions s ON m.ma_phien = s.ma_phien
+                WHERE {where_sql}
+                ORDER BY m.id ASC
+                """,
+                tuple(params),
+            ).fetchall()
 
             cac_mau: List[Dict[str, Any]] = []
             for r in rows:
@@ -665,13 +714,12 @@ class QuanLyPhienChatWorkspace:
             }
 
         duong_dan_xuat: Optional[str] = None
-        if duong_dan_jsonl is not None:
-            p_out = Path(duong_dan_jsonl)
-            p_out.parent.mkdir(parents=True, exist_ok=True)
-            with open(p_out, "w", encoding="utf-8") as f:
+        if p_out_resolved is not None:
+            p_out_resolved.parent.mkdir(parents=True, exist_ok=True)
+            with open(p_out_resolved, "w", encoding="utf-8") as f:
                 for rec in cac_mau:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            duong_dan_xuat = str(p_out)
+            duong_dan_xuat = str(p_out_resolved)
 
         ma_bam_dvc: Optional[str] = None
         if ho_du_lieu is not None and cac_mau and hasattr(ho_du_lieu, "nhap_danh_sach"):

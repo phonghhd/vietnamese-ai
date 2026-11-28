@@ -13,8 +13,8 @@ repository-code: "https://github.com/phonghhd/vietnamese-ai"
 url: "https://phonghhd.github.io/vietnamese-ai"
 doi: "10.5281/zenodo.20357082"
 license: "MIT"
-version: "31.1.0"
-date-released: "2026-11-25"
+version: "31.2.0"
+date-released: "2026-11-28"
 keywords:
   - "vietnamese-nlp"
   - "legal-rag"
@@ -27,8 +27,8 @@ keywords:
   - "verifiable-ai"
   - "rag"
 abstract: >-
-  Vietnamese AI Framework (v31.1.0) introduces ViLegal-TemporalRAG and the open
-  ViLegal-TempBench benchmark for temporal, clause-level graph-grounded Vietnamese
-  legal retrieval and deterministic three-tier citation verification (Citation
-  Grounding, Temporal Consistency, and Numeric/Deadline Consistency), engineered
-  to run reproducibly on CPU-only hardware with optional real LLM integration.
+  Vietnamese AI Framework (v31.2.0) provides ViLegal-TemporalRAG, the open
+  ViLegal-TempBench benchmark (160 clauses, 68 QA), ViEdge-RustEngine,
+  ViAlign-SafeLoop, and a bundled 38,372-word Vietnamese lexicon for
+  reproducible CPU-only Vietnamese AI and deterministic three-tier legal
+  citation verification with optional real LLM integration.

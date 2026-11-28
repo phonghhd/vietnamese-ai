@@ -13,7 +13,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .balancer import CanBangTai
@@ -74,7 +74,15 @@ class MasterHandler(BaseHTTPRequestHandler):
                 self._tra_json(401, {"loi": ly_do_auth})
                 return
 
-            content_length = int(self.headers.get("Content-Length", 0))
+            raw_content_length = self.headers.get("Content-Length", "0")
+            try:
+                content_length = int(raw_content_length)
+            except (TypeError, ValueError):
+                self._tra_json(400, {"loi": "Header Content-Length không hợp lệ"})
+                return
+            if content_length < 0:
+                self._tra_json(400, {"loi": "Header Content-Length không được âm"})
+                return
             if content_length > MAX_CLUSTER_BODY_BYTES:
                 self._tra_json(
                     413, {"loi": f"Payload vượt quá giới hạn an toàn ({MAX_CLUSTER_BODY_BYTES} bytes)"}
@@ -169,7 +177,7 @@ class NutChinh:
 
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8080,
         chien_luoc_can_bang_tai: str = "round_robin",
         bat_tuong_lua: bool = True,
@@ -184,7 +192,7 @@ class NutChinh:
         self.ma_bi_mat_cum = ma_bi_mat_cum
         self.tuong_lua = TuongLuaBaoVeFramework() if bat_tuong_lua else None
 
-        self.server: Optional[HTTPServer] = None
+        self.server: Optional[ThreadingHTTPServer] = None
         self.workers_config: Dict[str, Dict[str, Any]] = {}
         self.danh_sach_active: List[str] = []
 
@@ -324,6 +332,42 @@ class NutChinh:
                 )
         raise RuntimeError("Không có Worker Swarm nào đang kết nối trong NutChinh")
 
+    def dieu_phoi_nhiem_vu(self, nhiem_vu: Dict[str, Any]) -> Dict[str, Any]:
+        """Điều phối và thực thi một nhiệm vụ trực tiếp qua Worker hoạt động hoặc Cụm Swarm."""
+        task_id = str(nhiem_vu.get("id", "task"))
+        payload = nhiem_vu.get("data", nhiem_vu)
+
+        if self.danh_sach_swarm_active:
+            kq_swarm = self.dieu_huong_suy_luan_swarm(prompt=str(payload))
+            return {
+                "task_id": task_id,
+                "worker": self.danh_sach_swarm_active[0],
+                "loai": "swarm",
+                "ket_qua": kq_swarm,
+            }
+
+        ung_vien = list(self.danh_sach_active) or list(self.workers_config.keys())
+        worker_id = self.can_bang_tai.chon_worker(ung_vien)
+        if not worker_id or worker_id not in self.workers_config:
+            raise RuntimeError(
+                "Không có Worker nào được đăng ký trong NutChinh để điều phối nhiệm vụ."
+            )
+
+        if self.tuong_lua is not None:
+            raw_bytes = json.dumps({"data": payload}, ensure_ascii=False).encode("utf-8")
+            hop_le, ly_do = self.kiem_tra_payload_dau_vao(raw_bytes, nguon="state_graph")
+            if not hop_le:
+                raise PermissionError(f"Tường lửa AI chặn nhiệm vụ cụm: {ly_do}")
+
+        bo_xu_ly = self.workers_config[worker_id]["bo_xu_ly"]
+        ket_qua = bo_xu_ly(payload)
+        return {
+            "task_id": task_id,
+            "worker": worker_id,
+            "loai": self.workers_config[worker_id].get("loai", "standard"),
+            "ket_qua": ket_qua,
+        }
+
     def _khoi_dong_worker(self, worker_id: str):
         """Khởi động process hoặc thread cho worker."""
         config = self.workers_config[worker_id]
@@ -394,7 +438,7 @@ class NutChinh:
         time.sleep(1)
 
         handler_class = tao_master_handler(self)
-        self.server = HTTPServer((self.host, self.port), handler_class)
+        self.server = ThreadingHTTPServer((self.host, self.port), handler_class)
         logger.info(f"[NutChinh] Master Node đang hoạt động tại http://{self.host}:{self.port}")
         logger.info(f"[NutChinh] Chiến lược cân bằng tải: {self.can_bang_tai.chien_luoc}")
 

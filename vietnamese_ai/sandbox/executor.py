@@ -6,6 +6,8 @@ trống rỗng và đặt giới hạn thời gian chạy (Timeout).
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import logging
 import multiprocessing
@@ -14,7 +16,7 @@ import queue
 import shutil
 import subprocess
 import sys
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 try:
     import resource as _resource
@@ -70,6 +72,34 @@ def _ap_dung_gioi_han_tai_nguyen_os(timeout_giay: int, gioi_han_ram_mb: int) -> 
             pass
 
 
+_ALLOWED_SANDBOX_MODULES = {
+    "math",
+    "statistics",
+    "itertools",
+    "functools",
+    "collections",
+    "decimal",
+    "fractions",
+    "re",
+    "json",
+    "datetime",
+}
+
+
+def _safe_sandbox_import(
+    name: str,
+    globals_: Any = None,
+    locals_: Any = None,
+    fromlist: Tuple[str, ...] = (),
+    level: int = 0,
+) -> Any:
+    """Chỉ cho phép nhập các module chuẩn toán học/xử lý chuỗi thuần túy trong danh sách trắng."""
+    root = name.split(".")[0]
+    if root not in _ALLOWED_SANDBOX_MODULES:
+        raise ImportError(f"Module không được phép trong Sandbox: '{name}'")
+    return __import__(name, globals_, locals_, fromlist, level)
+
+
 def _tien_trinh_thuc_thi(
     ma_nguon: str,
     ket_qua_queue: multiprocessing.Queue,
@@ -82,6 +112,8 @@ def _tien_trinh_thuc_thi(
     """
     _ap_dung_gioi_han_tai_nguyen_os(timeout_giay=timeout_giay, gioi_han_ram_mb=gioi_han_ram_mb)
 
+    buf_stdout = io.StringIO()
+
     safe_builtins = {
         "print": print,
         "range": range,
@@ -93,24 +125,41 @@ def _tien_trinh_thuc_thi(
         "list": list,
         "dict": dict,
         "set": set,
+        "frozenset": frozenset,
         "tuple": tuple,
         "sum": sum,
         "max": max,
         "min": min,
         "abs": abs,
         "round": round,
+        "pow": pow,
+        "all": all,
+        "any": any,
+        "enumerate": enumerate,
+        "zip": zip,
+        "sorted": sorted,
+        "reversed": reversed,
+        "isinstance": isinstance,
+        "callable": callable,
+        "slice": slice,
         "map": map,
         "filter": filter,
+        "__import__": _safe_sandbox_import,
         "Exception": Exception,
         "ValueError": ValueError,
         "TypeError": TypeError,
+        "IndexError": IndexError,
+        "KeyError": KeyError,
+        "ZeroDivisionError": ZeroDivisionError,
+        "AssertionError": AssertionError,
         "MemoryError": MemoryError,
     }
 
     safe_globals = {"__builtins__": safe_builtins}
 
     try:
-        exec(ma_nguon, safe_globals)
+        with contextlib.redirect_stdout(buf_stdout):
+            exec(ma_nguon, safe_globals)
 
         ket_qua = {}
         for k, v in safe_globals.items():
@@ -118,12 +167,14 @@ def _tien_trinh_thuc_thi(
                 if isinstance(v, (int, float, str, bool, list, dict, set, tuple)):
                     ket_qua[k] = v
 
-        ket_qua_queue.put(("THANH_CONG", ket_qua))
+        ket_qua_queue.put(("THANH_CONG", ket_qua, buf_stdout.getvalue()))
 
     except MemoryError:
-        ket_qua_queue.put(("LOI", f"Vượt giới hạn bộ nhớ Sandbox ({gioi_han_ram_mb} MB)"))
+        ket_qua_queue.put(
+            ("LOI", f"Vượt giới hạn bộ nhớ Sandbox ({gioi_han_ram_mb} MB)", buf_stdout.getvalue())
+        )
     except Exception as e:
-        ket_qua_queue.put(("LOI", str(e)))
+        ket_qua_queue.put(("LOI", str(e), buf_stdout.getvalue()))
 
 
 @gan_nhan_tinh_nang(
@@ -235,26 +286,28 @@ class ThucThiDocLap:
             return True, payload.get("data", {})
         return False, f"Lỗi Thực Thi: {payload.get('error', 'Không xác định')}"
 
-    def chay(self, ma_nguon: str) -> Tuple[bool, Any]:
-        """
-        Kiểm tra AST tĩnh và sau đó thực thi động trong tiến trình bị giới hạn tài nguyên HĐH.
-
-        Args:
-            ma_nguon: Mã Python.
-
-        Returns:
-            Tuple (Trạng_thái_thành_công_boolean, Kết_quả_chạy_hoặc_Lỗi_chuỗi).
-        """
+    def chay_kem_stdout(
+        self,
+        ma_nguon: str,
+        module_cam_bo_sung: Optional[Iterable[str]] = None,
+        ham_cam_bo_sung: Optional[Iterable[str]] = None,
+    ) -> Tuple[bool, Any, str]:
+        """Kiểm tra AST tĩnh và thực thi mã trong tiến trình tách biệt kèm thu nhận stdout."""
         try:
-            PhanTichAST.kiem_tra(ma_nguon)
+            PhanTichAST.kiem_tra(
+                ma_nguon,
+                module_cam_bo_sung=module_cam_bo_sung,
+                ham_cam_bo_sung=ham_cam_bo_sung,
+            )
         except LoiAnNinh as e:
             logger.warning(f"[Sandbox] Đã chặn mã độc: {e}")
-            return False, f"Lỗi An Ninh: {e}"
+            return False, f"Lỗi An Ninh: {e}", ""
         except SyntaxError as e:
-            return False, f"Lỗi Cú Pháp: {e}"
+            return False, f"Lỗi Cú Pháp: {e}", ""
 
         if self.su_dung_bwrap and self.co_bubblewrap():
-            return self._chay_qua_bwrap(ma_nguon)
+            ok, data = self._chay_qua_bwrap(ma_nguon)
+            return ok, data, ""
 
         ctx = multiprocessing.get_context("spawn")
         hang_doi = ctx.Queue()
@@ -272,15 +325,27 @@ class ThucThiDocLap:
             logger.error(f"[Sandbox] Đã tiêu diệt Process (Vượt quá {self.timeout_giay}s)")
             tien_trinh.terminate()
             tien_trinh.join()
-            return False, "Lỗi Timeout: Mã chạy quá thời gian cho phép hoặc dính vòng lặp vô tận."
+            return False, "Lỗi Timeout: Mã chạy quá thời gian cho phép hoặc dính vòng lặp vô tận.", ""
 
         try:
-            trang_thai, du_lieu = hang_doi.get_nowait()
+            trang_thai, du_lieu, stdout_text = hang_doi.get_nowait()
             if trang_thai == "THANH_CONG":
-                return True, du_lieu
-            else:
-                return False, f"Lỗi Thực Thi: {du_lieu}"
+                return True, du_lieu, stdout_text
+            return False, f"Lỗi Thực Thi: {du_lieu}", stdout_text
         except queue.Empty:
             if tien_trinh.exitcode != 0:
-                return False, f"Tiến trình bị lỗi (Mã thoát: {tien_trinh.exitcode})"
-            return False, "Không nhận được kết quả (Tiến trình bị ngắt đột ngột)."
+                return False, f"Tiến trình bị lỗi (Mã thoát: {tien_trinh.exitcode})", ""
+            return False, "Không nhận được kết quả (Tiến trình bị ngắt đột ngột).", ""
+
+    def chay(self, ma_nguon: str) -> Tuple[bool, Any]:
+        """
+        Kiểm tra AST tĩnh và sau đó thực thi động trong tiến trình bị giới hạn tài nguyên HĐH.
+
+        Args:
+            ma_nguon: Mã Python.
+
+        Returns:
+            Tuple (Trạng_thái_thành_công_boolean, Kết_quả_chạy_hoặc_Lỗi_chuỗi).
+        """
+        ok, du_lieu, _ = self.chay_kem_stdout(ma_nguon)
+        return ok, du_lieu

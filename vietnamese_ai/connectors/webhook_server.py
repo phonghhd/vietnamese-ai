@@ -28,7 +28,7 @@ class MayChuWebhookKenh:
         self,
         ket_noi_zalo: Optional[KetNoiZaloOA] = None,
         ket_noi_telegram: Optional[KetNoiTelegram] = None,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8095,
     ) -> None:
         self.ket_noi_zalo = ket_noi_zalo

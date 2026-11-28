@@ -131,11 +131,17 @@ class MangNron(BaseModel):
             dw = cac_a[i].T @ dz / so_mau
             db = np.sum(dz, axis=0, keepdims=True) / so_mau
 
+            dz_truoc = (
+                (dz @ self._trong_so[i].T) * self._lay_dao_ham_kich_hoat(cac_z[i - 1])
+                if i > 0
+                else None
+            )
+
             self._trong_so[i] -= self.toc_do_hoc * dw
             self._he_so[i] -= self.toc_do_hoc * db
 
-            if i > 0:
-                dz = (dz @ self._trong_so[i].T) * self._lay_dao_ham_kich_hoat(cac_z[i - 1])
+            if dz_truoc is not None:
+                dz = dz_truoc
 
     def _tinh_loss(self, y_pred: np.ndarray, y_true: np.ndarray) -> float:
         so_mau = len(y_true)

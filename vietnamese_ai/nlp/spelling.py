@@ -1,9 +1,18 @@
-"""KiemTraChinhTa - Spell checking cho tiếng Việt."""
+"""KiemTraChinhTa - Spell checking cho tiếng Việt với từ điển tiếng Việt nén ~38.000+ từ."""
 
+import unicodedata
 from collections import Counter
 from typing import Any, Dict, List, Optional, Set
 
+from vietnamese_ai.nlp.native_tokenizer import tai_tu_dien_tieng_viet
 from vietnamese_ai.utils.logger import Logger
+
+
+def _bo_dau_chuan(tu: str) -> str:
+    """Chuyển âm tiết tiếng Việt về chữ thường không dấu ASCII để tra ứng viên sửa chính tả nhanh O(1)."""
+    thay = tu.lower().replace("đ", "d")
+    nfd = unicodedata.normalize("NFD", thay)
+    return "".join(c for c in nfd if unicodedata.category(c) != "Mn")
 
 
 class KiemTraChinhTa:
@@ -11,16 +20,9 @@ class KiemTraChinhTa:
     Kiểm tra và sửa lỗi chính tả tiếng Việt.
 
     Hỗ trợ:
-    - Dictionary-based spell checking
-    - Edit distance suggestions
-    - Tone mark correction
-    - Common Vietnamese spelling errors
-
-    Sử dụng:
-        >>> kt = KiemTraChinhTa()
-        >>> kt.them_tu_dien({"xin chào", "thế giới", "học máy"})
-        >>> ket_qua = kt.kiem_tra("xin chao the gioi")
-        >>> print(ket_qua["loi"])
+    - Từ điển tiếng Việt nén ~38.000+ từ & âm tiết đóng gói sẵn trong wheel
+    - Tra cứu ứng viên không dấu O(1) kết hợp Levenshtein lọc theo độ dài
+    - Sửa lỗi gõ phổ biến và học bổ sung từ corpus
     """
 
     PHIEN_BAN_THAY_THE = {
@@ -63,16 +65,24 @@ class KiemTraChinhTa:
         su_dung_underthesea: bool = True,
         toi_da_sua: int = 5,
         nguong_khoang_cach: int = 2,
+        nap_tu_dien_mac_dinh: bool = True,
     ):
         self.logger = Logger("KiemTraChinhTa")
         self.toi_da_sua = toi_da_sua
         self.nguong_khoang_cach = nguong_khoang_cach
 
-        self._tu_dien: Set[str] = tu_dien or set()
+        self._tu_dien: Set[str] = set()
+        if nap_tu_dien_mac_dinh:
+            self._tu_dien.update(tai_tu_dien_tieng_viet(chi_tu_ghep=False))
+        if tu_dien:
+            self._tu_dien.update(t.lower() for t in tu_dien)
         self._tu_dien.update(self.LOI_PHO_BIEN.values())
-        self._dem_tu: Counter = Counter()
+        self._dem_tu: Counter[str] = Counter()
+        self._tu_theo_do_dai: Dict[int, List[str]] = {}
+        self._khong_dau_map: Dict[str, List[str]] = {}
+        self._chi_muc_ban = True
 
-        self._underthesea = None
+        self._underthesea: Any = None
         if su_dung_underthesea:
             try:
                 import underthesea
@@ -80,6 +90,22 @@ class KiemTraChinhTa:
                 self._underthesea = underthesea
             except ImportError:
                 pass
+
+    def _dam_bao_chi_muc(self) -> None:
+        """Xây dựng lười chỉ mục theo độ dài và dạng không dấu giúp gợi ý sửa lỗi nhanh ngay cả với 38.000+ từ."""
+        if not self._chi_muc_ban:
+            return
+        theo_do_dai: Dict[int, List[str]] = {}
+        khong_dau: Dict[str, List[str]] = {}
+        for tu in self._tu_dien:
+            if " " in tu:
+                continue
+            theo_do_dai.setdefault(len(tu), []).append(tu)
+            kd = _bo_dau_chuan(tu)
+            khong_dau.setdefault(kd, []).append(tu)
+        self._tu_theo_do_dai = theo_do_dai
+        self._khong_dau_map = khong_dau
+        self._chi_muc_ban = False
 
     def kiem_tra(
         self,
@@ -117,7 +143,6 @@ class KiemTraChinhTa:
                 )
 
                 if sua_tu_dong and goi_y:
-                    # Tìm và thay thế trong van_ban
                     best = goi_y[0]
                     if tu[0].isupper():
                         best = best[0].upper() + best[1:]
@@ -138,19 +163,20 @@ class KiemTraChinhTa:
     def them_tu_dien(self, tu: Set[str]) -> None:
         """Thêm từ vào từ điển."""
         self._tu_dien.update(t.lower() for t in tu)
+        self._chi_muc_ban = True
 
     def them_tu(self, *tu: str) -> None:
         """Thêm một hoặc nhiều từ."""
         self._tu_dien.update(t.lower() for t in tu)
+        self._chi_muc_ban = True
 
     def _la_tu_hop_le(self, tu: str) -> bool:
         """Kiểm tra từ có trong từ điển không."""
+        if tu in self.LOI_PHO_BIEN and self.LOI_PHO_BIEN[tu] != tu:
+            return False
         if tu in self._tu_dien:
             return True
-        if tu in self.LOI_PHO_BIEN:
-            return False
 
-        # Kiểm tra với underthesea
         if self._underthesea:
             try:
                 result = self._underthesea.word_tokenize(tu)
@@ -159,28 +185,49 @@ class KiemTraChinhTa:
             except Exception:
                 pass
 
-        # Nếu từ điển trống, chấp nhận mọi từ
         if len(self._tu_dien) < 10:
             return True
 
         return False
 
     def _goi_y_sua(self, tu: str) -> List[str]:
-        """Gợi ý sửa lỗi."""
-        goi_y = []
+        """Gợi ý sửa lỗi nhanh bằng bảng lỗi phổ biến, tra không dấu O(1) và Levenshtein lọc độ dài."""
+        goi_y: List[str] = []
+        da_co: Set[str] = set()
 
-        # Kiểm tra lỗi phổ biến
         if tu in self.LOI_PHO_BIEN:
-            goi_y.append(self.LOI_PHO_BIEN[tu])
+            chuan = self.LOI_PHO_BIEN[tu]
+            goi_y.append(chuan)
+            da_co.add(chuan)
 
-        # Edit distance suggestions
-        for tu_dien in self._tu_dien:
-            kc = self._khoang_cach_chinh_sua(tu, tu_dien)
-            if kc <= self.nguong_khoang_cach:
-                goi_y.append(tu_dien)
+        self._dam_bao_chi_muc()
+        kd_tu = _bo_dau_chuan(tu)
+        for cand in self._khong_dau_map.get(kd_tu, ()):
+            if cand not in da_co:
+                goi_y.append(cand)
+                da_co.add(cand)
 
-        # Sắp xếp theo khoảng cách
-        goi_y.sort(key=lambda x: self._khoang_cach_chinh_sua(tu, x))
+        if len(goi_y) < self.toi_da_sua:
+            n = len(tu)
+            ky_tu_dau = kd_tu[0] if kd_tu else ""
+            ung_vien_lev: List[tuple[int, str]] = []
+            for do_dai in range(max(2, n - self.nguong_khoang_cach), n + self.nguong_khoang_cach + 1):
+                for tu_dien in self._tu_theo_do_dai.get(do_dai, ()):
+                    if tu_dien in da_co:
+                        continue
+                    if ky_tu_dau and _bo_dau_chuan(tu_dien[0]) != ky_tu_dau and abs(do_dai - n) > 1:
+                        continue
+                    kc = self._khoang_cach_chinh_sua(tu, tu_dien)
+                    if kc <= self.nguong_khoang_cach:
+                        ung_vien_lev.append((kc, tu_dien))
+            ung_vien_lev.sort(key=lambda item: (item[0], item[1]))
+            for _, cand in ung_vien_lev:
+                goi_y.append(cand)
+                da_co.add(cand)
+                if len(goi_y) >= self.toi_da_sua * 2:
+                    break
+
+        goi_y.sort(key=lambda x: (0 if self.LOI_PHO_BIEN.get(tu) == x else 1, self._khoang_cach_chinh_sua(tu, x)))
         return goi_y[: self.toi_da_sua]
 
     def _khoang_cach_chinh_sua(self, s1: str, s2: str) -> int:
@@ -220,9 +267,9 @@ class KiemTraChinhTa:
                 tu_lower = tu.lower()
                 if len(tu_lower) >= 2:
                     self._dem_tu[tu_lower] += 1
-                    # Thêm từ xuất hiện >= 2 lần vào từ điển
                     if self._dem_tu[tu_lower] >= 2:
                         self._tu_dien.add(tu_lower)
+                        self._chi_muc_ban = True
 
     def thong_ke(self) -> Dict[str, Any]:
         return {

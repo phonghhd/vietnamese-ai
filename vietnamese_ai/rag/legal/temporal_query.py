@@ -153,6 +153,7 @@ class BoPhanTichThoiGianPhapLy:
 
         nam_luat_min = self._nam_luat_lon_nhat(text)
         sach = self._che_ten_luat_va_so_hieu(text)
+        hoi_trang_thai_hl = "hiệu lực" in text.lower()
 
         for m_iso in self._RE_NGAY_ISO.finditer(sach):
             tien_to = m_iso.group(1) or ""
@@ -163,7 +164,13 @@ class BoPhanTichThoiGianPhapLy:
                     dt = dt - timedelta(days=1)
                 elif quan_he == "sau_ngay":
                     dt = dt + timedelta(days=1)
-                if nam_luat_min > 0 and dt.year < nam_luat_min:
+                la_ngay_dieu_kien_cu = (
+                    nam_luat_min > 0
+                    and dt.year < nam_luat_min
+                    and m_iso.start() > 6
+                    and not hoi_trang_thai_hl
+                )
+                if la_ngay_dieu_kien_cu:
                     continue
                 return KetQuaPhanTichThoiGian(
                     ngay_tra_cuu=dt.isoformat(),
@@ -183,7 +190,13 @@ class BoPhanTichThoiGianPhapLy:
                         dt = dt - timedelta(days=1)
                     elif quan_he == "sau_ngay":
                         dt = dt + timedelta(days=1)
-                    if nam_luat_min > 0 and dt.year < nam_luat_min:
+                    la_ngay_dieu_kien_cu = (
+                        nam_luat_min > 0
+                        and dt.year < nam_luat_min
+                        and m_vn.start() > 6
+                        and not hoi_trang_thai_hl
+                    )
+                    if la_ngay_dieu_kien_cu:
                         continue
                     return KetQuaPhanTichThoiGian(
                         ngay_tra_cuu=dt.isoformat(),
@@ -245,16 +258,35 @@ class BoPhanTichThoiGianPhapLy:
 
         m_quy = self._RE_QUY_NAM.search(sach)
         if m_quy:
+            tien_to = (m_quy.group(1) or "").strip().lower()
             quy_key = m_quy.group(2).upper()
             nam = int(m_quy.group(3))
             thang_giua = self._MAP_QUY.get(quy_key, 6)
-            dt = _tao_ngay_an_toan(nam, thang_giua, 15)
+            thang_dau_quy = max(1, thang_giua - 1)
+            thang_cuoi_quy = min(12, thang_giua + 1)
+            if tien_to == "trước":
+                dt = _tao_ngay_an_toan(nam, thang_dau_quy, 1)
+                if dt is not None:
+                    dt = dt - timedelta(days=1)
+                quan_he = "truoc_ngay"
+            elif tien_to in ("từ", "kể từ"):
+                dt = _tao_ngay_an_toan(nam, thang_dau_quy, 1)
+                quan_he = "tu_ngay"
+            elif tien_to == "sau":
+                thang_sau = thang_cuoi_quy + 1
+                nam_sau = nam + (1 if thang_sau > 12 else 0)
+                thang_sau = 1 if thang_sau > 12 else thang_sau
+                dt = _tao_ngay_an_toan(nam_sau, thang_sau, 1)
+                quan_he = "sau_ngay"
+            else:
+                dt = _tao_ngay_an_toan(nam, thang_giua, 15)
+                quan_he = "trong_thang"
             if dt is not None:
                 return KetQuaPhanTichThoiGian(
                     ngay_tra_cuu=dt.isoformat(),
                     co_moc_tuong_minh=True,
                     bieu_thuc_goc=m_quy.group(0).strip(),
-                    kieu_quan_he_thoi_gian="trong_thang",
+                    kieu_quan_he_thoi_gian=quan_he,
                     do_tin_cay=0.86,
                 )
 

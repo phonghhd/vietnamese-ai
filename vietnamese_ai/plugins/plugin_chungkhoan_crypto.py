@@ -13,10 +13,10 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List
 
-from vietnamese_ai.plugin.market_feed import BoDieuPhoiThiTruong
-from vietnamese_ai.plugin.market_predictor import BoDuDoanXuHuongNganHan
 from vietnamese_ai.plugin.plugin_base import PluginCongCu, PluginTriThuc
-from vietnamese_ai.plugin.quant_indicators import (
+from vietnamese_ai.plugins.finance.market_feed import BoDieuPhoiThiTruong
+from vietnamese_ai.plugins.finance.market_predictor import BoDuDoanXuHuongNganHan
+from vietnamese_ai.plugins.finance.quant_indicators import (
     phan_tich_tin_hieu_tong_hop,
     tinh_quan_tri_rui_ro,
 )

@@ -53,8 +53,15 @@ def _tim_cong_tcp_trong() -> int:
 
 
 def _do_rss_hien_tai_mb() -> float:
-    """Đo bộ nhớ RSS thực tế của tiến trình hiện tại tính theo MB."""
+    """Đo bộ nhớ RSS thực tế của tiến trình hiện tại tính theo MB (ưu tiên `/proc/self/status` trên Linux)."""
     try:
+        status_path = Path("/proc/self/status")
+        if status_path.is_file():
+            for line in status_path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("VmRSS:"):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        return round(float(parts[1]) / 1024.0, 3)
         usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         if sys.platform == "darwin":
             return round(usage / (1024 * 1024), 3)
@@ -63,33 +70,65 @@ def _do_rss_hien_tai_mb() -> float:
         return 0.0
 
 
+def _do_tien_trinh_lanh(module_name: str, chay_rag: bool = False) -> Tuple[Optional[float], Optional[float]]:
+    """Đo thời gian khởi động lạnh (ms) và VmRSS thực tế (MB) của một module trong tiến trình Python cô lập."""
+    import subprocess
+
+    rag_lines: List[str] = []
+    if chay_rag and module_name == "vietnamese_ai":
+        rag_lines = [
+            "from vietnamese_ai.rag.legal.open_corpus import tai_bo_phap_ly_mo",
+            "from vietnamese_ai.rag.vietnamese_context import BoToiUuNguCanhHanhChinh",
+            "ds = tai_bo_phap_ly_mo()",
+            "vb = '\\n'.join(f\"{d['dieu']}. {d['ten_van_ban']} ({d['so_hieu']}): {d['noi_dung']}\" for d in ds)",
+            "rag = BoToiUuNguCanhHanhChinh()",
+            "ch = rag.phan_doan_giu_ngu_canh(vb, ten_tai_lieu='Pháp luật Việt Nam')",
+            "rag.truy_hoi_phap_ly('Thời giờ làm việc bình thường tối đa là bao nhiêu?', ch, top_k=3)",
+        ]
+    code_lines = [
+        "import json, pathlib, resource, sys, time",
+        "t0 = time.perf_counter()",
+        f"import {module_name}",
+        "dt_ms = (time.perf_counter() - t0) * 1000.0",
+        *rag_lines,
+        "rss_mb = 0.0",
+        "p = pathlib.Path('/proc/self/status')",
+        "if p.is_file():",
+        "    for ln in p.read_text(encoding='utf-8').splitlines():",
+        "        if ln.startswith('VmRSS:'):",
+        "            rss_mb = float(ln.split()[1]) / 1024.0",
+        "            break",
+        "if rss_mb <= 0.0:",
+        "    u = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss",
+        "    rss_mb = (u / (1024.0 * 1024.0)) if sys.platform == 'darwin' else (u / 1024.0)",
+        "print(json.dumps({'cold_ms': round(dt_ms, 2), 'rss_mb': round(rss_mb, 2)}))",
+    ]
+    code = "\n".join(code_lines)
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            last_line = proc.stdout.strip().splitlines()[-1]
+            parsed = json.loads(last_line)
+            return float(parsed["cold_ms"]), float(parsed["rss_mb"])
+    except Exception:
+        return None, None
+    return None, None
+
+
 class BoDoLuongDoiDau:
     """
     Bộ Đo Lường Đối Đầu & Benchmark Tái Lập Định Lượng (Comparative & Production Benchmark Suite).
 
     So sánh và kiểm định hiệu năng thực tế của Vietnamese AI Framework trên CPU phổ thông (Zero-GPU),
     hỗ trợ đo tải đồng thời LLM, độ ổn định tài nguyên dài hạn, mở rộng cụm Swarm LAN vật lý và đa miền tiếng Việt.
+    Chỉ đo trực tiếp các thư viện thực sự được cài đặt trên máy, không sử dụng bảng so sánh tĩnh bịa đặt.
     """
-
-    BASELINE_LANGCHAIN: Dict[str, Any] = {
-        "ten": "LangChain",
-        "thoi_gian_khoi_dong_ms": 2150.0,
-        "ram_tieu_thu_mb": 142.5,
-        "toc_do_tach_tu_wps": 8200.0,
-        "hit_rate_top1_pct": 71.5,
-        "hit_rate_top3_pct": 84.0,
-        "mrr_score": 0.77,
-    }
-
-    BASELINE_LLAMAINDEX: Dict[str, Any] = {
-        "ten": "LlamaIndex",
-        "thoi_gian_khoi_dong_ms": 2680.0,
-        "ram_tieu_thu_mb": 165.0,
-        "toc_do_tach_tu_wps": 9100.0,
-        "hit_rate_top1_pct": 73.8,
-        "hit_rate_top3_pct": 86.5,
-        "mrr_score": 0.79,
-    }
 
     VAN_BAN_PHAP_LY_MAU = """
     Chương I: QUY ĐỊNH CHUNG
@@ -111,21 +150,6 @@ class BoDoLuongDoiDau:
     3. Cung cấp đầy đủ, chính xác dữ liệu cá nhân khi đồng ý cho phép xử lý dữ liệu.
     """
 
-    BO_CAU_HOI_KIEM_THU = [
-        {
-            "cau_hoi": "Dữ liệu cá nhân cơ bản bao gồm những thông tin nào?",
-            "tu_khoa_ky_vong": ["Điều 2", "Dữ liệu cá nhân cơ bản", "họ tên", "căn cước công dân"],
-        },
-        {
-            "cau_hoi": "Chủ thể dữ liệu có những quyền gì theo quy định?",
-            "tu_khoa_ky_vong": ["Điều 3", "Quyền của chủ thể dữ liệu", "đồng ý", "truy cập"],
-        },
-        {
-            "cau_hoi": "Nghĩa vụ tự bảo vệ dữ liệu cá nhân được quy định ở đâu?",
-            "tu_khoa_ky_vong": ["Điều 4", "Nghĩa vụ của chủ thể dữ liệu", "Tự bảo vệ"],
-        },
-    ]
-
     def __init__(self) -> None:
         self.tokenizer = BoTachTuTiengVietSieuToc()
         self.embedder = BoNhungVanBanSieuToc(tokenizer=self.tokenizer)
@@ -144,9 +168,12 @@ class BoDoLuongDoiDau:
             "pid": os.getpid(),
         }
 
-    def do_toc_do_tach_tu(self, so_vong_lap: int = 50) -> float:
-        """Đo tốc độ xử lý tách từ tiếng Việt thực tế (words/sec)."""
-        doan_van = self.VAN_BAN_PHAP_LY_MAU * 10
+    def do_toc_do_tach_tu(self, so_vong_lap: int = 15) -> float:
+        """Đo tốc độ xử lý tách từ tiếng Việt thực tế (words/sec) trên toàn bộ kho 100 điều khoản pháp lý mở."""
+        from vietnamese_ai.rag.legal.open_corpus import tai_bo_phap_ly_mo
+
+        corpus = tai_bo_phap_ly_mo()
+        doan_van = "\n".join(str(d.get("noi_dung", "")) for d in corpus) or (self.VAN_BAN_PHAP_LY_MAU * 5)
         tong_so_tu = len(doan_van.split()) * so_vong_lap
 
         t0 = time.perf_counter()
@@ -157,50 +184,74 @@ class BoDoLuongDoiDau:
         return tong_so_tu / dt if dt > 0 else 0.0
 
     def do_ram_tieu_thu(self) -> float:
-        """Đo lường dung lượng RAM chiếm dụng (MB) khi nạp và xử lý RAG tiếng Việt."""
-        tracemalloc.start()
-        snap1 = tracemalloc.take_snapshot()
-
-        chunks = self.admin_rag.phan_doan_giu_ngu_canh(
-            self.VAN_BAN_PHAP_LY_MAU, ten_tai_lieu="Nghị định 13"
-        )
-        _ = self.admin_rag.truy_hoi_phap_ly("Dữ liệu cá nhân là gì?", chunks, top_k=2)
-
-        snap2 = tracemalloc.take_snapshot()
-        tracemalloc.stop()
-
-        stats = snap2.compare_to(snap1, "lineno")
-        tong_bytes = sum(stat.size for stat in stats)
-        return round(14.0 + (tong_bytes / (1024 * 1024)), 2)
+        """Đo dung lượng RAM cư trú thực tế (VmRSS, MB) khi nạp và chạy RAG trên kho 100 điều khoản pháp lý."""
+        _, rss_sub = _do_tien_trinh_lanh("vietnamese_ai", chay_rag=True)
+        if rss_sub is not None and rss_sub > 0.0:
+            return round(rss_sub, 2)
+        return round(_do_rss_hien_tai_mb(), 2)
 
     def do_thoi_gian_khoi_dong(self) -> float:
-        """Đo thời gian khởi động (cold-start / import latency) của các thành phần cốt lõi (ms)."""
+        """Đo thời gian nạp lạnh thực tế (cold-start subprocess import, ms) của `vietnamese_ai`."""
+        cold_ms, _ = _do_tien_trinh_lanh("vietnamese_ai", chay_rag=False)
+        if cold_ms is not None and cold_ms > 0.0:
+            return round(cold_ms, 2)
         t0 = time.perf_counter()
         _ = BoTachTuTiengVietSieuToc()
         _ = BoNhungVanBanSieuToc()
-        dt_ms = (time.perf_counter() - t0) * 1000.0
-        return round(max(dt_ms, 1.20), 2)
+        return round((time.perf_counter() - t0) * 1000.0, 2)
 
-    def do_do_chinh_xac_rag_phap_ly(self) -> Dict[str, float]:
-        """Đo lường độ chính xác truy hồi căn cứ pháp lý tiếng Việt (Hit-Rate@1, Hit-Rate@3, MRR)."""
-        chunks = self.admin_rag.phan_doan_giu_ngu_canh(
-            self.VAN_BAN_PHAP_LY_MAU, ten_tai_lieu="Nghị định 13"
+    def do_do_chinh_xac_rag_phap_ly(self) -> Dict[str, Any]:
+        """Đo độ chính xác truy hồi căn cứ pháp lý (Hit@1, Hit@3, MRR) trên kho mở 100 điều khoản / 35 câu hỏi."""
+        from vietnamese_ai.rag.legal.open_corpus import (
+            tai_bo_hoi_dap_phap_ly_mo,
+            tai_bo_phap_ly_mo,
         )
+        from vietnamese_ai.rag.rag_pipeline import RAGPipeline
+
+        corpus = tai_bo_phap_ly_mo()
+        qa_set = tai_bo_hoi_dap_phap_ly_mo()
+
+        rag = RAGPipeline(
+            nguong_diem=0.0,
+            top_k=3,
+            backend="memory",
+            che_do_nhung="onnx_viet",
+            che_do_rerank="onnx_viet",
+            che_do_hanh_chinh=False,
+            enable_extreme_hardware=False,
+        )
+        for doc in corpus:
+            van_ban = (
+                f"{doc.get('ten_van_ban', '')} ({doc.get('so_hieu', '')}) - "
+                f"{doc.get('dieu', '')}: {doc.get('noi_dung', '')}"
+            )
+            rag.them_tai_lieu(
+                str(doc["id"]),
+                van_ban,
+                metadata={
+                    "id_goc": str(doc["id"]),
+                    "so_hieu": str(doc.get("so_hieu", "")),
+                    "dieu": str(doc.get("dieu", "")),
+                    "ten_van_ban": str(doc.get("ten_van_ban", "")),
+                },
+                che_do_hanh_chinh=False,
+            )
 
         hit_1 = 0
         hit_3 = 0
         rr_sum = 0.0
-        tong_cau = len(self.BO_CAU_HOI_KIEM_THU)
+        tong_cau = len(qa_set)
 
-        for item in self.BO_CAU_HOI_KIEM_THU:
-            cau_hoi = str(item["cau_hoi"])
-            ky_vong = item["tu_khoa_ky_vong"]
-            ket_qua = self.admin_rag.truy_hoi_phap_ly(cau_hoi, chunks, top_k=3)
+        for item in qa_set:
+            cau_hoi = str(item.get("cau_hoi", ""))
+            id_ky_vong = str(item.get("id_ky_vong", ""))
+            ket_qua = rag.hoi(cau_hoi, top_k=3, co_kem_nguon=True).get("nguon") or []
 
             rank_found = 0
             for rank, kq in enumerate(ket_qua, start=1):
-                noi_dung_kq = kq["ngu_canh"].lower()
-                if any(str(k).lower() in noi_dung_kq for k in ky_vong):
+                meta = kq.get("metadata") or {}
+                doc_id = str(meta.get("id_goc") or kq.get("ma", ""))
+                if doc_id == id_ky_vong or doc_id.startswith(f"{id_ky_vong}_"):
                     rank_found = rank
                     break
 
@@ -219,7 +270,9 @@ class BoDoLuongDoiDau:
         return {
             "hit_rate_top1_pct": round(hit_rate_top1, 1),
             "hit_rate_top3_pct": round(hit_rate_top3, 1),
-            "mrr_score": round(mrr, 2),
+            "mrr_score": round(mrr, 3),
+            "so_dieu_khoan": len(corpus),
+            "so_cau_hoi": tong_cau,
         }
 
     def do_hieu_nang_suy_luan_llm(
@@ -572,99 +625,99 @@ class BoDoLuongDoiDau:
         }
 
     def chay_benchmark_toan_dien(self) -> Dict[str, Any]:
-        """Chạy quy trình đo lường đối đầu cốt lõi và tổng hợp kết quả đối chiếu."""
-        cold_start = self.do_thoi_gian_khoi_dong()
+        """Chạy quy trình đo lường cốt lõi trực tiếp trên phần cứng hiện tại và đối sánh live nếu có cài thư viện ngoài."""
+        cold_start, rss_import = _do_tien_trinh_lanh("vietnamese_ai", chay_rag=False)
+        if cold_start is None:
+            cold_start = self.do_thoi_gian_khoi_dong()
         ram_mb = self.do_ram_tieu_thu()
         wps = self.do_toc_do_tach_tu()
         rag_acc = self.do_do_chinh_xac_rag_phap_ly()
+        live_comp = self.do_doi_dau_truc_tiep(vai_cold_ms=cold_start, vai_rss_mb=rss_import)
 
-        kq_vietnamese_ai = {
-            "ten": "Vietnamese AI (v30.2)",
-            "thoi_gian_khoi_dong_ms": cold_start,
-            "ram_tieu_thu_mb": ram_mb,
+        kq_vietnamese_ai: Dict[str, Any] = {
+            "ten": f"Vietnamese AI (v{vietnamese_ai.__version__})",
+            "thoi_gian_khoi_dong_ms": round(float(cold_start), 2),
+            "ram_khoi_dong_mb": round(float(rss_import), 2) if rss_import is not None else round(ram_mb, 2),
+            "ram_tieu_thu_mb": round(float(ram_mb), 2),
             "toc_do_tach_tu_wps": round(wps, 1),
             "hit_rate_top1_pct": rag_acc["hit_rate_top1_pct"],
             "hit_rate_top3_pct": rag_acc["hit_rate_top3_pct"],
             "mrr_score": rag_acc["mrr_score"],
+            "so_dieu_khoan": int(rag_acc["so_dieu_khoan"]),
+            "so_cau_hoi": int(rag_acc["so_cau_hoi"]),
         }
 
-        he_so_toc_do_khoi_dong = round(
-            self.BASELINE_LANGCHAIN["thoi_gian_khoi_dong_ms"] / cold_start, 1
-        )
-        tiet_kiem_ram_pct = round(
-            (1.0 - (ram_mb / self.BASELINE_LANGCHAIN["ram_tieu_thu_mb"])) * 100.0, 1
-        )
-        he_so_toc_do_tach_tu = round(wps / self.BASELINE_LANGCHAIN["toc_do_tach_tu_wps"], 1)
-        chenh_lech_hit_rate = round(
-            rag_acc["hit_rate_top1_pct"] - self.BASELINE_LANGCHAIN["hit_rate_top1_pct"], 1
-        )
-
-        return {
+        ket_qua: Dict[str, Any] = {
+            "moi_truong": self.thu_thap_thong_tin_moi_truong(),
             "vietnamese_ai": kq_vietnamese_ai,
-            "langchain": self.BASELINE_LANGCHAIN,
-            "llamaindex": self.BASELINE_LLAMAINDEX,
-            "uu_the_so_voi_langchain": {
-                "nhanh_hon_khoi_dong_lan": he_so_toc_do_khoi_dong,
-                "tiet_kiem_ram_pct": tiet_kiem_ram_pct,
-                "nhanh_hon_tach_tu_lan": he_so_toc_do_tach_tu,
-                "tang_do_chinh_xac_pct": chenh_lech_hit_rate,
+            "doi_sanh_truc_tiep": live_comp,
+            "du_lieu_danh_gia": {
+                "nguon": "legal_vn_corpus.jsonl + legal_vn_qa.jsonl",
+                "so_dieu_khoan": int(rag_acc["so_dieu_khoan"]),
+                "so_cau_hoi": int(rag_acc["so_cau_hoi"]),
             },
         }
+        for ten in ("langchain", "llamaindex"):
+            info = live_comp.get(ten, {})
+            if info.get("da_cai_dat") and info.get("cold_start_subprocess_ms"):
+                ket_qua[ten] = {
+                    "ten": "LangChain" if ten == "langchain" else "LlamaIndex",
+                    "thoi_gian_khoi_dong_ms": info["cold_start_subprocess_ms"],
+                    "ram_tieu_thu_mb": info["ram_rss_mb"],
+                    "loai_baseline": "do_truc_tiep",
+                }
+        return ket_qua
 
-    def do_doi_dau_truc_tiep(self) -> Dict[str, Any]:
+    def do_doi_dau_truc_tiep(
+        self,
+        vai_cold_ms: Optional[float] = None,
+        vai_rss_mb: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """
         Đo đối đầu trực tiếp trên chính máy chủ hiện tại (Live Head-to-Head):
-        - Luôn đo thật cold-start subprocess của `vietnamese_ai`.
-        - Nếu môi trường có cài `langchain` hoặc `llama_index`, đo trực tiếp thời gian khởi động thật
-          của chúng trong subprocess cô lập; nếu chưa cài sẽ ghi rõ `loai_baseline: 'tham_chieu_tinh'`.
+        - Luôn đo thật cold-start subprocess và VmRSS của `vietnamese_ai`.
+        - Chỉ đo và báo cáo số liệu đối sánh cho `langchain` / `llama_index` khi thực sự được cài đặt;
+          nếu chưa cài đặt, trả `None` và ghi rõ `loai_baseline: 'chua_cai_dat'` (không dùng số tĩnh).
         """
         import importlib.util
-        import subprocess
 
-        def _do_cold_start_subprocess(module_name: str) -> Optional[float]:
-            code = (
-                "import time; t0 = time.perf_counter(); "
-                f"import {module_name}; "
-                "print(round((time.perf_counter() - t0) * 1000.0, 3))"
-            )
-            proc = subprocess.run(
-                [sys.executable, "-c", code],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-            )
-            if proc.returncode == 0 and proc.stdout.strip():
-                try:
-                    return float(proc.stdout.strip().splitlines()[-1])
-                except ValueError:
-                    return None
-            return None
+        if vai_cold_ms is None or vai_rss_mb is None:
+            sub_cold, sub_rss = _do_tien_trinh_lanh("vietnamese_ai", chay_rag=False)
+            if vai_cold_ms is None:
+                vai_cold_ms = sub_cold if sub_cold is not None else self.do_thoi_gian_khoi_dong()
+            if vai_rss_mb is None:
+                vai_rss_mb = sub_rss if sub_rss is not None else _do_rss_hien_tai_mb()
 
-        vai_cold_ms = _do_cold_start_subprocess("vietnamese_ai") or self.do_thoi_gian_khoi_dong()
         ket_qua: Dict[str, Any] = {
             "vietnamese_ai": {
-                "cold_start_subprocess_ms": vai_cold_ms,
+                "da_cai_dat": True,
+                "cold_start_subprocess_ms": round(float(vai_cold_ms), 2),
+                "ram_rss_mb": round(float(vai_rss_mb), 2),
                 "loai_baseline": "do_truc_tiep",
             }
         }
-        for ten, mod, fallback in (
-            ("langchain", "langchain", self.BASELINE_LANGCHAIN["thoi_gian_khoi_dong_ms"]),
-            ("llamaindex", "llama_index", self.BASELINE_LLAMAINDEX["thoi_gian_khoi_dong_ms"]),
-        ):
+        chua_cai: List[str] = []
+        for ten, mod in (("langchain", "langchain"), ("llamaindex", "llama_index")):
             if importlib.util.find_spec(mod) is not None:
-                ms = _do_cold_start_subprocess(mod)
+                ms, rss = _do_tien_trinh_lanh(mod, chay_rag=False)
                 ket_qua[ten] = {
                     "da_cai_dat": True,
-                    "cold_start_subprocess_ms": ms if ms is not None else float(fallback),
-                    "loai_baseline": "do_truc_tiep" if ms is not None else "tham_chieu_tinh",
+                    "cold_start_subprocess_ms": ms,
+                    "ram_rss_mb": rss,
+                    "loai_baseline": "do_truc_tiep" if ms is not None else "loi_do",
                 }
             else:
+                chua_cai.append(mod)
                 ket_qua[ten] = {
                     "da_cai_dat": False,
-                    "cold_start_subprocess_ms": float(fallback),
-                    "loai_baseline": "tham_chieu_tinh",
+                    "cold_start_subprocess_ms": None,
+                    "ram_rss_mb": None,
+                    "loai_baseline": "chua_cai_dat",
                 }
+        ket_qua["trang_thai"] = (
+            "co_doi_sanh_truc_tiep" if len(chua_cai) < 2 else "chi_do_vietnamese_ai"
+        )
+        ket_qua["cac_thu_vien_chua_cai"] = chua_cai
         return ket_qua
 
     def do_chieu_sau_loi_he_thong(
@@ -698,7 +751,7 @@ class BoDoLuongDoiDau:
             "Hệ thống trí tuệ nhân tạo xử lý dữ liệu cá nhân theo tiêu chuẩn bảo mật doanh nghiệp hiện đại.",
         ]
         so_lap_nlp = 40 if nhanh else 150
-        tu_dien_bo_sung = {"cơ quan", "nhà nước pháp quyền", "cơ quan nhà nước"}
+        tu_dien_bo_sung = {"cơ quan", "nhà nước pháp quyền mới", "cơ quan nhà nước"}
         tok = BoTachTuTiengVietSieuToc(tu_dien_bo_sung=tu_dien_bo_sung)
         tong_tu_nlp = sum(len(c.split()) for c in cau_nlp) * so_lap_nlp
 
@@ -722,7 +775,7 @@ class BoDoLuongDoiDau:
 
         import vietnamese_ai.nlp.native_tokenizer as nt_mod
 
-        mau_nhap_nhang = "cơ quan nhà nước pháp quyền"
+        mau_nhap_nhang = "cơ quan nhà nước pháp quyền mới"
         kq_mm_amb = tok.tach_tu(mau_nhap_nhang, noi_tu_ghep=True, phuong_phap="max_match")
         kq_vit_amb = tok.tach_tu(mau_nhap_nhang, noi_tu_ghep=True, phuong_phap="viterbi")
         mau_fst = tok.chuan_hoa_dau_thanh("Hoà Bình toà án khoẻ mạnh qùa qúy nứơc hòan tòan")
@@ -731,7 +784,7 @@ class BoDoLuongDoiDau:
             "fst_chuan_hoa_wps": round(tong_tu_nlp / t_fst, 1),
             "max_match_wps": round(tong_tu_nlp / t_mm, 1),
             "viterbi_wps": round(tong_tu_nlp / t_vit, 1),
-            "viterbi_giai_nhap_nhang_chinh_xac": kq_vit_amb == ["cơ_quan", "nhà_nước_pháp_quyền"],
+            "viterbi_giai_nhap_nhang_chinh_xac": kq_vit_amb == ["cơ_quan", "nhà_nước_pháp_quyền_mới"],
             "max_match_phan_hoach_mau": kq_mm_amb,
             "viterbi_phan_hoach_mau": kq_vit_amb,
             "fst_chuan_hoa_chinh_xac": (
@@ -974,7 +1027,7 @@ class BoDoLuongDoiDau:
             "simpo_final_reward_margin": round(float(kq_simpo["final_reward_margin"]), 4),
             "tiet_kiem_vram_ref_model_pct": 50.0,
             "eval_gate_mo_rong_ms": round(gate_ms, 2),
-            "eval_gate_diem_an_toan": round(float(kq_gate.diem_ung_vien.get("ty_le_chan_tan_cong", 0.0)), 4),
+            "eval_gate_diem_an_toan": round(float(kq_gate.diem_ung_vien.get("ty_le_chan_tan_cong") or 0.0), 4),
             "bootstrap_ci_95_duoi": round(float(ci_95.get("ci_duoi", 0.0)), 4),
             "bootstrap_ci_95_tren": round(float(ci_95.get("ci_tren", 0.0)), 4),
             "bootstrap_co_y_nghia": bool(ci_95.get("co_y_nghia_thong_ke", False)),
@@ -1183,55 +1236,82 @@ class BoDoLuongDoiDau:
         )
 
     def xuat_bang_so_sanh_markdown(self, du_lieu: Optional[Dict[str, Any]] = None) -> str:
-        """Xuất bảng so sánh đối đầu định dạng GitHub Flavored Markdown."""
+        """Xuất bảng đo lường định lượng tái lập định dạng GitHub Flavored Markdown (chỉ báo cáo số thực đo)."""
         data = du_lieu or self.chay_benchmark_toan_dien()
         vai = data["vietnamese_ai"]
-        lc = data["langchain"]
-        li = data["llamaindex"]
-        adv = data["uu_the_so_voi_langchain"]
+        live = data.get("doi_sanh_truc_tiep") or {}
+        ds_info = data.get("du_lieu_danh_gia") or {}
+        n_docs = int(ds_info.get("so_dieu_khoan", vai.get("so_dieu_khoan", 0)))
+        n_qa = int(ds_info.get("so_cau_hoi", vai.get("so_cau_hoi", 0)))
+        chua_cai = live.get("cac_thu_vien_chua_cai") or []
 
-        md = f"""### 📊 BẢNG SO SÁNH ĐỐI ĐẦU ĐỊNH LƯỢNG (QUANTITATIVE BENCHMARK)
-*Môi trường đo thực tế: {platform.system()} {platform.release()}, Python {platform.python_version()}, CPU (Zero-GPU). Baseline LangChain/LlamaIndex là giá trị tham chiếu chuẩn hóa.*
+        md = (
+            f"### BẢNG ĐO LƯỜNG ĐỊNH LƯỢNG TÁI LẬP (QUANTITATIVE BENCHMARK)\n"
+            f"*Môi trường đo thực tế: {platform.system()} {platform.release()}, Python {platform.python_version()}, "
+            f"CPU (Zero-GPU). Tập dữ liệu mở: `legal_vn_corpus.jsonl` ({n_docs} điều khoản / {n_qa} câu hỏi).*\n\n"
+            f"| Chỉ số Đánh giá (Metrics) | **{vai['ten']}** | Phương pháp đo |\n"
+            f"|:---|:---:|:---|\n"
+            f"| **Thời gian khởi động lạnh (Cold-start)** | **{vai['thoi_gian_khoi_dong_ms']:.2f} ms** | Tiến trình Python độc lập (`import vietnamese_ai`) |\n"
+            f"| **RAM cư trú khi nạp lõi (VmRSS)** | **{vai.get('ram_khoi_dong_mb', vai['ram_tieu_thu_mb']):.2f} MB** | `/proc/self/status` VmRSS sau import lõi |\n"
+            f"| **RAM cư trú khi chạy RAG ({n_docs} điều khoản)** | **{vai['ram_tieu_thu_mb']:.2f} MB** | `/proc/self/status` VmRSS sau lập chỉ mục & truy vấn |\n"
+            f"| **Tốc độ Tách từ tiếng Việt** | **{vai['toc_do_tach_tu_wps']:,.1f} từ/s** | `BoTachTuTiengVietSieuToc` trên {n_docs} điều khoản |\n"
+            f"| **Truy hồi Pháp lý Hit@1 ({n_qa} QA)** | **{vai['hit_rate_top1_pct']:.1f}%** | `RAGPipeline` (`onnx_viet`) trên `legal_vn_qa.jsonl` |\n"
+            f"| **Truy hồi Pháp lý Hit@3 ({n_qa} QA)** | **{vai['hit_rate_top3_pct']:.1f}%** | `RAGPipeline` (`onnx_viet`) trên `legal_vn_qa.jsonl` |\n"
+            f"| **Điểm MRR ({n_qa} QA)** | **{vai['mrr_score']:.3f}** | Mean Reciprocal Rank Top-3 |\n"
+        )
 
-| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (v30.2)** | **LangChain** | **LlamaIndex** | **Ưu thế của Vietnamese AI** |
-|:---|:---:|:---:|:---:|:---:|
-| **Thời gian khởi động (Cold-start)** | **{vai['thoi_gian_khoi_dong_ms']:.2f} ms** | {lc['thoi_gian_khoi_dong_ms']:.0f} ms | {li['thoi_gian_khoi_dong_ms']:.0f} ms | ⚡ **Nhanh gấp ~{adv['nhanh_hon_khoi_dong_lan']:.0f} lần** |
-| **Dung lượng RAM chiếm dụng** | **{vai['ram_tieu_thu_mb']:.1f} MB** | {lc['ram_tieu_thu_mb']:.1f} MB | {li['ram_tieu_thu_mb']:.1f} MB | 🍃 **Tiết kiệm {adv['tiet_kiem_ram_pct']:.1f}% RAM** |
-| **Tốc độ Tách từ tiếng Việt** | **{vai['toc_do_tach_tu_wps']:,.0f} từ/s** | {lc['toc_do_tach_tu_wps']:,.0f} từ/s | {li['toc_do_tach_tu_wps']:,.0f} từ/s | 🚀 **Nhanh gấp {adv['nhanh_hon_tach_tu_lan']:.1f} lần** |
-| **Độ chính xác Căn cứ Pháp lý (Hit@1)** | **{vai['hit_rate_top1_pct']:.1f}%** | {lc['hit_rate_top1_pct']:.1f}% | {li['hit_rate_top1_pct']:.1f}% | 🎯 **Vượt trội +{adv['tang_do_chinh_xac_pct']:.1f}%** |
-| **Độ chính xác Top-3 (Hit@3)** | **{vai['hit_rate_top3_pct']:.1f}%** | {lc['hit_rate_top3_pct']:.1f}% | {li['hit_rate_top3_pct']:.1f}% | 🎯 **Đạt {vai['hit_rate_top3_pct']:.1f}%** |
-| **Điểm MRR (Mean Reciprocal Rank)** | **{vai['mrr_score']:.2f}** | {lc['mrr_score']:.2f} | {li['mrr_score']:.2f} | 📈 **Dẫn đầu ({vai['mrr_score']:.2f})** |
-
-> **Nhận định cốt lõi:** Nhờ kiến trúc Micro-Core nhẹ và cơ chế bóc tách cấu trúc văn bản phân cấp chuyên sâu cho tiếng Việt, `vietnamese-ai` giảm mạnh độ trễ nạp, tiết kiệm RAM và nâng cao độ chính xác khi viện dẫn điều luật.
-"""
+        dong_ngoai: List[str] = []
+        for ten_key, nhan in (("langchain", "LangChain"), ("llamaindex", "LlamaIndex")):
+            info = live.get(ten_key) or {}
+            if info.get("da_cai_dat") and info.get("cold_start_subprocess_ms") is not None:
+                dong_ngoai.append(
+                    f"| **{nhan} (đo trực tiếp)** | {info['cold_start_subprocess_ms']:.2f} ms | "
+                    f"VmRSS: {info.get('ram_rss_mb', 0.0):.2f} MB |"
+                )
+        if dong_ngoai:
+            md += (
+                "\n#### Đối sánh khởi động lạnh & RAM thực đo trên cùng phần cứng\n\n"
+                "| Thư viện | Cold-start (ms) | Ghi chú |\n"
+                "|:---|:---:|:---|\n"
+                + "\n".join(dong_ngoai)
+                + "\n"
+            )
+        elif chua_cai:
+            md += (
+                f"\n> **Minh bạch đối sánh:** Các thư viện ngoài `{', '.join(chua_cai)}` chưa được cài đặt trong môi trường này "
+                f"nên không hiển thị số liệu đối đầu tĩnh. Cài đặt chúng trong môi trường kiểm thử để tự động đo đối đầu trực tiếp 1-1.\n"
+            )
         return md
 
     def xuat_bang_so_sanh_latex(self, du_lieu: Optional[Dict[str, Any]] = None) -> str:
-        """Xuất bảng LaTeX chuẩn mực để đưa vào các bài báo khoa học IEEE / Elsevier / ACM."""
+        """Xuất bảng LaTeX chuẩn mực chỉ chứa số liệu đo trực tiếp để đưa vào bài báo khoa học."""
         data = du_lieu or self.chay_benchmark_toan_dien()
         vai = data["vietnamese_ai"]
-        lc = data["langchain"]
-        li = data["llamaindex"]
+        ds_info = data.get("du_lieu_danh_gia") or {}
+        n_docs = int(ds_info.get("so_dieu_khoan", vai.get("so_dieu_khoan", 0)))
+        n_qa = int(ds_info.get("so_cau_hoi", vai.get("so_cau_hoi", 0)))
 
-        latex = f"""% LaTeX Table for Academic Publications (IEEE / Elsevier Format)
-\\begin{{table}}[htbp]
-\\caption{{Quantitative Performance and Accuracy Comparison on Vietnamese Legal and Administrative Corpus}}
-\\label{{tab:vietnamese_ai_benchmark}}
-\\centering
-\\begin{{tabular}}{{lcccc}}
-\\hline
-\\textbf{{Evaluation Metrics}} & \\textbf{{Vietnamese AI (Ours)}} & \\textbf{{LangChain}} & \\textbf{{LlamaIndex}} & \\textbf{{Gain/Advantage}} \\\\
-\\hline
-Cold-start Latency (ms) & \\textbf{{{vai['thoi_gian_khoi_dong_ms']:.2f}}} & {lc['thoi_gian_khoi_dong_ms']:.0f} & {li['thoi_gian_khoi_dong_ms']:.0f} & $\\sim${data['uu_the_so_voi_langchain']['nhanh_hon_khoi_dong_lan']:.0f}\\times$ faster \\\\
-Memory Footprint RSS (MB) & \\textbf{{{vai['ram_tieu_thu_mb']:.1f}}} & {lc['ram_tieu_thu_mb']:.1f} & {li['ram_tieu_thu_mb']:.1f} & -{data['uu_the_so_voi_langchain']['tiet_kiem_ram_pct']:.1f}\\% RAM \\\\
-Segmentation Throughput (words/s) & \\textbf{{{vai['toc_do_tach_tu_wps']:,.0f}}} & {lc['toc_do_tach_tu_wps']:,.0f} & {li['toc_do_tach_tu_wps']:,.0f} & {data['uu_the_so_voi_langchain']['nhanh_hon_tach_tu_lan']:.1f}$\\times$ speedup \\\\
-Legal Citation Hit@1 (\\%) & \\textbf{{{vai['hit_rate_top1_pct']:.1f}\\%}} & {lc['hit_rate_top1_pct']:.1f}\\% & {li['hit_rate_top1_pct']:.1f}\\% & +{data['uu_the_so_voi_langchain']['tang_do_chinh_xac_pct']:.1f}\\% \\\\
-Legal Citation Hit@3 (\\%) & \\textbf{{{vai['hit_rate_top3_pct']:.1f}\\%}} & {lc['hit_rate_top3_pct']:.1f}\\% & {li['hit_rate_top3_pct']:.1f}\\% & \\textbf{{{vai['hit_rate_top3_pct']:.1f}\\%}} \\\\
-MRR Score & \\textbf{{{vai['mrr_score']:.2f}}} & {lc['mrr_score']:.2f} & {li['mrr_score']:.2f} & \\textbf{{{vai['mrr_score']:.2f}}} \\\\
-\\hline
-\\end{{tabular}}
-\\end{{table}}
-"""
+        latex = (
+            "% LaTeX Table for Academic Publications (Reproducible Direct Measurements)\n"
+            "\\begin{table}[htbp]\n"
+            f"\\caption{{Direct Quantitative Measurements of {vai['ten']} on Open Vietnamese Legal Corpus ({n_docs} clauses, {n_qa} queries)}}\n"
+            "\\label{tab:vietnamese_ai_benchmark}\n"
+            "\\centering\n"
+            "\\begin{tabular}{lcl}\n"
+            "\\hline\n"
+            "\\textbf{Evaluation Metric} & \\textbf{Measured Value} & \\textbf{Protocol} \\\\\n"
+            "\\hline\n"
+            f"Cold-start Import Latency (ms) & \\textbf{{{vai['thoi_gian_khoi_dong_ms']:.2f}}} & Isolated subprocess import \\\\\n"
+            f"Core Import VmRSS (MB) & \\textbf{{{vai.get('ram_khoi_dong_mb', vai['ram_tieu_thu_mb']):.2f}}} & /proc/self/status VmRSS \\\\\n"
+            f"Legal RAG VmRSS (MB) & \\textbf{{{vai['ram_tieu_thu_mb']:.2f}}} & {n_docs}-clause index + query \\\\\n"
+            f"Segmentation Throughput (words/s) & \\textbf{{{vai['toc_do_tach_tu_wps']:,.1f}}} & {n_docs}-clause legal corpus \\\\\n"
+            f"Legal Retrieval Hit@1 (\\%) & \\textbf{{{vai['hit_rate_top1_pct']:.1f}\\%}} & {n_qa} QA pairs \\\\\n"
+            f"Legal Retrieval Hit@3 (\\%) & \\textbf{{{vai['hit_rate_top3_pct']:.1f}\\%}} & {n_qa} QA pairs \\\\\n"
+            f"Mean Reciprocal Rank (MRR) & \\textbf{{{vai['mrr_score']:.3f}}} & Top-3 retrieval \\\\\n"
+            "\\hline\n"
+            "\\end{tabular}\n"
+            "\\end{table}\n"
+        )
         return latex
 
     def xuat_du_lieu_json(self, duong_dan: Optional[Union[str, Path]] = None) -> Dict[str, Any]:

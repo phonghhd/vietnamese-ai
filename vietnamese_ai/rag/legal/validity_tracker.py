@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
@@ -262,10 +262,12 @@ def _chuan_hoa_so_hieu(so_hieu: str) -> str:
     return sach.upper()
 
 
-def _phan_tich_ngay(ngay: Optional[Union[str, date]]) -> date:
-    """Chuyển chuỗi ISO `YYYY-MM-DD` hoặc `DD/MM/YYYY` sang đối tượng `datetime.date`."""
+def _phan_tich_ngay(ngay: Optional[Union[str, date, datetime]]) -> date:
+    """Chuyển chuỗi ISO `YYYY-MM-DD`, `DD/MM/YYYY` hoặc `datetime` sang đối tượng `datetime.date`."""
     if ngay is None:
         return date.today()
+    if isinstance(ngay, datetime):
+        return ngay.date()
     if isinstance(ngay, date):
         return ngay
     s = str(ngay).strip()
@@ -598,7 +600,15 @@ class BoTheoDoiHieuLucPhapLy:
             ghi_chu=phien_ban.ghi_chu,
         )
         ds = self._kho_dieu_khoan.setdefault((sh, dieu_norm), [])
-        ds.append(ban_sao)
+        khoa_moi = (ban_sao.hieu_luc_tu, ban_sao.khoan, ban_sao.diem)
+        da_cap_nhat = False
+        for i, item_cu in enumerate(ds):
+            if (item_cu.hieu_luc_tu, item_cu.khoan, item_cu.diem) == khoa_moi:
+                ds[i] = ban_sao
+                da_cap_nhat = True
+                break
+        if not da_cap_nhat:
+            ds.append(ban_sao)
         ds.sort(key=lambda item: _phan_tich_ngay(item.hieu_luc_tu))
 
     def tra_cuu_dieu_khoan_theo_ngay(

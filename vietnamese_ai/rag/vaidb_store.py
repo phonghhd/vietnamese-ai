@@ -97,7 +97,7 @@ class KhoTriThucVAIDB:
         self.suc_chua_toi_da = int(suc_chua_toi_da)
 
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(self.duong_dan_str, check_same_thread=False)
+        self._conn = sqlite3.connect(self.duong_dan_str, timeout=30.0, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._co_fts5 = False
 
@@ -105,6 +105,9 @@ class KhoTriThucVAIDB:
         self._vectors: Optional[np.ndarray] = None
         self._vector_norms: Optional[np.ndarray] = None
         self._vectors_normed: Optional[np.ndarray] = None
+        self._vec_storage: Optional[np.ndarray] = None
+        self._norm_storage: Optional[np.ndarray] = None
+        self._vec_capacity: int = 0
         self._metadata: List[Dict[str, Any]] = []
         self._id_to_idx: Dict[str, int] = {}
         self._bo_nhung_mac_dinh: Optional[Any] = None
@@ -135,6 +138,7 @@ class KhoTriThucVAIDB:
             if not self.la_bo_nho_tam:
                 cur.execute("PRAGMA journal_mode=WAL;")
                 cur.execute("PRAGMA synchronous=NORMAL;")
+            cur.execute("PRAGMA busy_timeout=5000;")
             cur.execute("PRAGMA temp_store=MEMORY;")
 
             cur.execute(
@@ -258,6 +262,9 @@ class KhoTriThucVAIDB:
                 self._vectors = None
                 self._vector_norms = None
                 self._vectors_normed = None
+                self._vec_storage = None
+                self._norm_storage = None
+                self._vec_capacity = 0
                 return
 
             vecs: List[np.ndarray] = []
@@ -273,8 +280,15 @@ class KhoTriThucVAIDB:
                 vecs.append(vec)
                 norms.append(float(row["vector_norm"]))
 
-            self._vectors = np.vstack(vecs).astype(np.float32)
-            self._vector_norms = np.asarray(norms, dtype=np.float32)
+            n_rows = len(vecs)
+            cap = max(16, n_rows)
+            self._vec_storage = np.empty((cap, self.kich_thuoc), dtype=np.float32)
+            self._vec_storage[:n_rows] = np.vstack(vecs).astype(np.float32)
+            self._norm_storage = np.empty(cap, dtype=np.float32)
+            self._norm_storage[:n_rows] = np.asarray(norms, dtype=np.float32)
+            self._vec_capacity = cap
+            self._vectors = self._vec_storage[:n_rows]
+            self._vector_norms = self._norm_storage[:n_rows]
             self._vectors_normed = None
             self._nap_hnsw_sql()
             self._nap_chi_muc_luong_tu_sql()
@@ -337,6 +351,9 @@ class KhoTriThucVAIDB:
                 self._vectors = None
                 self._vector_norms = None
                 self._vectors_normed = None
+                self._vec_storage = None
+                self._norm_storage = None
+                self._vec_capacity = 0
             if vec.shape[0] != self.kich_thuoc:
                 raise ValueError(f"Vector phải có {self.kich_thuoc} chiều, nhận được {vec.shape[0]}")
             if ma not in self._id_to_idx and len(self._ids) >= self.suc_chua_toi_da:
@@ -354,6 +371,7 @@ class KhoTriThucVAIDB:
                     self._vectors[idx] = vec
                 if self._vector_norms is not None:
                     self._vector_norms[idx] = vec_norm
+                self._vectors_normed = None
                 self._metadata[idx] = meta
                 self._ivf_dirty = True
                 self._hnsw_dirty = True
@@ -369,13 +387,21 @@ class KhoTriThucVAIDB:
             self._quant_dirty = True
             self._vectors_normed = None
 
-            if self._vectors is None:
-                self._vectors = vec.reshape(1, -1)
-                self._vector_norms = np.asarray([vec_norm], dtype=np.float32)
-            else:
-                self._vectors = np.vstack([self._vectors, vec.reshape(1, -1)])
-                assert self._vector_norms is not None
-                self._vector_norms = np.append(self._vector_norms, np.float32(vec_norm))
+            n_new = idx + 1
+            if self._vec_storage is None or self._norm_storage is None or n_new > self._vec_capacity:
+                new_cap = max(16, self._vec_capacity * 2, n_new)
+                new_vec_buf = np.empty((new_cap, self.kich_thuoc), dtype=np.float32)
+                new_norm_buf = np.empty(new_cap, dtype=np.float32)
+                if idx > 0 and self._vectors is not None and self._vector_norms is not None:
+                    new_vec_buf[:idx] = self._vectors
+                    new_norm_buf[:idx] = self._vector_norms
+                self._vec_storage = new_vec_buf
+                self._norm_storage = new_norm_buf
+                self._vec_capacity = new_cap
+            self._vec_storage[idx] = vec
+            self._norm_storage[idx] = np.float32(vec_norm)
+            self._vectors = self._vec_storage[:n_new]
+            self._vector_norms = self._norm_storage[:n_new]
 
     def chen_batch(
         self,
@@ -541,6 +567,10 @@ class KhoTriThucVAIDB:
             self._ids.clear()
             self._vectors = None
             self._vector_norms = None
+            self._vectors_normed = None
+            self._vec_storage = None
+            self._norm_storage = None
+            self._vec_capacity = 0
             self._metadata.clear()
             self._id_to_idx.clear()
             self._ivf_centroids = None
@@ -679,11 +709,14 @@ class KhoTriThucVAIDB:
             }
 
     def _chu_ky_tap_ids(self) -> str:
-        """Tính mã băm xác định danh sách IDs hiện tại để phát hiện đồ thị HNSW cũ."""
+        """Tính mã băm xác định cả danh sách IDs lẫn nội dung vector để tự vô hiệu hóa HNSW/SQ8 khi vector thay đổi."""
         h = hashlib.sha256()
-        for item_id in self._ids:
+        for idx, item_id in enumerate(self._ids):
             h.update(item_id.encode("utf-8"))
             h.update(b"\x00")
+            if self._vectors is not None and idx < self._vectors.shape[0]:
+                h.update(np.ascontiguousarray(self._vectors[idx], dtype="<f4").tobytes())
+            h.update(b"\x01")
         return h.hexdigest()
 
     def _khoang_cach_hnsw(self, query_chuan: np.ndarray, idx: int) -> float:

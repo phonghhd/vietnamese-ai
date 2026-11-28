@@ -58,66 +58,25 @@ class _KiemTraASTAnToan:
     }
 
     def kiem_tra(self, code: str) -> Tuple[bool, str]:
-        """Phân tích AST để phát hiện import độc hại, hàm thực thi động, truy cập dunder hoặc frame escape."""
-        from vietnamese_ai.sandbox.ast_analyzer import _RE_FORMAT_ESCAPE, ASTKhachViengTham
+        """Phân tích AST thống nhất qua `PhanTichAST` kèm chặn gọi phương thức shell."""
+        from vietnamese_ai.sandbox.ast_analyzer import LoiAnNinh, PhanTichAST
 
-        goi_cam = self.CAC_GOI_NGUY_HIEM | ASTKhachViengTham.MODULE_CAM
-        ham_cam = self.CAC_HAM_NGUY_HIEM | ASTKhachViengTham.HAM_CAM
-        thuoc_tinh_cam = ASTKhachViengTham.THUOC_TINH_CAM
         try:
+            PhanTichAST.kiem_tra(
+                code,
+                module_cam_bo_sung=self.CAC_GOI_NGUY_HIEM,
+                ham_cam_bo_sung=self.CAC_HAM_NGUY_HIEM,
+            )
             tree = ast.parse(code)
             for node in ast.walk(tree):
-                if isinstance(node, ast.Import):
-                    for name in node.names:
-                        base_mod = name.name.split(".")[0]
-                        if base_mod in goi_cam:
-                            return False, f"Bảo mật chặn import nguy hiểm '{name.name}'"
-                elif isinstance(node, ast.ImportFrom):
-                    if node.module:
-                        base_mod = node.module.split(".")[0]
-                        if base_mod in goi_cam:
-                            return False, f"Bảo mật chặn import nguy hiểm '{node.module}'"
-                elif isinstance(node, ast.Call):
-                    if isinstance(node.func, ast.Name) and node.func.id in ham_cam:
-                        return False, f"Bảo mật chặn hàm thực thi động '{node.func.id}'"
-                    elif isinstance(node.func, ast.Attribute):
-                        if node.func.attr in ("system", "popen", "spawn"):
-                            return False, f"Bảo mật chặn gọi phương thức shell '{node.func.attr}'"
-                        if (
-                            node.func.attr.startswith("__")
-                            and node.func.attr.endswith("__")
-                            and node.func.attr != "__init__"
-                        ):
-                            return (
-                                False,
-                                f"Bảo mật chặn truy cập thuộc tính hệ thống '{node.func.attr}'",
-                            )
-                        if node.func.attr in thuoc_tinh_cam:
-                            return (
-                                False,
-                                f"Bảo mật chặn truy cập thuộc tính nội bộ '{node.func.attr}'",
-                            )
-                        if node.func.attr in ("format", "format_map"):
-                            if isinstance(node.func.value, ast.Constant) and isinstance(
-                                node.func.value.value, str
-                            ):
-                                if _RE_FORMAT_ESCAPE.search(node.func.value.value):
-                                    return (
-                                        False,
-                                        "Bảo mật chặn chuỗi định dạng truy cập thuộc tính nội bộ.",
-                                    )
-                elif isinstance(node, ast.Attribute):
-                    if (
-                        node.attr.startswith("__")
-                        and node.attr.endswith("__")
-                        and node.attr != "__init__"
-                    ):
-                        return False, f"Bảo mật chặn truy cập thuộc tính hệ thống '{node.attr}'"
-                    if node.attr in thuoc_tinh_cam:
-                        return False, f"Bảo mật chặn truy cập thuộc tính nội bộ '{node.attr}'"
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                    if node.func.attr in ("system", "popen", "spawn"):
+                        return False, f"Bảo mật chặn gọi phương thức shell '{node.func.attr}'"
             return True, ""
         except SyntaxError as e:
             return False, f"Lỗi cú pháp (SyntaxError): {e}"
+        except LoiAnNinh as e:
+            return False, f"Bảo mật: {e}"
 
 
 class TacTuLapTrinhTuSua:
@@ -335,9 +294,15 @@ class TacTuLapTrinhTuSua:
 
     @staticmethod
     def _thuc_thi_cach_ly(toan_bo_code: str, timeout_giay: int = 5) -> Dict[str, Any]:
-        """Thực thi mã nguồn và unit test trong tiến trình Python cách ly với builtins giới hạn."""
+        """Thực thi mã nguồn và unit test trong tiến trình Python cách ly, trả kết quả qua OS pipe riêng (chống giả mạo stdout)."""
         runner_script = (
-            "import json, sys, traceback\n"
+            "import json, os, sys, traceback\n"
+            "try:\n"
+            "    import resource as _res\n"
+            "    _res.setrlimit(_res.RLIMIT_CPU, (max(1, int(sys.argv[3]) + 1), max(2, int(sys.argv[3]) + 2)))\n"
+            "    _res.setrlimit(_res.RLIMIT_FSIZE, (0, 0))\n"
+            "except Exception:\n"
+            "    pass\n"
             "ALLOWED_MODULES = {'math', 'statistics', 'itertools', 'functools', 'collections', 'decimal', 'fractions', 're', 'json'}\n"
             "def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):\n"
             "    root = name.split('.')[0]\n"
@@ -357,6 +322,7 @@ class TacTuLapTrinhTuSua:
             "    '__import__': _safe_import,\n"
             "}\n"
             "src_path = sys.argv[1]\n"
+            "result_fd = int(sys.argv[2])\n"
             "with open(src_path, 'r', encoding='utf-8') as f:\n"
             "    code_str = f.read()\n"
             "ns = {'__builtins__': SAFE_BUILTINS}\n"
@@ -366,10 +332,12 @@ class TacTuLapTrinhTuSua:
             "    out = {'passed': ok, 'error_type': '' if ok else 'AssertionError', 'traceback': '' if ok else 'test_suite khong tra ve True'}\n"
             "except Exception as exc:\n"
             "    out = {'passed': False, 'error_type': type(exc).__name__, 'traceback': f'{type(exc).__name__}: {exc}\\n{traceback.format_exc()}'}\n"
-            "sys.stdout.write('__SANDBOX_JSON__' + json.dumps(out, ensure_ascii=False))\n"
+            "with os.fdopen(result_fd, 'w', encoding='utf-8') as rf:\n"
+            "    rf.write(json.dumps(out, ensure_ascii=False))\n"
         )
         fd_code, path_code = tempfile.mkstemp(suffix=".py", text=True)
         fd_runner, path_runner = tempfile.mkstemp(suffix=".py", text=True)
+        r_fd, w_fd = os.pipe()
         try:
             with os.fdopen(fd_code, "w", encoding="utf-8") as f_code:
                 f_code.write(toan_bo_code)
@@ -377,14 +345,18 @@ class TacTuLapTrinhTuSua:
                 f_runner.write(runner_script)
 
             proc = subprocess.run(
-                [sys.executable, "-I", path_runner, path_code],
+                [sys.executable, "-I", path_runner, path_code, str(w_fd), str(timeout_giay)],
                 capture_output=True,
                 text=True,
                 timeout=timeout_giay,
+                pass_fds=(w_fd,),
             )
-            marker = "__SANDBOX_JSON__"
-            if marker in proc.stdout:
-                payload = proc.stdout.split(marker, 1)[1].strip()
+            os.close(w_fd)
+            w_fd = -1
+            with os.fdopen(r_fd, "r", encoding="utf-8") as rf:
+                payload = rf.read().strip()
+            r_fd = -1
+            if payload:
                 return json.loads(payload)
             return {
                 "passed": False,
@@ -398,6 +370,10 @@ class TacTuLapTrinhTuSua:
                 "traceback": f"Lỗi Timeout: Mã thực thi vượt quá {timeout_giay} giây trong sandbox.",
             }
         finally:
+            if w_fd >= 0:
+                os.close(w_fd)
+            if r_fd >= 0:
+                os.close(r_fd)
             for p in (path_code, path_runner):
                 if os.path.exists(p):
                     os.remove(p)

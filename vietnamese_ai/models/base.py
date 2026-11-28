@@ -78,25 +78,37 @@ class BaseModel(ABC):
             pickle.dump(self, f)
 
     @classmethod
-    def tai(cls, duong_dan: str) -> "BaseModel":
-        """Tải mô hình từ file pickle.
+    def tai(cls, duong_dan: str, cho_phep_pickle_tho: bool = False) -> "BaseModel":
+        """Tải mô hình từ file pickle kèm kiểm tra `.sig` và `RestrictedUnpickler` mặc định."""
+        from vietnamese_ai.utils.io_utils import LuuTai, tai_an_toan
 
-        Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải mô hình từ nguồn tin cậy.
-        Sử dụng LuuTai.tai_mo_hinh_an_toan() cho dữ liệu cơ bản.
-        """
-        warnings.warn(
-            "Đang tải mô hình từ pickle. Chỉ tải file từ nguồn tin cậy "
-            "để tránh mã độc (remote code execution). Sử dụng "
-            "LuuTai.tai_mo_hinh_an_toan() cho dữ liệu cơ bản.",
-            stacklevel=2,
-        )
-        try:
-            with open(duong_dan, "rb") as f:
-                return pickle.load(f)
-        except FileNotFoundError:
+        p = Path(duong_dan)
+        if not p.exists():
             raise FileNotFoundError(f"Không tìm thấy file: {duong_dan}")
+        sig_path = p.with_suffix(p.suffix + ".sig")
+        da_ky_hop_le = False
+        if sig_path.exists():
+            if not LuuTai.xac_thuc_file(str(p)):
+                raise ValueError(
+                    f"CẢNH BÁO BẢO MẬT: Chữ ký toàn vẹn HMAC-SHA256 của mô hình '{duong_dan}' không hợp lệ!"
+                )
+            da_ky_hop_le = True
+        if cho_phep_pickle_tho:
+            warnings.warn(
+                "Đang tải mô hình từ pickle thô. Chỉ tải mô hình từ nguồn tin cậy.",
+                stacklevel=2,
+            )
+            try:
+                with open(duong_dan, "rb") as f:
+                    return pickle.load(f)
+            except pickle.UnpicklingError as e:
+                raise pickle.UnpicklingError(f"Lỗi đọc file pickle: {e}")
+        try:
+            return tai_an_toan(
+                duong_dan, cho_phep_mo_hinh=True, cho_phep_lop_da_ky=da_ky_hop_le
+            )
         except pickle.UnpicklingError as e:
-            raise pickle.UnpicklingError(f"Lỗi đọc file pickle: {e}")
+            raise pickle.UnpicklingError(f"Lỗi đọc file pickle an toàn: {e}")
 
     def __repr__(self) -> str:
         trang_thai = "đã huấn luyện" if self.da_huan_luyen else "chưa huấn luyện"

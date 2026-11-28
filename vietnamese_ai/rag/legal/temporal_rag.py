@@ -18,7 +18,7 @@ import math
 import re
 import time
 from datetime import date
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import numpy as np
 
@@ -158,9 +158,50 @@ class BoTruyHoiPhapLyThoiGian:
     CAC_CHE_DO_HOP_LE = ("bm25", "hybrid", "temporal", "temporal_graph", "full")
 
     _RE_SO_HIEU = re.compile(r"\b(\d{1,4}/\d{4}/[A-ZĐa-zđ0-9\-]+)\b", re.UNICODE)
+    _RE_TEN_LUAT_NAM = re.compile(
+        r"\b((bộ\s+luật|luật|nghị\s+định|thông\s+tư)\s+([^.;?!()]{2,65}?)\s+(?:năm\s+)?((?:19|20)\d{2}))\b",
+        re.IGNORECASE | re.UNICODE,
+    )
     _RE_DIEU = re.compile(r"\bđiều\s+(\d+[a-zA-ZđĐ]?)\b", re.IGNORECASE | re.UNICODE)
     _RE_TOKEN_SACH = re.compile(r"[^\w/_-]+", re.UNICODE)
     _SO_CHIEU_HASH = 1536
+    _TU_NGAT_TEN_LUAT: Set[str] = {
+        "trong",
+        "vào",
+        "từ",
+        "trước",
+        "sau",
+        "quy",
+        "định",
+        "yêu",
+        "cầu",
+        "cần",
+        "được",
+        "phải",
+        "có",
+        "là",
+        "thì",
+        "để",
+        "hiện",
+        "hành",
+        "tháng",
+        "ngày",
+        "quý",
+        "nếu",
+        "khi",
+        "về",
+        "cho",
+        "của",
+    }
+    _MO_RONG_VIET_TAT_LUAT: Dict[str, str] = {
+        "bhxh": "bảo hiểm xã hội",
+        "gtgt": "giá trị gia tăng",
+        "gdđt": "giao dịch điện tử",
+        "gddt": "giao dịch điện tử",
+        "kdbđs": "kinh doanh bất động sản",
+        "bllđ": "lao động",
+        "blds": "dân sự",
+    }
 
     def __init__(
         self,
@@ -407,6 +448,30 @@ class BoTruyHoiPhapLyThoiGian:
         sims = self._ma_tran_dense @ q_vec.astype(np.float32)
         return np.clip(sims.astype(np.float64), 0.0, 1.0)
 
+    def _cham_diem_reranker_ngoai(self, cau_hoi: str, tai_lieu: str) -> Optional[float]:
+        """Gọi thống nhất giao diện của bộ xếp hạng lại ngoài (`cham_diem`, `cham_diem_lo`, `sap_xep_lai`, `tinh_diem_cap`)."""
+        rr = self.bo_xep_hang_cheo
+        if rr is None:
+            return None
+        try:
+            if hasattr(rr, "cham_diem"):
+                return float(rr.cham_diem(cau_hoi, tai_lieu))
+            if hasattr(rr, "cham_diem_lo"):
+                scores = rr.cham_diem_lo(cau_hoi, [tai_lieu])
+                if scores:
+                    return float(scores[0])
+            if hasattr(rr, "sap_xep_lai"):
+                kq_rr = rr.sap_xep_lai(cau_hoi, [{"noi_dung": tai_lieu, "diem": 0.5}], top_k=1)
+                if kq_rr and isinstance(kq_rr[0], dict):
+                    val = kq_rr[0].get("diem_rerank", kq_rr[0].get("diem"))
+                    if val is not None:
+                        return float(val)
+            if hasattr(rr, "tinh_diem_cap"):
+                return float(rr.tinh_diem_cap(cau_hoi, tai_lieu))
+        except Exception:
+            return None
+        return None
+
     def _diem_tuong_tac_cheo(
         self,
         cau_hoi: str,
@@ -418,14 +483,15 @@ class BoTruyHoiPhapLyThoiGian:
         dieu_trong_hoi: Set[str],
         diem_co_so: float,
         diem_do_thi: float,
+        diem_reranker_san: Optional[float] = None,
     ) -> float:
         """Chấm điểm tương tác chéo giữa câu hỏi và điều khoản (ONNX Cross-Encoder hoặc tương tác cấu trúc)."""
-        if self.bo_xep_hang_cheo is not None and hasattr(self.bo_xep_hang_cheo, "tinh_diem_cap"):
-            try:
-                diem_nn = float(self.bo_xep_hang_cheo.tinh_diem_cap(cau_hoi, self._van_ban_chi_muc(nut)))
+        if diem_reranker_san is not None:
+            return 0.65 * float(diem_reranker_san) + 0.20 * diem_co_so + 0.15 * diem_do_thi
+        if self.bo_xep_hang_cheo is not None:
+            diem_nn = self._cham_diem_reranker_ngoai(cau_hoi, self._van_ban_chi_muc(nut))
+            if diem_nn is not None:
                 return 0.65 * diem_nn + 0.20 * diem_co_so + 0.15 * diem_do_thi
-            except Exception:
-                pass
 
         doc_tf = self._tf_kho[idx_nut]
         doc_tokens = self._tokens_kho[idx_nut]
@@ -466,6 +532,102 @@ class BoTruyHoiPhapLyThoiGian:
             + 0.25 * bonus_cau_truc
         )
         return float(diem_co_so) + 0.18 * diem_cheo + 0.05 * diem_do_thi
+
+    @classmethod
+    def _chuan_hoa_tap_tu_ten_luat(cls, ten: str) -> Set[str]:
+        """Chuẩn hóa tập từ khóa lõi của tên văn bản luật để đối khớp không phụ thuộc dấu phẩy hay viết tắt."""
+        sach = re.sub(r"\([^)]*\)", " ", ten.lower())
+        sach = re.split(r"\b(?:hướng\s+dẫn|sửa\s+đổi|về\s+việc|quy\s+định)\b", sach, maxsplit=1)[0]
+        sach = re.sub(r"\b(?:bộ\s+luật|luật|nghị\s+định|thông\s+tư|năm)\b", " ", sach)
+        sach = re.sub(r"\b(?:19|20)\d{2}\b", " ", sach)
+        tu_list = re.findall(r"[0-9a-zà-ỹđ]+", sach)
+        kq: Set[str] = set()
+        for tu in tu_list:
+            if tu in cls._MO_RONG_VIET_TAT_LUAT:
+                kq.update(cls._MO_RONG_VIET_TAT_LUAT[tu].split())
+            elif len(tu) >= 2:
+                kq.add(tu)
+        return kq
+
+    def _truy_tim_ten_luat_trong_cau_hoi(self, cau_hoi: str) -> Tuple[List[str], List[str]]:
+        """Phân giải tên đạo luật kèm năm (không cần ghi số hiệu) sang số hiệu đã đăng ký hoặc đánh dấu ngoài kho."""
+        van_ban_sach = self._RE_SO_HIEU.sub(" ", cau_hoi)
+        ung_vien_ten: List[Tuple[str, str, Set[str], str]] = []
+        for m in self._RE_TEN_LUAT_NAM.finditer(van_ban_sach):
+            ten_day_du = m.group(1).strip()
+            loai_vb = re.sub(r"\s+", " ", m.group(2).strip().lower())
+            phan_giua = m.group(3).strip()
+            nam_str = m.group(4).strip()
+            tu_giua = re.findall(r"[0-9a-zà-ỹđ]+", phan_giua.lower())
+            if not tu_giua or any(t in self._TU_NGAT_TEN_LUAT for t in tu_giua):
+                continue
+            tap_tu = self._chuan_hoa_tap_tu_ten_luat(phan_giua)
+            if not tap_tu:
+                continue
+            ung_vien_ten.append((ten_day_du, loai_vb, tap_tu, nam_str))
+
+        if not ung_vien_ten:
+            return [], []
+
+        kho_luat: List[Tuple[str, str, Set[str], str]] = []
+        da_co_sh: Set[str] = set()
+        for hs in self.bo_theo_doi.danh_sach_van_ban():
+            sh = _chuan_hoa_so_hieu(str(hs.get("so_hieu", "")))
+            ten_vb = str(hs.get("ten_van_ban", ""))
+            if not sh or not ten_vb:
+                continue
+            m_nam = re.search(r"/((?:19|20)\d{2})/", sh) or re.search(r"\b((?:19|20)\d{2})\b", ten_vb)
+            nam_vb = m_nam.group(1) if m_nam else ""
+            low_ten = ten_vb.lower()
+            loai_vb = (
+                "bộ luật"
+                if low_ten.startswith("bộ luật")
+                else ("nghị định" if low_ten.startswith("nghị định") else ("thông tư" if low_ten.startswith("thông tư") else "luật"))
+            )
+            kho_luat.append((sh, loai_vb, self._chuan_hoa_tap_tu_ten_luat(ten_vb), nam_vb))
+            da_co_sh.add(sh)
+
+        for nut in self._tai_lieu:
+            sh = _chuan_hoa_so_hieu(nut.so_hieu)
+            if not sh or sh in da_co_sh or not nut.ten_van_ban:
+                continue
+            m_nam = re.search(r"/((?:19|20)\d{2})/", sh) or re.search(r"\b((?:19|20)\d{2})\b", nut.ten_van_ban)
+            nam_vb = m_nam.group(1) if m_nam else ""
+            low_ten = nut.ten_van_ban.lower()
+            loai_vb = (
+                "bộ luật"
+                if low_ten.startswith("bộ luật")
+                else ("nghị định" if low_ten.startswith("nghị định") else ("thông tư" if low_ten.startswith("thông tư") else "luật"))
+            )
+            kho_luat.append((sh, loai_vb, self._chuan_hoa_tap_tu_ten_luat(nut.ten_van_ban), nam_vb))
+            da_co_sh.add(sh)
+
+        sh_tim_thay: List[str] = []
+        ten_khong_ton_tai: List[str] = []
+        for ten_day_du, loai_q, tap_tu_q, nam_q in ung_vien_ten:
+            best_sh: Optional[str] = None
+            best_score = 0.0
+            for sh, loai_k, tap_tu_k, nam_k in kho_luat:
+                if nam_k and nam_k != nam_q:
+                    continue
+                if loai_q != loai_k and not ({loai_q, loai_k} == {"luật", "bộ luật"}):
+                    continue
+                giao = len(tap_tu_q & tap_tu_k)
+                if giao == 0:
+                    continue
+                hop = len(tap_tu_q | tap_tu_k)
+                jaccard = giao / float(hop) if hop > 0 else 0.0
+                phu_q = giao / float(len(tap_tu_q))
+                diem = max(jaccard, 0.85 * phu_q if giao >= 2 else 0.0)
+                if diem > best_score:
+                    best_score = diem
+                    best_sh = sh
+            if best_sh is not None and best_score >= 0.65:
+                if best_sh not in sh_tim_thay:
+                    sh_tim_thay.append(best_sh)
+            else:
+                ten_khong_ton_tai.append(ten_day_du)
+        return sh_tim_thay, ten_khong_ton_tai
 
     def truy_hoi(
         self,
@@ -514,12 +676,16 @@ class BoTruyHoiPhapLyThoiGian:
             q_tokens_noi_dung = list(q_tokens)
 
         sh_trong_hoi = [_chuan_hoa_so_hieu(m) for m in self._RE_SO_HIEU.findall(cau_hoi)]
+        sh_theo_ten, ten_luat_khong_ton_tai = self._truy_tim_ten_luat_trong_cau_hoi(cau_hoi)
+        for sh_ten in sh_theo_ten:
+            if sh_ten not in sh_trong_hoi:
+                sh_trong_hoi.append(sh_ten)
         dieu_trong_hoi = {_chuan_hoa_dieu(m) for m in self._RE_DIEU.findall(cau_hoi)}
 
         canh_bao_tg: List[str] = []
         sh_het_hl_trong_hoi: Set[str] = set()
         sh_thay_the: Set[str] = set()
-        sh_khong_ton_tai: List[str] = []
+        sh_khong_ton_tai: List[str] = list(ten_luat_khong_ton_tai)
 
         for sh in sh_trong_hoi:
             hl = self.bo_theo_doi.kiem_tra_hieu_luc(sh, ngay_tra_cuu=moc)
@@ -621,6 +787,16 @@ class BoTruyHoiPhapLyThoiGian:
                 diem_do_thi_map[ma_g] = float(item_g["diem_do_thi"]) / max_g
                 thong_tin_do_thi_map[ma_g] = item_g
 
+        diem_rerank_lo: Dict[int, float] = {}
+        if bat_rerank and self.bo_xep_hang_cheo is not None and ung_vien_idx and hasattr(self.bo_xep_hang_cheo, "cham_diem_lo"):
+            try:
+                docs_lo = [self._van_ban_chi_muc(self._tai_lieu[i]) for i in ung_vien_idx]
+                scores_lo = self.bo_xep_hang_cheo.cham_diem_lo(cau_hoi, docs_lo)
+                if len(scores_lo) == len(ung_vien_idx):
+                    diem_rerank_lo = {idx_i: float(sc) for idx_i, sc in zip(ung_vien_idx, scores_lo)}
+            except Exception:
+                diem_rerank_lo = {}
+
         diem_cuoi: Dict[int, float] = {}
         for i in ung_vien_idx:
             nut = self._tai_lieu[i]
@@ -639,6 +815,7 @@ class BoTruyHoiPhapLyThoiGian:
                     dieu_trong_hoi=dieu_trong_hoi,
                     diem_co_so=diem_do_thi_gop,
                     diem_do_thi=g_score,
+                    diem_reranker_san=diem_rerank_lo.get(i),
                 )
             elif bat_graph:
                 score_i = diem_do_thi_gop

@@ -41,7 +41,7 @@ def ham_xu_ly_mock(data):
 
 def test_nut_chinh_khoi_tao():
     master = NutChinh(port=18080)
-    assert master.host == "0.0.0.0"
+    assert master.host == "127.0.0.1"
     assert master.port == 18080
     assert master.can_bang_tai.chien_luoc == "round_robin"
 

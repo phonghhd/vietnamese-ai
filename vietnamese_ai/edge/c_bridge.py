@@ -71,7 +71,7 @@ class CauNoiCtypesNative:
         self._phat_hien_moi_truong_c()
 
     def _phat_hien_moi_truong_c(self) -> None:
-        """Dò tìm runtime native theo thứ tự ưu tiên: llama-cpp-python -> binary llama-cli -> ctypes libllama -> fallback."""
+        """Dò tìm runtime native theo thứ tự ưu tiên: llama-cpp-python -> binary llama-cli -> fallback DongCoSuyLuanEdge."""
         if self.duong_dan_mo_hinh and self.duong_dan_mo_hinh.is_file():
             llama_mod = QuanLyPhuThuoc.nhap_tuy_chon(
                 "llama_cpp", nhom_extra="local-llm", tinh_nang="Native llama.cpp CPU Inference"
@@ -92,40 +92,20 @@ class CauNoiCtypesNative:
                 except Exception:
                     self._llama_py = None
 
-        if self.duong_dan_thu_vien_c and os.path.exists(self.duong_dan_thu_vien_c):
-            try:
-                self._cdll = ctypes.CDLL(self.duong_dan_thu_vien_c)
-                return
-            except Exception:
-                pass
-
-        cac_thu_muc_quet = [
-            Path("/usr/local/lib"),
-            Path("/usr/lib"),
-            Path.home() / ".local/lib",
+        cac_thu_muc_bin = [
             Path.home() / ".cache" / "vietnamese-ai" / "bin",
-            Path.cwd(),
-            Path.cwd() / "build",
-            Path.cwd() / "libs",
+            Path.home() / ".local" / "bin",
         ]
-
-        for thu_muc in cac_thu_muc_quet:
-            if not thu_muc.exists():
-                continue
-            for ten_lib in self.CAC_FILE_DYNAMIC_LIB:
-                lib_file = thu_muc / ten_lib
-                if lib_file.exists():
-                    try:
-                        self._cdll = ctypes.CDLL(str(lib_file))
-                        return
-                    except Exception:
-                        continue
-
         for ten_bin in self.CAC_BINARY_EXECUTABLE:
             tim_kiem = shutil.which(ten_bin)
             if tim_kiem and os.path.exists(tim_kiem):
                 self._binary_path = tim_kiem
                 return
+            for thu_muc in cac_thu_muc_bin:
+                cand = thu_muc / ten_bin
+                if cand.is_file() and os.access(cand, os.X_OK):
+                    self._binary_path = str(cand)
+                    return
 
         self._fallback_engine = DongCoSuyLuanEdge(
             duong_dan_mo_hinh=self.duong_dan_mo_hinh,
@@ -199,11 +179,13 @@ class CauNoiCtypesNative:
                 "-c",
                 str(self.n_ctx),
                 "--no-display-prompt",
+                "-no-cnv",
             ]
             proc: Optional[subprocess.Popen[str]] = None
             try:
                 proc = subprocess.Popen(
                     cmd,
+                    stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.DEVNULL,
                     text=True,

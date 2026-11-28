@@ -5,11 +5,20 @@ from vietnamese_ai.mobile.power_manager import PowerManager
 
 @patch("vietnamese_ai.mobile.power_manager.PowerManager.get_battery_status")
 def test_power_manager_high_battery(mock_status):
-    # Pin 80%, không sạc
     mock_status.return_value = (80.0, False)
+    config = PowerManager.dieu_tiet_do_chinh_xac()
+    assert config["precision"] == "8-bit"
+    assert config["load_in_8bit"]
+    assert not config["load_in_4bit"]
+
+
+@patch("vietnamese_ai.mobile.power_manager.PowerManager.get_battery_status")
+def test_power_manager_medium_battery(mock_status):
+    mock_status.return_value = (45.0, False)
     config = PowerManager.dieu_tiet_do_chinh_xac()
     assert config["precision"] == "4-bit"
     assert config["load_in_4bit"]
+    assert not config["load_in_8bit"]
 
 
 @patch("vietnamese_ai.mobile.power_manager.PowerManager.get_battery_status")

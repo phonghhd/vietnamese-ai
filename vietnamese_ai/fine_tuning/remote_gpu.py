@@ -341,9 +341,9 @@ class NhaCungCapModal(NhaCungCapGPUXa):
 import hashlib
 import json
 import os
+import subprocess
 import tarfile
 import time
-from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict
 
@@ -351,6 +351,8 @@ import modal
 
 app = modal.App({app_name!r})
 cache_volume = modal.Volume.from_name({vol_name!r}, create_if_missing=True)
+VOLUME_NAME = {vol_name!r}
+JOB_ID = {ma_tac_vu!r}
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
@@ -360,9 +362,17 @@ image = (
         "peft>=0.7.0",
         "trl>=0.8.0",
         "datasets>=2.14.0",
-        "vietnamese-ai>=31.1.0",
+        "vietnamese-ai>=31.2.0",
     )
 )
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 @app.function(
@@ -375,8 +385,8 @@ def huan_luyen_tren_modal(du_lieu_jsonl: bytes, cau_hinh_json: str) -> Dict[str,
     os.environ["HF_HOME"] = "/cache/huggingface"
     t0 = time.perf_counter()
     cfg = json.loads(cau_hinh_json)
-    job_dir = Path("/tmp/vai_modal_job")
-    job_dir.mkdir(parents=True, exist_ok=True)
+    art_dir = Path("/cache/artifacts") / JOB_ID
+    art_dir.mkdir(parents=True, exist_ok=True)
     samples = [
         json.loads(line)
         for line in du_lieu_jsonl.decode("utf-8").splitlines()
@@ -400,24 +410,24 @@ def huan_luyen_tren_modal(du_lieu_jsonl: bytes, cau_hinh_json: str) -> Dict[str,
 
     dinh_dang = str(cfg.get("dinh_dang_xuat", "gguf")).lower()
     quant = str(cfg.get("quantization", "q8_0"))
-    gguf_bytes = b""
-    adapter_tar_bytes = b""
+    gguf_vol_rel = ""
+    adapter_vol_rel = ""
     sha256_art = ""
 
     if dinh_dang in ("lora", "both"):
-        adapter_dir = job_dir / "adapter"
+        adapter_dir = art_dir / "adapter"
         tuner.luu(str(adapter_dir))
-        buf = BytesIO()
-        with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        tar_path = art_dir / "adapter.tar.gz"
+        with tarfile.open(str(tar_path), mode="w:gz") as tf:
             tf.add(str(adapter_dir), arcname="adapter")
-        adapter_tar_bytes = buf.getvalue()
-        sha256_art = hashlib.sha256(adapter_tar_bytes).hexdigest()
+        adapter_vol_rel = f"artifacts/{{JOB_ID}}/adapter.tar.gz"
+        sha256_art = _sha256_file(tar_path)
 
     if dinh_dang in ("gguf", "both"):
-        gguf_path = job_dir / "model_finetuned.gguf"
+        gguf_path = art_dir / "model_finetuned.gguf"
         tuner.xuat_gguf(str(gguf_path), quantization=quant)
-        gguf_bytes = gguf_path.read_bytes()
-        sha256_art = hashlib.sha256(gguf_bytes).hexdigest()
+        gguf_vol_rel = f"artifacts/{{JOB_ID}}/model_finetuned.gguf"
+        sha256_art = _sha256_file(gguf_path)
 
     cache_volume.commit()
     manifest = {{
@@ -432,8 +442,9 @@ def huan_luyen_tren_modal(du_lieu_jsonl: bytes, cau_hinh_json: str) -> Dict[str,
     }}
     return {{
         "manifest": manifest,
-        "gguf_bytes": gguf_bytes,
-        "adapter_tar_bytes": adapter_tar_bytes,
+        "volume_name": VOLUME_NAME,
+        "gguf_volume_path": gguf_vol_rel,
+        "adapter_volume_path": adapter_vol_rel,
     }}
 
 
@@ -446,13 +457,20 @@ def main(data_file: str, config_file: str, out_dir: str) -> None:
         Path(config_file).read_text(encoding="utf-8"),
     )
     manifest = dict(res["manifest"])
-    if res.get("gguf_bytes"):
+    vol_name = str(res["volume_name"])
+    if res.get("gguf_volume_path"):
         gguf_out = out_path / "model_finetuned.gguf"
-        gguf_out.write_bytes(res["gguf_bytes"])
+        subprocess.run(
+            ["modal", "volume", "get", "--force", vol_name, str(res["gguf_volume_path"]), str(gguf_out)],
+            check=True,
+        )
         manifest["duong_dan_gguf"] = str(gguf_out)
-    if res.get("adapter_tar_bytes"):
+    if res.get("adapter_volume_path"):
         tar_out = out_path / "adapter.tar.gz"
-        tar_out.write_bytes(res["adapter_tar_bytes"])
+        subprocess.run(
+            ["modal", "volume", "get", "--force", vol_name, str(res["adapter_volume_path"]), str(tar_out)],
+            check=True,
+        )
         manifest["duong_dan_adapter"] = str(tar_out)
     (out_path / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, default=str),

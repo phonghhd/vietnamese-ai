@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 import logging
 import re
+from typing import Iterable, Optional, Set
 
 logger = logging.getLogger("V-Sandbox")
 
@@ -36,6 +37,8 @@ class ASTKhachViengTham(ast.NodeVisitor):
         "socket",
         "urllib",
         "requests",
+        "http",
+        "ftplib",
         "pty",
         "builtins",
         "importlib",
@@ -57,6 +60,14 @@ class ASTKhachViengTham(ast.NodeVisitor):
         "shelve",
         "linecache",
         "pdb",
+        "runpy",
+        "webbrowser",
+        "sqlite3",
+        "code",
+        "codeop",
+        "pkgutil",
+        "zipimport",
+        "venv",
     }
 
     HAM_CAM = {
@@ -98,27 +109,49 @@ class ASTKhachViengTham(ast.NodeVisitor):
         "func_code",
     }
 
+    def __init__(
+        self,
+        module_cam_bo_sung: Optional[Iterable[str]] = None,
+        ham_cam_bo_sung: Optional[Iterable[str]] = None,
+    ) -> None:
+        self._module_cam: Set[str] = set(self.MODULE_CAM)
+        if module_cam_bo_sung:
+            self._module_cam.update(module_cam_bo_sung)
+        self._ham_cam: Set[str] = set(self.HAM_CAM)
+        if ham_cam_bo_sung:
+            self._ham_cam.update(ham_cam_bo_sung)
+
     def visit_Import(self, node: ast.Import) -> None:
         """Bắt lỗi khi dùng lệnh import trực tiếp."""
         for alias in node.names:
             tu_khoa = alias.name.split(".")[0]
-            if tu_khoa in self.MODULE_CAM:
-                raise LoiAnNinh(f"Cấm sử dụng module nguy hiểm: '{alias.name}'")
+            if tu_khoa in self._module_cam:
+                raise LoiAnNinh(f"Không được phép import module '{alias.name}'")
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """Bắt lỗi khi dùng lệnh from ... import."""
         if node.module:
             tu_khoa = node.module.split(".")[0]
-            if tu_khoa in self.MODULE_CAM:
-                raise LoiAnNinh(f"Cấm sử dụng module nguy hiểm: '{node.module}'")
+            if tu_khoa in self._module_cam:
+                raise LoiAnNinh(f"Không được phép import từ module '{node.module}'")
+        self.generic_visit(node)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        """Chặn mọi tham chiếu gián tiếp tới hàm dựng sẵn nguy hiểm (ví dụ `f = open`)."""
+        if isinstance(node.ctx, ast.Load) and node.id in self._ham_cam:
+            raise LoiAnNinh(
+                f"Không được phép sử dụng hàm '{node.id}' (Cấm sử dụng hàm nguy hiểm: '{node.id}()')"
+            )
         self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
         """Bắt lỗi khi gọi các hàm dựng sẵn (built-in) hoặc phương thức nguy hiểm."""
         if isinstance(node.func, ast.Name):
-            if node.func.id in self.HAM_CAM:
-                raise LoiAnNinh(f"Cấm sử dụng hàm nguy hiểm: '{node.func.id}()'")
+            if node.func.id in self._ham_cam:
+                raise LoiAnNinh(
+                    f"Không được phép sử dụng hàm '{node.func.id}' (Cấm sử dụng hàm nguy hiểm: '{node.func.id}()')"
+                )
 
         if isinstance(node.func, ast.Attribute):
             if (
@@ -133,6 +166,10 @@ class ASTKhachViengTham(ast.NodeVisitor):
                 if isinstance(node.func.value, ast.Constant) and isinstance(node.func.value.value, str):
                     if _RE_FORMAT_ESCAPE.search(node.func.value.value):
                         raise LoiAnNinh("Cấm dùng chuỗi định dạng truy cập thuộc tính nội bộ Python.")
+                else:
+                    raise LoiAnNinh(
+                        "Cấm gọi phương thức format/format_map trên biểu thức động không phải hằng chuỗi."
+                    )
 
         self.generic_visit(node)
 
@@ -149,12 +186,18 @@ class PhanTichAST:
     """Trình quét và phân tích mã độc tĩnh."""
 
     @staticmethod
-    def kiem_tra(ma_nguon: str) -> bool:
+    def kiem_tra(
+        ma_nguon: str,
+        module_cam_bo_sung: Optional[Iterable[str]] = None,
+        ham_cam_bo_sung: Optional[Iterable[str]] = None,
+    ) -> bool:
         """
         Quét mã nguồn xem có an toàn để chạy không.
 
         Args:
             ma_nguon: Đoạn code Python cần chạy.
+            module_cam_bo_sung: Tập module bổ sung cần chặn ngoài danh sách mặc định.
+            ham_cam_bo_sung: Tập hàm dựng sẵn bổ sung cần chặn ngoài danh sách mặc định.
 
         Returns:
             True nếu an toàn.
@@ -165,7 +208,10 @@ class PhanTichAST:
         """
         try:
             cay_ast = ast.parse(ma_nguon)
-            khach = ASTKhachViengTham()
+            khach = ASTKhachViengTham(
+                module_cam_bo_sung=module_cam_bo_sung,
+                ham_cam_bo_sung=ham_cam_bo_sung,
+            )
             khach.visit(cay_ast)
             return True
         except SyntaxError as e:

@@ -179,12 +179,12 @@ def _doc_jsonl(duong_dan: Path) -> List[Dict[str, Any]]:
 
 
 def _duong_dan_bo_du_lieu_ngoai(ten_tep: str) -> Path:
-    """Tìm tệp dữ liệu pháp lý mở trong `benchmarks/datasets/` hoặc bản đóng gói sẵn trong wheel `vietnamese_ai/rag/legal/data/`."""
+    """Ưu tiên đọc nguồn chuẩn duy nhất trong gói `vietnamese_ai/rag/legal/data/`, dự phòng sang `benchmarks/datasets/`."""
+    chuan = Path(__file__).resolve().parents[1] / "rag" / "legal" / "data" / ten_tep
+    if chuan.is_file():
+        return chuan
     goc = Path(__file__).resolve().parents[2]
-    ngoai = goc / "benchmarks" / "datasets" / ten_tep
-    if ngoai.is_file():
-        return ngoai
-    return Path(__file__).resolve().parents[1] / "rag" / "legal" / "data" / ten_tep
+    return goc / "benchmarks" / "datasets" / ten_tep
 
 
 def tai_bo_phap_ly_mo(duong_dan: Optional[Path] = None) -> List[Dict[str, Any]]:
@@ -226,7 +226,7 @@ def tai_canh_do_thi_phap_ly_thoi_gian(duong_dan: Optional[Path] = None) -> List[
 
 
 def tai_bo_hoi_dap_phap_ly_thoi_gian(duong_dan: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """Tải bộ 64 câu hỏi chuẩn `ViLegal-TempBench` gồm 4 phân nhóm T1, T2 (Contrast), T3 (Multi-Hop), T4 (Traps/Abstention)."""
+    """Tải bộ 68 câu hỏi chuẩn `ViLegal-TempBench` gồm 4 phân nhóm T1, T2 (Contrast), T3 (Multi-Hop), T4 (Traps/Abstention)."""
     path = (
         Path(duong_dan)
         if duong_dan is not None

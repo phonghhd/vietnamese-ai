@@ -25,29 +25,39 @@ class TrichXuatThongMinh:
         self.khien_anh = khien_anh or KhienBaoVeHinhAnh()
         self.ocr = ocr or TrichXuatVanBanAnh()
 
-    def _chuan_bi_van_ban(self, dau_vao: Union[str, Path, np.ndarray, Any]) -> str:
+    def _chuan_bi_van_ban(
+        self,
+        dau_vao: Union[str, Path, np.ndarray, Any],
+        cho_phep_doc_tep: bool = True,
+    ) -> str:
         """Chuẩn bị chuỗi văn bản từ chuỗi thuần túy hoặc trích xuất từ tệp ảnh."""
         if isinstance(dau_vao, str):
-            p = Path(dau_vao)
-            if p.is_file() and p.suffix.lower() in (".png", ".jpg", ".jpeg", ".bmp", ".webp"):
-                dau_vao = p
+            if cho_phep_doc_tep:
+                p = Path(dau_vao)
+                if p.is_file() and p.suffix.lower() in (".png", ".jpg", ".jpeg", ".bmp", ".webp"):
+                    dau_vao = p
+                else:
+                    return dau_vao.strip()
             else:
                 return dau_vao.strip()
 
         if isinstance(dau_vao, (Path, np.ndarray)) or hasattr(dau_vao, "convert"):
-            # Quét và khử độc CDR trước khi đọc OCR
             arr_sach, bc = self.khien_anh.khu_doc_anh_cdr(dau_vao)
             res_ocr = self.ocr.doc_van_ban(arr_sach)
             return res_ocr.get("van_ban", "")
 
         return str(dau_vao or "").strip()
 
-    def trich_xuat_cccd(self, dau_vao: Union[str, Path, np.ndarray, Any]) -> Dict[str, Any]:
+    def trich_xuat_cccd(
+        self,
+        dau_vao: Union[str, Path, np.ndarray, Any],
+        cho_phep_doc_tep: bool = True,
+    ) -> Dict[str, Any]:
         """
         Trích xuất thông tin Căn cước công dân (CCCD / CMND).
         Trả về dict các trường thông tin chuẩn kèm điểm độ tin cậy.
         """
-        text = self._chuan_bi_van_ban(dau_vao)
+        text = self._chuan_bi_van_ban(dau_vao, cho_phep_doc_tep=cho_phep_doc_tep)
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         so_cccd = ""
@@ -150,11 +160,15 @@ class TrichXuatThongMinh:
             "van_ban_goc": text,
         }
 
-    def trich_xuat_hoa_don(self, dau_vao: Union[str, Path, np.ndarray, Any]) -> Dict[str, Any]:
+    def trich_xuat_hoa_don(
+        self,
+        dau_vao: Union[str, Path, np.ndarray, Any],
+        cho_phep_doc_tep: bool = True,
+    ) -> Dict[str, Any]:
         """
         Trích xuất thông tin Hóa đơn Giá trị gia tăng (VAT Invoice).
         """
-        text = self._chuan_bi_van_ban(dau_vao)
+        text = self._chuan_bi_van_ban(dau_vao, cho_phep_doc_tep=cho_phep_doc_tep)
 
         so_hoa_don = ""
         ky_hieu = ""
@@ -256,11 +270,12 @@ class TrichXuatThongMinh:
         self,
         dau_vao: Union[str, Path, np.ndarray, Any],
         schema: Dict[str, str],
+        cho_phep_doc_tep: bool = True,
     ) -> Dict[str, Any]:
         """
         Trích xuất văn bản linh hoạt theo schema người dùng định nghĩa `{"field_name": "mô tả hoặc regex"}`.
         """
-        text = self._chuan_bi_van_ban(dau_vao)
+        text = self._chuan_bi_van_ban(dau_vao, cho_phep_doc_tep=cho_phep_doc_tep)
         ket_qua: Dict[str, Any] = {}
         for truong, mau in schema.items():
             try:

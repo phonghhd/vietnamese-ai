@@ -2,6 +2,41 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v31.2.0 (2026-11-28 — Security Hardening, Scientific Honesty, Core Bugfixes, Soft Deprecation & Depth Upgrades)
+
+### 🛡️ Bảo Mật & Mật Mã Học (P0 — Security Hardening)
+- **Mật mã học & Chứng thực suy luận (`verifiable_inference.py`, `swarm_inference.py`, `cli/main.py`)**:
+  - Bắt buộc đối chiếu `tensor_hash` trong `xac_thuc_cam_ket` / `xac_nhan_cam_ket_chuoi` (chặn hoàn toàn giả mạo Fiat-Shamir), gắn chặt `node_id`, `layer_id`, `tensor.shape` và `tensor.dtype` vào challenge hash và hàm băm tensor.
+  - Khắc phục lỗ hổng nhân đôi nút lá lẻ (CVE-2012-2459) trong `CayMerkleSuyLuan` (RFC 6962) và kiểm tra chặt độ dài/chỉ số đường dẫn trong `xac_minh_merkle_proof`.
+  - Cập nhật `vai verify --proof` yêu cầu `--tensor-hash` hoặc `--text`; `xac_minh_freivalds_nut` trả rõ `"hop_le": None, "trang_thai": "khong_ap_dung"` cho luồng đa tầng phi tuyến.
+- **Hợp nhất AST Sandbox & Chặn RCE (`sandbox/ast_analyzer.py`, `security/agent_sandbox.py`, `agents/code_healing.py`, `agents/devops.py`, `plugin/plugin_manager.py`)**:
+  - Bổ sung `visit_Name` chặn nạp bí danh hàm nguy hiểm (`f = open`), mở rộng `MODULE_CAM` và chặn `.format()` / `.format_map()` động; hợp nhất toàn bộ sandbox về 1 lõi `PhanTichAST` + `ThucThiDocLap` (`RLIMIT_*`).
+  - Cách ly namespace nạp plugin (`vietnamese_ai._loaded_plugins.<hash>`) để không ghi đè `sys.modules` chuẩn và yêu cầu cờ tường minh khi nạp plugin chưa ký.
+- **Chặn LFI, Arbitrary File Write, Path Traversal, Auth/CORS/XSS & Webhook Fail-Open**:
+  - Thêm cờ `cho_phep_doc_tep=False` trên các bề mặt HTTP/Zalo/Telegram (`contract_review.py`, `studio_dashboard.py`, `connectors/base.py`, `solutions/trich_xuat.py`, `solutions/cskh.py`); khóa thư mục bằng `Path.resolve().is_relative_to(...)` trên Studio, MCP và Agent Tools.
+  - Mặc định bind `127.0.0.1`, khóa CORS theo origin cho phép, bắt buộc xác thực trên toàn bộ `/api/*` khi `bat_xac_thuc=True`, thoát HTML chống DOM XSS (`ui/web_app.py`, `ui/components.py`, `ui/core.py`), bỏ fail-open và thêm chống replay (`timestamp` + `msg_id`) trên Zalo/Telegram webhooks, bỏ khóa HMAC mặc định công khai trong `io_utils.py`.
+
+### 📊 Chuẩn Hóa Trung Thực Khoa Học & Tái Lập Benchmark (P1)
+- **`BoDoLuongDoiDau` (`comparative_benchmark.py`), `README.md` & `paper/paper.md`**:
+  - Đo khởi động lạnh (subprocess cô lập) và `VmRSS` thực tế, gỡ toàn bộ bảng đối đầu tĩnh giả lập và thay bằng đo trực tiếp trên tập mở 100 điều khoản / 35 QA `legal_vn_corpus.jsonl` và `ViLegal-TempBench`.
+  - Minh bạch hóa `ChinhSachUuTienTiengViet` (proxy xếp hạng tuyến tính 256 chiều) và điều chuẩn L2 trọng số trong `ViAlign-SafeLoop`; nối `bootstrap_ci_95` vào quyết định của `CongKiemDinhMoHinh`.
+  - Gỡ rò rỉ đáp án định lượng khỏi `TU_DIEN_DONG_NGHIA_VIET`, mở rộng `ViLegal-TempBench` lên **68 câu QA** (bổ sung câu không kèm số hiệu và câu OOD pháp lý thực tế), bổ sung [scripts/sync_legal_datasets.py](scripts/sync_legal_datasets.py) kiểm tra SHA-256 100% trong CI; loại bỏ toàn bộ điểm ngẫu nhiên giả lập trong `llm/lm_eval.py` và `llm/benchmark_runner.py`.
+
+### 🔧 Sửa Dứt Điểm Bug Lõi (P2)
+- **`.vaidb` & Legal RAG**: thêm SQLite `timeout=30.0` + `PRAGMA busy_timeout=5000`, vô hiệu hóa cache vector/HNSW đúng khi cập nhật, bỏ sao chép ma trận `O(N²)` khi chèn đơn lẻ, sửa gọi giao diện reranker & tiền tố quý/năm trong `temporal_rag.py`/`temporal_query.py`, đối chiếu cặp `(so_hieu, dieu)` theo ngữ cảnh câu trong `citation_verifier.py`, bỏ lời gọi `RingAttentionNode` dư thừa trong `rag_pipeline.py`.
+- **Edge, BitNet, Fine-Tuning & Serving**: sửa ưu tiên `llama-cpp-python` → `llama-cli` (`c_bridge.py`), sửa thread-safety + TTL/IP session token (`swarm_auth.py`), sửa Straight-Through Estimator + `nen_tai_cho()` giải phóng FP32 trong `BitLinear` (`compression/extreme.py`), tách `ref_model` bằng `copy.deepcopy` / `simpo` trong `dpo_trainer.py`, sửa xuất GGUF thật và tải Modal Volume (`hf_wrapper.py`, `remote_gpu.py`), tách `argmax` khi `nhiet_do == 0.0` (`serving/speculative.py`).
+- **Core, ML, NLP, Agents & Orchestrator**: sửa `Pipeline.danh_gia()`, nối ngữ cảnh RAG vào `QuyTrinhDauCuoi`, tính gradient trước cập nhật trọng số (`neural_net.py`, `layers.py`, `lora.py`), sửa ngữ cảnh n-gram (`vietnamese_llm.py`), tách `fit`/`transform` TF-IDF (`nlp/sentiment.py`), sửa `StateGraph`, đổi `ThreadingHTTPServer` cho Orchestrator, sửa regex `\bhi\b` (`solutions/cskh.py`) và logic 4-bit/8-bit (`mobile/power_manager.py`).
+
+### 🧩 Tái Cấu Trúc Tương Thích Ngược (P3 — Phương Án A, 0 Breaking Changes)
+- Gắn `DeprecationWarning` mềm cho 6 module mô phỏng/thử nghiệm (`wasm_node`, `webxr_node`, `tee_zkp_node`, `mobile_tools`, `salm`, `federated`), sửa lỗi cú pháp template literal trong `evonet_os/app.js`, bổ sung `evonet_os/README.md` và `sdks/README.md`.
+- Tách nhóm tài chính sang `vietnamese_ai/plugins/finance/` (giữ shim tương thích ngược tại `vietnamese_ai/plugin/`), đồng bộ 100% exports của `vietnamese_ai.legal` và `vietnamese_ai.legal.rag` từ `vietnamese_ai.rag.legal`, khai báo phụ thuộc `vietnamese-ai>=31.2.0,<32.0.0` cho 5 gói con `packages/vietnamese-ai-*` và giữ nguyên **349 public APIs** (`.pyi`).
+
+### 🚀 Nâng Cấp Chiều Sâu Mũi Nhọn Độc Bản (P4)
+- **Lõi NLP Tiếng Việt & Rust Parity**: đóng gói từ điển tiếng Việt nén **38.372 từ** (32.877 từ ghép MIT, `134 KB` tại `vietnamese_ai/nlp/data/tu_dien_tieng_viet.txt.gz`) cho cả `BoTachTuTiengVietSieuToc` và `KiemTraChinhTa`; đồng nhất 100% lọc ký tự Zero-Width/BiDi giữa Rust (`rust_core/src/lib.rs`) và Python; chuyển `BoNhungVanBanSieuToc` sang zero-copy Rust `fast_top_k_cosine_bytes` và Signed Feature Hashing tách âm tiết từ ghép.
+- **Tầng Ngữ Nghĩa ONNX CPU An Toàn**: bổ sung preset `vai pull` tải đồng bộ ONNX INT8 + `tokenizer.json` (`multilingual-e5-small-onnx`, `bge-m3-onnx`, `bge-reranker-v2-m3-onnx`); `BoNhungONNXTiengViet` và `BoSapXepLaiONNXTiengViet` từ chối chạy ONNX khi thiếu `tokenizer.json` hợp lệ thay vì đưa token ID băm giả vào mạng neural.
+- **Hợp nhất `StudioDashboard`**: dùng chung 1 kho `.vaidb` giữa `self.rag`, Workspace `mac_dinh` và `TroLyPhapLy`; thay mặc định MLP 6 câu ở tab Training bằng quy trình thật nối `VongLapCanChinhAnToan` và `BoDieuPhoiTinhChinhXa`.
+- **Siết kiểm tra kiểu dữ liệu**: bật `check_untyped_defs = true` trong `pyproject.toml` cho 4 gói lõi (`rag/`, `security/`, `edge/`, `core/`) với **0 lỗi `mypy`** trên toàn bộ **342 tệp**, **0 lỗi `ruff`**, **1.397 passed / 0 failed**, `ViLegal-TempBench` đạt **MRR@10 = 0.992**, **R@3 = 0.992**, **R@5 = 1.000**, **TVA = 1.000**, **TCA = 12/12**, **Abstention F1 = 1.000**.
+
 ## v31.1.0 (2026-11-25 — Temporal & Graph-Grounded Legal RAG + ViLegal-TempBench)
 
 ### 🔬 Chiều Sâu Nghiên Cứu Ứng Dụng & Sản Phẩm Pháp Lý Tiếng Việt

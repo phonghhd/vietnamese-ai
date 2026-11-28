@@ -71,13 +71,14 @@ class LoRALayer:
 
         grad_A = self._input_cache.T @ (grad_scaled @ self.B.T) / batch
         grad_B = (self._input_cache @ self.A).T @ grad_scaled / batch
+        grad_dau_vao = grad_scaled @ (self.A @ self.B).T
         self._grad_A = grad_A
         self._grad_B = grad_B
 
         self.A -= toc_do_hoc * grad_A
         self.B -= toc_do_hoc * grad_B
 
-        return grad_scaled @ (self.A @ self.B).T
+        return grad_dau_vao
 
     def gop_trong_so(self) -> np.ndarray:
         """Tính W_delta = alpha/r * A @ B"""

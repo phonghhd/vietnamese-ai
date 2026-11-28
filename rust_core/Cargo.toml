@@ -1,6 +1,6 @@
 [package]
 name = "vietnamese_ai_rust"
-version = "31.1.0"
+version = "31.2.0"
 edition = "2021"
 
 [lib]

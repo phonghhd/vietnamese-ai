@@ -293,9 +293,9 @@ class XuLyVanBan:
                 vector[self._tu_dien[tu]] += 1
         return vector
 
-    def ma_hoa_tfidf(self, cac_van_ban: List[str]) -> np.ndarray:
+    def fit_tfidf(self, cac_van_ban: List[str]) -> np.ndarray:
         """
-        Mã hóa danh sách văn bản thành ma trận TF-IDF.
+        Học từ điển + IDF trên tập huấn luyện và trả về ma trận TF-IDF.
 
         Returns:
             Ma trận (so_van_ban x so_tu) chứa giá trị TF-IDF
@@ -304,7 +304,10 @@ class XuLyVanBan:
         so_vb = len(cac_van_ban)
         so_tu = len(self._tu_dien)
 
-        # TF
+        if so_tu == 0:
+            self._idf = np.zeros(0)
+            return np.zeros((so_vb, 0))
+
         tf = np.zeros((so_vb, so_tu))
         for i, vb in enumerate(cac_van_ban):
             for tu in self.tach_tu(vb):
@@ -314,11 +317,52 @@ class XuLyVanBan:
             if tong > 0:
                 tf[i] /= tong
 
-        # IDF
         df = np.sum(tf > 0, axis=0)
         self._idf = np.log((so_vb + 1) / (df + 1)) + 1
 
         return tf * self._idf
+
+    def transform_tfidf(self, cac_van_ban: List[str]) -> np.ndarray:
+        """
+        Biến đổi danh sách văn bản sang ma trận TF-IDF sử dụng từ điển và IDF đã học sẵn.
+
+        Returns:
+            Ma trận (so_van_ban x so_tu) giữ nguyên chiều đặc trưng từ tập huấn luyện
+        """
+        if not self._tu_dien or self._idf is None:
+            raise RuntimeError("Cần gọi fit_tfidf() hoặc ma_hoa_tfidf() trước khi biến đổi.")
+
+        so_vb = len(cac_van_ban)
+        so_tu = len(self._tu_dien)
+        tf = np.zeros((so_vb, so_tu))
+        for i, vb in enumerate(cac_van_ban):
+            for tu in self.tach_tu(vb):
+                idx = self._tu_dien.get(tu)
+                if idx is not None:
+                    tf[i, idx] += 1
+            tong = tf[i].sum()
+            if tong > 0:
+                tf[i] /= tong
+
+        return tf * self._idf
+
+    huan_luyen_tfidf = fit_tfidf
+    bien_doi_tfidf = transform_tfidf
+
+    def ma_hoa_tfidf(self, cac_van_ban: List[str], fit: bool = True) -> np.ndarray:
+        """
+        Mã hóa danh sách văn bản thành ma trận TF-IDF.
+
+        Args:
+            cac_van_ban: Danh sách văn bản đầu vào
+            fit: True để xây dựng mới từ điển + IDF; False để dùng từ điển + IDF đã học
+
+        Returns:
+            Ma trận (so_van_ban x so_tu) chứa giá trị TF-IDF
+        """
+        if fit:
+            return self.fit_tfidf(cac_van_ban)
+        return self.transform_tfidf(cac_van_ban)
 
     def trich_xuat_tu_khoa(self, text: str, top_n: int = 5) -> List[str]:
         """Trích xuất từ khóa quan trọng từ văn bản."""

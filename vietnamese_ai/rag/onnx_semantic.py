@@ -73,7 +73,6 @@ TU_DIEN_DONG_NGHIA_VIET: Dict[str, Tuple[str, ...]] = {
         "du lieu ca nhan",
         "dữ liệu nhạy cảm",
         "thông báo bộ công an",
-        "72 giờ",
     ),
     "concept_bhxh_luong_huu": (
         "lương hưu",
@@ -86,7 +85,6 @@ TU_DIEN_DONG_NGHIA_VIET: Dict[str, Tuple[str, ...]] = {
         "bao hiem xa hoi",
         "bhxh",
         "đóng bảo hiểm",
-        "15 năm",
         "rút bảo hiểm một lần",
     ),
     "concept_quyen_su_dung_dat": (
@@ -149,7 +147,6 @@ TU_DIEN_DONG_NGHIA_VIET: Dict[str, Tuple[str, ...]] = {
         "lai suat vay",
         "lãi cắt cổ",
         "tín dụng đen",
-        "20%/năm",
         "hợp đồng vay tài sản",
     ),
     "concept_giao_dich_dien_tu": (
@@ -299,12 +296,20 @@ class BoNhungONNXTiengViet:
         kich_thuoc: int = 384,
         so_luong_thread: int = 4,
         do_dai_toi_da: int = 256,
+        bat_buoc_onnx: bool = False,
     ) -> None:
         self.duong_dan_onnx = Path(duong_dan_onnx) if duong_dan_onnx else None
-        self.duong_dan_tokenizer = Path(duong_dan_tokenizer) if duong_dan_tokenizer else None
+        if duong_dan_tokenizer is not None:
+            self.duong_dan_tokenizer: Optional[Path] = Path(duong_dan_tokenizer)
+        elif self.duong_dan_onnx is not None:
+            ung_vien_tok = self.duong_dan_onnx.parent / "tokenizer.json"
+            self.duong_dan_tokenizer = ung_vien_tok if ung_vien_tok.is_file() else None
+        else:
+            self.duong_dan_tokenizer = None
         self.kich_thuoc = int(kich_thuoc)
         self.so_luong_thread = max(1, int(so_luong_thread))
         self.do_dai_toi_da = int(do_dai_toi_da)
+        self.bat_buoc_onnx = bool(bat_buoc_onnx)
 
         self.logger = Logger("BoNhungONNXTiengViet")
         self._tokenizer_viet = BoTachTuTiengVietSieuToc()
@@ -316,13 +321,42 @@ class BoNhungONNXTiengViet:
 
         if self.duong_dan_onnx is not None and self.duong_dan_onnx.is_file():
             self._khoi_tao_onnx_session()
+        elif self.bat_buoc_onnx:
+            raise FileNotFoundError(f"Không tìm thấy tệp mô hình ONNX bắt buộc: {self.duong_dan_onnx}")
 
     def _khoi_tao_onnx_session(self) -> None:
-        """Nạp phiên `onnxruntime.InferenceSession` trên CPU nếu có `onnxruntime`."""
-        ort = QuanLyPhuThuoc.nhap_tuy_chon("onnxruntime", "export", "nhúng văn bản ONNX INT8 trên CPU")
-        if ort is None or self.duong_dan_onnx is None:
+        """Nạp phiên `onnxruntime.InferenceSession` trên CPU; từ chối chạy ONNX nếu thiếu `tokenizer.json` hợp lệ."""
+        if self.duong_dan_onnx is None:
             return
+        if self.duong_dan_tokenizer is None or not self.duong_dan_tokenizer.is_file():
+            thong_bao = (
+                "Từ chối chạy mô hình ONNX vì thiếu tệp `tokenizer.json` đi kèm "
+                "(không đưa token ID băm giả vào mạng neural); chuyển về chế độ semantic_synonym_cpu."
+            )
+            self.logger.warning(thong_bao)
+            if self.bat_buoc_onnx:
+                raise ValueError(thong_bao)
+            return
+
+        tok_mod = QuanLyPhuThuoc.nhap_tuy_chon("tokenizers", "dl", "tách token ONNX")
+        if tok_mod is None:
+            thong_bao = (
+                "Từ chối chạy mô hình ONNX vì chưa cài thư viện `tokenizers` để đọc `tokenizer.json`; "
+                "chuyển về chế độ semantic_synonym_cpu."
+            )
+            self.logger.warning(thong_bao)
+            if self.bat_buoc_onnx:
+                raise ValueError(thong_bao)
+            return
+
+        ort = QuanLyPhuThuoc.nhap_tuy_chon("onnxruntime", "export", "nhúng văn bản ONNX INT8 trên CPU")
+        if ort is None:
+            if self.bat_buoc_onnx:
+                raise RuntimeError("Thiếu thư viện `onnxruntime` (cài bằng: pip install 'vietnamese-ai[export]').")
+            return
+
         try:
+            self._hf_tokenizer = tok_mod.Tokenizer.from_file(str(self.duong_dan_tokenizer))
             sess_opts = ort.SessionOptions()
             sess_opts.intra_op_num_threads = self.so_luong_thread
             sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
@@ -335,15 +369,13 @@ class BoNhungONNXTiengViet:
             if outputs and outputs[0].shape and isinstance(outputs[0].shape[-1], int):
                 self.kich_thuoc = int(outputs[0].shape[-1])
             self._che_do = "onnx_runtime_cpu"
-
-            if self.duong_dan_tokenizer is not None and self.duong_dan_tokenizer.is_file():
-                tok_mod = QuanLyPhuThuoc.nhap_tuy_chon("tokenizers", "dl", "tách token ONNX")
-                if tok_mod is not None:
-                    self._hf_tokenizer = tok_mod.Tokenizer.from_file(str(self.duong_dan_tokenizer))
         except Exception as exc:
-            self.logger.warning(f"Không nạp được phiên ONNX ({exc}); chuyển về chế độ semantic_synonym_cpu.")
+            self.logger.warning(f"Không nạp được phiên ONNX/tokenizer ({exc}); chuyển về chế độ semantic_synonym_cpu.")
             self._ort_session = None
+            self._hf_tokenizer = None
             self._che_do = "semantic_synonym_cpu"
+            if self.bat_buoc_onnx:
+                raise ValueError(f"Không thể khởi tạo phiên ONNX hợp lệ: {exc}") from exc
 
     @staticmethod
     def luong_tu_hoa_int8(
@@ -392,22 +424,19 @@ class BoNhungONNXTiengViet:
     def _nhung_onnx_batch(self, texts: List[str]) -> np.ndarray:
         """Chạy suy luận lô trên phiên `onnxruntime.InferenceSession` + Mean Pooling + chuẩn hóa L2."""
         assert self._ort_session is not None
-        input_names = [inp.name for inp in self._ort_session.get_inputs()]
-
-        if self._hf_tokenizer is not None:
-            encodings = self._hf_tokenizer.encode_batch(texts)
-            max_len = min(self.do_dai_toi_da, max((len(e.ids) for e in encodings), default=1))
-            input_ids = np.zeros((len(texts), max_len), dtype=np.int64)
-            attention_mask = np.zeros((len(texts), max_len), dtype=np.int64)
-            for i, enc in enumerate(encodings):
-                n = min(len(enc.ids), max_len)
-                input_ids[i, :n] = enc.ids[:n]
-                attention_mask[i, :n] = enc.attention_mask[:n]
-        else:
-            self.logger.warning(
-                "Chưa cung cấp tệp tokenizer tương ứng cho mô hình ONNX; đang dùng bộ mã hóa băm dự phòng."
+        if self._hf_tokenizer is None:
+            raise RuntimeError(
+                "Mô hình ONNX yêu cầu tệp tokenizer.json hợp lệ; từ chối mã hóa bằng token ID băm giả."
             )
-            input_ids, attention_mask = _ma_hoa_token_ids_don_gian(texts, do_dai_toi_da=self.do_dai_toi_da)
+        input_names = [inp.name for inp in self._ort_session.get_inputs()]
+        encodings = self._hf_tokenizer.encode_batch(texts)
+        max_len = min(self.do_dai_toi_da, max((len(e.ids) for e in encodings), default=1))
+        input_ids = np.zeros((len(texts), max_len), dtype=np.int64)
+        attention_mask = np.zeros((len(texts), max_len), dtype=np.int64)
+        for i, enc in enumerate(encodings):
+            n = min(len(enc.ids), max_len)
+            input_ids[i, :n] = enc.ids[:n]
+            attention_mask[i, :n] = enc.attention_mask[:n]
 
         feed: Dict[str, Any] = {}
         if "input_ids" in input_names:
@@ -607,6 +636,7 @@ class BoSapXepLaiONNXTiengViet:
         so_luong_thread: int = 4,
         do_dai_toi_da: Optional[int] = None,
         kich_thuoc_batch: int = 16,
+        bat_buoc_onnx: bool = False,
     ) -> None:
         preset_key = str(preset or "").strip().lower() or None
         cau_hinh_preset = PRESET_CROSS_ENCODER_VN.get(preset_key, {}) if preset_key else {}
@@ -614,34 +644,64 @@ class BoSapXepLaiONNXTiengViet:
         self.sep_token: str = str(cau_hinh_preset.get("sep_token", "[SEP]"))
         self.can_tach_tu_viet: bool = bool(cau_hinh_preset.get("can_tach_tu_viet", False))
         self.duong_dan_onnx = Path(duong_dan_onnx) if duong_dan_onnx else None
-        self.duong_dan_tokenizer = Path(duong_dan_tokenizer) if duong_dan_tokenizer else None
+        if duong_dan_tokenizer is not None:
+            self.duong_dan_tokenizer: Optional[Path] = Path(duong_dan_tokenizer)
+        elif self.duong_dan_onnx is not None:
+            ung_vien_tok = self.duong_dan_onnx.parent / "tokenizer.json"
+            self.duong_dan_tokenizer = ung_vien_tok if ung_vien_tok.is_file() else None
+        else:
+            self.duong_dan_tokenizer = None
         self.so_luong_thread = max(1, int(so_luong_thread))
         self.do_dai_toi_da = int(do_dai_toi_da if do_dai_toi_da is not None else cau_hinh_preset.get("do_dai_toi_da", 256))
         self.kich_thuoc_batch = max(1, int(kich_thuoc_batch))
+        self.bat_buoc_onnx = bool(bat_buoc_onnx)
+        self.logger = Logger("BoSapXepLaiONNXTiengViet")
         self._tokenizer_viet = BoTachTuTiengVietSieuToc()
         self._hf_tokenizer: Optional[Any] = None
         self._ort_session: Optional[Any] = None
         self._che_do = "vietnamese_cross_interaction"
 
         if self.duong_dan_onnx is not None and self.duong_dan_onnx.is_file():
-            ort = QuanLyPhuThuoc.nhap_tuy_chon("onnxruntime", "export", "chạy Cross-Encoder Reranker ONNX")
-            if ort is not None:
-                try:
-                    sess_opts = ort.SessionOptions()
-                    sess_opts.intra_op_num_threads = self.so_luong_thread
-                    sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-                    self._ort_session = ort.InferenceSession(
-                        str(self.duong_dan_onnx),
-                        sess_options=sess_opts,
-                        providers=["CPUExecutionProvider"],
+            if self.duong_dan_tokenizer is None or not self.duong_dan_tokenizer.is_file():
+                thong_bao = (
+                    "Từ chối chạy Cross-Encoder ONNX vì thiếu tệp `tokenizer.json` đi kèm "
+                    "(không đưa token ID băm giả vào mạng neural); chuyển về vietnamese_cross_interaction."
+                )
+                self.logger.warning(thong_bao)
+                if self.bat_buoc_onnx:
+                    raise ValueError(thong_bao)
+            else:
+                tok_mod = QuanLyPhuThuoc.nhap_tuy_chon("tokenizers", "dl", "nạp tokenizer Cross-Encoder ONNX")
+                ort = QuanLyPhuThuoc.nhap_tuy_chon("onnxruntime", "export", "chạy Cross-Encoder Reranker ONNX")
+                if tok_mod is None or ort is None:
+                    thong_bao = (
+                        "Thiếu thư viện `tokenizers` hoặc `onnxruntime` để chạy Cross-Encoder ONNX hợp lệ; "
+                        "chuyển về vietnamese_cross_interaction."
                     )
-                    self._che_do = "onnx_cross_encoder"
-                    if self.duong_dan_tokenizer is not None and self.duong_dan_tokenizer.is_file():
-                        tok_mod = QuanLyPhuThuoc.nhap_tuy_chon("tokenizers", "dl", "nạp tokenizer Cross-Encoder ONNX")
-                        if tok_mod is not None:
-                            self._hf_tokenizer = tok_mod.Tokenizer.from_file(str(self.duong_dan_tokenizer))
-                except Exception:
-                    self._ort_session = None
+                    self.logger.warning(thong_bao)
+                    if self.bat_buoc_onnx:
+                        raise ValueError(thong_bao)
+                else:
+                    try:
+                        self._hf_tokenizer = tok_mod.Tokenizer.from_file(str(self.duong_dan_tokenizer))
+                        sess_opts = ort.SessionOptions()
+                        sess_opts.intra_op_num_threads = self.so_luong_thread
+                        sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                        self._ort_session = ort.InferenceSession(
+                            str(self.duong_dan_onnx),
+                            sess_options=sess_opts,
+                            providers=["CPUExecutionProvider"],
+                        )
+                        self._che_do = "onnx_cross_encoder"
+                    except Exception as exc:
+                        self.logger.warning(f"Không nạp được Cross-Encoder ONNX ({exc}); chuyển về CPU fallback.")
+                        self._ort_session = None
+                        self._hf_tokenizer = None
+                        self._che_do = "vietnamese_cross_interaction"
+                        if self.bat_buoc_onnx:
+                            raise ValueError(f"Không thể khởi tạo Cross-Encoder ONNX: {exc}") from exc
+        elif self.bat_buoc_onnx:
+            raise FileNotFoundError(f"Không tìm thấy tệp Cross-Encoder ONNX bắt buộc: {self.duong_dan_onnx}")
 
     @property
     def che_do(self) -> str:
@@ -658,35 +718,33 @@ class BoSapXepLaiONNXTiengViet:
 
     def _ma_hoa_lo_cap(self, cau_hoi: str, danh_sach_tai_lieu: Sequence[str]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Mã hóa lô cặp `(câu hỏi, đoạn văn)` thành `input_ids`, `attention_mask`, `token_type_ids` cho ONNX."""
+        if self._hf_tokenizer is None:
+            raise RuntimeError(
+                "Cross-Encoder ONNX yêu cầu tệp tokenizer.json hợp lệ; từ chối mã hóa bằng token ID băm giả."
+            )
         cap_list = [self._chuan_bi_van_ban_cap(cau_hoi, tl) for tl in danh_sach_tai_lieu]
-        if self._hf_tokenizer is not None:
-            ids_rows: List[List[int]] = []
-            mask_rows: List[List[int]] = []
-            type_rows: List[List[int]] = []
-            max_len = 1
-            for q_s, d_s in cap_list:
-                enc = self._hf_tokenizer.encode(q_s, d_s)
-                ids = list(enc.ids)[: self.do_dai_toi_da]
-                msk = list(enc.attention_mask)[: self.do_dai_toi_da]
-                tids = list(getattr(enc, "type_ids", [0] * len(ids)))[: self.do_dai_toi_da]
-                max_len = max(max_len, len(ids))
-                ids_rows.append(ids)
-                mask_rows.append(msk)
-                type_rows.append(tids)
-            bsz = len(ids_rows)
-            arr_ids = np.zeros((bsz, max_len), dtype=np.int64)
-            arr_msk = np.zeros((bsz, max_len), dtype=np.int64)
-            arr_tid = np.zeros((bsz, max_len), dtype=np.int64)
-            for i, (r_id, r_mk, r_ty) in enumerate(zip(ids_rows, mask_rows, type_rows)):
-                arr_ids[i, : len(r_id)] = r_id
-                arr_msk[i, : len(r_mk)] = r_mk
-                arr_tid[i, : len(r_ty)] = r_ty
-            return arr_ids, arr_msk, arr_tid
-
-        pair_texts = [f"{q_s} {self.sep_token} {d_s}" for q_s, d_s in cap_list]
-        input_ids, attention_mask = _ma_hoa_token_ids_don_gian(pair_texts, do_dai_toi_da=self.do_dai_toi_da)
-        token_type_ids = np.zeros_like(input_ids, dtype=np.int64)
-        return input_ids, attention_mask, token_type_ids
+        ids_rows: List[List[int]] = []
+        mask_rows: List[List[int]] = []
+        type_rows: List[List[int]] = []
+        max_len = 1
+        for q_s, d_s in cap_list:
+            enc = self._hf_tokenizer.encode(q_s, d_s)
+            ids = list(enc.ids)[: self.do_dai_toi_da]
+            msk = list(enc.attention_mask)[: self.do_dai_toi_da]
+            tids = list(getattr(enc, "type_ids", [0] * len(ids)))[: self.do_dai_toi_da]
+            max_len = max(max_len, len(ids))
+            ids_rows.append(ids)
+            mask_rows.append(msk)
+            type_rows.append(tids)
+        bsz = len(ids_rows)
+        arr_ids = np.zeros((bsz, max_len), dtype=np.int64)
+        arr_msk = np.zeros((bsz, max_len), dtype=np.int64)
+        arr_tid = np.zeros((bsz, max_len), dtype=np.int64)
+        for i, (r_id, r_mk, r_ty) in enumerate(zip(ids_rows, mask_rows, type_rows)):
+            arr_ids[i, : len(r_id)] = r_id
+            arr_msk[i, : len(r_mk)] = r_mk
+            arr_tid[i, : len(r_ty)] = r_ty
+        return arr_ids, arr_msk, arr_tid
 
     @staticmethod
     def _logits_sang_diem(raw_logits: np.ndarray) -> List[float]:

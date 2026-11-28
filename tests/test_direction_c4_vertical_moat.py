@@ -167,8 +167,19 @@ def test_c4_cross_encoder_reranker_bge_phoranker_va_batch_scoring() -> None:
                 logits[i, 1] = float(i + 1)
             return [logits]
 
+    class _FakeEncoding:
+        def __init__(self, n: int) -> None:
+            self.ids = list(range(1, n + 1))
+            self.attention_mask = [1] * n
+            self.type_ids = [0] * n
+
+    class _FakeTokenizer:
+        def encode(self, a: str, b: str) -> _FakeEncoding:
+            return _FakeEncoding(max(2, len((a + " " + b).split())))
+
     bge = BoSapXepLaiONNXTiengViet(preset="bge-reranker-v2-m3", kich_thuoc_batch=2)
     bge._ort_session = _FakeORTSession()
+    bge._hf_tokenizer = _FakeTokenizer()
     bge._che_do = "onnx_cross_encoder"
     batch_scores = bge.cham_diem_lo("Câu hỏi pháp lý", ["Đoạn A", "Đoạn B", "Đoạn C"])
     assert len(batch_scores) == 3

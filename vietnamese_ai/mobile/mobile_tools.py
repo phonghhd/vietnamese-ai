@@ -1,8 +1,16 @@
 import tempfile
+import warnings
 from pathlib import Path
 from typing import List
 
 from vietnamese_ai.agents.tools import cong_cu
+
+warnings.warn(
+    "Module 'vietnamese_ai.mobile.mobile_tools' (công cụ GPS/SMS/Camera mô phỏng trong bộ nhớ) "
+    "được đánh dấu lỗi thời (deprecated) từ v31.2.0; dự kiến tách sang nhánh thử nghiệm ở v32.0.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class MobileDeviceState:

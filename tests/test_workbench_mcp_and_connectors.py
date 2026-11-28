@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import threading
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -346,14 +347,15 @@ def test_zalo_oa_telegram_webhook_server_cli_and_exports(tmp_path: Path) -> None
     thread.start()
 
     try:
+        zalo_ts = str(int(time.time() * 1000))
         zalo_payload = {
             "event_name": "user_send_text",
-            "timestamp": "1732400000000",
+            "timestamp": zalo_ts,
             "sender": {"id": "zalo_user_01"},
             "message": {"msg_id": "m1", "text": "/hieuluc 45/2013/QH13"},
         }
         zalo_raw = json.dumps(zalo_payload, ensure_ascii=False).encode("utf-8")
-        good_mac = zalo.tao_chu_ky_mac(zalo_raw, "1732400000000")
+        good_mac = zalo.tao_chu_ky_mac(zalo_raw, zalo_ts)
 
         req_ok = urllib.request.Request(
             f"http://127.0.0.1:{port}/webhook/zalo",

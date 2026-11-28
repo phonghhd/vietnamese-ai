@@ -51,11 +51,12 @@ class LopDense:
 
         grad_w = input_cache.T @ grad / len(input_cache)
         grad_b = np.sum(grad, axis=0, keepdims=True) / len(input_cache)
+        grad_dau_vao = grad @ self.trong_so.T
         self._grad_w = grad_w
         self._grad_b = grad_b
         self.trong_so -= toc_do_hoc * grad_w
         self.bias -= toc_do_hoc * grad_b
-        return grad @ self.trong_so.T
+        return grad_dau_vao
 
 
 class LopDropout:

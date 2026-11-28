@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 import math
+import warnings
 from typing import Any, Dict, Tuple
 
 from vietnamese_ai.edge.wasm_node import WebBrowserNode
+
+warnings.warn(
+    "Module 'vietnamese_ai.edge.webxr_node' đang ở trạng thái mô phỏng/thử nghiệm và được đánh dấu "
+    "lỗi thời (deprecated) từ v31.2.0; dự kiến tách sang nhánh thử nghiệm ở v32.0.0.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class WebXRNode(WebBrowserNode):

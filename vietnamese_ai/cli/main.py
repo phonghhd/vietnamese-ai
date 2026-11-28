@@ -201,7 +201,7 @@ Ví dụ sử dụng:
     bench_parser.add_argument("--scale", type=int, default=20000, help="Số lượng vector cho suite edge-systems (mặc định: 20000)")
     bench_parser.add_argument("--dim", type=int, default=384, help="Số chiều vector cho suite edge-systems (mặc định: 384)")
     bench_parser.add_argument("--rounds", type=int, default=5, help="Số vòng lặp Continual Alignment cho suite align-safety (mặc định: 5)")
-    bench_parser.add_argument("--compare", action="store_true", help="Chạy bộ đo lường đối đầu định lượng vs LangChain/LlamaIndex")
+    bench_parser.add_argument("--compare", action="store_true", help="Chạy bộ đo lường tái lập lõi (cold-start, RAM thực, tách từ, Legal RAG 100 điều/35 QA)")
     bench_parser.add_argument("--quick", action="store_true", help="Chạy chế độ rút gọn nhanh cho CI")
     bench_parser.add_argument("--seed", type=int, default=42, help="Hạt giống tái lập kết quả (mặc định: 42)")
     bench_parser.add_argument("--latex", action="store_true", help="Xuất bảng số liệu định dạng LaTeX cho bài báo khoa học")
@@ -384,7 +384,14 @@ Ví dụ sử dụng:
     verify_parser = subparsers.add_parser(
         "verify", help="Kiểm tra và xác thực tính trung thực của kết quả suy luận AI (Merkle Proof & zkML)"
     )
-    verify_parser.add_argument("--proof", default=None, help="Chuỗi cam kết zkML (zkml1:...) hoặc mã hash cần xác thực")
+    verify_parser.add_argument("--proof", default=None, help="Chuỗi cam kết zkML (zkml1:...) cần xác thực")
+    verify_parser.add_argument(
+        "--tensor-hash",
+        default=None,
+        help="Mã băm SHA-256 (64 ký tự hex) của tensor để ràng buộc Fiat-Shamir khi dùng --proof",
+    )
+    verify_parser.add_argument("--node-id", default="node_local", help="Định danh nút ký cam kết (mặc định: node_local)")
+    verify_parser.add_argument("--layer-id", type=int, default=0, help="Chỉ số tầng ký cam kết (mặc định: 0)")
     verify_parser.add_argument("--text", "-t", default=None, help="Văn bản cần kiểm tra tính toàn vẹn Merkle Tree")
     verify_parser.add_argument("--tamper-check", action="store_true", help="Chạy thử nghiệm phát hiện Byzantine can thiệp dữ liệu")
 
@@ -1187,7 +1194,7 @@ def cmd_benchmark(args=None):
     if is_compare:
         from vietnamese_ai.benchmark.comparative_benchmark import BoDoLuongDoiDau
 
-        print("Đang thực hiện đo kiểm đối đầu định lượng (Vietnamese AI vs LangChain / LlamaIndex)...")
+        print("Đang thực hiện đo kiểm tái lập lõi Vietnamese AI (subprocess cold-start, VmRSS thực, Legal RAG 100 điều/35 QA)...")
         suite = BoDoLuongDoiDau()
         kq = suite.chay_benchmark_toan_dien()
 
@@ -1500,6 +1507,14 @@ def cmd_pull(args):
                 f"  {trang_thai:<10s} {m['ma_mo_hinh']:<15s} | Đề xuất: {m['muc_luong_tu_de_xuat']:<6s} "
                 f"(~{m['dung_luong_gb']:>4.2f} GB) - {m['ten_hien_thi']}"
             )
+        ds_onnx = hub.danh_sach_mo_hinh_onnx()
+        if ds_onnx:
+            print("=== PRESET ONNX INT8 NGỮ NGHĨA / RERANKER TIẾNG VIỆT (KÈM TOKENIZER.JSON) ===")
+            for o in ds_onnx:
+                tt = "[ĐÃ TẢI]" if o["da_tai_cuc_bo"] else "[SẴN SÀNG]"
+                print(
+                    f"  {tt:<10s} {o['ma_mo_hinh']:<26s} | {o['loai']:<9s} (~{o['dung_luong_mb']:>5.0f} MB) - {o['ten_hien_thi']}"
+                )
         return goi_y
 
     kq = hub.tai_mo_hinh(
@@ -1918,6 +1933,9 @@ def cmd_verify(args):
     from vietnamese_ai.security.verifiable_inference import CayMerkleSuyLuan, XacThucSuyLuanMaoHiem
 
     proof = getattr(args, "proof", None)
+    tensor_hash = getattr(args, "tensor_hash", None)
+    node_id = getattr(args, "node_id", "node_local") or "node_local"
+    layer_id = int(getattr(args, "layer_id", 0) or 0)
     text = getattr(args, "text", None)
     tamper_check = getattr(args, "tamper_check", False)
 
@@ -1925,8 +1943,19 @@ def cmd_verify(args):
     verifier = XacThucSuyLuanMaoHiem()
 
     if proof:
+        if not tensor_hash:
+            print(
+                "  Lỗi bảo mật: Cần cung cấp --tensor-hash <sha256_64_hex> đi kèm --proof "
+                "để xác minh ràng buộc Fiat-Shamir (chống giả mạo transcript)."
+            )
+            return {"hop_le": False, "loi": "thieu_tensor_hash"}
         print(f"Kiểm tra cam kết zkML: {proof[:40]}...")
-        hop_le = verifier.xac_nhan_cam_ket_chuoi(proof)
+        hop_le = verifier.xac_nhan_cam_ket_chuoi(
+            proof,
+            tensor_hash=tensor_hash,
+            node_id=node_id,
+            layer_id=layer_id,
+        )
         status = "HỢP LỆ (BẰNG CHỨNG XÁC THỰC THÀNH CÔNG)" if hop_le else "KHÔNG HỢP LỆ (CÓ DẤU HIỆU GIAN LẬN/BYZANTINE)"
         print(f"  Kết quả kiểm tra: {status}")
         return {"hop_le": hop_le}
@@ -1947,13 +1976,12 @@ def cmd_verify(args):
         arr = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32)
         cam_ket = verifier.tao_cam_ket_zkml(arr)
         print(f"  * Tạo cam kết zkML: {cam_ket['chuoi_cam_ket'][:35]}...")
-        ok = verifier.xac_thuc_cam_ket(cam_ket["y"], cam_ket["a"], cam_ket["e"], cam_ket["z"])
+        ok = verifier.xac_thuc_cam_ket_nghiem_ngat(cam_ket, tensor=arr)
         print(f"  * Xác thực Schnorr/Fiat-Shamir: {'HỢP LỆ (TRUE)' if ok else 'THẤT BẠI'}")
         if tamper_check:
             arr_tampered = arr.copy()
             arr_tampered[0] += 0.5
-            hash_tampered = verifier.bam_tensor(arr_tampered)
-            gian_lan = hash_tampered != cam_ket["tensor_hash"]
+            gian_lan = not verifier.xac_thuc_cam_ket_nghiem_ngat(cam_ket, tensor=arr_tampered)
             print(f"  * Phát hiện can thiệp tensor (Tamper Detection): {'ĐÃ CHẶN GIAN LẬN' if gian_lan else 'LỖI'}")
         return {"hop_le": ok}
 

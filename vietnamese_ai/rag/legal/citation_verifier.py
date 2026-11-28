@@ -136,10 +136,24 @@ class BoKiemChungTrichDanPhapLy:
         return ket_qua
 
     @classmethod
+    def _tach_cau_phap_ly(cls, van_ban: str) -> List[str]:
+        """Tách văn bản pháp lý thành từng câu mà không cắt nhầm dấu chấm trong số tiền, tỷ lệ hay mã Điều/Khoản."""
+        if not van_ban:
+            return []
+        da_bao_ve = re.sub(r"\b(điều|khoản|mục|chương)\s+(\d+[a-zA-ZđĐ]?)\.", r"\1 \2__DOT__", van_ban, flags=re.IGNORECASE)
+        da_bao_ve = re.sub(r"\bv\.v\.", "v__DOT__v__DOT__", da_bao_ve, flags=re.IGNORECASE)
+        cac_cau: List[str] = []
+        for doan in re.split(r"(?:\n+|[!?;]+|(?<!\d)\.(?!\d)(?=\s|$))", da_bao_ve):
+            sach = doan.replace("__DOT__", ".").strip()
+            if sach:
+                cac_cau.append(sach)
+        return cac_cau
+
+    @classmethod
     def _co_canh_bao_xung_quanh(cls, van_ban: str, so_hieu: str) -> bool:
         """Kiểm tra xem câu chứa `so_hieu` có phải là lời cảnh báo hết hiệu lực/thay thế hay không."""
         low_sh = so_hieu.lower()
-        for cau in re.split(r"[\n.!?;]+", van_ban):
+        for cau in cls._tach_cau_phap_ly(van_ban):
             cau_low = cau.lower()
             pos_sh = cau_low.find(low_sh)
             if pos_sh != -1:
@@ -168,6 +182,7 @@ class BoKiemChungTrichDanPhapLy:
 
         so_hieu_nguon: Set[str] = set()
         dieu_nguon: Set[str] = set()
+        dieu_theo_so_hieu: Dict[str, Set[str]] = {}
         van_ban_nguon_gop: List[str] = []
         nguon_theo_sh: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -193,21 +208,32 @@ class BoKiemChungTrichDanPhapLy:
             )
             van_ban_nguon_gop.append(noi_dung)
 
+            sh_cua_ng: Set[str] = set()
             for sh_raw in (meta.get("so_hieu"), ng.get("so_hieu")):
                 if isinstance(sh_raw, str) and sh_raw.strip():
                     sh_n = _chuan_hoa_so_hieu(sh_raw)
+                    sh_cua_ng.add(sh_n)
                     so_hieu_nguon.add(sh_n)
                     nguon_theo_sh.setdefault(sh_n, []).append(ng)
             for sh_m in self._RE_SO_HIEU.findall(noi_dung):
                 sh_n = _chuan_hoa_so_hieu(sh_m)
+                sh_cua_ng.add(sh_n)
                 so_hieu_nguon.add(sh_n)
                 nguon_theo_sh.setdefault(sh_n, []).append(ng)
 
+            dieu_cua_ng: Set[str] = set()
             for d_raw in (meta.get("dieu"), ng.get("dieu")):
                 if isinstance(d_raw, str) and d_raw.strip():
-                    dieu_nguon.add(_chuan_hoa_dieu(d_raw))
+                    d_norm = _chuan_hoa_dieu(d_raw)
+                    dieu_nguon.add(d_norm)
+                    dieu_cua_ng.add(d_norm)
             for d_m in self._RE_DIEU.findall(noi_dung):
-                dieu_nguon.add(_chuan_hoa_dieu(d_m))
+                d_norm = _chuan_hoa_dieu(d_m)
+                dieu_nguon.add(d_norm)
+                dieu_cua_ng.add(d_norm)
+
+            for sh_n in sh_cua_ng:
+                dieu_theo_so_hieu.setdefault(sh_n, set()).update(dieu_cua_ng)
 
         so_hieu_trong_hoi: Set[str] = set()
         if cau_hoi:
@@ -239,7 +265,37 @@ class BoKiemChungTrichDanPhapLy:
                 trich_dan_ao.append(sh)
                 canh_bao.append(f"Trích dẫn văn bản '{sh}' không xuất hiện trong nguồn truy hồi.")
 
+        dieu_da_kiem_cap: Set[str] = set()
+        for cau in self._tach_cau_phap_ly(tra_loi):
+            sh_cau = [_chuan_hoa_so_hieu(m) for m in self._RE_SO_HIEU.findall(cau)]
+            dieu_cau = [_chuan_hoa_dieu(m) for m in self._RE_DIEU.findall(cau)]
+            if not sh_cau or not dieu_cau:
+                continue
+            sh_co_trong_nguon = [s for s in sh_cau if s in dieu_theo_so_hieu]
+            if not sh_co_trong_nguon:
+                continue
+            dieu_hop_le_cau: Set[str] = set()
+            for s in sh_co_trong_nguon:
+                dieu_hop_le_cau.update(dieu_theo_so_hieu[s])
+            for d in dieu_cau:
+                if d in dieu_da_kiem_cap:
+                    continue
+                dieu_da_kiem_cap.add(d)
+                if d in dieu_hop_le_cau:
+                    trich_dan_hop_le.append(d)
+                elif d in dieu_nguon:
+                    sh_nhan = ", ".join(sh_co_trong_nguon)
+                    trich_dan_ao.append(f"{d} ({sh_nhan})")
+                    canh_bao.append(
+                        f"Trích dẫn ghép sai cặp: '{d}' không thuộc văn bản '{sh_nhan}' trong nguồn truy hồi."
+                    )
+                else:
+                    trich_dan_ao.append(d)
+                    canh_bao.append(f"Trích dẫn '{d}' không xuất hiện trong các điều khoản nguồn.")
+
         for d in ds_dieu_tra_loi:
+            if d in dieu_da_kiem_cap:
+                continue
             if d in dieu_nguon:
                 trich_dan_hop_le.append(d)
             else:

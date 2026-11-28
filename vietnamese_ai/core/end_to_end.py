@@ -1,5 +1,6 @@
 """QuyTrinhDauCuoi (HeSinhThaiAI / EndToEndWorkflow) - Cầu nối đầu-cuối hợp nhất toàn bộ Vietnamese AI Framework."""
 
+import copy
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Union
@@ -455,9 +456,44 @@ class QuyTrinhDauCuoi:
 
         self.mo_hinh_hien_tai = tuner
         if self.rag is not None and tuner._hf_wrapper is not None:
-            self.rag.ham_sinh = lambda cau_hoi, ngu_canh: tuner.sinh_van_ban(cau_hoi)
+            self.rag.ham_sinh = lambda cau_hoi, ngu_canh: tuner.sinh_van_ban(
+                self._tao_prompt_co_ngu_canh(cau_hoi, ngu_canh)
+            )
 
         return ket_qua_engine
+
+    @staticmethod
+    def _tao_prompt_co_ngu_canh(cau_hoi: str, ngu_canh_hoac_nguon: Any) -> str:
+        """Ghép ngữ cảnh RAG (chuỗi hoặc danh sách nguồn trích xuất) vào câu hỏi trước khi sinh."""
+        if not ngu_canh_hoac_nguon:
+            return cau_hoi
+        if isinstance(ngu_canh_hoac_nguon, str):
+            ngu_canh = ngu_canh_hoac_nguon.strip()
+        elif isinstance(ngu_canh_hoac_nguon, (list, tuple)):
+            doan_trich: List[str] = []
+            for muc in ngu_canh_hoac_nguon:
+                if isinstance(muc, dict):
+                    meta_raw = muc.get("metadata")
+                    meta: Dict[str, Any] = meta_raw if isinstance(meta_raw, dict) else {}
+                    nd = (
+                        muc.get("noi_dung")
+                        or muc.get("van_ban")
+                        or muc.get("text")
+                        or meta.get("noi_dung")
+                        or meta.get("van_ban")
+                        or meta.get("text")
+                        or ""
+                    )
+                    if nd:
+                        doan_trich.append(str(nd).strip())
+                elif muc:
+                    doan_trich.append(str(muc).strip())
+            ngu_canh = "\n".join(d for d in doan_trich if d)
+        else:
+            ngu_canh = str(ngu_canh_hoac_nguon).strip()
+        if not ngu_canh:
+            return cau_hoi
+        return f"Ngữ cảnh tham khảo:\n{ngu_canh}\n\nCâu hỏi: {cau_hoi}\nTrả lời:"
 
     def tao_tac_tu(
         self,
@@ -540,20 +576,27 @@ class QuyTrinhDauCuoi:
                 "ly_do": kt_vao["loi"],
             }
 
-        nguon_rag = []
+        nguon_rag: List[Any] = []
+        kq_rag: Optional[Dict[str, Any]] = None
         if dung_rag and self.rag is not None:
             kq_rag = self.rag.hoi(cau_hoi)
             nguon_rag = kq_rag.get("nguon", [])
 
+        prompt_suy_luan = (
+            self._tao_prompt_co_ngu_canh(cau_hoi, nguon_rag)
+            if dung_rag and nguon_rag
+            else cau_hoi
+        )
+
         def _thuc_hien_suy_luan() -> Any:
             if dung_edge and self.dieu_phoi_swarm is not None:
-                kq_edge = self.suy_luan_edge(cau_hoi)
+                kq_edge = self.suy_luan_edge(prompt_suy_luan)
                 return str(kq_edge.get("cau_tra_loi", kq_edge))
             elif dung_edge and self.dong_co_edge is not None:
-                return str(self.dong_co_edge.sinh_van_ban(cau_hoi))
+                return str(self.dong_co_edge.sinh_van_ban(prompt_suy_luan))
             elif dung_agent and self.tac_tu is not None:
                 so_refine_truoc = len(getattr(self.tac_tu, "lich_su_refine", []))
-                ket_qua_agent = self.tac_tu.chay(cau_hoi)
+                ket_qua_agent = self.tac_tu.chay(prompt_suy_luan)
                 so_refine_sau = len(getattr(self.tac_tu, "lich_su_refine", []))
                 if so_refine_sau > so_refine_truoc:
                     kq_rf = self.tac_tu.lich_su_refine[-1]
@@ -577,9 +620,10 @@ class QuyTrinhDauCuoi:
                         else str(du_doan_cls)
                     )
                 else:
-                    return self.mo_hinh_hien_tai.sinh_van_ban(cau_hoi)
+                    return self.mo_hinh_hien_tai.sinh_van_ban(prompt_suy_luan)
             elif self.rag is not None:
-                return str(self.rag.hoi(cau_hoi).get("tra_loi", ""))
+                kq_truc_tiep = kq_rag if kq_rag is not None else self.rag.hoi(cau_hoi)
+                return str(kq_truc_tiep.get("tra_loi", ""))
             else:
                 return cau_hoi
 
@@ -683,7 +727,7 @@ class QuyTrinhDauCuoi:
             trainer = DPOTrainer(so_vong=so_vong, beta=beta)
             kq = trainer.huan_luyen(
                 model=self.mo_hinh_hien_tai,
-                ref_model=self.mo_hinh_hien_tai,
+                ref_model=copy.deepcopy(self.mo_hinh_hien_tai) if self.mo_hinh_hien_tai is not None else None,
                 preference_data=du_lieu_dpo,
             )
             phien_ban_moi = f"dpo_{int(time.time())}"

@@ -1,17 +1,11 @@
-"""Namespace RAG Pháp Lý (`vietnamese_ai.legal.rag`, Lazy PEP 562)."""
+"""Namespace RAG Pháp Lý (`vietnamese_ai.legal.rag`, Lazy PEP 562 — đồng bộ 100% với `vietnamese_ai.rag.legal`)."""
 
 from __future__ import annotations
 
+from vietnamese_ai.rag.legal import _LAZY as _RAG_LEGAL_LAZY
 from vietnamese_ai.utils.lazy_loader import tao_lazy_getattr
 
-_LAZY = {
-    "BoToiUuNguCanhHanhChinh": ("vietnamese_ai.rag.vietnamese_context", "BoToiUuNguCanhHanhChinh"),
-    "VietnameseAdministrativeRAG": ("vietnamese_ai.rag.vietnamese_context", "VietnameseAdministrativeRAG"),
-    "BoDocTaiLieuPhapLy": ("vietnamese_ai.rag.legal.document_parser", "BoDocTaiLieuPhapLy"),
-    "LegalDocumentParser": ("vietnamese_ai.rag.legal.document_parser", "LegalDocumentParser"),
-    "BoMauPromptPhapLy": ("vietnamese_ai.rag.legal.prompts", "BoMauPromptPhapLy"),
-    "LegalPromptLibrary": ("vietnamese_ai.rag.legal.prompts", "LegalPromptLibrary"),
-}
+_LAZY = dict(_RAG_LEGAL_LAZY)
 
 __all__ = list(_LAZY.keys())
 __getattr__ = tao_lazy_getattr(__name__, _LAZY, globals())

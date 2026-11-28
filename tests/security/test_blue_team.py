@@ -16,36 +16,30 @@ class MockDefenderLLM:
 
 
 def test_auto_patching():
-    # Reset config file first
     if os.path.exists(MoiTruongCachLy.CONFIG_FILE):
         os.remove(MoiTruongCachLy.CONFIG_FILE)
 
-    # Lần 1: RedTeam tấn công bằng importlib (Vượt qua vì importlib chưa bị cấm)
-    ma_doc = "import importlib; os = importlib.import_module('os'); print(os.environ)"
-    an_toan_1, ly_do_1 = MoiTruongCachLy._kiem_tra_ast(ma_doc)
-    assert an_toan_1  # AST checker hiện tại (chưa vá) chưa cấm importlib
+    assert not MoiTruongCachLy._kiem_tra_ast("import importlib; importlib.import_module('os')")[0]
 
-    # Lần 2: Báo lỗi cho BlueTeam để vá
+    ma_doc_tuy_chinh = "import custom_untrusted_lib\ncustom_untrusted_lib.run()"
+    an_toan_1, _ = MoiTruongCachLy._kiem_tra_ast(ma_doc_tuy_chinh)
+    assert an_toan_1
+
     llm = MockDefenderLLM()
     blue_team = BlueTeamAgent(llm=llm)
-
-    # Fake a memory call that triggers the tool
     blue_team.bo_nho.them_tin_nhan(
         "assistant",
-        'Suy nghĩ: Cần chặn importlib và getattr.\nHành động: cap_nhat_sandbox\nTham số: {"module_cam_moi": ["importlib"], "ham_cam_moi": ["getattr"]}\n',
+        'Suy nghĩ: Cần chặn custom_untrusted_lib.\nHành động: cap_nhat_sandbox\nTham số: {"module_cam_moi": ["custom_untrusted_lib"], "ham_cam_moi": ["custom_danger_fn"]}\n',
     )
 
-    # Thay vì gọi LLM mock khó khăn, test thẳng tool
-    res = cap_nhat_sandbox(module_cam_moi=["importlib"], ham_cam_moi=["getattr"])
+    res = cap_nhat_sandbox(module_cam_moi=["custom_untrusted_lib"], ham_cam_moi=["custom_danger_fn"])
 
     assert "Cập nhật Sandbox thành công" in res
     assert os.path.exists(MoiTruongCachLy.CONFIG_FILE)
 
-    # Lần 3: Đánh giá lại Sandbox sau khi vá
-    an_toan_2, ly_do_2 = MoiTruongCachLy._kiem_tra_ast(ma_doc)
-    assert not an_toan_2  # Sandbox đã chặn importlib!
-    assert "Không được phép import module 'importlib'" in ly_do_2
+    an_toan_2, ly_do_2 = MoiTruongCachLy._kiem_tra_ast(ma_doc_tuy_chinh)
+    assert not an_toan_2
+    assert "Không được phép import module 'custom_untrusted_lib'" in ly_do_2
 
-    # Dọn dẹp
     if os.path.exists(MoiTruongCachLy.CONFIG_FILE):
         os.remove(MoiTruongCachLy.CONFIG_FILE)

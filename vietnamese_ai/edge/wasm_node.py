@@ -6,7 +6,16 @@ import hashlib
 import json
 import logging
 import secrets
+import warnings
 from typing import Any, Dict, Optional
+
+warnings.warn(
+    "Module 'vietnamese_ai.edge.wasm_node' đang ở trạng thái mô phỏng/thử nghiệm và được đánh dấu "
+    "lỗi thời (deprecated) từ v31.2.0; dự kiến tách sang nhánh thử nghiệm ở v32.0.0. "
+    "Vui lòng dùng 'vietnamese_ai.edge.DongCoSuyLuanEdge' cho suy luận CPU thực tế.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from vietnamese_ai.crypto.schnorr import (
     ky_schnorr_rfc5114,

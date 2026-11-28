@@ -256,7 +256,7 @@ class XuatGGUF:
             ),
             "general.alignment": 32,
             "general.author": "Vietnamese AI Framework",
-            "general.version": "31.1.0",
+            "general.version": "31.2.0",
             "general.description": thong_tin.get(
                 "description", "Model from Vietnamese AI Framework"
             ),

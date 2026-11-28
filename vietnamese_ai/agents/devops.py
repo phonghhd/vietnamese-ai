@@ -36,18 +36,8 @@ def viet_code_an_toan(file_name: str, ma_nguon: str, ma_test: Optional[str] = No
 
     if ma_test:
         try:
-            cay_test = ast.parse(ma_test)
-            for node in ast.walk(cay_test):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        if alias.name.split(".")[0] in {"os", "subprocess", "shutil", "socket", "pty", "ctypes"}:
-                            raise LoiAnNinh(f"Cấm sử dụng module nguy hiểm: '{alias.name}'")
-                elif isinstance(node, ast.ImportFrom) and node.module:
-                    if node.module.split(".")[0] in {"os", "subprocess", "shutil", "socket", "pty", "ctypes"}:
-                        raise LoiAnNinh(f"Cấm sử dụng module nguy hiểm: '{node.module}'")
-                elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                    if node.func.id in {"eval", "exec", "compile", "__import__"}:
-                        raise LoiAnNinh(f"Cấm sử dụng hàm nguy hiểm: '{node.func.id}()'")
+            ast.parse(ma_test)
+            PhanTichAST.kiem_tra(ma_test)
         except SyntaxError as e:
             return f"Lỗi Cú pháp (SyntaxError) trong ma_test:\n{e.msg} tại dòng {e.lineno}"
         except LoiAnNinh as e:
@@ -65,6 +55,9 @@ def viet_code_an_toan(file_name: str, ma_nguon: str, ma_test: Optional[str] = No
         # Chạy Pytest trong thư mục scratch
         try:
             python_path = sys.executable
+            env_test = dict(os.environ)
+            old_pp = env_test.get("PYTHONPATH", "")
+            env_test["PYTHONPATH"] = f"{base_dir}{os.pathsep}{old_pp}" if old_pp else base_dir
 
             result = subprocess.run(
                 [python_path, "-m", "pytest", test_path, "-v"],
@@ -72,6 +65,7 @@ def viet_code_an_toan(file_name: str, ma_nguon: str, ma_test: Optional[str] = No
                 text=True,
                 timeout=10,
                 cwd=base_dir,
+                env=env_test,
             )
 
             if result.returncode != 0:

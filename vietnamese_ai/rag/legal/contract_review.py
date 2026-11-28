@@ -112,13 +112,13 @@ def _tach_cac_dieu_hop_dong(van_ban: str) -> List[Dict[str, str]]:
     return cac_dieu
 
 
-def _doc_noi_dung_hop_dong(nguon: Union[str, Path]) -> Tuple[str, str]:
+def _doc_noi_dung_hop_dong(nguon: Union[str, Path], cho_phep_doc_tep: bool = True) -> Tuple[str, str]:
     """Đọc nội dung hợp đồng từ đường dẫn tệp (`.docx`/`.pdf`/`.txt`/`.md`) hoặc chuỗi trực tiếp."""
     if isinstance(nguon, Path):
         info = BoDocTaiLieuPhapLy().doc_tep(nguon)
         return str(info.get("van_ban", "")), nguon.name
     text = str(nguon or "")
-    if "\n" not in text and len(text) < 260:
+    if cho_phep_doc_tep and "\n" not in text and len(text) < 260:
         p = Path(text)
         if p.is_file():
             info = BoDocTaiLieuPhapLy().doc_tep(p)
@@ -437,16 +437,21 @@ class BoSoSanhRaSoatHopDong:
         hop_dong_doi_tac: Union[str, Path],
         hop_dong_chuan: Optional[Union[str, Path]] = None,
         ngay_tra_cuu: Optional[Union[str, date]] = None,
+        cho_phep_doc_tep: bool = True,
     ) -> Dict[str, Any]:
         """So sánh từng Điều khoản giữa `hop_dong_chuan` và `hop_dong_doi_tac` kết hợp quét rủi ro pháp lý toàn diện."""
-        nd_doi_tac, ten_doi_tac = _doc_noi_dung_hop_dong(hop_dong_doi_tac)
+        nd_doi_tac, ten_doi_tac = _doc_noi_dung_hop_dong(
+            hop_dong_doi_tac, cho_phep_doc_tep=cho_phep_doc_tep
+        )
         rui_ro = self.quet_rui_ro_don_le(nd_doi_tac, ngay_tra_cuu=ngay_tra_cuu)
 
         khac_biet_list: List[KhacBietDieuKhoan] = []
         cau_truc_tach_gop: List[Dict[str, Any]] = []
         ten_chuan = ""
         if hop_dong_chuan is not None:
-            nd_chuan, ten_chuan = _doc_noi_dung_hop_dong(hop_dong_chuan)
+            nd_chuan, ten_chuan = _doc_noi_dung_hop_dong(
+                hop_dong_chuan, cho_phep_doc_tep=cho_phep_doc_tep
+            )
             dieu_chuan = _tach_cac_dieu_hop_dong(nd_chuan)
             dieu_dt = _tach_cac_dieu_hop_dong(nd_doi_tac)
 

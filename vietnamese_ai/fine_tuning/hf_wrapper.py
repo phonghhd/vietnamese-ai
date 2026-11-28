@@ -1,5 +1,6 @@
 """HuggingFaceWrapper - Tích hợp toàn diện HuggingFace Transformers & PEFT cho tiếng Việt."""
 
+import copy
 import json
 import time
 from pathlib import Path
@@ -453,7 +454,11 @@ class HuggingFaceWrapper:
                 toc_do_hoc=toc_do_hoc,
             )
             target = self.model if not self._che_do_native and self.model is not None else self._native_model
-            kq = dpo.huan_luyen(target, target, samples, tokenizer=self.tokenizer, callback=callback)
+            try:
+                ref_snapshot = copy.deepcopy(target)
+            except Exception:
+                ref_snapshot = None
+            kq = dpo.huan_luyen(target, ref_snapshot, samples, tokenizer=self.tokenizer, callback=callback)
             for sample in samples:
                 self._gen_memory.append(
                     {"prompt": str(sample.get("prompt", "")), "output": str(sample.get("chosen", ""))}
@@ -969,17 +974,30 @@ class HuggingFaceWrapper:
         """Xuất model hiện tại ra định dạng GGUF nhị phân chuẩn cho llama.cpp / Ollama."""
         if not self.da_tai:
             raise RuntimeError("Chưa tải model.")
+        if not self._che_do_native and self.model is not None:
+            if hasattr(self.model, "save_pretrained_gguf"):
+                out_dir = str(Path(duong_dan).parent)
+                self.model.save_pretrained_gguf(out_dir, self.tokenizer, quantization_method=quantization)
+                p_out = Path(duong_dan)
+                return {
+                    "duong_dan": str(p_out if p_out.exists() else Path(out_dir)),
+                    "quantization": quantization,
+                    "kich_thuoc_bytes": p_out.stat().st_size if p_out.is_file() else 0,
+                }
+            raise RuntimeError(
+                "Không hỗ trợ xuất GGUF trực tiếp bằng trọng số giả cho mô hình HuggingFace/PyTorch. "
+                "Hãy lưu mô hình bằng `luu_model()` rồi chuyển đổi bằng `llama.cpp/convert_hf_to_gguf.py` "
+                "hoặc sử dụng `UnslothWrapper.xuat_gguf()`."
+            )
         from vietnamese_ai.export.gguf import XuatGGUF
 
+        if self._native_model is None or not hasattr(self._native_model, "embedding"):
+            raise RuntimeError("Mô hình native hiện tại không có ma trận trọng số hợp lệ để xuất GGUF.")
         exporter = XuatGGUF()
-        weights = {}
-        if self._native_model is not None and hasattr(self._native_model, "embedding"):
-            weights["token_embd.weight"] = self._native_model.embedding
-            for idx, b in enumerate(self._native_model.blocks):
-                weights[f"blk.{idx}.attn_q.weight"] = b.attention.W_q
-                weights[f"blk.{idx}.ffn_up.weight"] = b.W1
-        else:
-            weights["model.weight"] = np.ones((16, 16), dtype=np.float32)
+        weights = {"token_embd.weight": self._native_model.embedding}
+        for idx, b in enumerate(self._native_model.blocks):
+            weights[f"blk.{idx}.attn_q.weight"] = b.attention.W_q
+            weights[f"blk.{idx}.ffn_up.weight"] = b.W1
         path_str = exporter.xuat_tu_numpy(
             weights,
             duong_dan,

@@ -183,20 +183,17 @@ class Pipeline:
         raise KeyError(f"Không tìm thấy bước: {ten}")
 
     def danh_gia(self, X: np.ndarray, y: np.ndarray) -> float:
-        """Đánh giá pipeline (gọi danh_gia() của bước cuối)."""
+        """Đánh giá pipeline (biến đổi dữ liệu qua các bước tiền xử lý rồi gọi danh_gia() của bước cuối)."""
         if not self.da_fit:
             raise RuntimeError("Pipeline chưa được fit.")
 
-        du_lieu_hien_tai = X
-        for ten, buoc in self.cac_buoc:
-            if hasattr(buoc, "du_doan"):
-                du_lieu_hien_tai = buoc.du_doan(du_lieu_hien_tai)
-            elif hasattr(buoc, "transform"):
-                du_lieu_hien_tai = buoc.transform(du_lieu_hien_tai)
+        du_lieu_hien_tai: Any = X
+        for _, buoc in self.cac_buoc[:-1]:
+            du_lieu_hien_tai = self._ap_dung_bien_doi(buoc, du_lieu_hien_tai, la_fit=False)
 
         buoc_cuoi = self.cac_buoc[-1][1]
         if hasattr(buoc_cuoi, "danh_gia"):
-            return buoc_cuoi.danh_gia(X, y)
+            return buoc_cuoi.danh_gia(du_lieu_hien_tai, y)
         return 0.0
 
     def luu(self, duong_dan: str) -> None:
@@ -211,23 +208,39 @@ class Pipeline:
         self.logger.info(f"Đã lưu pipeline tại: {duong_dan_path}")
 
     @classmethod
-    def tai(cls, duong_dan: str) -> "Pipeline":
-        """Tải pipeline từ file pickle.
+    def tai(cls, duong_dan: str, cho_phep_pickle_tho: bool = False) -> "Pipeline":
+        """Tải pipeline từ file pickle kèm kiểm tra `.sig` và `RestrictedUnpickler` mặc định."""
+        from vietnamese_ai.utils.io_utils import LuuTai, tai_an_toan
 
-        Cảnh báo: File pickle có thể chứa mã độc. Chỉ tải file từ nguồn tin cậy.
-        """
-        warnings.warn(
-            "Đang tải pipeline từ pickle. Chỉ tải file từ nguồn tin cậy "
-            "để tránh mã độc (remote code execution).",
-            stacklevel=2,
-        )
-        try:
-            with open(duong_dan, "rb") as f:
-                pipe = pickle.load(f)
-        except FileNotFoundError:
+        p = Path(duong_dan)
+        if not p.exists():
             raise FileNotFoundError(f"Không tìm thấy file: {duong_dan}")
-        except pickle.UnpicklingError as e:
-            raise pickle.UnpicklingError(f"Lỗi đọc file pickle: {e}")
+        sig_path = p.with_suffix(p.suffix + ".sig")
+        da_ky_hop_le = False
+        if sig_path.exists():
+            if not LuuTai.xac_thuc_file(str(p)):
+                raise ValueError(
+                    f"CẢNH BÁO BẢO MẬT: Chữ ký toàn vẹn HMAC-SHA256 của pipeline '{duong_dan}' không hợp lệ!"
+                )
+            da_ky_hop_le = True
+        if cho_phep_pickle_tho:
+            warnings.warn(
+                "Đang tải pipeline từ pickle thô. Chỉ tải file từ nguồn tin cậy "
+                "để tránh mã độc (remote code execution).",
+                stacklevel=2,
+            )
+            try:
+                with open(duong_dan, "rb") as f:
+                    pipe = pickle.load(f)
+            except pickle.UnpicklingError as e:
+                raise pickle.UnpicklingError(f"Lỗi đọc file pickle: {e}")
+        else:
+            try:
+                pipe = tai_an_toan(
+                    duong_dan, cho_phep_mo_hinh=True, cho_phep_lop_da_ky=da_ky_hop_le
+                )
+            except pickle.UnpicklingError as e:
+                raise pickle.UnpicklingError(f"Lỗi đọc file pickle an toàn: {e}")
         pipe.logger.info(f"Đã tải pipeline từ: {duong_dan}")
         return pipe
 

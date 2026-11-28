@@ -21,7 +21,7 @@ _SEMVER_RE = re.compile(
     r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
 )
 
-PHIEN_BAN_CHUAN = "31.1.0"
+PHIEN_BAN_CHUAN = "31.2.0"
 
 DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
     "vietnamese-ai": {
@@ -49,7 +49,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "Lõi NLP tiếng Việt: BoTachTuTiengVietSieuToc, BoNhungVanBanSieuToc, GanNhanTuLoai, NER & PhoBERT",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.nlp", "vietnamese_ai.preprocessing.text"],
-        "phu_thuoc": ["numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {
             "vietnamese-nlp": ["underthesea>=6.0"],
             "phobert": ["transformers>=4.30.0", "torch>=2.0.0"],
@@ -60,7 +60,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "Động cơ suy luận Zero-GPU Edge CPU: GGUF mmap, Q2_K/Q3_K/Q4_K/Q4_0/Q4_1/Q8_0, Swarm CPU LAN",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.edge", "vietnamese_ai.core.edge"],
-        "phu_thuoc": ["numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {
             "local-llm": ["llama-cpp-python>=0.2.0"],
             "export": ["onnxruntime>=1.16.0", "gguf>=0.6.0"],
@@ -71,7 +71,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "RAG Hành chính & Pháp lý Việt Nam: Hierarchy-Preserving Chunking, OCR/PDF/DOCX Parser & Legal Prompts",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.rag.legal", "vietnamese_ai.legal", "vietnamese_ai.legal.rag"],
-        "phu_thuoc": ["numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {
             "ocr-pdf": [
                 "pypdf>=3.0.0",
@@ -87,7 +87,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "Mật mã học xác thực suy luận AI: CayMerkleSuyLuan, Schnorr/Fiat-Shamir RFC 5114 & KiemToanMatMa",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.crypto", "vietnamese_ai.zkml"],
-        "phu_thuoc": ["numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {},
     },
     "vietnamese-ai-classic-ml": {
@@ -95,7 +95,12 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "Gói mở rộng Học máy cổ điển tiếng Việt (PhanLoai, HoiQuy, PhanCum, MangNron)",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.classic_ml", "vietnamese_ai.models"],
-        "phu_thuoc": ["numpy>=1.20.0,<3.0.0", "scikit-learn>=1.0.0", "pandas>=1.3.0"],
+        "phu_thuoc": [
+            "vietnamese-ai>=31.2.0,<32.0.0",
+            "numpy>=1.20.0,<3.0.0",
+            "scikit-learn>=1.0.0",
+            "pandas>=1.3.0",
+        ],
         "phu_thuoc_tuy_chon": {
             "tabular": ["xgboost>=2.0.0", "lightgbm>=4.0.0"],
         },
@@ -312,6 +317,8 @@ class QuanLyPhatHanhGoi:
         thu_muc_du_an: Optional[Union[str, Path]] = None,
     ) -> Dict[str, Any]:
         """Kiểm định toàn diện trước khi phát hành TestPyPI/PyPI (SemVer, phụ thuộc, type stubs, Rust abi3 và tài liệu)."""
+        import hashlib
+
         import vietnamese_ai
         from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
 
@@ -344,6 +351,25 @@ class QuanLyPhatHanhGoi:
         ]
         thieu_tep = [t for t in tep_bat_buoc if not (goc / t).is_file()]
 
+        ds_phap_ly = (
+            "legal_vn_corpus.jsonl",
+            "legal_vn_qa.jsonl",
+            "vilegal_tempbench_corpus.jsonl",
+            "vilegal_tempbench_edges.jsonl",
+            "vilegal_tempbench_qa.jsonl",
+        )
+        sai_lech_du_lieu: List[str] = []
+        for ten_tep in ds_phap_ly:
+            p_pkg = goc / "vietnamese_ai" / "rag" / "legal" / "data" / ten_tep
+            p_bench = goc / "benchmarks" / "datasets" / ten_tep
+            if not p_pkg.is_file() or not p_bench.is_file():
+                sai_lech_du_lieu.append(f"Thiếu cặp dữ liệu: {ten_tep}")
+                continue
+            sha_pkg = hashlib.sha256(p_pkg.read_bytes()).hexdigest()
+            sha_bench = hashlib.sha256(p_bench.read_bytes()).hexdigest()
+            if sha_pkg != sha_bench:
+                sai_lech_du_lieu.append(f"Lệch SHA-256: {ten_tep}")
+
         san_sang = (
             bool(bc_semver["hop_le_semver"])
             and bool(bc_semver["dong_bo_phien_ban"])
@@ -351,6 +377,7 @@ class QuanLyPhatHanhGoi:
             and len(thieu_stub) == 0
             and rust_abi3_ok
             and len(thieu_tep) == 0
+            and len(sai_lech_du_lieu) == 0
         )
         return {
             "san_sang_phat_hanh": san_sang,
@@ -361,6 +388,8 @@ class QuanLyPhatHanhGoi:
             "thieu_type_stub": thieu_stub,
             "rust_abi3_san_sang": rust_abi3_ok,
             "thieu_tep_bat_buoc": thieu_tep,
+            "dong_bo_du_lieu_phap_ly": len(sai_lech_du_lieu) == 0,
+            "sai_lech_du_lieu_phap_ly": sai_lech_du_lieu,
             "lenh_dong_goi_goi_y": "python -m build && twine check dist/*",
         }
 

@@ -100,6 +100,7 @@ class SpeculativeEngine:
         """
         ket_qua = list(input_ids)
         tokens_sinh_ra = 0
+        che_do_tham_lam = self.nhiet_do <= 1e-6
 
         while tokens_sinh_ra < max_tokens:
             buoc_gamma = min(self.gamma, max_tokens - tokens_sinh_ra)
@@ -110,13 +111,16 @@ class SpeculativeEngine:
 
             for _ in range(buoc_gamma):
                 logits_d = self.draft_model(draft_context)
-                dist_d = self._get_probs_dist(logits_d)
-                next_token_d = self._sample_from_dist(dist_d)
-                prob_d = float(dist_d[next_token_d])
-
-                draft_tokens.append(next_token_d)
-                draft_probs.append(prob_d)
-                draft_dists.append(dist_d)
+                if che_do_tham_lam:
+                    arr_d = self._chuan_hoa_logits_2d(logits_d)
+                    next_token_d = int(np.argmax(arr_d[-1]))
+                    draft_tokens.append(next_token_d)
+                else:
+                    dist_d = self._get_probs_dist(logits_d)
+                    next_token_d = self._sample_from_dist(dist_d)
+                    draft_tokens.append(next_token_d)
+                    draft_probs.append(float(dist_d[next_token_d]))
+                    draft_dists.append(dist_d)
                 draft_context.append(next_token_d)
 
             self._so_vong += 1
@@ -130,26 +134,37 @@ class SpeculativeEngine:
             for i in range(buoc_gamma):
                 t_pos = min(len_ket_qua_ban_dau + i - 1, logits_t_seq.shape[0] - 1)
                 logits_t = logits_t_seq[t_pos : t_pos + 1]
-                dist_t = self._get_probs_dist(logits_t)
 
-                prob_t = float(dist_t[draft_tokens[i]])
-                prob_d = draft_probs[i]
-
-                r_ratio = prob_t / (prob_d + 1e-12)
-                if self._uniform_01() <= r_ratio:
-                    ket_qua.append(draft_tokens[i])
-                    n_accepted += 1
-                    self._tong_chap_nhan += 1
+                if che_do_tham_lam:
+                    target_token = int(np.argmax(logits_t[-1]))
+                    if draft_tokens[i] == target_token:
+                        ket_qua.append(draft_tokens[i])
+                        n_accepted += 1
+                        self._tong_chap_nhan += 1
+                    else:
+                        ket_qua.append(target_token)
+                        bi_tu_choi = True
+                        break
                 else:
-                    correct_token = self._sample_residual(dist_t, draft_dists[i])
-                    ket_qua.append(correct_token)
-                    bi_tu_choi = True
-                    break
+                    dist_t = self._get_probs_dist(logits_t)
+                    prob_t = float(dist_t[draft_tokens[i]])
+                    prob_d = draft_probs[i]
+
+                    r_ratio = prob_t / (prob_d + 1e-12)
+                    if self._uniform_01() <= r_ratio:
+                        ket_qua.append(draft_tokens[i])
+                        n_accepted += 1
+                        self._tong_chap_nhan += 1
+                    else:
+                        correct_token = self._sample_residual(dist_t, draft_dists[i])
+                        ket_qua.append(correct_token)
+                        bi_tu_choi = True
+                        break
 
             them_thuc = n_accepted + (1 if bi_tu_choi else 0)
             if not bi_tu_choi and n_accepted == buoc_gamma and (tokens_sinh_ra + them_thuc) < max_tokens:
                 last_logits = logits_t_seq[-1:]
-                bonus_token = self._sample_from_logits(last_logits)
+                bonus_token = int(np.argmax(last_logits[-1])) if che_do_tham_lam else self._sample_from_logits(last_logits)
                 ket_qua.append(bonus_token)
                 them_thuc += 1
 
