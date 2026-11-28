@@ -62,24 +62,24 @@ Key design trade-offs include:
 On **`ViLegal-TempBench v2`** (`160` statutory clauses, `38` graph edges, `84` queries across 5 splits `T1`--`T5`), temporal date parsing achieves **TQPA = 100.0% (84/84)**:
 
 | Configuration | R@3 | MRR@10 | TVA | TCA (T2) | MH@3 (T3) | T5-R@3 | Abst. F1 |
-|:---|---:|---:|---:|---:|---:|---:|---:|
-| `bm25` | 0.880 | 0.810 | 0.731 | 0.083 | 0.500 | 0.625 | 0.000 |
-| `hybrid` | 0.900 | 0.804 | 0.705 | 0.167 | 0.571 | 0.688 | 0.000 |
-| `naive_date_filter` | 0.900 | 0.836 | 0.727 | 0.583 | 0.571 | 0.688 | 0.000 |
-| `temporal` | 0.932 | 0.917 | 1.000 | 1.000 | 0.786 | 0.750 | 0.000 |
-| `temporal_graph` | 0.936 | 0.910 | 1.000 | 1.000 | 1.000 | 0.688 | 0.000 |
-| **`full`** | **0.936** | **0.907** | **0.987** | **1.000** | **1.000** | **0.688** | **0.923** |
+|:------------------------|--------:|-----------:|--------:|---------:|----------:|----------:|------------:|
+| BM25 | 0.880 | 0.810 | 0.731 | 0.083 | 0.500 | 0.625 | 0.000 |
+| Hybrid | 0.900 | 0.804 | 0.705 | 0.167 | 0.571 | 0.688 | 0.000 |
+| Naive date filter | 0.900 | 0.836 | 0.727 | 0.583 | 0.571 | 0.688 | 0.000 |
+| Temporal | 0.932 | 0.917 | 1.000 | 1.000 | 0.786 | 0.750 | 0.000 |
+| Temporal + graph | 0.936 | 0.910 | 1.000 | 1.000 | 1.000 | 0.688 | 0.000 |
+| **Full** | **0.936** | **0.907** | **0.987** | **1.000** | **1.000** | **0.688** | **0.923** |
 
 Paired bootstrap tests (`n=1000`, `seed=42`) confirm significant improvements of `full` over `naive_date_filter` on MRR@10 (`+0.0709`, $p<0.0001$), TVA (`+0.2607`, $p<0.0001$), and Multi-Hop@3 (`+0.4286`, $p=0.0020$), with `1.000` expired-statute trap handling (`T4`) at `101.80 ms`/query (`7.71 ms` for `bm25`). Automated error analysis on colloquial split `T5` surfaces 4 lexical-gap misses (`t5_01`, `t5_03`, `t5_06`, `t5_12`) and 1 conservative abstention (`t5_13`), motivating optional INT8 ONNX dense models.
 
 On **`ViAlign-SafeBench`** (5 rounds, 70 pairs, 55.7% poisoning on the deterministic 256-dim CPU ranking proxy; QLoRA GPU scripts for `Qwen2.5-1.5B/3B-Instruct` ship in `scripts/run_safeloop_qlora_experiment.py`):
 
 | Strategy | Final | Citation | Validity | Safety | Floor | Filter F1 | Rollbacks |
-|:---|---:|---:|---:|---:|---:|---:|---:|
+|:-----------------------|---------:|----------:|----------:|---------:|---------:|-----------:|-----------:|
 | Naive DPO | 0.5969 | 0.5625 | 1.0000 | 0.0000 | 0.0000 | 0.0000 | 0 |
 | Filtered DPO | 0.9812 | 0.9583 | 1.0000 | 1.0000 | 1.0000 | 0.9041 | 0 |
-| Filtered+Replay+cDPO | 0.9906 | 0.9792 | 1.0000 | 1.0000 | 1.0000 | 0.9041 | 0 |
-| **`ViAlign-SafeLoop`** | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **0.9041** | **1** |
+| Filtered + Replay + cDPO | 0.9906 | 0.9792 | 1.0000 | 1.0000 | 1.0000 | 0.9041 | 0 |
+| **ViAlign-SafeLoop** | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **0.9041** | **1** |
 
 `ViAlign-SafeLoop` prevents Round-3 safety collapse (`0.0000` under Naive DPO) and automatically rolls back the Round-5 numeric-fabrication stress attack with zero forgetting (`+0.2500` mean delta vs. Naive DPO, 95% CI `[+0.1260, +0.3740]`, $p<0.0001$). All software artifacts are publicly archived on PyPI, GitHub, and Zenodo [@huynh2026vietnamese], verified by 1,450+ automated tests across Python 3.9--3.14 and Rust `abi3-py39` wheels, 0 Ruff errors, and 0 Mypy errors across 343 source files, with one-command reproducibility (`scripts/generate_paper_tables.py --seed 42`).
 
