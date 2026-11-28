@@ -24,7 +24,7 @@ Bản kiểm tra trước khi nộp bài báo phần mềm [paper/paper.md](pape
 - [x] **Trích dẫn BibTeX khớp 100%**: Mọi khóa `@...` trong `paper/paper.md` đều có mục tương ứng trong `paper/paper.bib`.
 - [x] **Độ dài chuẩn JOSS**: ~1.100–1.300 từ (trong vùng khuyến nghị của JOSS ~1.000–1.500 từ).
 
-## 5. Lệnh biên dịch PDF thử nghiệm (tùy chọn trước khi nộp)
+## 5. Lệnh biên dịch PDF thử nghiệm
 
 ```bash
 docker run --rm --volume "$PWD/paper:/data" --user $(id -u):$(id -g) \
