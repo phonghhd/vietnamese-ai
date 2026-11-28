@@ -1,0 +1,3766 @@
+
+<!doctype html>
+<html lang="vi" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Framework AI thuần tiếng Việt cho Python - Micro-Core, .vaidb Legal RAG, Hợp đồng Redline, MCP IDE, Zalo/Telegram, Zero-GPU Edge LLM & Remote GPU Flywheel">
+      
+      
+      
+        <link rel="canonical" href="https://phonghhd.github.io/vietnamese-ai/guides/vilegal-temporal-rag/">
+      
+      
+        <link rel="prev" href="../../getting-started/quickstart/">
+      
+      
+        <link rel="next" href="../../research/DATASHEET_VILEGAL_TEMPBENCH_V2/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Báo cáo ViLegal-TemporalRAG & TempBench - Vietnamese AI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vilegal-temporalrag-vilegal-tempbench-v2-bao-cao-ky-thuat-v3130" class="md-skip">
+          Bỏ qua
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Đầu trang">
+    <a href="../.." title="Vietnamese AI Framework" class="md-header__button md-logo" aria-label="Vietnamese AI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Vietnamese AI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Báo cáo ViLegal-TemporalRAG & TempBench
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ tối"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Chế độ tối" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ sáng"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Chế độ sáng" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Tìm kiếm" placeholder="Tìm kiếm" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Tìm kiếm">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Xoá" aria-label="Xoá" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/phonghhd/vietnamese-ai" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    phonghhd/vietnamese-ai
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Trang chủ
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Bắt đầu
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Trụ cột Chiến lược v31
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../classification/" class="md-tabs__link">
+          
+  
+  
+  Hướng dẫn Cốt lõi
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/core/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../v12-agents/" class="md-tabs__link">
+          
+  
+  
+  Lịch sử Phiên bản
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Thanh điều hướng" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Vietnamese AI Framework" class="md-nav__button md-logo" aria-label="Vietnamese AI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Vietnamese AI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/phonghhd/vietnamese-ai" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    phonghhd/vietnamese-ai
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trang chủ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bắt đầu
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bắt đầu
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cài đặt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sử dụng nhanh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trụ cột Chiến lược v31
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trụ cột Chiến lược v31
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViLegal-TemporalRAG & TempBench
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViLegal-TemporalRAG & TempBench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-tom-tat-bai-toan-nghien-cuu-abstract-problem-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Tóm tắt &amp; Bài toán Nghiên cứu (Abstract &amp; Problem Formulation)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-kien-truc-vilegal-temporalrag-5-tang" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Kiến trúc ViLegal-TemporalRAG (5 Tầng)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Kiến trúc ViLegal-TemporalRAG (5 Tầng)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bon-ong-gop-thuat-toan-cot-loi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bốn đóng góp thuật toán cốt lõi
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-bo-du-lieu-mo-vilegal-tempbench-v2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Bộ Dữ liệu Mở ViLegal-TempBench v2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ket-qua-thuc-nghiem-ablation-tren-cpu-seed42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Kết Quả Thực Nghiệm Ablation trên CPU (seed=42)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Kết Quả Thực Nghiệm Ablation trên CPU (seed=42)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kiem-inh-y-nghia-thong-ke-paired-bootstrap-n1000-seed42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kiểm định ý nghĩa thống kê (Paired Bootstrap, n=1000, seed=42)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-tai-lap-1-lenh-offline-cpu-docker-google-gemini-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Tái lập 1 Lệnh (Offline CPU, Docker &amp; Google Gemini API)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Tái lập 1 Lệnh (Offline CPU, Docker &amp; Google Gemini API)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#chay-cuc-bo-100-tren-cpu-xuat-markdown-latex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chạy cục bộ 100% trên CPU (xuất Markdown &amp; LaTeX)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chay-oi-chung-au-cuoi-bang-llm-that-qua-google-gemini-api-khong-can-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chạy đối chứng đầu-cuối bằng LLM thật qua Google Gemini API (không cần GPU)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hoi-ap-truc-tiep-tu-cli-rest-api-studio-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hỏi đáp trực tiếp từ CLI / REST API / Studio UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tai-lap-trong-docker-co-lap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tái lập trong Docker cô lập
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-trich-dan-bibtex-citationcff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Trích dẫn (BibTeX / CITATION.cff)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/DATASHEET_VILEGAL_TEMPBENCH_V2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasheet ViLegal-TempBench v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../viedge-rust-systems/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViEdge-RustEngine & SysBench (Zero-GPU)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vialign-safeloop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViAlign-SafeLoop & SafeBench (Continual Alignment)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../five-minute-dx-and-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trải nghiệm 5 Phút & Phát hành PyPI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../remote-gpu-flywheel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tinh chỉnh GPU Từ xa (Remote Flywheel)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../edge-cpu-llm-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Tiếng Việt Zero-GPU (vai pull / run)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vietnamese-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pháp lý, Hiệu lực & Studio Kéo-Thả
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workbench-mcp-connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hợp đồng Redline, MCP IDE & Zalo/Telegram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-cursor-claude/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cắm MCP vào Cursor, Claude & Docker Compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-pilot-kit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bộ Triển Khai Pilot Doanh Nghiệp (15 Phút)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-architecture-and-surfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kiến trúc Chiều sâu & 5 Bề mặt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../swarm-cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm CPU & LAN Parallelism
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../verifiable-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifiable AI (Proof of Inference)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crypto-audit-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phạm vi Kiểm toán Mật mã (zkML Audit)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-defense/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phòng thủ Dữ liệu & Khiên Đa lớp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-graph-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tác tử StateGraph & MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datalake-16-datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hồ Dữ liệu 16 Tập (DataLake)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparative-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bảng So sánh Thực nghiệm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hướng dẫn Cốt lõi
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hướng dẫn Cốt lõi
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phân loại
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../regression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hồi quy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../text-processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xử lý văn bản
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../automl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mobile/Edge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../federated/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Federated Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-time Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../saas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud SaaS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    No-code Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vietnamese LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../peft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PEFT & Instruction Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sft-dpo-rlhf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFT, DPO & RLHF
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gpt-pretraining/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPT Pre-training
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation & Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving & Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Engineering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nlp-extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NLP Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../salm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Self-Adapting LMs (SALM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../google-colab-kaggle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Google Colab / Kaggle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trang-thai-v30/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trạng thái v30
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utils & Versioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nlp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vietnamese NLP Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/edge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Edge & Swarm CPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/legal-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal & Admin RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/crypto-zkml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crypto & zkML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/classic-ml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classic ML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark Suite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mobile/Edge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/federated/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Federated
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/saas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud SaaS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NAS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/peft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PEFT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training (SFT/DPO/RLHF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/gpt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPT & PreTrainer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nlp-extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NLP Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/salm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SALM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lịch sử Phiên bản
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Lịch sử Phiên bản
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v12-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v12 Tác tử (Agents)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v13-edge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v13 Biên mạng (Edge)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v14-advanced-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v14 RAG Nâng cao
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v17-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v17 An ninh (Security)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v18-v20-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v18-v20 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v21-v23-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v21-v23 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v27-hardware-extreme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v27 Phần cứng Cực hạn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v28_spatial_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v28 Spatial AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v29_mobile_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v29 Mobile AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v30_mobile_sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v30 Mobile SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-tom-tat-bai-toan-nghien-cuu-abstract-problem-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Tóm tắt &amp; Bài toán Nghiên cứu (Abstract &amp; Problem Formulation)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-kien-truc-vilegal-temporalrag-5-tang" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Kiến trúc ViLegal-TemporalRAG (5 Tầng)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Kiến trúc ViLegal-TemporalRAG (5 Tầng)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bon-ong-gop-thuat-toan-cot-loi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bốn đóng góp thuật toán cốt lõi
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-bo-du-lieu-mo-vilegal-tempbench-v2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Bộ Dữ liệu Mở ViLegal-TempBench v2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ket-qua-thuc-nghiem-ablation-tren-cpu-seed42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Kết Quả Thực Nghiệm Ablation trên CPU (seed=42)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Kết Quả Thực Nghiệm Ablation trên CPU (seed=42)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kiem-inh-y-nghia-thong-ke-paired-bootstrap-n1000-seed42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kiểm định ý nghĩa thống kê (Paired Bootstrap, n=1000, seed=42)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-tai-lap-1-lenh-offline-cpu-docker-google-gemini-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Tái lập 1 Lệnh (Offline CPU, Docker &amp; Google Gemini API)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Tái lập 1 Lệnh (Offline CPU, Docker &amp; Google Gemini API)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#chay-cuc-bo-100-tren-cpu-xuat-markdown-latex" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chạy cục bộ 100% trên CPU (xuất Markdown &amp; LaTeX)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chay-oi-chung-au-cuoi-bang-llm-that-qua-google-gemini-api-khong-can-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chạy đối chứng đầu-cuối bằng LLM thật qua Google Gemini API (không cần GPU)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hoi-ap-truc-tiep-tu-cli-rest-api-studio-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hỏi đáp trực tiếp từ CLI / REST API / Studio UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tai-lap-trong-docker-co-lap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tái lập trong Docker cô lập
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-trich-dan-bibtex-citationcff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Trích dẫn (BibTeX / CITATION.cff)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="vilegal-temporalrag-vilegal-tempbench-v2-bao-cao-ky-thuat-v3130">ViLegal-TemporalRAG &amp; ViLegal-TempBench v2 (Báo Cáo Kỹ Thuật v31.3.0)<a class="headerlink" href="#vilegal-temporalrag-vilegal-tempbench-v2-bao-cao-ky-thuat-v3130" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Hướng nghiên cứu ứng dụng (Applied Research → Production)</strong>: Giải quyết bài toán <strong>truy hồi đa bước theo mốc thời gian hiệu lực</strong> và <strong>kiểm chứng trích dẫn chống ảo giác</strong> cho hệ thống văn bản quy phạm pháp luật Việt Nam — chạy tái lập 100% trên CPU không cần GPU, đồng thời hỗ trợ cắm trực tiếp ONNX INT8 và LLM thực tế (<strong>Google Gemini API</strong>, OpenAI-compatible, Ollama).</p>
+</blockquote>
+<hr />
+<h2 id="1-tom-tat-bai-toan-nghien-cuu-abstract-problem-formulation">1. Tóm tắt &amp; Bài toán Nghiên cứu (Abstract &amp; Problem Formulation)<a class="headerlink" href="#1-tom-tat-bai-toan-nghien-cuu-abstract-problem-formulation" title="Permanent link">&para;</a></h2>
+<p>Hệ thống văn bản quy phạm pháp luật Việt Nam có hai đặc trưng khiến các kiến trúc RAG tiêu chuẩn (BM25 / Dense chunking phẳng) thường xuyên thất bại ngoài thực tế:</p>
+<ol>
+<li><strong>Biến động hiệu lực theo thời gian (Temporal Evolution)</strong>: Cùng một câu hỏi pháp lý ở hai mốc thời gian $t_1 &lt; t_{\text{sửa đổi}} \le t_2$ dẫn tới hai kết luận hoàn toàn trái ngược (ví dụ: <em>Nghị định 123/2020/NĐ-CP</em> trước vs sau <em>Nghị định 70/2025/NĐ-CP</em> ngày <code>01/06/2025</code>; <em>Luật BHXH 58/2014/QH13</em> (20 năm) vs <em>41/2024/QH15</em> (15 năm) ngày <code>01/07/2025</code>; <em>Luật Đất đai 45/2013/QH13</em> vs <em>31/2024/QH15</em> ngày <code>01/08/2024</code>).</li>
+<li><strong>Tham chiếu đa tầng cấp Điều/Khoản (Multi-Hop Cross-References)</strong>: Luật quy định nguyên tắc khung, còn ngưỡng định lượng và thủ tục cụ thể nằm ở Nghị định và Thông tư hướng dẫn thi hành (<em>Luật ↔ Nghị định ↔ Thông tư</em>).</li>
+</ol>
+<p><strong>ViLegal-TemporalRAG</strong> định nghĩa bài toán truy hồi pháp lý có điều kiện thời gian: với truy vấn tiếng Việt $q$, hệ thống tự động suy diễn mốc thời gian áp dụng $t = \tau(q)$, truy hồi tập điều khoản hợp lệ $C_t = \lbrace c \in \mathcal{C} \mid t_{\text{start}}(c) \le t &lt; t_{\text{end}}(c) \rbrace$, mở rộng đa bước trên đồ thị điều khoản có điều kiện thời gian $G_t = (V_t, E_t)$, từ chối trả lời khi thiếu căn cứ, và kiểm chứng 3 tầng trước khi trả về câu trả lời cuối cùng.</p>
+<hr />
+<h2 id="2-kien-truc-vilegal-temporalrag-5-tang">2. Kiến trúc ViLegal-TemporalRAG (5 Tầng)<a class="headerlink" href="#2-kien-truc-vilegal-temporalrag-5-tang" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart LR
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Q["Câu hỏi tiếng Việt (q)"] --&gt; TP["Tầng 1: BoPhanTichThoiGianPhapLy&lt;br/&gt;(Statute-Bounded Temporal Disambiguation)"]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    Q --&gt; HYB["Tầng 2: Hybrid Retrieval&lt;br/&gt;(Vietnamese BM25 + Dense RRF)"]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    TP -- "Mốc hiệu lực t" --&gt; TMP["Tầng 3: Point-in-Time Filter&lt;br/&gt;và Supersession Redirect"]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    HYB --&gt; TMP
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    TMP --&gt; GR["Tầng 4: Clause-Level Temporal Graph&lt;br/&gt;(Multi-Hop PPR Expansion, 2-hop)"]
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    GR --&gt; RR["Tầng 5: Residual Cross-Interaction Reranker&lt;br/&gt;và Abstention Gate"]
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    RR -- "Ngoài phạm vi" --&gt; ABS["Từ chối trả lời an toàn"]
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    RR -- "Có căn cứ hợp lệ" --&gt; GEN["Tổng hợp Extractive hoặc&lt;br/&gt;LLM thật (Gemini / Ollama / OpenAI)"]
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    GEN --&gt; VER["BoKiemChungTrichDanPhapLy (3 Tầng)&lt;br/&gt;Grounding + Temporal + Numeric"]
+</code></pre></div>
+<h3 id="bon-ong-gop-thuat-toan-cot-loi">Bốn đóng góp thuật toán cốt lõi<a class="headerlink" href="#bon-ong-gop-thuat-toan-cot-loi" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong><code>BoPhanTichThoiGianPhapLy</code> (<code>TemporalQueryParser</code>)</strong>: Nhận diện mốc thời gian tự nhiên tiếng Việt (<em>ngày/tháng/năm, trước/từ/sau, quý, đầu/cuối năm, "hiện hành"</em>) kèm quy tắc <strong>Statute-Bounded Temporal Disambiguation</strong> — tự động loại trừ năm trong số hiệu/tên luật (<em>"Luật Đất đai 2024"</em>) và ngày điều kiện nội dung cũ hơn năm ban hành đạo luật (<em>"sử dụng đất trước 01/07/2014 theo Luật Đất đai 2024"</em>).</li>
+<li><strong>Đồ thị Điều khoản Có Điều kiện Thời gian (<code>DoThiThamChieuPhapLy</code>)</strong>: Nâng cấp đồ thị từ cấp văn bản lên cấp <strong>Điều/Khoản</strong> (<code>NutDieuKhoanPhapLy</code>, <code>QuanHeDieuKhoan</code>) với 6 loại cạnh (<code>phien_ban_ke_nhiem</code>, <code>sua_doi_dieu</code>, <code>thay_the_dieu</code>, <code>huong_dan_dieu</code>, <code>vien_dan_cheo</code>, <code>bai_bo_dieu</code>) và thuật toán lan truyền đa bước <code>mo_rong_da_buoc_theo_thoi_gian</code> có hệ số PPR restart chống đảo hạng Rank-1.</li>
+<li><strong>Cổng Từ chối &amp; Xếp hạng chéo dư (<code>BoTruyHoiPhapLyThoiGian</code>)</strong>: Kết hợp tín hiệu tương tác chéo theo dạng kết nối dư (<em>residual cross-interaction</em>) cùng cổng từ chối trả lời khi phát hiện số hiệu văn bản không tồn tại hoặc câu hỏi ngoài phạm vi kho luật.</li>
+<li><strong>Bộ Kiểm chứng Trích dẫn Tất định 3 Tầng (<code>BoKiemChungTrichDanPhapLy</code>)</strong>:</li>
+<li><strong>Tầng 1 — Citation Grounding</strong>: Phát hiện số hiệu văn bản / Điều luật bịa đặt không có trong nguồn.</li>
+<li><strong>Tầng 2 — Temporal Consistency</strong>: Phát hiện xung đột khi câu trả lời viện dẫn điều luật hết hiệu lực mà không cảnh báo thay thế (hiểu cả thể chủ động <em>"A thay thế B"</em> và bị động <em>"B bị thay thế bởi A"</em>).</li>
+<li><strong>Tầng 3 — Numeric &amp; Deadline Consistency</strong>: Đối chiếu tỷ lệ <code>%</code>, thời hạn (<code>ngày làm việc</code>, <code>tháng</code>, <code>năm</code>, <code>giờ</code>), hạn mức tiền giữa câu trả lời và điều khoản gốc.</li>
+</ol>
+<hr />
+<h2 id="3-bo-du-lieu-mo-vilegal-tempbench-v2">3. Bộ Dữ liệu Mở <code>ViLegal-TempBench v2</code><a class="headerlink" href="#3-bo-du-lieu-mo-vilegal-tempbench-v2" title="Permanent link">&para;</a></h2>
+<p>Bộ chuẩn sử dụng nguồn chuẩn duy nhất trong gói <code>vietnamese_ai/rag/legal/data/</code> và được đồng bộ kiểm toán SHA-256 sang <code>benchmarks/datasets/</code> (<code>scripts/sync_legal_datasets.py --check</code>):</p>
+<ul>
+<li><strong>Kho chỉ mục (<code>160</code> điều khoản)</strong>: <code>60</code> điều khoản đa phiên bản có mốc hiệu lực/hết hiệu lực thuộc 12 nhóm luật cốt lõi (<em>Hóa đơn điện tử, BHXH, Thuế GTGT, Đất đai, Giao dịch điện tử, Nhà ở, KDBĐS, Đấu thầu, BVQLNTD, Lao động, Doanh nghiệp, An ninh mạng/DLCN/Dân sự</em>) ghép cùng <code>100</code> điều khoản nền làm nhiễu thực tế.</li>
+<li><strong>Đồ thị điều khoản (<code>38</code> cạnh có điều kiện thời gian)</strong>: Gồm cạnh sửa đổi, thay thế, hướng dẫn thi hành và viện dẫn chéo 2-hop (<em>BLDS 2015 Điều 119 → Luật GDĐT 2023 Điều 22 → Nghị định 137/2024 Điều 10</em>).</li>
+<li><strong>Tập truy vấn (<code>84</code> câu hỏi chia 5 phân nhóm)</strong>:</li>
+<li><strong><code>T1</code> (16 câu)</strong>: Tra cứu điều luật hiện hành 1-hop.</li>
+<li><strong><code>T2</code> (24 câu = 12 cặp tương phản thời gian)</strong>: Cùng một câu hỏi pháp lý ở hai mốc $t_1 &lt; t_{\text{sửa đổi}} \le t_2$ để đo <strong>Temporal Contrast Accuracy (TCA)</strong>.</li>
+<li><strong><code>T3</code> (14 câu)</strong>: Chuỗi đa bước 1–2 hop <em>Luật ↔ Nghị định ↔ Thông tư</em> (không rò rỉ đáp án định lượng trong câu hỏi) để đo <strong>Multi-Hop Bridge Recall@3</strong>.</li>
+<li><strong><code>T4</code> (14 câu)</strong>: <code>8</code> câu bẫy cố tình viện dẫn luật đã bãi bỏ sau ngày hết hạn + <code>6</code> câu ngoài phạm vi (gồm nghị định hư cấu và văn bản Việt Nam ngoài kho) để đo <strong>Trap Correction Rate</strong> &amp; <strong>Abstention F1</strong>.</li>
+<li><strong><code>T5</code> (16 câu mới — Ngôn ngữ đời thường/Paraphrase)</strong>: Câu hỏi của HR, kế toán, chủ doanh nghiệp hoàn toàn không chứa số hiệu văn bản luật để đo độ nhạy ngữ nghĩa thực tế (<strong>T5-R@3</strong>).</li>
+</ul>
+<hr />
+<h2 id="4-ket-qua-thuc-nghiem-ablation-tren-cpu-seed42">4. Kết Quả Thực Nghiệm Ablation trên CPU (<code>seed=42</code>)<a class="headerlink" href="#4-ket-qua-thuc-nghiem-ablation-tren-cpu-seed42" title="Permanent link">&para;</a></h2>
+<p><em>Đo trực tiếp trên <strong>Intel Celeron N3050 @ 1.60 GHz (2 lõi CPU, 3.2 GiB RAM, Zero-GPU)</strong>, Linux <code>x86_64</code>, Python <code>3.14.4</code> qua lệnh <code>vai benchmark --suite legal-temporal</code>.</em></p>
+<p>Độ chính xác bóc tách mốc thời gian tự động không rò rỉ nhãn (<strong>TQPA</strong>): <strong><code>100.00%</code> (84/84)</strong> (bao gồm phân giải mốc năm cuối cho câu hỏi 2 mốc thời gian như <em>"từ năm 2010 đến năm 2025"</em>).</p>
+<table>
+<thead>
+<tr>
+<th>Cấu hình</th>
+<th style="text-align: right;">R@1</th>
+<th style="text-align: right;">R@3</th>
+<th style="text-align: right;">MRR@10</th>
+<th style="text-align: right;">TVA</th>
+<th style="text-align: right;">TCA (T2)</th>
+<th style="text-align: right;">Multi-Hop@3 (T3)</th>
+<th style="text-align: right;">Trap (T4)</th>
+<th style="text-align: right;">T5-R@3</th>
+<th style="text-align: right;">Abst. F1</th>
+<th style="text-align: right;">Latency (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bm25</code> (BM25-only VN Tokenizer)</td>
+<td style="text-align: right;">0.575</td>
+<td style="text-align: right;">0.880</td>
+<td style="text-align: right;">0.810</td>
+<td style="text-align: right;">0.731</td>
+<td style="text-align: right;">0.083 (1/12)</td>
+<td style="text-align: right;">0.500</td>
+<td style="text-align: right;">0.125</td>
+<td style="text-align: right;">0.625</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">7.71</td>
+</tr>
+<tr>
+<td><code>hybrid</code> (BM25 + Dense RRF)</td>
+<td style="text-align: right;">0.575</td>
+<td style="text-align: right;">0.900</td>
+<td style="text-align: right;">0.804</td>
+<td style="text-align: right;">0.705</td>
+<td style="text-align: right;">0.167 (2/12)</td>
+<td style="text-align: right;">0.571</td>
+<td style="text-align: right;">0.125</td>
+<td style="text-align: right;">0.688</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">13.86</td>
+</tr>
+<tr>
+<td><code>naive_date_filter</code> (Start-Date Only)</td>
+<td style="text-align: right;">0.639</td>
+<td style="text-align: right;">0.900</td>
+<td style="text-align: right;">0.836</td>
+<td style="text-align: right;">0.727</td>
+<td style="text-align: right;">0.583 (7/12)</td>
+<td style="text-align: right;">0.571</td>
+<td style="text-align: right;">0.125</td>
+<td style="text-align: right;">0.688</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">22.20</td>
+</tr>
+<tr>
+<td><code>temporal</code> (+ Point-in-Time)</td>
+<td style="text-align: right;">0.793</td>
+<td style="text-align: right;">0.932</td>
+<td style="text-align: right;">0.917</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000 (12/12)</td>
+<td style="text-align: right;">0.786</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.750</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">23.02</td>
+</tr>
+<tr>
+<td><code>temporal_graph</code> (+ Clause Graph)</td>
+<td style="text-align: right;">0.793</td>
+<td style="text-align: right;">0.936</td>
+<td style="text-align: right;">0.910</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000 (12/12)</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.688</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">23.82</td>
+</tr>
+<tr>
+<td><strong><code>full</code> (ViLegal-TemporalRAG)</strong></td>
+<td style="text-align: right;"><strong>0.793</strong></td>
+<td style="text-align: right;"><strong>0.936</strong></td>
+<td style="text-align: right;"><strong>0.907</strong></td>
+<td style="text-align: right;"><strong>0.987</strong></td>
+<td style="text-align: right;"><strong>1.000 (12/12)</strong></td>
+<td style="text-align: right;"><strong>1.000</strong></td>
+<td style="text-align: right;"><strong>1.000</strong></td>
+<td style="text-align: right;"><strong>0.688</strong></td>
+<td style="text-align: right;"><strong>0.923</strong></td>
+<td style="text-align: right;"><strong>101.80</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="kiem-inh-y-nghia-thong-ke-paired-bootstrap-n1000-seed42">Kiểm định ý nghĩa thống kê (Paired Bootstrap, <code>n=1000</code>, <code>seed=42</code>)<a class="headerlink" href="#kiem-inh-y-nghia-thong-ke-paired-bootstrap-n1000-seed42" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>So sánh</th>
+<th style="text-align: right;">Δ MRR@10 (<code>p</code>)</th>
+<th style="text-align: right;">Δ TVA (<code>p</code>)</th>
+<th style="text-align: right;">Δ Multi-Hop@3 (<code>p</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>full</code> vs <code>bm25</code></td>
+<td style="text-align: right;"><strong><code>+0.0966</code> (<code>0.0010*</code>)</strong></td>
+<td style="text-align: right;"><strong><code>+0.2564</code> (<code>0.0000*</code>)</strong></td>
+<td style="text-align: right;"><strong><code>+0.5000</code> (<code>0.0010*</code>)</strong></td>
+</tr>
+<tr>
+<td><code>full</code> vs <code>naive_date_filter</code></td>
+<td style="text-align: right;"><strong><code>+0.0709</code> (<code>0.0000*</code>)</strong></td>
+<td style="text-align: right;"><strong><code>+0.2607</code> (<code>0.0000*</code>)</strong></td>
+<td style="text-align: right;"><strong><code>+0.4286</code> (<code>0.0020*</code>)</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-tai-lap-1-lenh-offline-cpu-docker-google-gemini-api">5. Tái lập 1 Lệnh (Offline CPU, Docker &amp; Google Gemini API)<a class="headerlink" href="#5-tai-lap-1-lenh-offline-cpu-docker-google-gemini-api" title="Permanent link">&para;</a></h2>
+<h3 id="chay-cuc-bo-100-tren-cpu-xuat-markdown-latex">Chạy cục bộ 100% trên CPU (xuất Markdown &amp; LaTeX)<a class="headerlink" href="#chay-cuc-bo-100-tren-cpu-xuat-markdown-latex" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>vai<span class="w"> </span>benchmark<span class="w"> </span>--suite<span class="w"> </span>legal-temporal<span class="w"> </span>--output<span class="w"> </span>results/vilegal_tempbench.md
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>vai<span class="w"> </span>benchmark<span class="w"> </span>--suite<span class="w"> </span>legal-temporal<span class="w"> </span>--latex<span class="w"> </span>--output<span class="w"> </span>results/vilegal_tempbench.tex
+</code></pre></div>
+<h3 id="chay-oi-chung-au-cuoi-bang-llm-that-qua-google-gemini-api-khong-can-gpu">Chạy đối chứng đầu-cuối bằng LLM thật qua Google Gemini API (không cần GPU)<a class="headerlink" href="#chay-oi-chung-au-cuoi-bang-llm-that-qua-google-gemini-api-khong-can-gpu" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GEMINI_API_KEY</span><span class="o">=</span><span class="s2">"AIza..."</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>vai<span class="w"> </span>benchmark<span class="w"> </span>--suite<span class="w"> </span>legal-temporal<span class="w"> </span>--quick<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--llm-provider<span class="w"> </span>gemini<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--llm-model<span class="w"> </span>gemini-2.5-flash<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span>--llm-delay<span class="w"> </span><span class="m">1</span>.5<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span>--output<span class="w"> </span>results/vilegal_gemini.md
+</code></pre></div>
+<h3 id="hoi-ap-truc-tiep-tu-cli-rest-api-studio-ui">Hỏi đáp trực tiếp từ CLI / REST API / Studio UI<a class="headerlink" href="#hoi-ap-truc-tiep-tu-cli-rest-api-studio-ui" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Tự động nhận diện mốc thời gian trong câu hỏi + kiểm chứng 3 tầng</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>vai<span class="w"> </span>legal-ask<span class="w"> </span><span class="s2">"Vào tháng 3/2025, người bán có được phép hủy hóa đơn điện tử sai sót không?"</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>vai<span class="w"> </span>legal-ask<span class="w"> </span><span class="s2">"Vào tháng 8/2025, người bán có được phép hủy hóa đơn điện tử sai sót không?"</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># Có thể cắm Gemini API trực tiếp cho câu hỏi đơn lẻ</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="nv">GEMINI_API_KEY</span><span class="o">=</span><span class="s2">"AIza..."</span><span class="w"> </span>vai<span class="w"> </span>legal-ask<span class="w"> </span><span class="s2">"Thuế suất GTGT phân bón từ 01/07/2025 là bao nhiêu?"</span><span class="w"> </span>--llm-provider<span class="w"> </span>gemini
+</code></pre></div>
+<h3 id="tai-lap-trong-docker-co-lap">Tái lập trong Docker cô lập<a class="headerlink" href="#tai-lap-trong-docker-co-lap" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>benchmarks/Dockerfile.benchmark<span class="w"> </span>-t<span class="w"> </span>vietnamese-ai-bench:31.3.0<span class="w"> </span>.
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span><span class="s2">/results:/results"</span><span class="w"> </span>vietnamese-ai-bench:31.3.0<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--suite<span class="w"> </span>legal-temporal<span class="w"> </span>--seed<span class="w"> </span><span class="m">42</span><span class="w"> </span>--output<span class="w"> </span>/results/vilegal_tempbench.json<span class="w"> </span>--markdown<span class="w"> </span>/results/vilegal_tempbench.md
+</code></pre></div>
+<hr />
+<h2 id="6-trich-dan-bibtex-citationcff">6. Trích dẫn (BibTeX / <code>CITATION.cff</code>)<a class="headerlink" href="#6-trich-dan-bibtex-citationcff" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nc">@software</span><span class="p">{</span><span class="nl">huynh2026vilegal_temporalrag</span><span class="p">,</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="na">author</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="s">{Huỳnh, Dương Phong}</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="na">title</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="s">{Vietnamese AI Framework and ViLegal-TempBench v2: Temporal and Graph-Grounded RAG for Vietnamese Statutory Law}</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="na">year</span><span class="w">    </span><span class="p">=</span><span class="w"> </span><span class="s">{2026}</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="na">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{31.3.0}</span><span class="p">,</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="na">url</span><span class="w">     </span><span class="p">=</span><span class="w"> </span><span class="s">{https://github.com/phonghhd/vietnamese-ai}</span><span class="p">,</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="na">license</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{MIT}</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">}</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Trở lại mục lục
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "\u0110\u00e3 sao ch\u00e9p", "clipboard.copy": "Sao ch\u00e9p v\u00e0o b\u1ed9 nh\u1edb t\u1ea1m", "search.result.more.one": "1 t\u1eeb kh\u00e1c trong trang", "search.result.more.other": "# t\u1eeb kh\u00e1c trong trang", "search.result.none": "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan", "search.result.one": "1 t\u00e0i li\u1ec7u li\u00ean quan", "search.result.other": "# t\u00e0i li\u1ec7u li\u00ean quan", "search.result.placeholder": "Nh\u1eadp \u0111\u1ec3 b\u1eaft \u0111\u1ea7u t\u00ecm ki\u1ebfm", "search.result.term.missing": "Kh\u00f4ng", "select.version": "Ch\u1ecdn phi\u00ean b\u1ea3n"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

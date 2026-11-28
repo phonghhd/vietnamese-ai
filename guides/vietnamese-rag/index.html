@@ -1,0 +1,3786 @@
+
+<!doctype html>
+<html lang="vi" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Framework AI thuần tiếng Việt cho Python - Micro-Core, .vaidb Legal RAG, Hợp đồng Redline, MCP IDE, Zalo/Telegram, Zero-GPU Edge LLM & Remote GPU Flywheel">
+      
+      
+      
+        <link rel="canonical" href="https://phonghhd.github.io/vietnamese-ai/guides/vietnamese-rag/">
+      
+      
+        <link rel="prev" href="../edge-cpu-llm-runtime/">
+      
+      
+        <link rel="next" href="../workbench-mcp-connectors/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>RAG Pháp lý, Hiệu lực & Studio Kéo-Thả - Vietnamese AI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rag-phap-ly-hanh-chinh-viet-nam-100-ieu-khoan-theo-doi-hieu-luc-studio-keo-tha" class="md-skip">
+          Bỏ qua
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Đầu trang">
+    <a href="../.." title="Vietnamese AI Framework" class="md-header__button md-logo" aria-label="Vietnamese AI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Vietnamese AI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              RAG Pháp lý, Hiệu lực & Studio Kéo-Thả
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ tối"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Chế độ tối" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ sáng"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Chế độ sáng" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Tìm kiếm" placeholder="Tìm kiếm" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Tìm kiếm">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Xoá" aria-label="Xoá" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/phonghhd/vietnamese-ai" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    phonghhd/vietnamese-ai
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Trang chủ
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Bắt đầu
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../vilegal-temporal-rag/" class="md-tabs__link">
+          
+  
+  
+  Trụ cột Chiến lược v31
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../classification/" class="md-tabs__link">
+          
+  
+  
+  Hướng dẫn Cốt lõi
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/core/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../v12-agents/" class="md-tabs__link">
+          
+  
+  
+  Lịch sử Phiên bản
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Thanh điều hướng" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Vietnamese AI Framework" class="md-nav__button md-logo" aria-label="Vietnamese AI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Vietnamese AI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/phonghhd/vietnamese-ai" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    phonghhd/vietnamese-ai
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trang chủ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bắt đầu
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bắt đầu
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cài đặt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sử dụng nhanh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trụ cột Chiến lược v31
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trụ cột Chiến lược v31
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vilegal-temporal-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViLegal-TemporalRAG & TempBench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/DATASHEET_VILEGAL_TEMPBENCH_V2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasheet ViLegal-TempBench v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../viedge-rust-systems/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViEdge-RustEngine & SysBench (Zero-GPU)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vialign-safeloop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViAlign-SafeLoop & SafeBench (Continual Alignment)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../five-minute-dx-and-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trải nghiệm 5 Phút & Phát hành PyPI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../remote-gpu-flywheel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tinh chỉnh GPU Từ xa (Remote Flywheel)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../edge-cpu-llm-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Tiếng Việt Zero-GPU (vai pull / run)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pháp lý, Hiệu lực & Studio Kéo-Thả
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pháp lý, Hiệu lực & Studio Kéo-Thả
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-kien-truc-uong-ong-legal-rag-ay-u" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Kiến trúc Đường ống Legal RAG Đầy đủ
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-nap-tep-a-inh-dang-docx-pdf-anh-ocr-thu-muc-hoi-ap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Nạp Tệp Đa Định Dạng (.docx, .pdf, Ảnh OCR, Thư mục) &amp; Hỏi Đáp
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Nạp Tệp Đa Định Dạng (.docx, .pdf, Ảnh OCR, Thư mục) &amp; Hỏi Đáp">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#su-dung-nhanh-tu-cli-vai-rag-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sử dụng nhanh từ CLI (vai rag --admin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-kho-phap-ly-mo-100-ieu-khoan-trolyphaply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Kho Pháp Lý Mở 100 Điều Khoản &amp; TroLyPhapLy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-theo-doi-hieu-luc-van-ban-phap-luat-botheodoihieulucphaply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Theo Dõi Hiệu Lực Văn Bản Pháp Luật (BoTheoDoiHieuLucPhapLy)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Theo Dõi Hiệu Lực Văn Bản Pháp Luật (BoTheoDoiHieuLucPhapLy)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kiem-tra-theo-moc-thoi-gian-point-in-time-legal-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kiểm tra theo mốc thời gian (Point-in-Time Legal Audit)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quet-toan-bo-trich-dan-trong-hop-ong-cong-van" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quét toàn bộ trích dẫn trong hợp đồng / công văn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ang-ky-bo-sung-van-ban-moi-cua-to-chuc-bo-nganh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Đăng ký bổ sung văn bản mới của tổ chức / bộ ngành
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-keo-tha-tai-lieu-kiem-toan-hieu-luc-tren-web-studio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Kéo-Thả Tài liệu &amp; Kiểm toán Hiệu lực trên Web Studio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-kho-tri-thuc-ben-vung-vaidb-ngu-nghia-ong-nghia-onnx-o-thi-tham-chieu-luat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Kho Tri Thức Bền Vững .vaidb, Ngữ Nghĩa Đồng Nghĩa ONNX &amp; Đồ Thị Tham Chiếu Luật
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Kho Tri Thức Bền Vững .vaidb, Ngữ Nghĩa Đồng Nghĩa ONNX &amp; Đồ Thị Tham Chiếu Luật">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#luu-tru-ben-vung-1-tep-vaidb-ong-bo-tang-dan-theo-sha-256" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lưu trữ bền vững 1 tệp .vaidb + Đồng bộ tăng dần theo SHA-256
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-thi-tham-chieu-phap-ly-dothithamchieuphaply-vai-legal-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Đồ thị Tham chiếu Pháp lý (DoThiThamChieuPhapLy &amp; vai legal-graph)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tra-cuu-phien-ban-ieukhoan-theo-moc-ngay-point-in-time-chi-muc-hnsw-ben-vung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tra Cứu Phiên Bản Điều/Khoản Theo Mốc Ngày (Point-in-Time) &amp; Chỉ Mục HNSW Bền Vững
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-cai-at-nhom-mo-rong-pdfocr-onnx-runtime-tuy-chon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Cài đặt Nhóm Mở rộng PDF/OCR &amp; ONNX Runtime (Tùy chọn)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workbench-mcp-connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hợp đồng Redline, MCP IDE & Zalo/Telegram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-cursor-claude/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cắm MCP vào Cursor, Claude & Docker Compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-pilot-kit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bộ Triển Khai Pilot Doanh Nghiệp (15 Phút)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-architecture-and-surfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kiến trúc Chiều sâu & 5 Bề mặt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../swarm-cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm CPU & LAN Parallelism
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../verifiable-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifiable AI (Proof of Inference)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crypto-audit-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phạm vi Kiểm toán Mật mã (zkML Audit)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-defense/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phòng thủ Dữ liệu & Khiên Đa lớp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-graph-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tác tử StateGraph & MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datalake-16-datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hồ Dữ liệu 16 Tập (DataLake)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparative-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bảng So sánh Thực nghiệm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hướng dẫn Cốt lõi
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hướng dẫn Cốt lõi
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phân loại
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../regression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hồi quy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../text-processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xử lý văn bản
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../automl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mobile/Edge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../federated/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Federated Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-time Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../saas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud SaaS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    No-code Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vietnamese LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../peft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PEFT & Instruction Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sft-dpo-rlhf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFT, DPO & RLHF
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gpt-pretraining/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPT Pre-training
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation & Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving & Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Engineering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nlp-extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NLP Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../salm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Self-Adapting LMs (SALM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../google-colab-kaggle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Google Colab / Kaggle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trang-thai-v30/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trạng thái v30
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utils & Versioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nlp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vietnamese NLP Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/edge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Edge & Swarm CPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/legal-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal & Admin RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/crypto-zkml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crypto & zkML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/classic-ml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classic ML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark Suite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mobile/Edge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/federated/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Federated
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/saas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud SaaS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NAS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/peft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PEFT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training (SFT/DPO/RLHF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/gpt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPT & PreTrainer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nlp-extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NLP Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/salm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SALM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lịch sử Phiên bản
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Lịch sử Phiên bản
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v12-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v12 Tác tử (Agents)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v13-edge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v13 Biên mạng (Edge)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v14-advanced-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v14 RAG Nâng cao
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v17-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v17 An ninh (Security)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v18-v20-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v18-v20 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v21-v23-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v21-v23 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v27-hardware-extreme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v27 Phần cứng Cực hạn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v28_spatial_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v28 Spatial AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v29_mobile_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v29 Mobile AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v30_mobile_sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v30 Mobile SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-kien-truc-uong-ong-legal-rag-ay-u" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Kiến trúc Đường ống Legal RAG Đầy đủ
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-nap-tep-a-inh-dang-docx-pdf-anh-ocr-thu-muc-hoi-ap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Nạp Tệp Đa Định Dạng (.docx, .pdf, Ảnh OCR, Thư mục) &amp; Hỏi Đáp
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Nạp Tệp Đa Định Dạng (.docx, .pdf, Ảnh OCR, Thư mục) &amp; Hỏi Đáp">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#su-dung-nhanh-tu-cli-vai-rag-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sử dụng nhanh từ CLI (vai rag --admin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-kho-phap-ly-mo-100-ieu-khoan-trolyphaply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Kho Pháp Lý Mở 100 Điều Khoản &amp; TroLyPhapLy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-theo-doi-hieu-luc-van-ban-phap-luat-botheodoihieulucphaply" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Theo Dõi Hiệu Lực Văn Bản Pháp Luật (BoTheoDoiHieuLucPhapLy)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Theo Dõi Hiệu Lực Văn Bản Pháp Luật (BoTheoDoiHieuLucPhapLy)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kiem-tra-theo-moc-thoi-gian-point-in-time-legal-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kiểm tra theo mốc thời gian (Point-in-Time Legal Audit)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quet-toan-bo-trich-dan-trong-hop-ong-cong-van" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quét toàn bộ trích dẫn trong hợp đồng / công văn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ang-ky-bo-sung-van-ban-moi-cua-to-chuc-bo-nganh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Đăng ký bổ sung văn bản mới của tổ chức / bộ ngành
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-keo-tha-tai-lieu-kiem-toan-hieu-luc-tren-web-studio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Kéo-Thả Tài liệu &amp; Kiểm toán Hiệu lực trên Web Studio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-kho-tri-thuc-ben-vung-vaidb-ngu-nghia-ong-nghia-onnx-o-thi-tham-chieu-luat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Kho Tri Thức Bền Vững .vaidb, Ngữ Nghĩa Đồng Nghĩa ONNX &amp; Đồ Thị Tham Chiếu Luật
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Kho Tri Thức Bền Vững .vaidb, Ngữ Nghĩa Đồng Nghĩa ONNX &amp; Đồ Thị Tham Chiếu Luật">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#luu-tru-ben-vung-1-tep-vaidb-ong-bo-tang-dan-theo-sha-256" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lưu trữ bền vững 1 tệp .vaidb + Đồng bộ tăng dần theo SHA-256
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-thi-tham-chieu-phap-ly-dothithamchieuphaply-vai-legal-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Đồ thị Tham chiếu Pháp lý (DoThiThamChieuPhapLy &amp; vai legal-graph)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tra-cuu-phien-ban-ieukhoan-theo-moc-ngay-point-in-time-chi-muc-hnsw-ben-vung" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tra Cứu Phiên Bản Điều/Khoản Theo Mốc Ngày (Point-in-Time) &amp; Chỉ Mục HNSW Bền Vững
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-cai-at-nhom-mo-rong-pdfocr-onnx-runtime-tuy-chon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Cài đặt Nhóm Mở rộng PDF/OCR &amp; ONNX Runtime (Tùy chọn)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rag-phap-ly-hanh-chinh-viet-nam-100-ieu-khoan-theo-doi-hieu-luc-studio-keo-tha">RAG Pháp Lý &amp; Hành Chính Việt Nam (100 Điều Khoản, Theo Dõi Hiệu Lực &amp; Studio Kéo-Thả)<a class="headerlink" href="#rag-phap-ly-hanh-chinh-viet-nam-100-ieu-khoan-theo-doi-hieu-luc-studio-keo-tha" title="Permanent link">&para;</a></h1>
+<p>Khi áp dụng RAG thông thường (Naive RAG) cho văn bản quy phạm pháp luật Việt Nam, hệ thống thường gặp 4 lỗi nghiêm trọng:
+1. <strong>Xé rời cấu trúc thứ bậc</strong>: Làm mất liên kết <code>Phần &gt; Chương &gt; Mục &gt; Điều &gt; Khoản &gt; Điểm</code>.
+2. <strong>Đánh mất điều kiện ngoại lệ</strong>: Cắt rời Khoản 1 (quy định chung) khỏi Khoản 2 (ngoại lệ loại trừ).
+3. <strong>Viện dẫn nhầm luật hết hiệu lực</strong>: Trích dẫn Luật Đất đai <code>45/2013/QH13</code> hay Luật BHXH <code>58/2014/QH13</code> dù các luật này đã bị thay thế bởi <code>31/2024/QH15</code> và <code>41/2024/QH15</code>.
+4. <strong>Khó nạp hồ sơ thực tế</strong>: Tài liệu văn phòng nằm rải rác ở <code>.docx</code>, <code>.pdf</code>, ảnh chụp scan OCR và bảng biểu.</p>
+<p>Vietnamese AI Framework giải quyết trọn vẹn cả 4 bài toán qua cụm mô-đun <code>vietnamese_ai.rag.legal</code> (<code>BoToiUuNguCanhHanhChinh</code>, <code>BoDocTaiLieuPhapLy</code>, <code>BoTheoDoiHieuLucPhapLy</code>, <code>tai_bo_phap_ly_mo</code>) tích hợp trực tiếp vào <code>RAGPipeline</code>, <code>TroLyPhapLy</code>, CLI và Web Studio.</p>
+<hr />
+<h2 id="1-kien-truc-uong-ong-legal-rag-ay-u">1. Kiến trúc Đường ống Legal RAG Đầy đủ<a class="headerlink" href="#1-kien-truc-uong-ong-legal-rag-ay-u" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Tệp .docx / .pdf / Ảnh OCR / .txt / Thư mục luật]
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                       │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                       ▼
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>          [BoDocTaiLieuPhapLy]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>           ├─ Đọc DOCX (giữ bảng biểu Markdown, có fallback OOXML thuần Python)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>           ├─ Đọc PDF (pdfplumber / pypdf) &amp; Ảnh scan OCR (khử độc CDR)
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                       │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                       ▼
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        [BoToiUuNguCanhHanhChinh]
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>           ├─ Nhận diện Chương &gt; Mục &gt; Điều &gt; Khoản &gt; Điểm (Nghị định 30/2020/NĐ-CP)
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>           ├─ Trích xuất số hiệu văn bản &amp; căn cứ pháp lý
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>           └─ Phân đoạn bảo toàn ngữ cảnh cha-con (Hierarchy-Preserving Chunking)
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                       │
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>                       ▼
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>       [RAGPipeline + Chỉ mục IVF-Flat]
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>           ├─ Tìm kiếm lai BM25 tiếng Việt + Vector Blake2b / Embedding
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>           └─ Tự động kiểm toán qua BoTheoDoiHieuLucPhapLy:
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>               • Gắn trạng thái hiệu lực theo ngày tra cứu
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>               • Giảm điểm (0.65x) hoặc lọc bỏ văn bản hết hiệu lực
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>               • Xuất danh sách cảnh báo sửa đổi / thay thế
+</code></pre></div>
+<hr />
+<h2 id="2-nap-tep-a-inh-dang-docx-pdf-anh-ocr-thu-muc-hoi-ap">2. Nạp Tệp Đa Định Dạng (<code>.docx</code>, <code>.pdf</code>, Ảnh OCR, Thư mục) &amp; Hỏi Đáp<a class="headerlink" href="#2-nap-tep-a-inh-dang-docx-pdf-anh-ocr-thu-muc-hoi-ap" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">vietnamese_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">RAGPipeline</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">rag</span> <span class="o">=</span> <span class="n">RAGPipeline</span><span class="p">(</span><span class="n">che_do_hanh_chinh</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Nạp một tệp .docx / .pdf / .txt / ảnh scan / .jsonl cụ thể</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">rag</span><span class="o">.</span><span class="n">them_tep</span><span class="p">(</span><span class="s2">"hop_dong_chuyen_nhuong.docx"</span><span class="p">,</span> <span class="n">che_do_hanh_chinh</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Hoặc nạp nguyên một thư mục hồ sơ pháp lý</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">rag</span><span class="o">.</span><span class="n">them_thu_muc</span><span class="p">(</span><span class="s2">"kho_van_ban_phap_ly/"</span><span class="p">,</span> <span class="n">de_quy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">che_do_hanh_chinh</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># (Tùy chọn) Tạo chỉ mục vector IVF-Flat cho kho tài liệu lớn</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">rag</span><span class="o">.</span><span class="n">toi_uu_chi_muc_vector</span><span class="p">(</span><span class="n">so_cum</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">nprobe</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="n">ket_qua</span> <span class="o">=</span> <span class="n">rag</span><span class="o">.</span><span class="n">hoi</span><span class="p">(</span><span class="s2">"Quyền chuyển nhượng quyền sử dụng đất theo Luật Đất đai được quy định thế nào?"</span><span class="p">)</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Trả lời:</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="n">ket_qua</span><span class="p">[</span><span class="s2">"tra_loi"</span><span class="p">])</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">trich_dan</span> <span class="o">=</span> <span class="n">ket_qua</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"trich_dan_phap_ly"</span><span class="p">,</span> <span class="p">{})</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Điều khoản căn cứ:"</span><span class="p">,</span> <span class="n">trich_dan</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dieu_khoan"</span><span class="p">))</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Số hiệu văn bản:"</span><span class="p">,</span> <span class="n">trich_dan</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"so_hieu_van_ban"</span><span class="p">))</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Cảnh báo hiệu lực:"</span><span class="p">,</span> <span class="n">trich_dan</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"canh_bao_hieu_luc"</span><span class="p">))</span>
+</code></pre></div>
+<h3 id="su-dung-nhanh-tu-cli-vai-rag-admin">Sử dụng nhanh từ CLI (<code>vai rag --admin</code>)<a class="headerlink" href="#su-dung-nhanh-tu-cli-vai-rag-admin" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>vai<span class="w"> </span>rag<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--docs<span class="w"> </span>hop_dong_chuyen_nhuong.docx<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--admin<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--query<span class="w"> </span><span class="s2">"Hợp đồng viện dẫn những căn cứ pháp lý nào và có văn bản nào hết hiệu lực không?"</span>
+</code></pre></div>
+<hr />
+<h2 id="3-kho-phap-ly-mo-100-ieu-khoan-trolyphaply">3. Kho Pháp Lý Mở 100 Điều Khoản &amp; <code>TroLyPhapLy</code><a class="headerlink" href="#3-kho-phap-ly-mo-100-ieu-khoan-trolyphaply" title="Permanent link">&para;</a></h2>
+<p>Framework đóng gói sẵn <strong>100 điều khoản pháp luật Việt Nam thực tế</strong> (Bộ luật Lao động 2019, Bộ luật Dân sự 2015, Luật Doanh nghiệp 2020, Luật Đất đai 2024, Luật Giao dịch điện tử 2023, Nghị định <code>13/2023/NĐ-CP</code>, Nghị định <code>30/2020/NĐ-CP</code>, Luật BHXH 2024 <code>41/2024/QH15</code>, Luật Thuế GTGT 2024 <code>48/2024/QH15</code>, Luật Quản lý thuế 2019, Luật SHTT, Luật Đấu thầu 2023, Luật Nhà ở 2023, Luật KDBĐS 2023, Nghị định <code>70/2025/NĐ-CP</code>, Luật XLVPHC...) cùng <strong>35 cặp Hỏi–Đáp (QA) chuẩn kiểm thử</strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">vietnamese_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">TroLyPhapLy</span><span class="p">,</span> <span class="n">tai_bo_hoi_dap_phap_ly_mo</span><span class="p">,</span> <span class="n">tai_bo_phap_ly_mo</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Tổng điều khoản mở:"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tai_bo_phap_ly_mo</span><span class="p">()))</span>        <span class="c1"># 100</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Tổng cặp QA chuẩn:"</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">tai_bo_hoi_dap_phap_ly_mo</span><span class="p">()))</span>  <span class="c1"># 35</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Nạp trọn bộ 100 điều khoản chỉ bằng một tham số `nap_kho_mo=True`</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">tro_ly</span> <span class="o">=</span> <span class="n">TroLyPhapLy</span><span class="p">(</span><span class="n">nap_kho_mo</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">kq</span> <span class="o">=</span> <span class="n">tro_ly</span><span class="o">.</span><span class="n">tra_cuu</span><span class="p">(</span><span class="s2">"Theo Luật Bảo hiểm xã hội 2024 cần đóng tối thiểu bao nhiêu năm để hưởng lương hưu?"</span><span class="p">)</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">kq</span><span class="p">[</span><span class="s2">"tra_loi"</span><span class="p">])</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Điểm bám sát nguồn:"</span><span class="p">,</span> <span class="n">kq</span><span class="p">[</span><span class="s2">"diem_bam_sat_nguon"</span><span class="p">])</span>
+</code></pre></div>
+<hr />
+<h2 id="4-theo-doi-hieu-luc-van-ban-phap-luat-botheodoihieulucphaply">4. Theo Dõi Hiệu Lực Văn Bản Pháp Luật (<code>BoTheoDoiHieuLucPhapLy</code>)<a class="headerlink" href="#4-theo-doi-hieu-luc-van-ban-phap-luat-botheodoihieulucphaply" title="Permanent link">&para;</a></h2>
+<h3 id="kiem-tra-theo-moc-thoi-gian-point-in-time-legal-audit">Kiểm tra theo mốc thời gian (Point-in-Time Legal Audit)<a class="headerlink" href="#kiem-tra-theo-moc-thoi-gian-point-in-time-legal-audit" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">vietnamese_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">BoTheoDoiHieuLucPhapLy</span><span class="p">,</span> <span class="n">HoSoHieuLucVanBan</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">tracker</span> <span class="o">=</span> <span class="n">BoTheoDoiHieuLucPhapLy</span><span class="p">()</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Kiểm tra lịch sử vs hiện tại</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">tracker</span><span class="o">.</span><span class="n">kiem_tra_hieu_luc</span><span class="p">(</span><span class="s2">"45/2013/QH13"</span><span class="p">,</span> <span class="n">ngay_tra_cuu</span><span class="o">=</span><span class="s2">"2022-01-01"</span><span class="p">)[</span><span class="s2">"trang_thai"</span><span class="p">])</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># -&gt; "con_hieu_luc"</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">kq_het</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">kiem_tra_hieu_luc</span><span class="p">(</span><span class="s2">"45/2013/QH13"</span><span class="p">,</span> <span class="n">ngay_tra_cuu</span><span class="o">=</span><span class="s2">"2026-01-01"</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="nb">print</span><span class="p">(</span><span class="n">kq_het</span><span class="p">[</span><span class="s2">"trang_thai"</span><span class="p">],</span> <span class="s2">"-&gt;"</span><span class="p">,</span> <span class="n">kq_het</span><span class="p">[</span><span class="s2">"bi_thay_the_boi"</span><span class="p">])</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># -&gt; "het_hieu_luc" -&gt; ['31/2024/QH15']</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="n">kq_sua</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">kiem_tra_hieu_luc</span><span class="p">(</span><span class="s2">"123/2020/NĐ-CP"</span><span class="p">,</span> <span class="n">ngay_tra_cuu</span><span class="o">=</span><span class="s2">"2026-01-01"</span><span class="p">)</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="nb">print</span><span class="p">(</span><span class="n">kq_sua</span><span class="p">[</span><span class="s2">"trang_thai"</span><span class="p">],</span> <span class="s2">"-&gt;"</span><span class="p">,</span> <span class="n">kq_sua</span><span class="p">[</span><span class="s2">"sua_doi_bo_sung_boi"</span><span class="p">])</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="c1"># -&gt; "con_hieu_luc_da_sua_doi" -&gt; ['70/2025/NĐ-CP']</span>
+</code></pre></div>
+<h3 id="quet-toan-bo-trich-dan-trong-hop-ong-cong-van">Quét toàn bộ trích dẫn trong hợp đồng / công văn<a class="headerlink" href="#quet-toan-bo-trich-dan-trong-hop-ong-cong-van" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">hop_dong</span> <span class="o">=</span> <span class="s2">"Hợp đồng căn cứ Luật Đất đai 45/2013/QH13 và Nghị định 123/2020/NĐ-CP về hóa đơn."</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">bao_cao</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">kiem_tra_hieu_luc_trong_van_ban</span><span class="p">(</span><span class="n">hop_dong</span><span class="p">,</span> <span class="n">ngay_tra_cuu</span><span class="o">=</span><span class="s2">"2026-01-15"</span><span class="p">)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Hợp lệ hiệu lực:"</span><span class="p">,</span> <span class="n">bao_cao</span><span class="p">[</span><span class="s2">"hop_le_hieu_luc"</span><span class="p">])</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">for</span> <span class="n">canh_bao</span> <span class="ow">in</span> <span class="n">bao_cao</span><span class="p">[</span><span class="s2">"canh_bao"</span><span class="p">]:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">" -"</span><span class="p">,</span> <span class="n">canh_bao</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="ang-ky-bo-sung-van-ban-moi-cua-to-chuc-bo-nganh">Đăng ký bổ sung văn bản mới của tổ chức / bộ ngành<a class="headerlink" href="#ang-ky-bo-sung-van-ban-moi-cua-to-chuc-bo-nganh" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">tracker</span><span class="o">.</span><span class="n">dang_ky_van_ban</span><span class="p">(</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">HoSoHieuLucVanBan</span><span class="p">(</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>        <span class="n">so_hieu</span><span class="o">=</span><span class="s2">"99/2026/NĐ-CP"</span><span class="p">,</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>        <span class="n">ten_van_ban</span><span class="o">=</span><span class="s2">"Nghị định mới thay thế quy định cũ"</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>        <span class="n">linh_vuc</span><span class="o">=</span><span class="s2">"Hành chính"</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        <span class="n">ngay_ban_hanh</span><span class="o">=</span><span class="s2">"2026-02-01"</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="n">ngay_hieu_luc</span><span class="o">=</span><span class="s2">"2026-03-01"</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="n">thay_the_cho</span><span class="o">=</span><span class="p">[</span><span class="s2">"30/2020/NĐ-CP"</span><span class="p">],</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="p">)</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="5-keo-tha-tai-lieu-kiem-toan-hieu-luc-tren-web-studio">5. Kéo-Thả Tài liệu &amp; Kiểm toán Hiệu lực trên Web Studio<a class="headerlink" href="#5-keo-tha-tai-lieu-kiem-toan-hieu-luc-tren-web-studio" title="Permanent link">&para;</a></h2>
+<p>Khởi chạy giao diện không cần viết mã (hỗ trợ gắn sẵn <code>.vaidb</code>, thư mục Workspace SQLite đa phòng ban và xác thực RBAC):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>vai<span class="w"> </span>studio<span class="w"> </span>--vaidb<span class="w"> </span>kho_luat_cong_ty.vaidb<span class="w"> </span>--workspace-dir<span class="w"> </span>./vai_studio_workspaces<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span>
+</code></pre></div>
+<p>Mở trình duyệt tại <code>http://127.0.0.1:8080</code>, chuyển sang <strong>Tab RAG Tri Thức</strong>:
+1. Kéo-thả trực tiếp tệp <code>.docx</code>, <code>.pdf</code>, <code>.txt</code>, <code>.json</code> hoặc ảnh chụp văn bản (<code>.png</code>/<code>.jpg</code>) vào khung tải lên (giới hạn an toàn 20 MB); có thể chỉ định <code>ma_workspace</code> (ví dụ <code>phap_che</code>, <code>nhan_su</code>) để lưu thẳng vào tệp <code>.vaidb</code> tách biệt của phòng ban đó.
+2. Hệ thống tự tách cấu trúc Điều/Khoản qua <code>BoDocTaiLieuPhapLy</code>, nạp vào RAG (ngữ nghĩa <code>onnx_viet</code>) và trả ngay <strong>báo cáo kiểm toán hiệu lực</strong> cùng <strong>đồ thị tham chiếu văn bản thay thế/hướng dẫn (<code>do_thi_tham_chieu</code>)</strong>.
+3. Có thể gọi trực tiếp qua HTTP API cho ứng dụng nội bộ:
+   - <code>POST /api/rag/upload-file</code>: Nhận <code>{filename, content_base64, che_do_hanh_chinh, ma_workspace}</code>.
+   - <code>POST /api/legal/check-validity</code>: Nhận <code>{so_hieu, ngay_tra_cuu}</code> hoặc <code>{van_ban, ngay_tra_cuu}</code>.
+   - <code>POST /api/legal/citation-graph</code>: Nhận <code>{so_hieu, ngay_tra_cuu, chi_lay_con_hieu_luc}</code> trả kèm sơ đồ Mermaid.</p>
+<hr />
+<h2 id="6-kho-tri-thuc-ben-vung-vaidb-ngu-nghia-ong-nghia-onnx-o-thi-tham-chieu-luat">6. Kho Tri Thức Bền Vững <code>.vaidb</code>, Ngữ Nghĩa Đồng Nghĩa ONNX &amp; Đồ Thị Tham Chiếu Luật<a class="headerlink" href="#6-kho-tri-thuc-ben-vung-vaidb-ngu-nghia-ong-nghia-onnx-o-thi-tham-chieu-luat" title="Permanent link">&para;</a></h2>
+<h3 id="luu-tru-ben-vung-1-tep-vaidb-ong-bo-tang-dan-theo-sha-256">Lưu trữ bền vững 1 tệp <code>.vaidb</code> + Đồng bộ tăng dần theo SHA-256<a class="headerlink" href="#luu-tru-ben-vung-1-tep-vaidb-ong-bo-tang-dan-theo-sha-256" title="Permanent link">&para;</a></h3>
+<p>Không cần dựng máy chủ Chroma/Qdrant rời: toàn bộ văn bản, chỉ mục toàn văn SQLite <strong>FTS5 BM25</strong> (hỗ trợ cả tiếng Việt có dấu lẫn không dấu) và ma trận vector nằm gọn trong một tệp <code>.vaidb</code> duy nhất:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">vietnamese_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">RAGPipeline</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">rag</span> <span class="o">=</span> <span class="n">RAGPipeline</span><span class="p">(</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">backend</span><span class="o">=</span><span class="s2">"vaidb"</span><span class="p">,</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">duong_dan_vaidb</span><span class="o">=</span><span class="s2">"kho_luat_doanh_nghiep.vaidb"</span><span class="p">,</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">che_do_nhung</span><span class="o">=</span><span class="s2">"onnx_viet"</span><span class="p">,</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">che_do_rerank</span><span class="o">=</span><span class="s2">"onnx_viet"</span><span class="p">,</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">che_do_hanh_chinh</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">)</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="c1"># Lần đầu lập chỉ mục cả thư mục; các lần sau tự bỏ qua tệp chưa thay đổi SHA-256</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="n">bc</span> <span class="o">=</span> <span class="n">rag</span><span class="o">.</span><span class="n">dong_bo_thu_muc</span><span class="p">(</span><span class="s2">"thu_muc_hop_dong/"</span><span class="p">,</span> <span class="n">de_quy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">xoa_tep_da_mat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Cập nhật:"</span><span class="p">,</span> <span class="n">bc</span><span class="p">[</span><span class="s2">"so_tep_cap_nhat"</span><span class="p">],</span> <span class="s2">"| Bỏ qua:"</span><span class="p">,</span> <span class="n">bc</span><span class="p">[</span><span class="s2">"so_tep_bo_qua_khong_doi"</span><span class="p">])</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="c1"># Hiểu cả câu hỏi đồng nghĩa đời thường ("sa thải", "sổ đỏ", "lộ dữ liệu", "hóa đơn đỏ")</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="n">kq</span> <span class="o">=</span> <span class="n">rag</span><span class="o">.</span><span class="n">hoi</span><span class="p">(</span><span class="s2">"Công ty sa thải nhân viên trước hạn phải báo trước bao lâu?"</span><span class="p">)</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="nb">print</span><span class="p">(</span><span class="n">kq</span><span class="p">[</span><span class="s2">"tra_loi"</span><span class="p">])</span>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a>
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="c1"># Hoặc đóng gói / sao lưu trực tiếp bất kỳ RAGPipeline nào sang 1 tệp `.vaidb` và nạp lại bằng `tai()`</span>
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="n">rag</span><span class="o">.</span><span class="n">luu</span><span class="p">(</span><span class="s2">"ban_sao_kho_luat.vaidb"</span><span class="p">)</span>
+<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="n">rag</span><span class="o">.</span><span class="n">dong</span><span class="p">()</span>
+<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a>
+<a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a><span class="n">rag_moi</span> <span class="o">=</span> <span class="n">RAGPipeline</span><span class="p">(</span><span class="n">che_do_nhung</span><span class="o">=</span><span class="s2">"onnx_viet"</span><span class="p">,</span> <span class="n">che_do_rerank</span><span class="o">=</span><span class="s2">"onnx_viet"</span><span class="p">,</span> <span class="n">che_do_hanh_chinh</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a><span class="n">rag_moi</span><span class="o">.</span><span class="n">tai</span><span class="p">(</span><span class="s2">"ban_sao_kho_luat.vaidb"</span><span class="p">)</span>
+<a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a><span class="n">rag_moi</span><span class="o">.</span><span class="n">dong</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="o-thi-tham-chieu-phap-ly-dothithamchieuphaply-vai-legal-graph">Đồ thị Tham chiếu Pháp lý (<code>DoThiThamChieuPhapLy</code> &amp; <code>vai legal-graph</code>)<a class="headerlink" href="#o-thi-tham-chieu-phap-ly-dothithamchieuphaply-vai-legal-graph" title="Permanent link">&para;</a></h3>
+<p>Tự động kéo kèm <strong>Nghị định hướng dẫn thi hành</strong>, <strong>Thông tư mới nhất</strong> và <strong>Luật thay thế hiện hành</strong> ngay cả khi người dùng chỉ biết số hiệu luật cũ đã hết hiệu lực:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">vietnamese_ai</span><span class="w"> </span><span class="kn">import</span> <span class="n">DoThiThamChieuPhapLy</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">do_thi</span> <span class="o">=</span> <span class="n">DoThiThamChieuPhapLy</span><span class="p">()</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># Hỏi Luật Đất đai cũ 45/2013/QH13 -&gt; tự mở rộng sang Luật 31/2024/QH15 + NĐ 102/2024/NĐ-CP &amp; 101/2024/NĐ-CP</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="n">kq</span> <span class="o">=</span> <span class="n">do_thi</span><span class="o">.</span><span class="n">truy_van_van_ban_lien_quan</span><span class="p">(</span><span class="s2">"45/2013/QH13"</span><span class="p">,</span> <span class="n">ngay_tra_cuu</span><span class="o">=</span><span class="s2">"2026-01-15"</span><span class="p">,</span> <span class="n">chi_lay_con_hieu_luc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Thay thế hiện hành:"</span><span class="p">,</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">"so_hieu"</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">kq</span><span class="p">[</span><span class="s2">"van_ban_thay_the_hien_hanh"</span><span class="p">]])</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Nghị định hướng dẫn:"</span><span class="p">,</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">"so_hieu"</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">kq</span><span class="p">[</span><span class="s2">"van_ban_huong_dan"</span><span class="p">]])</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">do_thi</span><span class="o">.</span><span class="n">xuat_do_thi_mermaid</span><span class="p">(</span><span class="s2">"45/2013/QH13"</span><span class="p">))</span>
+</code></pre></div>
+<p>Hoặc tra cứu tức thì trên dòng lệnh CLI:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>vai<span class="w"> </span>legal-graph<span class="w"> </span><span class="m">45</span>/2013/QH13<span class="w"> </span>--active-only<span class="w"> </span>--mermaid
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>vai<span class="w"> </span>legal-graph<span class="w"> </span><span class="m">123</span>/2020/NĐ-CP<span class="w"> </span>--dieu<span class="w"> </span><span class="s2">"Điều 19"</span><span class="w"> </span>--date<span class="w"> </span><span class="m">2025</span>-07-01
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>vai<span class="w"> </span>rag<span class="w"> </span>--db<span class="w"> </span>kho_luat.vaidb<span class="w"> </span>--docs<span class="w"> </span>thu_muc_luat/<span class="w"> </span>--admin<span class="w"> </span>--semantic-onnx<span class="w"> </span>--build-hnsw<span class="w"> </span>--query<span class="w"> </span><span class="s2">"lộ dữ liệu cá nhân báo ai?"</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Lần truy vấn sau mở thẳng .vaidb (tự nạp lại đồ thị HNSW bền vững) không cần nạp lại --docs:</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>vai<span class="w"> </span>rag<span class="w"> </span>--db<span class="w"> </span>kho_luat.vaidb<span class="w"> </span>--admin<span class="w"> </span>--semantic-onnx<span class="w"> </span>--query<span class="w"> </span><span class="s2">"lộ dữ liệu cá nhân báo ai?"</span>
+</code></pre></div>
+<h3 id="tra-cuu-phien-ban-ieukhoan-theo-moc-ngay-point-in-time-chi-muc-hnsw-ben-vung">Tra Cứu Phiên Bản Điều/Khoản Theo Mốc Ngày (Point-in-Time) &amp; Chỉ Mục HNSW Bền Vững<a class="headerlink" href="#tra-cuu-phien-ban-ieukhoan-theo-moc-ngay-point-in-time-chi-muc-hnsw-ben-vung" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Phiên bản Điều/Khoản theo ngày (<code>PhienBanDieuKhoan</code>)</strong>: <code>BoTheoDoiHieuLucPhapLy.tra_cuu_dieu_khoan_theo_ngay(so_hieu, dieu, ngay_tra_cuu, khoan)</code> và <code>TroLyPhapLy.tra_cuu(cau_hoi, ngay_tra_cuu="2025-07-01")</code> trả về đúng phiên bản quy định có hiệu lực tại ngày quá khứ hoặc hiện hành (ví dụ Điều 9 &amp; Điều 19 Nghị định <code>123/2020/NĐ-CP</code> trước và sau <code>01/06/2025</code> khi Nghị định <code>70/2025/NĐ-CP</code> sửa đổi).</li>
+<li><strong>Chỉ mục HNSW bền vững trong <code>.vaidb</code></strong>: <code>KhoTriThucVAIDB.xay_dung_chi_muc_hnsw(m=12, ef_construction=64, ef_search=48)</code> lưu đồ thị đa tầng vào 2 bảng SQLite (<code>vai_hnsw_meta</code>, <code>vai_hnsw_nodes</code>), tự nạp lại khi mở tệp và hỗ trợ lọc metadata trước khi trả kết quả (<code>bo_loc={"nhom": "..."}</code>).</li>
+<li><strong>Pipeline Nạp Tự Động Văn Bản Pháp Quy / Văn Bản Hợp Nhất (<code>BoNapVanBanPhapQuyTuDong</code> / <code>vai legal-ingest</code>)</strong>: tự động bóc tách số hiệu, ngày hiệu lực, cước chú hợp nhất <code>[N]</code> → sinh chuỗi <code>PhienBanDieuKhoan</code> Point-in-Time + cạnh <code>QuanHePhapLy</code>, dựng sẵn HNSW vào 1 tệp <code>.vaidb</code> và tự phục hồi khi mở bằng <code>TroLyPhapLy(duong_dan_vaidb=...)</code>. Kết hợp cùng Cross-Encoder Reranker <code>che_do_rerank="bge_reranker"</code> / <code>"phoranker"</code> (<code>BoSapXepLaiONNXTiengViet</code>).</li>
+</ul>
+<hr />
+<h2 id="7-cai-at-nhom-mo-rong-pdfocr-onnx-runtime-tuy-chon">7. Cài đặt Nhóm Mở rộng PDF/OCR &amp; ONNX Runtime (Tùy chọn)<a class="headerlink" href="#7-cai-at-nhom-mo-rong-pdfocr-onnx-runtime-tuy-chon" title="Permanent link">&para;</a></h2>
+<p>Lõi đọc <code>.txt</code>, <code>.md</code>, <code>.json</code>, <code>.jsonl</code>, <code>.docx</code> (OOXML), kho <code>.vaidb</code> (SQLite FTS5) và chế độ ngữ nghĩa đồng nghĩa tiếng Việt chạy hoàn toàn không cần thư viện ngoài. Để mở khóa đọc bảng <code>.pdf</code>, OCR ảnh scan và chạy trực tiếp tệp mô hình ONNX INT8 trên CPU:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"vietnamese-ai[legal-rag,export]"</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># Hoặc dùng trình tự động 3 tầng:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>vai<span class="w"> </span>setup<span class="w"> </span>--profile<span class="w"> </span>legal-rag<span class="w"> </span>--apply
+</code></pre></div>
+<p>Xem đầy đủ API chi tiết tại <a href="../../api/legal-rag/">Legal &amp; Administrative RAG API Reference</a> và <a href="../../api/rag/">RAG API Reference</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Trở lại mục lục
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "\u0110\u00e3 sao ch\u00e9p", "clipboard.copy": "Sao ch\u00e9p v\u00e0o b\u1ed9 nh\u1edb t\u1ea1m", "search.result.more.one": "1 t\u1eeb kh\u00e1c trong trang", "search.result.more.other": "# t\u1eeb kh\u00e1c trong trang", "search.result.none": "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan", "search.result.one": "1 t\u00e0i li\u1ec7u li\u00ean quan", "search.result.other": "# t\u00e0i li\u1ec7u li\u00ean quan", "search.result.placeholder": "Nh\u1eadp \u0111\u1ec3 b\u1eaft \u0111\u1ea7u t\u00ecm ki\u1ebfm", "search.result.term.missing": "Kh\u00f4ng", "select.version": "Ch\u1ecdn phi\u00ean b\u1ea3n"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

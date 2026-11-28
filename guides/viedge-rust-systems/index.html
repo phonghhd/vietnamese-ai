@@ -1,0 +1,3788 @@
+
+<!doctype html>
+<html lang="vi" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Framework AI thuần tiếng Việt cho Python - Micro-Core, .vaidb Legal RAG, Hợp đồng Redline, MCP IDE, Zalo/Telegram, Zero-GPU Edge LLM & Remote GPU Flywheel">
+      
+      
+      
+        <link rel="canonical" href="https://phonghhd.github.io/vietnamese-ai/guides/viedge-rust-systems/">
+      
+      
+        <link rel="prev" href="../../research/DATASHEET_VILEGAL_TEMPBENCH_V2/">
+      
+      
+        <link rel="next" href="../vialign-safeloop/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Báo cáo ViEdge-RustEngine & SysBench (Zero-GPU) - Vietnamese AI Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#bao-cao-ky-thuat-viedge-rustengine-viedge-sysbench-zero-gpu-edge-ai-rust-quantized-retrieval" class="md-skip">
+          Bỏ qua
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Đầu trang">
+    <a href="../.." title="Vietnamese AI Framework" class="md-header__button md-logo" aria-label="Vietnamese AI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Vietnamese AI Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Báo cáo ViEdge-RustEngine & SysBench (Zero-GPU)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ tối"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Chế độ tối" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Chế độ sáng"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Chế độ sáng" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Tìm kiếm" placeholder="Tìm kiếm" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Tìm kiếm">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Xoá" aria-label="Xoá" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/phonghhd/vietnamese-ai" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    phonghhd/vietnamese-ai
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Trang chủ
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Bắt đầu
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../vilegal-temporal-rag/" class="md-tabs__link">
+          
+  
+  
+  Trụ cột Chiến lược v31
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../classification/" class="md-tabs__link">
+          
+  
+  
+  Hướng dẫn Cốt lõi
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/core/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../v12-agents/" class="md-tabs__link">
+          
+  
+  
+  Lịch sử Phiên bản
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Thanh điều hướng" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Vietnamese AI Framework" class="md-nav__button md-logo" aria-label="Vietnamese AI Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Vietnamese AI Framework
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/phonghhd/vietnamese-ai" title="Xem mã nguồn" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    phonghhd/vietnamese-ai
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trang chủ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bắt đầu
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bắt đầu
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cài đặt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sử dụng nhanh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trụ cột Chiến lược v31
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trụ cột Chiến lược v31
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vilegal-temporal-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViLegal-TemporalRAG & TempBench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../research/DATASHEET_VILEGAL_TEMPBENCH_V2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Datasheet ViLegal-TempBench v2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViEdge-RustEngine & SysBench (Zero-GPU)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViEdge-RustEngine & SysBench (Zero-GPU)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-ong-luc-he-thong-systems-for-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Động Lực Hệ Thống (Systems for AI)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-kien-truc-tong-the" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Kiến Trúc Tổng Thể
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Kiến Trúc Tổng Thể">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cac-thuat-toan-cot-loi-cai-at-trong-rust_coresrcedge_quantrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Các thuật toán cốt lõi cài đặt trong rust_core/src/edge_quant.rs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-ket-qua-thuc-nghiem-viedge-sysbench-tren-phan-cung-cpu-thuc-te" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Kết Quả Thực Nghiệm ViEdge-SysBench Trên Phần Cứng CPU Thực Tế
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Kết Quả Thực Nghiệm ViEdge-SysBench Trên Phần Cứng CPU Thực Tế">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-truy-hoi-vector-luong-tu-hoa-native-rust-hnsw-20000-vector-384-chieu-80-truy-van-top_k-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1. Truy hồi Vector Lượng tử hóa &amp; Native Rust HNSW (20,000 vector × 384 chiều, 80 truy vấn, top_k = 10)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-bitnet-158-bit-ong-goi-2-bit-thuc-rust-t-mac-4-bit-nibble-lut-zero-mul" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2. BitNet 1.58-bit Đóng Gói 2-bit Thực (Rust T-MAC 4-bit Nibble LUT Zero-Mul)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-chuoi-suy-luan-tieng-viet-zero-gpu-au-cuoi-tren-cpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3. Chuỗi Suy Luận Tiếng Việt Zero-GPU Đầu-Cuối trên CPU
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-huong-dan-su-dung-tai-lap-1-lenh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Hướng Dẫn Sử Dụng &amp; Tái Lập 1 Lệnh
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Hướng Dẫn Sử Dụng &amp; Tái Lập 1 Lệnh">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-dung-truc-tiep-tren-vaidb-va-bitlinear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1. Dùng trực tiếp trên .vaidb và BitLinear
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-tai-lap-viedge-sysbench-va-xuat-bang-latex-cho-bai-bao" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2. Tái lập ViEdge-SysBench và xuất bảng LaTeX cho bài báo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vialign-safeloop/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Báo cáo ViAlign-SafeLoop & SafeBench (Continual Alignment)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../five-minute-dx-and-release/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trải nghiệm 5 Phút & Phát hành PyPI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../remote-gpu-flywheel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tinh chỉnh GPU Từ xa (Remote Flywheel)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../edge-cpu-llm-runtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Tiếng Việt Zero-GPU (vai pull / run)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vietnamese-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pháp lý, Hiệu lực & Studio Kéo-Thả
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workbench-mcp-connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hợp đồng Redline, MCP IDE & Zalo/Telegram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-cursor-claude/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cắm MCP vào Cursor, Claude & Docker Compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-pilot-kit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bộ Triển Khai Pilot Doanh Nghiệp (15 Phút)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deep-architecture-and-surfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kiến trúc Chiều sâu & 5 Bề mặt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../swarm-cpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Swarm CPU & LAN Parallelism
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../verifiable-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verifiable AI (Proof of Inference)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../crypto-audit-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phạm vi Kiểm toán Mật mã (zkML Audit)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-defense/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phòng thủ Dữ liệu & Khiên Đa lớp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-graph-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tác tử StateGraph & MCP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../datalake-16-datasets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hồ Dữ liệu 16 Tập (DataLake)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparative-benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bảng So sánh Thực nghiệm
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hướng dẫn Cốt lõi
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hướng dẫn Cốt lõi
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Phân loại
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../regression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hồi quy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../text-processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Xử lý văn bản
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../automl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AutoML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mobile/Edge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../federated/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Federated Learning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-time Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../saas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud SaaS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    No-code Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vietnamese LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../peft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PEFT & Instruction Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sft-dpo-rlhf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SFT, DPO & RLHF
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gpt-pretraining/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPT Pre-training
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation & Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving & Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt Engineering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nlp-extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NLP Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production Hardening
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../salm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Self-Adapting LMs (SALM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../google-colab-kaggle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Google Colab / Kaggle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trang-thai-v30/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trạng thái v30
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utils & Versioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nlp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vietnamese NLP Core
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/edge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Edge & Swarm CPU
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/legal-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal & Admin RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/crypto-zkml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crypto & zkML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/classic-ml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Classic ML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark Suite
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mobile/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mobile/Edge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/federated/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Federated
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/saas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud SaaS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NAS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/peft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PEFT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training (SFT/DPO/RLHF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/gpt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPT & PreTrainer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAG
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/serving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serving
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/nlp-extensions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NLP Extensions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/salm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SALM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lịch sử Phiên bản
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Lịch sử Phiên bản
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v12-agents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v12 Tác tử (Agents)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v13-edge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v13 Biên mạng (Edge)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v14-advanced-rag/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v14 RAG Nâng cao
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v17-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v17 An ninh (Security)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v18-v20-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v18-v20 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v21-v23-evolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v21-v23 Tiến hoá
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../v27-hardware-extreme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v27 Phần cứng Cực hạn
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v28_spatial_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v28 Spatial AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v29_mobile_ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v29 Mobile AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v30_mobile_sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v30 Mobile SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Mục lục">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Mục lục
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-ong-luc-he-thong-systems-for-ai" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Động Lực Hệ Thống (Systems for AI)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-kien-truc-tong-the" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Kiến Trúc Tổng Thể
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Kiến Trúc Tổng Thể">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cac-thuat-toan-cot-loi-cai-at-trong-rust_coresrcedge_quantrs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Các thuật toán cốt lõi cài đặt trong rust_core/src/edge_quant.rs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-ket-qua-thuc-nghiem-viedge-sysbench-tren-phan-cung-cpu-thuc-te" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Kết Quả Thực Nghiệm ViEdge-SysBench Trên Phần Cứng CPU Thực Tế
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Kết Quả Thực Nghiệm ViEdge-SysBench Trên Phần Cứng CPU Thực Tế">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-truy-hoi-vector-luong-tu-hoa-native-rust-hnsw-20000-vector-384-chieu-80-truy-van-top_k-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1. Truy hồi Vector Lượng tử hóa &amp; Native Rust HNSW (20,000 vector × 384 chiều, 80 truy vấn, top_k = 10)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-bitnet-158-bit-ong-goi-2-bit-thuc-rust-t-mac-4-bit-nibble-lut-zero-mul" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2. BitNet 1.58-bit Đóng Gói 2-bit Thực (Rust T-MAC 4-bit Nibble LUT Zero-Mul)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-chuoi-suy-luan-tieng-viet-zero-gpu-au-cuoi-tren-cpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3. Chuỗi Suy Luận Tiếng Việt Zero-GPU Đầu-Cuối trên CPU
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-huong-dan-su-dung-tai-lap-1-lenh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Hướng Dẫn Sử Dụng &amp; Tái Lập 1 Lệnh
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Hướng Dẫn Sử Dụng &amp; Tái Lập 1 Lệnh">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-dung-truc-tiep-tren-vaidb-va-bitlinear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1. Dùng trực tiếp trên .vaidb và BitLinear
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-tai-lap-viedge-sysbench-va-xuat-bang-latex-cho-bai-bao" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2. Tái lập ViEdge-SysBench và xuất bảng LaTeX cho bài báo
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="bao-cao-ky-thuat-viedge-rustengine-viedge-sysbench-zero-gpu-edge-ai-rust-quantized-retrieval">Báo Cáo Kỹ Thuật: ViEdge-RustEngine &amp; ViEdge-SysBench (Zero-GPU Edge AI &amp; Rust Quantized Retrieval)<a class="headerlink" href="#bao-cao-ky-thuat-viedge-rustengine-viedge-sysbench-zero-gpu-edge-ai-rust-quantized-retrieval" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Hệ thống AI tiếng Việt thuần CPU không cần GPU</strong> — Tích hợp lượng tử hóa vector nội sinh Rust (<code>SQ8 SSE4.1/AVX2</code>, <code>Binary 1-bit POPCNT</code>, <code>Two-Stage Rescore</code>), đồ thị <strong>Native Rust HNSW-SQ8</strong> bền vững trong 1 tệp <code>.vaidb</code>, và nhân ma trận <strong>BitNet 1.58-bit đóng gói 2-bit T-MAC Nibble LUT</strong> không phép nhân.</p>
+</blockquote>
+<hr />
+<h2 id="1-ong-luc-he-thong-systems-for-ai">1. Động Lực Hệ Thống (Systems for AI)<a class="headerlink" href="#1-ong-luc-he-thong-systems-for-ai" title="Permanent link">&para;</a></h2>
+<p>Các văn phòng, bệnh viện, trường học và cơ quan tại Việt Nam thường chỉ có máy tính văn phòng hoặc Mini PC chạy <strong>CPU phổ thông không có GPU rời</strong> (ví dụ Intel Celeron / Core i3–i5, RAM 4–8 GB) nhưng vẫn yêu cầu:</p>
+<ol>
+<li><strong>Bảo mật dữ liệu 100% tại chỗ (Air-Gapped / Offline)</strong> — không gửi hồ sơ khách hàng hay văn bản nội bộ lên đám mây.</li>
+<li><strong>Chi phí RAM cực thấp</strong> — lưu hàng chục đến hàng trăm nghìn vector ngữ nghĩa tiếng Việt và trọng số mô hình nhỏ gọn trong vài MB RAM.</li>
+<li><strong>Độ trễ tương tác dưới 10 ms</strong> — chạy trọn chuỗi <em>Tách từ tiếng Việt FST/Viterbi → Truy hồi vector <code>.vaidb</code> → Suy luận tuyến tính nén cực thấp</em> mà không giật lag.</li>
+</ol>
+<p><strong>ViEdge-RustEngine</strong> giải quyết trực tiếp bài toán này bằng lõi native Rust (<code>rust_core/src/edge_quant.rs</code>, đóng gói bánh xe <code>abi3-py39</code> tương thích Python 3.9–3.14 và tự động dự phòng sang thuần NumPy 100% tương đương khi chưa biên dịch Rust).</p>
+<hr />
+<h2 id="2-kien-truc-tong-the">2. Kiến Trúc Tổng Thể<a class="headerlink" href="#2-kien-truc-tong-the" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>flowchart LR
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    Q["Câu hỏi tiếng Việt (CPU thuần)"] --&gt; TOK["BoTachTuTiengVietSieuToc&lt;br/&gt;FST + Viterbi Rust (~0.10 ms)"]
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    TOK --&gt; VDB["KhoTriThucVAIDB (.vaidb SQLite)&lt;br/&gt;Bảng vai_quant_index (VQI1/VHNS)"]
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    VDB --&gt; QIDX["ChiMucVectorLuongTu&lt;br/&gt;6 chế độ: FP32 / SQ8 / Binary /&lt;br/&gt;Binary+SQ8 / HNSW-FP32 / HNSW-SQ8"]
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    QIDX --&gt; SIMD["Rust SIMD Runtime Dispatch&lt;br/&gt;SSE4.1 / AVX2 (x86_64) • NEON (ARM64)&lt;br/&gt;Hardware POPCNT • Rayon Batch"]
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    SIMD --&gt; BN["BitLinear 1.58-bit (2-bit Packed)&lt;br/&gt;T-MAC 4-bit Nibble LUT (Zero-Mul)&lt;br/&gt;Nén 16x RAM"]
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    BN --&gt; OUT["Kết quả Edge Zero-GPU&lt;br/&gt;Tổng độ trễ ~4.55 ms trên Celeron N3050"]
+</code></pre></div>
+<h3 id="cac-thuat-toan-cot-loi-cai-at-trong-rust_coresrcedge_quantrs">Các thuật toán cốt lõi cài đặt trong <code>rust_core/src/edge_quant.rs</code><a class="headerlink" href="#cac-thuat-toan-cot-loi-cai-at-trong-rust_coresrcedge_quantrs" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Lượng tử hóa vô hướng 8-bit (<code>SQ8</code>) với SIMD runtime dispatch (<code>SSE4.1</code> / <code>AVX2</code> / NEON)</strong>:</li>
+<li>Mỗi vector chuẩn hóa L2 được nén đối xứng về <code>int8</code> kèm hệ số tỷ lệ <code>f32</code> (<code>scale = max(|v|) / 127.0</code>), giảm <strong>4.0× RAM</strong>.</li>
+<li>Tích vô hướng nguyên <code>i8 × i8 → i32</code> tự động chọn lệnh phần cứng lúc chạy (<code>_mm256_madd_epi16</code> trên AVX2, <code>_mm_cvtepi8_epi16</code> + <code>_mm_madd_epi16</code> trên SSE4.1, và <code>chunks_exact(8)</code> auto-vectorized trên ARM64).</li>
+<li><strong>Lượng tử hóa nhị phân 1-bit (<code>Binary POPCNT</code>) &amp; Hai tầng bất đối xứng (<code>Binary + SQ8 Rescore</code>)</strong>:</li>
+<li>Nén mỗi chiều xuống đúng 1 bit đóng gói trong từ 64-bit <code>u64</code>, giảm <strong>32.0× RAM</strong> (<code>29.30 MB → 0.92 MB</code> cho 20,000 × 384 vector).</li>
+<li>Tính khoảng cách Hamming bằng lệnh phần cứng <code>u64::count_ones()</code> (<code>POPCNT</code>), sau đó tùy chọn chấm lại top <code>oversample × k</code> ứng viên bằng SQ8 để khôi phục <strong>Recall@10 = 96.88%</strong>.</li>
+<li><strong>Đồ thị HNSW đa tầng Native Rust (<code>RustHNSWIndex</code>) bền vững trong <code>.vaidb</code></strong>:</li>
+<li>Cài đặt thuật toán <strong>Malkov &amp; Yashunin (2018) Alg. 4 Diversity Heuristic</strong> cho <strong>cả cạnh thuận lẫn cắt tỉa cạnh ngược</strong>, bảo toàn cầu nối liên cụm (inter-cluster bridges) trên không gian nhúng phân cụm đa chủ đề.</li>
+<li>Hỗ trợ tìm kiếm theo lô song song Rayon (<code>search_batch_bytes</code>) và tuần tự hóa nhị phân nguyên khối định dạng <code>VQI1</code>/<code>VHNS</code> lưu thẳng vào bảng SQLite <code>vai_quant_index</code> của <code>KhoTriThucVAIDB</code> (tự động nạp lại sau khi mở tệp <code>.vaidb</code>, và tự vô hiệu hóa an toàn khi chèn tài liệu mới).</li>
+<li><strong>BitNet 1.58-bit đóng gói 2-bit thực (<code>4 trọng số/byte</code>, nén 16× RAM) với nhân T-MAC 4-bit Nibble LUT</strong>:</li>
+<li>Trọng số tam phân $\lbrace -1, 0, +1 \rbrace$ được mã hóa 2-bit theo hàng (<code>0 → -1</code>, <code>1 → 0</code>, <code>2 → +1</code>).</li>
+<li>Thay vì dùng nhánh điều kiện <code>if/else</code> gây dự đoán sai nhánh, mỗi hàng đầu vào $x$ xây dựng bảng tra cứu <strong>4-bit Nibble LUT</strong> kích thước nhỏ gọn (<code>packed_cols × 2 × 16 × 4 bytes</code>, chỉ <code>64 KB</code> cho chiều <code>2048</code> — nằm trọn trong L1/L2 cache CPU) và dùng chung chỉ đọc cho toàn bộ <code>out_features</code> trên nhiều lõi Rayon: <strong>0 phép nhân trọng số, 0 nhánh rẽ, độ chính xác khớp tuyệt đối $\le 2 \times 10^{-6}$</strong>.</li>
+</ol>
+<hr />
+<h2 id="3-ket-qua-thuc-nghiem-viedge-sysbench-tren-phan-cung-cpu-thuc-te">3. Kết Quả Thực Nghiệm <code>ViEdge-SysBench</code> Trên Phần Cứng CPU Thực Tế<a class="headerlink" href="#3-ket-qua-thuc-nghiem-viedge-sysbench-tren-phan-cung-cpu-thuc-te" title="Permanent link">&para;</a></h2>
+<p>Đo trực tiếp không giả lập trên phần cứng Edge công suất thấp <strong>Intel Celeron N3050 @ 1.60 GHz (6W TDP, 2 lõi CPU, 1 MB L2, SSE4.2 + POPCNT, không AVX2, không GPU)</strong>, Python <code>3.14.4</code>, <code>seed = 42</code>.</p>
+<h3 id="31-truy-hoi-vector-luong-tu-hoa-native-rust-hnsw-20000-vector-384-chieu-80-truy-van-top_k-10">3.1. Truy hồi Vector Lượng tử hóa &amp; Native Rust HNSW (<code>20,000</code> vector × <code>384</code> chiều, <code>80</code> truy vấn, <code>top_k = 10</code>)<a class="headerlink" href="#31-truy-hoi-vector-luong-tu-hoa-native-rust-hnsw-20000-vector-384-chieu-80-truy-van-top_k-10" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Phương pháp</th>
+<th style="text-align: right;">Vec RAM (MB)</th>
+<th style="text-align: right;">Tổng RAM (MB)</th>
+<th style="text-align: right;">Nén Vec</th>
+<th style="text-align: right;">Build (s)</th>
+<th style="text-align: right;">p50 (ms)</th>
+<th style="text-align: right;">p95 (ms)</th>
+<th style="text-align: right;">p99 (ms)</th>
+<th style="text-align: right;">QPS đơn</th>
+<th style="text-align: right;">QPS lô</th>
+<th style="text-align: right;">Recall@10</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP32 Exact (NumPy BLAS)</td>
+<td style="text-align: right;">29.30</td>
+<td style="text-align: right;">29.30</td>
+<td style="text-align: right;">1.0×</td>
+<td style="text-align: right;">1.504</td>
+<td style="text-align: right;">36.448</td>
+<td style="text-align: right;">79.109</td>
+<td style="text-align: right;">91.816</td>
+<td style="text-align: right;">23.6</td>
+<td style="text-align: right;">43.1</td>
+<td style="text-align: right;">1.0000</td>
+</tr>
+<tr>
+<td>FP32 Exact (Rust Rayon)</td>
+<td style="text-align: right;">29.30</td>
+<td style="text-align: right;">29.30</td>
+<td style="text-align: right;">1.0×</td>
+<td style="text-align: right;">0.330</td>
+<td style="text-align: right;">27.570</td>
+<td style="text-align: right;">55.698</td>
+<td style="text-align: right;">68.317</td>
+<td style="text-align: right;">31.3</td>
+<td style="text-align: right;">29.5</td>
+<td style="text-align: right;">1.0000</td>
+</tr>
+<tr>
+<td><strong>SQ8 8-bit (Rust SSE4.1 4× RAM)</strong></td>
+<td style="text-align: right;"><strong>7.40</strong></td>
+<td style="text-align: right;"><strong>7.40</strong></td>
+<td style="text-align: right;"><strong>4.0×</strong></td>
+<td style="text-align: right;">0.433</td>
+<td style="text-align: right;"><strong>6.090</strong></td>
+<td style="text-align: right;">18.559</td>
+<td style="text-align: right;">35.635</td>
+<td style="text-align: right;"><strong>119.0</strong></td>
+<td style="text-align: right;"><strong>165.8</strong></td>
+<td style="text-align: right;"><strong>0.9688</strong></td>
+</tr>
+<tr>
+<td><strong>Binary 1-bit POPCNT (Rust 32× RAM)</strong></td>
+<td style="text-align: right;"><strong>0.92</strong></td>
+<td style="text-align: right;"><strong>0.92</strong></td>
+<td style="text-align: right;"><strong>32.0×</strong></td>
+<td style="text-align: right;">0.132</td>
+<td style="text-align: right;"><strong>4.768</strong></td>
+<td style="text-align: right;">15.626</td>
+<td style="text-align: right;">22.030</td>
+<td style="text-align: right;"><strong>155.2</strong></td>
+<td style="text-align: right;"><strong>203.0</strong></td>
+<td style="text-align: right;">0.4262</td>
+</tr>
+<tr>
+<td><strong>Binary+SQ8 Rescore (Rust Two-Stage)</strong></td>
+<td style="text-align: right;"><strong>8.32</strong></td>
+<td style="text-align: right;"><strong>8.32</strong></td>
+<td style="text-align: right;"><strong>3.5×</strong></td>
+<td style="text-align: right;">0.622</td>
+<td style="text-align: right;"><strong>4.145</strong></td>
+<td style="text-align: right;"><strong>6.606</strong></td>
+<td style="text-align: right;"><strong>7.246</strong></td>
+<td style="text-align: right;"><strong>231.6</strong></td>
+<td style="text-align: right;">133.6</td>
+<td style="text-align: right;"><strong>0.9688</strong></td>
+</tr>
+<tr>
+<td><strong>Native Rust HNSW-SQ8 (4× RAM + $O(\log N)$)</strong></td>
+<td style="text-align: right;"><strong>7.40</strong></td>
+<td style="text-align: right;"><strong>9.92</strong></td>
+<td style="text-align: right;"><strong>4.0×</strong></td>
+<td style="text-align: right;">44.414</td>
+<td style="text-align: right;"><strong>0.311</strong></td>
+<td style="text-align: right;"><strong>2.479</strong></td>
+<td style="text-align: right;"><strong>3.373</strong></td>
+<td style="text-align: right;"><strong>1,464.8</strong></td>
+<td style="text-align: right;"><strong>2,027.6</strong></td>
+<td style="text-align: right;"><strong>0.9688</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Điểm nhấn khoa học</strong>:
+- <strong>Native Rust HNSW-SQ8</strong> đạt độ trễ trung vị <strong><code>0.311 ms</code></strong> (<strong>nhanh gấp 117×</strong> so với <code>FP32 NumPy BLAS 36.45 ms</code>), thông lượng lô <strong><code>2,027.6 QPS</code></strong> (<strong>gấp 47×</strong>), tiết kiệm <strong>75% RAM vector (<code>4.0×</code>)</strong> mà vẫn giữ nguyên <strong><code>Recall@10 = 0.9688</code></strong> (ngang bằng quét cạn SQ8).
+- <strong>Binary+SQ8 Two-Stage Rescore</strong> không cần dựng đồ thị HNSW (<code>build = 0.62s</code>), đạt <strong><code>p50 = 4.145 ms</code></strong> (<code>p99 = 7.246 ms</code>), <strong><code>231.6 QPS</code></strong> (<strong>gấp 9.8× FP32 NumPy</strong>) với <strong><code>Recall@10 = 0.9688</code></strong>.
+- <strong>SQ8 8-bit SSE4.1</strong> quét chính xác toàn bộ 20,000 vector chỉ trong <strong><code>6.09 ms</code></strong> (<strong>nhanh gấp 6.0× FP32 NumPy</strong>).</p>
+<h3 id="32-bitnet-158-bit-ong-goi-2-bit-thuc-rust-t-mac-4-bit-nibble-lut-zero-mul">3.2. BitNet 1.58-bit Đóng Gói 2-bit Thực (Rust T-MAC 4-bit Nibble LUT Zero-Mul)<a class="headerlink" href="#32-bitnet-158-bit-ong-goi-2-bit-thuc-rust-t-mac-4-bit-nibble-lut-zero-mul" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Kích thước tầng</th>
+<th style="text-align: right;">FP32 (MB)</th>
+<th style="text-align: right;">2-bit Packed (MB)</th>
+<th style="text-align: right;">Nén RAM</th>
+<th style="text-align: right;">FP32 NumPy (ms)</th>
+<th style="text-align: right;">BitNet NumPy (ms)</th>
+<th style="text-align: right;">BitNet Rust LUT (ms)</th>
+<th style="text-align: right;">Tăng tốc vs BN-NumPy</th>
+<th style="text-align: right;">Sai số tối đa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>512×512</code></td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.0625</td>
+<td style="text-align: right;"><strong>16.0×</strong></td>
+<td style="text-align: right;">3.029</td>
+<td style="text-align: right;">10.481</td>
+<td style="text-align: right;"><strong>1.640</strong></td>
+<td style="text-align: right;"><strong>6.39×</strong></td>
+<td style="text-align: right;"><code>5.00e-07</code></td>
+</tr>
+<tr>
+<td><code>1024×1024</code></td>
+<td style="text-align: right;">4.000</td>
+<td style="text-align: right;">0.2500</td>
+<td style="text-align: right;"><strong>16.0×</strong></td>
+<td style="text-align: right;">10.961</td>
+<td style="text-align: right;">53.746</td>
+<td style="text-align: right;"><strong>11.095</strong></td>
+<td style="text-align: right;"><strong>4.84×</strong></td>
+<td style="text-align: right;"><code>1.00e-06</code></td>
+</tr>
+<tr>
+<td><code>2048×2048</code></td>
+<td style="text-align: right;">16.000</td>
+<td style="text-align: right;">1.0000</td>
+<td style="text-align: right;"><strong>16.0×</strong></td>
+<td style="text-align: right;">20.860</td>
+<td style="text-align: right;">251.969</td>
+<td style="text-align: right;"><strong>25.309</strong></td>
+<td style="text-align: right;"><strong>9.96×</strong></td>
+<td style="text-align: right;"><code>1.90e-06</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Ở tầng <code>512×512</code>, nhân ma trận <strong>BitNet 1.58-bit 2-bit Rust T-MAC LUT</strong> chạy <strong>nhanh gấp 1.85× cả <code>FP32 OpenBLAS</code></strong> (<code>1.640 ms</code> vs <code>3.029 ms</code>) trong khi chỉ tốn <strong>1/16 dung lượng RAM</strong> (<code>64 KB</code> vs <code>1 MB</code>). Ở <code>2048×2048</code>, nhanh gấp <strong>9.96×</strong> so với bản NumPy và giữ sai số đối chiếu chỉ <code>1.90e-06</code>.</p>
+</blockquote>
+<h3 id="33-chuoi-suy-luan-tieng-viet-zero-gpu-au-cuoi-tren-cpu">3.3. Chuỗi Suy Luận Tiếng Việt Zero-GPU Đầu-Cuối trên CPU<a class="headerlink" href="#33-chuoi-suy-luan-tieng-viet-zero-gpu-au-cuoi-tren-cpu" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Mắt xích trong chuỗi Zero-GPU</th>
+<th style="text-align: right;">Độ trễ thực đo</th>
+<th>Ghi chú hệ thống</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Tách từ tiếng Việt Viterbi + FST (Rust)</td>
+<td style="text-align: right;"><code>0.1025 ms</code></td>
+<td>Khớp 100% đường Python</td>
+</tr>
+<tr>
+<td>2. Truy vấn <code>.vaidb</code> Native Rust HNSW-SQ8</td>
+<td style="text-align: right;"><code>0.1640 ms</code></td>
+<td>Nạp lạnh từ đĩa <code>173.5 ms</code> (<code>1,984 KB</code>, nén <code>3.88×</code>)</td>
+</tr>
+<tr>
+<td>3. Suy luận tầng BitNet 1.58-bit 2-bit (<code>512×512</code>)</td>
+<td style="text-align: right;"><code>4.2819 ms</code></td>
+<td>T-MAC Nibble LUT, 0 phép nhân</td>
+</tr>
+<tr>
+<td><strong>Tổng độ trễ đầu-cuối (End-to-End)</strong></td>
+<td style="text-align: right;"><strong><code>4.5486 ms</code></strong></td>
+<td><strong>&gt; 200 lượt xử lý/giây trên Celeron 6W không GPU</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-huong-dan-su-dung-tai-lap-1-lenh">4. Hướng Dẫn Sử Dụng &amp; Tái Lập 1 Lệnh<a class="headerlink" href="#4-huong-dan-su-dung-tai-lap-1-lenh" title="Permanent link">&para;</a></h2>
+<h3 id="41-dung-truc-tiep-tren-vaidb-va-bitlinear">4.1. Dùng trực tiếp trên <code>.vaidb</code> và <code>BitLinear</code><a class="headerlink" href="#41-dung-truc-tiep-tren-vaidb-va-bitlinear" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">vietnamese_ai</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">BitLinear</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">ChiMucVectorLuongTu</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">KhoTriThucVAIDB</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">co_rust_bitnet</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">co_rust_luong_tu</span><span class="p">,</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># 1. Chỉ mục vector lượng tử hóa độc lập (SQ8 / Binary+SQ8 / HNSW-SQ8)</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="mi">10000</span><span class="p">,</span> <span class="mi">384</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">idx</span> <span class="o">=</span> <span class="n">ChiMucVectorLuongTu</span><span class="p">(</span><span class="n">che_do</span><span class="o">=</span><span class="s2">"hnsw_sq8"</span><span class="p">,</span> <span class="n">m</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">ef_construction</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span> <span class="n">ef_search</span><span class="o">=</span><span class="mi">64</span><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">xay_dung</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nb">print</span><span class="p">(</span><span class="s2">"Nén vector:"</span><span class="p">,</span> <span class="n">stats</span><span class="p">[</span><span class="s2">"ti_le_nen_vector"</span><span class="p">],</span> <span class="s2">"Rust:"</span><span class="p">,</span> <span class="n">co_rust_luong_tu</span><span class="p">())</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="n">top10</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">tim_kiem</span><span class="p">(</span><span class="n">vectors</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="c1"># Lưu &amp; phục hồi nhị phân VQI1/VHNS</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="n">blob</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">luu_bytes</span><span class="p">()</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="n">idx_reloaded</span> <span class="o">=</span> <span class="n">ChiMucVectorLuongTu</span><span class="o">.</span><span class="n">tai_bytes</span><span class="p">(</span><span class="n">blob</span><span class="p">)</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="c1"># 2. Gắn trực tiếp HNSW-SQ8 bền vững vào 1 tệp .vaidb</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="n">store</span> <span class="o">=</span> <span class="n">KhoTriThucVAIDB</span><span class="p">(</span><span class="s2">"tri_thuc_noi_bo.vaidb"</span><span class="p">)</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="n">store</span><span class="o">.</span><span class="n">xay_dung_chi_muc_luong_tu</span><span class="p">(</span><span class="n">che_do</span><span class="o">=</span><span class="s2">"hnsw_sq8"</span><span class="p">,</span> <span class="n">luu_xuong_dia</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="c1"># 3. BitNet 1.58-bit đóng gói 2-bit thực (16x RAM + T-MAC LUT Rust)</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="n">layer</span> <span class="o">=</span> <span class="n">BitLinear</span><span class="p">(</span><span class="mi">1024</span><span class="p">,</span> <span class="mi">1024</span><span class="p">)</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="nb">print</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">thong_ke_nen</span><span class="p">(),</span> <span class="s2">"Rust BitNet:"</span><span class="p">,</span> <span class="n">co_rust_bitnet</span><span class="p">())</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1024</span><span class="p">))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="n">y</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">suy_luan_2bit</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="42-tai-lap-viedge-sysbench-va-xuat-bang-latex-cho-bai-bao">4.2. Tái lập <code>ViEdge-SysBench</code> và xuất bảng LaTeX cho bài báo<a class="headerlink" href="#42-tai-lap-viedge-sysbench-va-xuat-bang-latex-cho-bai-bao" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Chạy nhanh kiểm thử trên CPU</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>vai<span class="w"> </span>benchmark<span class="w"> </span>--suite<span class="w"> </span>edge-systems<span class="w"> </span>--quick
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Chạy đầy đủ quy mô 20,000 vector x 384 chiều</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>vai<span class="w"> </span>benchmark<span class="w"> </span>--suite<span class="w"> </span>edge-systems<span class="w"> </span>--scale<span class="w"> </span><span class="m">20000</span><span class="w"> </span>--dim<span class="w"> </span><span class="m">384</span><span class="w"> </span>--output<span class="w"> </span>results/viedge_20k.md
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1"># Chạy quy mô lớn 100,000 vector x 384 chiều (tự động đối đầu faiss/hnswlib nếu máy có cài)</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>vai<span class="w"> </span>benchmark<span class="w"> </span>--suite<span class="w"> </span>edge-systems<span class="w"> </span>--scale<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--dim<span class="w"> </span><span class="m">384</span><span class="w"> </span>--output<span class="w"> </span>results/viedge_100k.json
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Xuất bảng LaTeX booktabs phục vụ bài báo MLSys / Efficient NLP</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>vai<span class="w"> </span>benchmark<span class="w"> </span>--suite<span class="w"> </span>edge-systems<span class="w"> </span>--scale<span class="w"> </span><span class="m">20000</span><span class="w"> </span>--dim<span class="w"> </span><span class="m">384</span><span class="w"> </span>--latex<span class="w"> </span>--output<span class="w"> </span>results/viedge.tex
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># Hoặc qua kịch bản tái lập benchmarks/</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>python<span class="w"> </span>benchmarks/run_benchmarks.py<span class="w"> </span>--suite<span class="w"> </span>edge-systems<span class="w"> </span>--scale<span class="w"> </span><span class="m">20000</span><span class="w"> </span>--dim<span class="w"> </span><span class="m">384</span><span class="w"> </span>--markdown<span class="w"> </span>results/viedge.md
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Trở lại mục lục
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "\u0110\u00e3 sao ch\u00e9p", "clipboard.copy": "Sao ch\u00e9p v\u00e0o b\u1ed9 nh\u1edb t\u1ea1m", "search.result.more.one": "1 t\u1eeb kh\u00e1c trong trang", "search.result.more.other": "# t\u1eeb kh\u00e1c trong trang", "search.result.none": "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan", "search.result.one": "1 t\u00e0i li\u1ec7u li\u00ean quan", "search.result.other": "# t\u00e0i li\u1ec7u li\u00ean quan", "search.result.placeholder": "Nh\u1eadp \u0111\u1ec3 b\u1eaft \u0111\u1ea7u t\u00ecm ki\u1ebfm", "search.result.term.missing": "Kh\u00f4ng", "select.version": "Ch\u1ecdn phi\u00ean b\u1ea3n"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

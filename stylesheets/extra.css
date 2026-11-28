@@ -1,0 +1,139 @@
+/* ==========================================================================
+   Vietnamese AI Framework - Modern Design System (MkDocs Material Theme)
+   ========================================================================== */
+
+:root {
+  --md-primary-fg-color:        #1e3a8a; /* Deep Royal Navy */
+  --md-primary-fg-color--light:  #3b82f6; /* Bright Blue */
+  --md-primary-fg-color--dark:   #0f172a; /* Slate Dark */
+  --md-accent-fg-color:         #06b6d4; /* Cyan Glow */
+  --md-code-font:               "JetBrains Mono", "Fira Code", monospace;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #0f172a;
+  --md-primary-fg-color--light:  #1e293b;
+  --md-default-bg-color:        #0b0f19;
+  --md-default-bg-color--light:  #111827;
+  --md-default-bg-color--lighter: #1f2937;
+  --md-accent-fg-color:         #38bdf8;
+}
+
+/* Typography polish */
+body, .md-typeset {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.011em;
+}
+
+/* Gradient Hero Banner */
+.hero-banner {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.95) 0%, rgba(15, 23, 42, 0.98) 50%, rgba(6, 182, 212, 0.2) 100%);
+  border-radius: 16px;
+  padding: 2.8rem 2rem;
+  margin-bottom: 2rem;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.hero-banner h1 {
+  font-size: 2.6rem;
+  font-weight: 800;
+  margin: 0 0 0.8rem 0;
+  background: linear-gradient(90deg, #ffffff 0%, #38bdf8 60%, #a7f3d0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-banner p {
+  font-size: 1.15rem;
+  color: #cbd5e1;
+  max-width: 720px;
+  margin: 0 auto 1.5rem auto;
+  line-height: 1.6;
+}
+
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Feature Grid Cards */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin: 1.8rem 0 2.5rem 0;
+}
+
+.feature-card {
+  background: var(--md-default-bg-color);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.4rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 12px 24px -8px rgba(6, 182, 212, 0.25);
+}
+
+.feature-card .card-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.8rem;
+  display: inline-block;
+}
+
+.feature-card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: var(--md-primary-fg-color--light);
+}
+
+.feature-card p {
+  font-size: 0.92rem;
+  color: var(--md-default-fg-color--light);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Modern Pill Badges */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* Enhanced Tables */
+.md-typeset table:not([class]) {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--md-primary-fg-color);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Smooth code block styling */
+.md-typeset pre > code {
+  border-radius: 8px;
+}
