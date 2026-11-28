@@ -40,12 +40,13 @@ def test_p2_1_vaidb_busy_timeout_and_inplace_cache_invalidation(tmp_path: Path) 
         kho._vectors_normed = np.ones((20, 4), dtype=np.float32)
         chu_ky_truoc = kho._chu_ky_tap_ids()
 
-        kho.chen("doc_0", np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32), {"noi_dung": "Cập nhật"})
+        vec_cap_nhat = np.array([0.0, 0.6, 0.8, 0.0], dtype=np.float32)
+        kho.chen("doc_0", vec_cap_nhat, {"noi_dung": "Cập nhật"})
         assert kho._vectors_normed is None
         chu_ky_sau = kho._chu_ky_tap_ids()
         assert chu_ky_sau != chu_ky_truoc
 
-        kq = kho.tim_kiem(np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32), top_k=1)
+        kq = kho.tim_kiem(vec_cap_nhat, top_k=1)
         assert kq and kq[0]["ma"] == "doc_0"
     finally:
         kho.dong()
