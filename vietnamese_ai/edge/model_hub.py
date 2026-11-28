@@ -673,7 +673,7 @@ class QuanLyMoHinhEdge:
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError(f"Giao thức URL không được phép: {parsed.scheme}")
-        headers: Dict[str, str] = {"User-Agent": "vietnamese-ai/31.2.0"}
+        headers: Dict[str, str] = {"User-Agent": "vietnamese-ai/31.3.0"}
         token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
         if token and "huggingface.co" in (parsed.netloc or ""):
             headers["Authorization"] = f"Bearer {token}"
@@ -857,7 +857,7 @@ class QuanLyMoHinhEdge:
             part_file.unlink()
 
         da_co_bytes = part_file.stat().st_size if part_file.is_file() else 0
-        headers: Dict[str, str] = {"User-Agent": "vietnamese-ai/31.2.0"}
+        headers: Dict[str, str] = {"User-Agent": "vietnamese-ai/31.3.0"}
         token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
         if token and "huggingface.co" in (parsed_url.netloc or ""):
             headers["Authorization"] = f"Bearer {token}"

@@ -115,11 +115,11 @@ def test_p3_legal_namespaces_full_parity_with_rag_legal() -> None:
 
 
 def test_p3_subpackages_depend_on_core_and_release_check_v31_2_0() -> None:
-    """Xác minh 5 gói con phụ thuộc vietnamese-ai>=31.2.0,<32.0.0 và giữ nguyên 349 public APIs."""
+    """Xác minh 5 gói con phụ thuộc vietnamese-ai>=31.3.0,<32.0.0 và giữ nguyên 349 public APIs."""
     import vietnamese_ai
     from vietnamese_ai.utils.versioning import QuanLyPhatHanhGoi
 
-    assert vietnamese_ai.__version__ == "31.2.0"
+    assert vietnamese_ai.__version__ == "31.3.0"
     assert len(vietnamese_ai.__all__) == 349
 
     for ten_goi in (
@@ -130,11 +130,11 @@ def test_p3_subpackages_depend_on_core_and_release_check_v31_2_0() -> None:
         "vietnamese-ai-classic-ml",
     ):
         toml_txt = (ROOT_DIR / "packages" / ten_goi / "pyproject.toml").read_text(encoding="utf-8")
-        assert 'version = "31.2.0"' in toml_txt
-        assert '"vietnamese-ai>=31.2.0,<32.0.0"' in toml_txt
+        assert 'version = "31.3.0"' in toml_txt
+        assert '"vietnamese-ai>=31.3.0,<32.0.0"' in toml_txt
 
     bc = QuanLyPhatHanhGoi.kiem_tra_san_sang_phat_hanh(ROOT_DIR)
     assert bc["san_sang_phat_hanh"] is True
-    assert bc["phien_ban"] == "31.2.0"
+    assert bc["phien_ban"] == "31.3.0"
     assert bc["so_bieu_tuong_cong_khai"] == 349
     assert bc["dong_bo_du_lieu_phap_ly"] is True

@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vietnamese-ai-nlp"
-version = "31.2.0"
+version = "31.3.0"
 description = "Lõi NLP tiếng Việt: BoTachTuTiengVietSieuToc, BoNhungVanBanSieuToc, GanNhanTuLoai, NER & PhoBERT"
 license = {text = "MIT"}
 requires-python = ">=3.8"
 dependencies = [
-    "vietnamese-ai>=31.2.0,<32.0.0",
+    "vietnamese-ai>=31.3.0,<32.0.0",
     "numpy>=1.20.0,<3.0.0",
 ]
 

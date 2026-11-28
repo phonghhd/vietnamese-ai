@@ -214,6 +214,8 @@ Ví dụ sử dụng:
     bench_parser.add_argument("--llm-model", default="", help="Tên mô hình LLM (mặc định: gemini-2.5-flash / gpt-4o-mini / qwen2.5:3b)")
     bench_parser.add_argument("--base-url", default="", help="URL API tùy chỉnh cho Ollama hoặc OpenAI-compatible")
     bench_parser.add_argument("--llm-delay", type=float, default=0.0, help="Độ trễ giữa các lần gọi API LLM (giây)")
+    bench_parser.add_argument("--onnx-embedder", default="", help="Đường dẫn tệp .onnx INT8 thật cho bộ nhúng suite legal-temporal")
+    bench_parser.add_argument("--onnx-reranker", default="", help="Đường dẫn tệp .onnx INT8 thật cho Cross-Encoder reranker suite legal-temporal")
     bench_parser.add_argument("--output", default=None, help="Đường dẫn tệp xuất báo cáo (.json, .md hoặc .tex)")
 
     # === TOKENIZE ===
@@ -408,6 +410,22 @@ Ví dụ sử dụng:
         "demo",
         help="Chạy trình diễn 1-Click thực chiến trong 5 phút (Legal RAG 100 điều khoản, Edge CPU, Bảo mật, GPU Flywheel)",
     )
+
+    pull_kb_parser = subparsers.add_parser(
+        "pull-kb",
+        help="Tải, dựng offline hoặc đóng gói kho tri thức pháp lý `.vaidb` theo lĩnh vực kèm HNSW và SHA-256",
+    )
+    pull_kb_parser.add_argument("package", nargs="?", default="vn-business-core-2025", help="Mã gói kho tri thức (vd: vn-business-core-2025, vn-labor-bhxh-2025, vn-tax-invoice-2025)")
+    pull_kb_parser.add_argument("--list", action="store_true", help="Liệt kê danh mục kho tri thức pháp lý chuẩn và trạng thái cục bộ")
+    pull_kb_parser.add_argument("--output", "-o", default=None, help="Đường dẫn tệp `.vaidb` đầu ra tùy chỉnh")
+    pull_kb_parser.add_argument("--dir", default=None, help="Thư mục lưu kho tri thức (mặc định: ~/.vietnamese_ai/kb)")
+    pull_kb_parser.add_argument("--remote", action="store_true", help="Tải gói `.vaidb` từ URL từ xa thay vì tự dựng cục bộ")
+    pull_kb_parser.add_argument("--url", default=None, help="URL tải tệp `.vaidb` tùy chỉnh (HTTPS)")
+    pull_kb_parser.add_argument("--sha256", default=None, help="Mã băm SHA-256 kỳ vọng khi tải từ xa")
+    pull_kb_parser.add_argument("--dry-run", action="store_true", help="Chỉ xem trước cấu hình tải/dựng mà không ghi tệp")
+    pull_kb_parser.add_argument("--build-from", default=None, help="Đóng gói kho `.vaidb` từ thư mục/tệp văn bản pháp quy hoặc quy chế doanh nghiệp")
+    pull_kb_parser.add_argument("--name", default="custom-legal-kb", help="Tên gói khi dùng --build-from")
+    pull_kb_parser.add_argument("--verify", default=None, help="Kiểm chứng SHA-256 và cấu trúc SQLite của một tệp `.vaidb`")
     demo_parser.add_argument(
         "mode",
         nargs="?",
@@ -475,6 +493,13 @@ Ví dụ sử dụng:
     )
     cr_parser.add_argument("partner", help="Đường dẫn tệp hợp đồng đối tác gửi (.docx/.pdf/.txt)")
     cr_parser.add_argument("--template", default=None, help="Đường dẫn tệp hợp đồng mẫu chuẩn để đối chiếu từng điều khoản")
+    cr_parser.add_argument(
+        "--type",
+        dest="contract_type",
+        default="tu_dong",
+        choices=("tu_dong", "lao_dong", "dich_vu", "mua_ban", "thue_nha", "nda"),
+        help="Loại hợp đồng Việt Nam áp dụng bộ quy tắc chuyên biệt (mặc định: tu_dong)",
+    )
     cr_parser.add_argument("--date", default=None, help="Ngày kiểm toán hiệu lực luật dạng YYYY-MM-DD")
     cr_parser.add_argument("--output-md", default=None, help="Đường dẫn xuất báo cáo Redline định dạng Markdown (.md)")
     cr_parser.add_argument("--output-docx", default=None, help="Đường dẫn xuất báo cáo Redline định dạng Word (.docx)")
@@ -506,9 +531,31 @@ Ví dụ sử dụng:
     mcp_parser.add_argument(
         "--print-config",
         default=None,
-        choices=["cursor", "claude", "vscode"],
-        help="In cấu hình JSON mẫu để dán trực tiếp vào Cursor / Claude Desktop / VS Code rồi thoát",
+        choices=["cursor", "claude", "vscode", "antigravity"],
+        help="In cấu hình JSON mẫu để dán trực tiếp vào Cursor / Claude Desktop / VS Code / Antigravity rồi thoát",
     )
+
+    mcp_cfg_parser = subparsers.add_parser(
+        "mcp-config",
+        help="Sinh cấu hình JSON MCP 1-click cho Cursor, Claude Desktop, VS Code hoặc Antigravity",
+    )
+    mcp_cfg_parser.add_argument(
+        "--client",
+        default="cursor",
+        choices=["cursor", "claude", "vscode", "antigravity"],
+        help="Ứng dụng IDE / AI client đích (mặc định: cursor)",
+    )
+    mcp_cfg_parser.add_argument("--kb", "--vaidb", dest="kb", default=None, help="Đường dẫn tệp kho tri thức `.vaidb` gắn cho MCP")
+    mcp_cfg_parser.add_argument("--transport", default="stdio", choices=["stdio", "sse"], help="Giao vận MCP (stdio hoặc sse)")
+    mcp_cfg_parser.add_argument("--host", default="127.0.0.1", help="Host khi dùng transport SSE (mặc định: 127.0.0.1)")
+    mcp_cfg_parser.add_argument("--port", type=int, default=8090, help="Cổng khi dùng transport SSE (mặc định: 8090)")
+    mcp_cfg_parser.add_argument("--extended-tools", action="store_true", help="Bật thêm bộ công cụ MCP mở rộng (Point-in-Time, Viterbi, HNSW)")
+    mcp_cfg_parser.add_argument(
+        "--no-temporal-legal-tools",
+        action="store_true",
+        help="Tắt 2 công cụ ViLegal-TemporalRAG mặc định trong cấu hình sinh ra",
+    )
+    mcp_cfg_parser.add_argument("--write", default=None, help="Ghi trực tiếp (hoặc gộp an toàn) vào tệp cấu hình JSON đích")
 
     conn_parser = subparsers.add_parser(
         "connector",
@@ -1176,8 +1223,15 @@ def cmd_benchmark(args=None):
             )
             ten_llm = f"{llm_provider}:{llm_model or 'default'}"
 
-        print(f"Đang chạy bộ đánh giá khoa học ViLegal-TempBench (5 cấu hình Ablation | Sinh: {ten_llm})...")
-        bench = BoDanhGiaLegalTemporalRAG(ham_sinh_llm=ham_llm, ten_mo_hinh_llm=ten_llm)
+        onnx_emb = getattr(args, "onnx_embedder", "") or None
+        onnx_rr = getattr(args, "onnx_reranker", "") or None
+        print(f"Đang chạy bộ đánh giá khoa học ViLegal-TempBench v2 (6 cấu hình Ablation | Sinh: {ten_llm})...")
+        bench = BoDanhGiaLegalTemporalRAG(
+            ham_sinh_llm=ham_llm,
+            ten_mo_hinh_llm=ten_llm,
+            duong_dan_onnx_embed=onnx_emb,
+            duong_dan_onnx_rerank=onnx_rr,
+        )
         kq = bench.chay_ablation(nhanh=is_quick, seed=seed)
         bao_cao = bench.xuat_bang_latex(kq) if is_latex else bench.xuat_bao_cao_markdown(kq)
         print(bao_cao)
@@ -1531,6 +1585,58 @@ def cmd_pull(args):
     print(f"  Lưu cục bộ:   {kq.get('duong_dan', '')}")
     if kq.get("sha256"):
         print(f"  SHA-256:      {kq['sha256']}")
+    return kq
+
+
+def cmd_pull_kb(args: Any) -> Any:
+    """Xử lý lệnh `vai pull-kb` (quản lý, dựng cục bộ, tải và đóng gói kho tri thức `.vaidb`)."""
+    from vietnamese_ai.rag.legal.kb_hub import QuanLyKhoTriThucPhapLy
+
+    hub = QuanLyKhoTriThucPhapLy(thu_muc_luu=getattr(args, "dir", None))
+
+    if getattr(args, "verify", None):
+        kq_xm = hub.xac_minh_goi(args.verify)
+        trang_thai = "HỢP LỆ" if kq_xm.get("hop_le") else "KHÔNG HỢP LỆ"
+        print(f"=== XÁC MINH KHO `.VAIDB` [{trang_thai}] ===")
+        for k, v in kq_xm.items():
+            print(f"  {k}: {v}")
+        return kq_xm
+
+    if getattr(args, "list", False):
+        ds = hub.danh_sach_goi()
+        print(f"=== DANH MỤC KHO TRI THỨC PHÁP LÝ `.VAIDB` (Thư mục: {hub.thu_muc_luu}) ===")
+        for item in ds:
+            tt = "[ĐÃ CÀI]" if item["da_cai_cuc_bo"] else "[SẴN SÀNG]"
+            print(f"  {tt:<10s} {item['ma_goi']:<24s} | {item['linh_vuc']:<24s} - {item['ten_hien_thi']}")
+        return ds
+
+    if getattr(args, "build_from", None):
+        kq_build = hub.dong_goi_tu_thu_muc(
+            thu_muc_nguon=args.build_from,
+            ma_goi=getattr(args, "name", "custom-legal-kb"),
+            duong_dan_dich=getattr(args, "output", None),
+        )
+        print(f"=== ĐÓNG GÓI KHO `.VAIDB` [{kq_build['ma_goi']}] ({kq_build['trang_thai']}) ===")
+        print(f"  Tệp `.vaidb`:   {kq_build['duong_dan_vaidb']}")
+        print(f"  Manifest:       {kq_build.get('duong_dan_manifest', '')}")
+        print(f"  Tổng điều/khoản:{kq_build['tong_dieu_khoan']}")
+        print(f"  SHA-256:        {kq_build.get('sha256', '')}")
+        return kq_build
+
+    kq = hub.tai_hoac_dung_goi(
+        ma_goi=getattr(args, "package", "vn-business-core-2025"),
+        duong_dan_dich=getattr(args, "output", None),
+        uu_tien_cuc_bo=not bool(getattr(args, "remote", False)),
+        url_tuy_chinh=getattr(args, "url", None),
+        sha256_ky_vong=getattr(args, "sha256", None),
+        chay_that=not bool(getattr(args, "dry_run", False)),
+    )
+    print(f"=== VAI PULL-KB [{kq['ma_goi']}] ({kq['trang_thai']}) ===")
+    print(f"  Tệp `.vaidb`:   {kq.get('duong_dan_vaidb', '')}")
+    if kq.get("tong_dieu_khoan") is not None:
+        print(f"  Điều khoản:     {kq['tong_dieu_khoan']}")
+    if kq.get("sha256"):
+        print(f"  SHA-256:        {kq['sha256']}")
     return kq
 
 
@@ -2237,6 +2343,7 @@ def cmd_contract_review(args: Any) -> Any:
         hop_dong_doi_tac=Path(args.partner),
         hop_dong_chuan=Path(args.template) if getattr(args, "template", None) else None,
         ngay_tra_cuu=getattr(args, "date", None),
+        loai_hop_dong=str(getattr(args, "contract_type", "tu_dong") or "tu_dong"),
     )
     md = engine.xuat_bao_cao_markdown(kq)
     print(md)
@@ -2311,6 +2418,56 @@ def cmd_legal_ask(args: Any) -> Dict[str, Any]:
         f"độ trễ={kq.get('thoi_gian_ms')} ms"
     )
     return kq
+
+
+def cmd_mcp_config(args: Any) -> Dict[str, Any]:
+    """Sinh hoặc ghi tệp cấu hình MCP 1-click cho Cursor, Claude Desktop, VS Code hoặc Antigravity (`vai mcp-config`)."""
+    import json
+
+    from vietnamese_ai.agents.mcp_transport import MayChuMCPThucTe
+
+    client = str(getattr(args, "client", "cursor") or "cursor").strip().lower()
+    kb_path = getattr(args, "kb", None)
+    transport = str(getattr(args, "transport", "stdio") or "stdio").strip().lower()
+    host = str(getattr(args, "host", "127.0.0.1") or "127.0.0.1")
+    port = int(getattr(args, "port", 8090) or 8090)
+    ext_tools = bool(getattr(args, "extended_tools", False))
+    temp_tools = not bool(getattr(args, "no_temporal_legal_tools", False))
+
+    cfg = MayChuMCPThucTe.xuat_cau_hinh_ide(
+        ten_ide=client,
+        duong_dan_vaidb=kb_path,
+        giao_van=transport,
+        host=host,
+        port=port,
+        bat_cong_cu_mo_rong=ext_tools,
+        bat_cong_cu_phap_ly_thoi_gian=temp_tools,
+    )
+
+    write_path = getattr(args, "write", None)
+    if write_path:
+        dich = Path(write_path)
+        dich.parent.mkdir(parents=True, exist_ok=True)
+        hien_co: Dict[str, Any] = {}
+        if dich.is_file():
+            try:
+                loaded = json.loads(dich.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    hien_co = loaded
+            except Exception:
+                hien_co = {}
+        khoa_goc = "servers" if client == "vscode" else "mcpServers"
+        nhom = hien_co.get(khoa_goc)
+        if not isinstance(nhom, dict):
+            nhom = {}
+        nhom.update(cfg[khoa_goc])
+        hien_co[khoa_goc] = nhom
+        dich.write_text(json.dumps(hien_co, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"Đã ghi cấu hình MCP ({client}) vào: {dich}")
+        return hien_co
+
+    print(json.dumps(cfg, ensure_ascii=False, indent=2))
+    return cfg
 
 
 def cmd_mcp_server(args: Any) -> Any:
@@ -2555,6 +2712,7 @@ def main():
         "solution": lambda: cmd_solution(args),
         "agent": lambda: cmd_agent(args),
         "pull": lambda: cmd_pull(args),
+        "pull-kb": lambda: cmd_pull_kb(args),
         "run": lambda: cmd_run(args),
         "pack": lambda: cmd_pack(args),
         "swarm": lambda: cmd_swarm(args),
@@ -2567,6 +2725,7 @@ def main():
         "legal-ingest": lambda: cmd_legal_ingest(args),
         "legal-ask": lambda: cmd_legal_ask(args),
         "contract-review": lambda: cmd_contract_review(args),
+        "mcp-config": lambda: cmd_mcp_config(args),
         "mcp-server": lambda: cmd_mcp_server(args),
         "connector": lambda: cmd_connector(args),
         "export-dpo": lambda: cmd_export_dpo(args),

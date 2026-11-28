@@ -155,7 +155,7 @@ _TU_DUNG_CO_BAN: Set[str] = {
 class BoTruyHoiPhapLyThoiGian:
     """Động cơ Temporal & Graph-Grounded Legal RAG chạy mượt 100% trên CPU và hỗ trợ cắm ONNX/LLM ngoài."""
 
-    CAC_CHE_DO_HOP_LE = ("bm25", "hybrid", "temporal", "temporal_graph", "full")
+    CAC_CHE_DO_HOP_LE = ("bm25", "hybrid", "naive_date_filter", "temporal", "temporal_graph", "full")
 
     _RE_SO_HIEU = re.compile(r"\b(\d{1,4}/\d{4}/[A-ZĐa-zđ0-9\-]+)\b", re.UNICODE)
     _RE_TEN_LUAT_NAM = re.compile(
@@ -245,7 +245,7 @@ class BoTruyHoiPhapLyThoiGian:
         dieu_list = [f"dieu_{m.lower()}" for m in self._RE_DIEU.findall(text)]
 
         text_khong_sh = self._RE_SO_HIEU.sub(" ", text)
-        da_tach = self._tokenizer.tach_tu(text_khong_sh.lower())
+        da_tach = self._tokenizer.tach_tu(text_khong_sh.lower(), noi_tu_ghep=True)
         tokens: List[str] = []
         tu_dung = _TU_DUNG_PHAP_LY_VN if loai_bo_tu_dung else _TU_DUNG_CO_BAN
         for tok in da_tach:
@@ -638,7 +638,7 @@ class BoTruyHoiPhapLyThoiGian:
         so_buoc_do_thi: int = 2,
         ngay_mac_dinh: Optional[Union[str, date]] = None,
     ) -> Dict[str, Any]:
-        """Truy hồi danh sách điều khoản pháp lý theo một trong 5 cấu hình (`bm25`, `hybrid`, `temporal`, `temporal_graph`, `full`)."""
+        """Truy hồi danh sách điều khoản pháp lý theo một trong 6 cấu hình (`bm25`, `hybrid`, `naive_date_filter`, `temporal`, `temporal_graph`, `full`)."""
         if che_do not in self.CAC_CHE_DO_HOP_LE:
             raise ValueError(f"Chế độ truy hồi không hợp lệ: {che_do}. Hỗ trợ: {', '.join(self.CAC_CHE_DO_HOP_LE)}")
         if self._can_xay_chi_muc:
@@ -649,7 +649,8 @@ class BoTruyHoiPhapLyThoiGian:
         moc = _phan_tich_ngay(ngay_tra_cuu) if ngay_tra_cuu is not None else _phan_tich_ngay(kq_tg.ngay_tra_cuu)
         moc_iso = moc.isoformat()
 
-        bat_hybrid = che_do in ("hybrid", "temporal", "temporal_graph", "full")
+        bat_hybrid = che_do in ("hybrid", "naive_date_filter", "temporal", "temporal_graph", "full")
+        bat_naive_date = che_do == "naive_date_filter"
         bat_temporal = che_do in ("temporal", "temporal_graph", "full")
         bat_graph = che_do in ("temporal_graph", "full")
         bat_rerank = che_do == "full"
@@ -745,6 +746,12 @@ class BoTruyHoiPhapLyThoiGian:
                 hop_le_mask[i] = self.do_thi.dieu_khoan_con_hieu_luc(nut, ngay_tra_cuu=moc)
                 if hop_le_mask[i] and nut.so_hieu in sh_thay_the:
                     base_scores[i] = float(base_scores[i]) + 0.35
+        elif bat_naive_date:
+            for i, nut in enumerate(self._tai_lieu):
+                if nut.hieu_luc_tu:
+                    hop_le_mask[i] = _phan_tich_ngay(nut.hieu_luc_tu) <= moc
+                else:
+                    hop_le_mask[i] = True
 
         ung_vien_idx = [i for i in range(n) if hop_le_mask[i]]
         if not ung_vien_idx and not bat_temporal:
@@ -843,11 +850,24 @@ class BoTruyHoiPhapLyThoiGian:
             else:
                 top_i = da_xep_hang[0]
                 top_set = set(self._tokens_kho[top_i])
-                tong_idf_q = sum(self._idf.get(t, 1.0) for t in set(q_tokens_noi_dung)) or 1.0
-                khop_idf_q = sum(self._idf.get(t, 1.0) for t in set(q_tokens_noi_dung) if t in top_set)
+                tu_ghep_q = {t for t in q_tokens_noi_dung if "_" in t}
+                am_con_tu_ghep = {sub for tg in tu_ghep_q for sub in tg.split("_")}
+                q_doc_lap = {t for t in q_tokens_noi_dung if t not in am_con_tu_ghep or t in tu_ghep_q}
+                if not q_doc_lap:
+                    q_doc_lap = set(q_tokens_noi_dung)
+                tong_idf_q = sum(self._idf.get(t, 1.0) for t in q_doc_lap) or 1.0
+                khop_doc_lap = {
+                    t
+                    for t in q_doc_lap
+                    if t in top_set or ("_" in t and any(sub in top_set for sub in t.split("_") if len(sub) >= 2))
+                }
+                khop_idf_q = sum(
+                    self._idf.get(t, 1.0) * (1.0 if t in top_set else 0.65)
+                    for t in khop_doc_lap
+                )
                 do_phu_top1 = khop_idf_q / tong_idf_q
                 dense_top1 = float(dense_scores[top_i])
-                if not sh_thay_the and do_phu_top1 < self.nguong_tu_choi and dense_top1 < 0.28:
+                if not sh_thay_the and dense_top1 < 0.28 and (do_phu_top1 < self.nguong_tu_choi or len(khop_doc_lap) < 2):
                     tu_choi = True
                     ly_do_tu_choi = (
                         "Câu hỏi nằm ngoài phạm vi kho văn bản quy phạm pháp luật (độ phủ từ khóa và ngữ nghĩa dưới ngưỡng an toàn)."

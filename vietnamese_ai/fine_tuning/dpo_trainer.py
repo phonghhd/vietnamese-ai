@@ -57,6 +57,7 @@ class DPOTrainer:
         che_do: str = "dpo",
         gamma_simpo: float = 0.5,
         he_so_neo_kl: float = 0.0,
+        loai_phat_kl: str = "l2_tham_so",
     ):
         if beta <= 0:
             raise ValueError(f"beta phải > 0, nhận: {beta}")
@@ -65,6 +66,9 @@ class DPOTrainer:
             raise ValueError(f"che_do phải là 'dpo' hoặc 'simpo', nhận: {che_do}")
         if he_so_neo_kl < 0:
             raise ValueError(f"he_so_neo_kl phải >= 0, nhận: {he_so_neo_kl}")
+        loai_kl_norm = str(loai_phat_kl or "l2_tham_so").strip().lower()
+        if loai_kl_norm not in ("l2_tham_so", "token_kl"):
+            raise ValueError(f"loai_phat_kl phải là 'l2_tham_so' hoặc 'token_kl', nhận: {loai_phat_kl}")
 
         self.so_vong = so_vong
         self.kich_thuoc_batch = kich_thuoc_batch
@@ -79,6 +83,7 @@ class DPOTrainer:
         self.che_do = che_do_norm
         self.gamma_simpo = float(gamma_simpo)
         self.he_so_neo_kl = float(he_so_neo_kl)
+        self.loai_phat_kl = loai_kl_norm
         self.logger = Logger("DPOTrainer")
 
         self._history: Dict[str, List[float]] = {
@@ -86,6 +91,7 @@ class DPOTrainer:
             "chosen_rewards": [],
             "rejected_rewards": [],
             "reward_margin": [],
+            "kl_divergence": [],
         }
         self._global_step = 0
 
@@ -171,6 +177,7 @@ class DPOTrainer:
             epoch_loss = 0.0
             chosen_rewards_epoch = []
             rejected_rewards_epoch = []
+            kl_epoch = []
             steps = 0
             optimizer.zero_grad()
 
@@ -184,14 +191,27 @@ class DPOTrainer:
                 trong_so = float(np.clip(float(mau.get("trong_so", 1.0)), 0.0, 2.0))
                 if trong_so <= 0.0:
                     continue
+                sample_ls = float(np.clip(float(mau.get("label_smoothing", self.label_smoothing)), 0.0, 0.45))
 
                 try:
-                    loss, chosen_reward, rejected_reward = self._tinh_dpo_loss(
-                        model, ref_model, prompt, chosen, rejected, device, tokenizer=tokenizer
+                    loss, chosen_reward, rejected_reward, kl_val = self._tinh_dpo_loss(
+                        model,
+                        ref_model,
+                        prompt,
+                        chosen,
+                        rejected,
+                        device,
+                        tokenizer=tokenizer,
+                        sample_label_smoothing=sample_ls,
                     )
                     if trong_so != 1.0:
                         loss = loss * trong_so
-                    if self.he_so_neo_kl > 0.0 and ref_model is not None and isinstance(ref_model, nn.Module):
+                    if (
+                        self.he_so_neo_kl > 0.0
+                        and self.loai_phat_kl == "l2_tham_so"
+                        and ref_model is not None
+                        and isinstance(ref_model, nn.Module)
+                    ):
                         anchor_reg = torch.tensor(0.0, device=device)
                         for p_cur, p_ref in zip(model.parameters(), ref_model.parameters()):
                             if p_cur.requires_grad and p_cur.shape == p_ref.shape:
@@ -204,6 +224,7 @@ class DPOTrainer:
 
                     chosen_rewards_epoch.append(chosen_reward)
                     rejected_rewards_epoch.append(rejected_reward)
+                    kl_epoch.append(kl_val)
                     steps += 1
 
                     if steps % self.gradient_accumulation == 0 or (pos_idx == len(indices) - 1):
@@ -241,6 +262,8 @@ class DPOTrainer:
                 self._history["chosen_rewards"].append(float(avg_chosen))
                 self._history["rejected_rewards"].append(float(avg_rejected))
                 self._history["reward_margin"].append(float(avg_chosen - avg_rejected))
+            if kl_epoch:
+                self._history["kl_divergence"].append(float(np.mean(kl_epoch)))
 
             self.logger.info(
                 f"Epoch {epoch + 1}/{self.so_vong}: loss={avg_loss:.4f}, "
@@ -251,6 +274,7 @@ class DPOTrainer:
 
         return {
             "che_do": self.che_do,
+            "loai_phat_kl": self.loai_phat_kl,
             "tong_thoi_gian": round(tong_thoi_gian, 2),
             "so_epoch": self.so_vong,
             "global_step": self._global_step,
@@ -260,8 +284,28 @@ class DPOTrainer:
             "final_reward_margin": self._history["reward_margin"][-1]
             if self._history["reward_margin"]
             else 0,
+            "final_kl_divergence": self._history["kl_divergence"][-1]
+            if self._history["kl_divergence"]
+            else 0.0,
             "history": self._history,
         }
+
+    def _tinh_token_kl_phan_hoi(
+        self,
+        policy_logits: "torch.Tensor",
+        ref_logits: "torch.Tensor",
+        prompt_len: int = 0,
+    ) -> "torch.Tensor":
+        """Tính phân kỳ reverse KL cấp token $D_{KL}(\\pi_\\theta \\| \\pi_{\\text{ref}})$ trên riêng phần token phản hồi."""
+        if policy_logits.dim() != 3 or policy_logits.size(1) <= 1 or policy_logits.shape != ref_logits.shape:
+            return torch.tensor(0.0, device=policy_logits.device)
+        p_log_probs = F.log_softmax(policy_logits[:, :-1, :], dim=-1)
+        r_log_probs = F.log_softmax(ref_logits[:, :-1, :].detach(), dim=-1)
+        start_idx = max(0, min(int(prompt_len) - 1, p_log_probs.size(1) - 1)) if prompt_len > 0 else 0
+        p_resp = p_log_probs[:, start_idx:, :]
+        r_resp = r_log_probs[:, start_idx:, :]
+        kl_per_tok = (p_resp.exp() * (p_resp - r_resp)).sum(dim=-1)
+        return kl_per_tok.clamp(min=0.0).mean()
 
     def _tinh_dpo_loss(
         self,
@@ -272,8 +316,9 @@ class DPOTrainer:
         rejected: str,
         device: Any,
         tokenizer: Any = None,
+        sample_label_smoothing: Optional[float] = None,
     ):
-        """Tính DPO hoặc SimPO loss trên riêng phần token phản hồi (che prompt prefix)."""
+        """Tính DPO hoặc SimPO loss trên riêng phần token phản hồi kèm tùy chọn phạt reverse KL cấp token."""
         prompt_tokens = self._ma_hoa_chuoi_dpo(prompt, tokenizer, self.max_seq_length) if prompt else []
         chosen_seq = self._ma_hoa_chuoi_dpo(prompt + chosen, tokenizer, self.max_seq_length)
         rejected_seq = self._ma_hoa_chuoi_dpo(prompt + rejected, tokenizer, self.max_seq_length)
@@ -300,6 +345,7 @@ class DPOTrainer:
             else torch.randn(1, 2, 100, device=device, requires_grad=True)
         )
 
+        kl_tensor = torch.tensor(0.0, device=device)
         dung_simpo = self.che_do == "simpo" or ref_model is None
         if dung_simpo:
             chosen_avg_logps = self._tinh_logps(
@@ -311,6 +357,12 @@ class DPOTrainer:
             logits = self.beta * (chosen_avg_logps - rejected_avg_logps) - self.gamma_simpo
             chosen_reward = (self.beta * chosen_avg_logps).detach().mean().item()
             rejected_reward = (self.beta * rejected_avg_logps).detach().mean().item()
+            if self.loai_phat_kl == "token_kl" and self.he_so_neo_kl > 0.0 and ref_model is not None:
+                with torch.no_grad():
+                    ref_c_out_s: Any = ref_model(chosen_ids) if hasattr(ref_model, "__call__") else None
+                    raw_ref_c_s: Any = getattr(ref_c_out_s, "logits", ref_c_out_s) if ref_c_out_s is not None else None
+                if raw_ref_c_s is not None:
+                    kl_tensor = self._tinh_token_kl_phan_hoi(chosen_logits, raw_ref_c_s, prompt_len=prompt_len_c)
         else:
             assert ref_model is not None
             with torch.no_grad():
@@ -336,16 +388,21 @@ class DPOTrainer:
             logits = self.beta * (chosen_logratios - rejected_logratios)
             chosen_reward = (self.beta * chosen_logratios).detach().mean().item()
             rejected_reward = (self.beta * rejected_logratios).detach().mean().item()
+            kl_tensor = self._tinh_token_kl_phan_hoi(chosen_logits, ref_chosen_logits, prompt_len=prompt_len_c)
 
-        if self.label_smoothing > 0:
+        eps_ls = self.label_smoothing if sample_label_smoothing is None else float(sample_label_smoothing)
+        if eps_ls > 0:
             loss = (
-                (1 - self.label_smoothing) * (-F.logsigmoid(logits))
-                + self.label_smoothing * (-F.logsigmoid(-logits))
+                (1 - eps_ls) * (-F.logsigmoid(logits))
+                + eps_ls * (-F.logsigmoid(-logits))
             ).mean()
         else:
             loss = -F.logsigmoid(logits).mean()
 
-        return loss, chosen_reward, rejected_reward
+        if self.loai_phat_kl == "token_kl" and self.he_so_neo_kl > 0.0:
+            loss = loss + self.he_so_neo_kl * kl_tensor
+
+        return loss, chosen_reward, rejected_reward, float(kl_tensor.detach().item())
 
     def _tinh_logps(
         self,
@@ -501,6 +558,7 @@ class DPOTrainer:
                 self._history["chosen_rewards"].append(avg_c)
                 self._history["rejected_rewards"].append(avg_r)
                 self._history["reward_margin"].append(avg_c - avg_r)
+            self._history["kl_divergence"].append(float(0.5 * np.mean((w_policy - w_anchor) ** 2)))
 
         if model is not None and not isinstance(model, (int, float, str)):
             try:
@@ -512,12 +570,16 @@ class DPOTrainer:
         tong_thoi_gian = time.time() - bat_dau
         return {
             "che_do": self.che_do,
+            "loai_phat_kl": self.loai_phat_kl,
             "tong_thoi_gian": round(tong_thoi_gian, 2),
             "so_epoch": self.so_vong,
             "global_step": self._global_step,
             "train_loss_min": min(self._history["train_loss"]) if self._history["train_loss"] else 0.0,
             "final_reward_margin": self._history["reward_margin"][-1]
             if self._history["reward_margin"]
+            else 0.0,
+            "final_kl_divergence": self._history["kl_divergence"][-1]
+            if self._history["kl_divergence"]
             else 0.0,
             "history": self._history,
         }
@@ -528,10 +590,12 @@ class DPOTrainer:
     def thong_ke(self) -> Dict[str, Any]:
         return {
             "che_do": self.che_do,
+            "loai_phat_kl": self.loai_phat_kl,
             "so_vong": self.so_vong,
             "beta": self.beta,
             "gamma_simpo": self.gamma_simpo,
             "label_smoothing": self.label_smoothing,
+            "he_so_neo_kl": self.he_so_neo_kl,
             "toc_do_hoc": self.toc_do_hoc,
             "global_step": self._global_step,
             "history_length": len(self._history["train_loss"]),

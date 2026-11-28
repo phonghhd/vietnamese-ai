@@ -16,6 +16,8 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
+import numpy as np
+
 from vietnamese_ai.nlp.native_tokenizer import BoTachTuTiengVietSieuToc
 from vietnamese_ai.rag.document_loaders import PyPDFLoader, TextLoader
 from vietnamese_ai.utils.lazy_loader import QuanLyPhuThuoc
@@ -36,9 +38,26 @@ class BoDocTaiLieuPhapLy:
     )
     _RE_NHIEU_DONG_TRONG = re.compile(r"\n{3,}")
 
-    def __init__(self, bat_bao_ve_ocr: bool = True) -> None:
+    def __init__(self, bat_bao_ve_ocr: bool = True, bat_ocr_pdf_scan: bool = True) -> None:
         self.bat_bao_ve_ocr = bat_bao_ve_ocr
+        self.bat_ocr_pdf_scan = bat_ocr_pdf_scan
         self._tokenizer = BoTachTuTiengVietSieuToc()
+
+    @staticmethod
+    def loc_dau_do_anh_numpy(img_rgb: np.ndarray) -> np.ndarray:
+        """Khử mực dấu tròn đỏ hành chính Việt Nam trên ảnh RGB bằng ngưỡng chênh kênh màu thuần NumPy để tăng độ chính xác OCR."""
+        arr = np.asarray(img_rgb)
+        if arr.ndim != 3 or arr.shape[2] < 3:
+            return arr.copy()
+        ket_qua = arr.copy()
+        r = ket_qua[:, :, 0].astype(np.int16)
+        g = ket_qua[:, :, 1].astype(np.int16)
+        b = ket_qua[:, :, 2].astype(np.int16)
+        mat_na_dau_do = (r >= 135) & ((r - g) >= 45) & ((r - b) >= 45)
+        ket_qua[mat_na_dau_do, 0] = 255
+        ket_qua[mat_na_dau_do, 1] = 255
+        ket_qua[mat_na_dau_do, 2] = 255
+        return ket_qua
 
     def lam_sach_van_ban_phap_ly(self, van_ban: str) -> str:
         """Loại bỏ số trang dư thừa, ký tự ngắt trang và chuẩn hóa dấu thanh Unicode NFC giữ cấu trúc dòng."""
@@ -143,8 +162,13 @@ class BoDocTaiLieuPhapLy:
             except Exception:
                 so_bang = 0
 
+        return self._doc_docx_ooxml(duong_dan)
+
+    def _doc_docx_ooxml(self, duong_dan: Path) -> Tuple[str, int]:
+        """Phân tích trực tiếp `word/document.xml` chuẩn OOXML hỗ trợ gộp ô ngang (`w:gridSpan`) và gộp ô dọc (`w:vMerge`)."""
         ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
         phan_doan_xml: List[str] = []
+        so_bang = 0
         with zipfile.ZipFile(str(duong_dan), "r") as zf:
             xml_data = zf.read("word/document.xml")
         root = ET.fromstring(xml_data)
@@ -161,18 +185,94 @@ class BoDocTaiLieuPhapLy:
                 ma_tran_xml: List[List[str]] = []
                 for tr in child.findall(f"{ns}tr"):
                     hang: List[str] = []
+                    cot_idx = 0
                     for tc in tr.findall(f"{ns}tc"):
+                        tc_pr = tc.find(f"{ns}tcPr")
+                        grid_span = 1
+                        vmerge_continue = False
+                        if tc_pr is not None:
+                            gs_el = tc_pr.find(f"{ns}gridSpan")
+                            if gs_el is not None:
+                                raw_span = gs_el.attrib.get(f"{ns}val") or gs_el.attrib.get("val") or "1"
+                                try:
+                                    grid_span = max(1, int(raw_span))
+                                except ValueError:
+                                    grid_span = 1
+                            vm_el = tc_pr.find(f"{ns}vMerge")
+                            if vm_el is not None:
+                                vm_val = (vm_el.attrib.get(f"{ns}val") or vm_el.attrib.get("val") or "").strip().lower()
+                                if vm_val != "restart":
+                                    vmerge_continue = True
                         cell_txt = " ".join(
                             "".join(t.text or "" for t in p.iter(f"{ns}t")).strip()
                             for p in tc.findall(f"{ns}p")
                         ).strip()
+                        if vmerge_continue and not cell_txt and ma_tran_xml:
+                            prev_row = ma_tran_xml[-1]
+                            if cot_idx < len(prev_row):
+                                cell_txt = prev_row[cot_idx]
                         hang.append(cell_txt)
+                        for _ in range(grid_span - 1):
+                            hang.append("")
+                        cot_idx += grid_span
                     ma_tran_xml.append(hang)
                 md = self._dinh_dang_bang_markdown(ma_tran_xml)
                 if md:
                     phan_doan_xml.append(md)
                     so_bang += 1
         return "\n".join(phan_doan_xml), so_bang
+
+    def _doc_pdf_scan_ocr(self, duong_dan: Path, toi_da_trang: int = 20) -> Tuple[str, int]:
+        """Chuyển trang PDF scan sang ảnh, khử dấu đỏ hành chính và chạy OCR tiếng Việt an toàn."""
+        import tempfile
+
+        from vietnamese_ai.vision.ocr import TrichXuatVanBanAnh
+
+        pil_mod = QuanLyPhuThuoc.nhap_tuy_chon("PIL", nhom_extra="vision", tinh_nang="OCR PDF scan")
+        if pil_mod is None:
+            return "", 0
+
+        anh_trang: List[Any] = []
+        pdfium = QuanLyPhuThuoc.nhap_tuy_chon("pypdfium2", nhom_extra="legal-rag", tinh_nang="Render trang PDF scan")
+        if pdfium is not None:
+            try:
+                pdf_doc = pdfium.PdfDocument(str(duong_dan))
+                so_luong = min(len(pdf_doc), max(1, int(toi_da_trang)))
+                for idx in range(so_luong):
+                    page = pdf_doc[idx]
+                    bitmap = page.render(scale=2.0)
+                    anh_trang.append(bitmap.to_pil().convert("RGB"))
+            except Exception:
+                anh_trang = []
+
+        if not anh_trang:
+            pdf2img = QuanLyPhuThuoc.nhap_tuy_chon("pdf2image", nhom_extra="legal-rag", tinh_nang="Render trang PDF scan")
+            if pdf2img is not None:
+                try:
+                    anh_trang = [
+                        im.convert("RGB")
+                        for im in pdf2img.convert_from_path(str(duong_dan), first_page=1, last_page=toi_da_trang)
+                    ]
+                except Exception:
+                    anh_trang = []
+
+        if not anh_trang:
+            return "", 0
+
+        from PIL import Image
+
+        ocr = TrichXuatVanBanAnh(bat_bao_ve_anh=self.bat_bao_ve_ocr)
+        cac_doan: List[str] = []
+        with tempfile.TemporaryDirectory(prefix="vai_pdf_ocr_") as tmp_dir:
+            for idx, pil_img in enumerate(anh_trang):
+                arr_sach = self.loc_dau_do_anh_numpy(np.asarray(pil_img, dtype=np.uint8))
+                img_path = Path(tmp_dir) / f"page_{idx + 1}.png"
+                Image.fromarray(arr_sach).save(img_path, format="PNG")
+                kq = ocr.doc_van_ban(img_path)
+                txt = str(kq.get("van_ban", "")).strip()
+                if txt:
+                    cac_doan.append(txt)
+        return "\n\n".join(cac_doan), len(anh_trang)
 
     def _doc_pdf_co_bang(self, duong_dan: Path) -> Tuple[str, int, int]:
         """Đọc văn bản và bảng biểu từ PDF bằng `pdfplumber` nếu cài, dự phòng `PyPDFLoader` (`pypdf`)."""
@@ -230,6 +330,16 @@ class BoDocTaiLieuPhapLy:
             van_ban_tho, so_trang, so_bang = self._doc_pdf_co_bang(path)
             dinh_dang = "pdf"
             metadata["so_bang"] = so_bang
+            la_pdf_scan = (len(van_ban_tho.strip()) / max(1, so_trang)) < 25.0
+            metadata["la_pdf_scan"] = la_pdf_scan
+            metadata["da_chay_ocr_pdf"] = False
+            if la_pdf_scan and self.bat_ocr_pdf_scan:
+                ocr_txt, so_trang_ocr = self._doc_pdf_scan_ocr(path)
+                if ocr_txt.strip():
+                    van_ban_tho = ocr_txt
+                    so_trang = max(so_trang, so_trang_ocr)
+                    dinh_dang = "pdf_scan_ocr"
+                    metadata["da_chay_ocr_pdf"] = True
         elif ext in self.DINH_DANG_ANH:
             from vietnamese_ai.vision.ocr import TrichXuatVanBanAnh
 

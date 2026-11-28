@@ -46,6 +46,9 @@ class BoTinhChinhMoHinh:
         "text-generation": "text-generation",
         "sft": "sft",
         "dpo": "dpo",
+        "simpo": "simpo",
+        "cdpo": "cdpo",
+        "safeloop": "safeloop",
         "rlhf": "rlhf",
         "grpo": "grpo",
         "reasoning": "grpo",
@@ -356,10 +359,30 @@ class BoTinhChinhMoHinh:
             return kq
 
         # 3. Trường hợp DPO
-        if self.nhiem_vu == "dpo":
-            if self._hf_wrapper is not None:
+        if self.nhiem_vu in ("dpo", "simpo", "cdpo", "safeloop"):
+            mau_uu_tien = list(du_lieu_train)
+            bao_cao_loc_nhieu: Optional[Dict[str, Any]] = None
+            if self.nhiem_vu == "safeloop" or bool(kwargs.get("loc_nhieu_safeloop", False)):
+                from vietnamese_ai.fine_tuning.preference_filter import BoLocNhieuCapUuTien
+
+                bo_loc = BoLocNhieuCapUuTien()
+                kq_loc = bo_loc.loc_tap_du_lieu(mau_uu_tien)
+                mau_uu_tien = kq_loc.mau_sach
+                bao_cao_loc_nhieu = {
+                    "tong_dau_vao": kq_loc.tong_dau_vao,
+                    "so_giu_lai": kq_loc.so_giu_lai,
+                    "so_cach_ly": kq_loc.so_cach_ly,
+                    "ty_le_giu_lai": kq_loc.ty_le_giu_lai,
+                    "thong_ke_ly_do_loai": kq_loc.thong_ke_ly_do_loai,
+                    "trong_so_trung_binh": kq_loc.trong_so_trung_binh,
+                }
+
+            co_tham_so_nang_cao = self.nhiem_vu in ("simpo", "cdpo", "safeloop") or any(
+                k in kwargs for k in ("che_do_dpo", "beta", "label_smoothing", "he_so_neo_kl", "loai_phat_kl")
+            )
+            if self._hf_wrapper is not None and not co_tham_so_nang_cao:
                 kq = self._hf_wrapper.huan_luyen(
-                    du_lieu_train,
+                    mau_uu_tien,
                     du_lieu_val=du_lieu_val,
                     so_vong=so_vong,
                     kich_thuoc_batch=kich_thuoc_batch,
@@ -370,16 +393,41 @@ class BoTinhChinhMoHinh:
             else:
                 from vietnamese_ai.fine_tuning.dpo_trainer import DPOTrainer
 
+                che_do_raw = str(kwargs.get("che_do_dpo", "simpo" if self.nhiem_vu == "simpo" else "dpo")).strip().lower()
+                che_do_dpo = "simpo" if che_do_raw == "simpo" else "dpo"
+                ls_mac_dinh = 0.05 if (self.nhiem_vu in ("cdpo", "safeloop") or che_do_raw == "cdpo") else 0.0
                 dpo = DPOTrainer(
                     so_vong=so_vong,
                     kich_thuoc_batch=kich_thuoc_batch,
                     toc_do_hoc=toc_do_hoc,
+                    beta=float(kwargs.get("beta", 0.1)),
+                    label_smoothing=float(kwargs.get("label_smoothing", ls_mac_dinh)),
+                    che_do=che_do_dpo,
+                    he_so_neo_kl=float(kwargs.get("he_so_neo_kl", 0.05 if self.nhiem_vu == "safeloop" else 0.0)),
+                    loai_phat_kl=str(kwargs.get("loai_phat_kl", "token_kl" if self.nhiem_vu == "safeloop" else "l2_tham_so")),
                 )
+                target_model = self.model
+                tok_dpo = None
+                if self._hf_wrapper is not None:
+                    tok_dpo = getattr(self._hf_wrapper, "tokenizer", None) or getattr(self._hf_wrapper, "_tokenizer", None)
+                    hf_inner = getattr(self._hf_wrapper, "model", None)
+                    if not getattr(self._hf_wrapper, "_che_do_native", True) and hf_inner is not None:
+                        target_model = hf_inner
+                    elif getattr(self._hf_wrapper, "_native_model", None) is not None:
+                        target_model = self._hf_wrapper._native_model
                 try:
-                    ref_snapshot = copy.deepcopy(self.model)
+                    ref_snapshot = None if che_do_dpo == "simpo" else copy.deepcopy(target_model)
                 except Exception:
                     ref_snapshot = None
-                kq = dpo.huan_luyen(self.model, ref_snapshot, list(du_lieu_train), callback=callback)
+                kq = dpo.huan_luyen(
+                    target_model,
+                    ref_snapshot,
+                    mau_uu_tien,
+                    tokenizer=tok_dpo,
+                    callback=callback,
+                )
+            if bao_cao_loc_nhieu is not None:
+                kq["bao_cao_loc_nhieu"] = bao_cao_loc_nhieu
             self.lich_su_huan_luyen = kq
             return kq
 

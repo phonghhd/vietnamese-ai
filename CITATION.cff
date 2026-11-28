@@ -13,7 +13,7 @@ repository-code: "https://github.com/phonghhd/vietnamese-ai"
 url: "https://phonghhd.github.io/vietnamese-ai"
 doi: "10.5281/zenodo.20357082"
 license: "MIT"
-version: "31.2.0"
+version: "31.3.0"
 date-released: "2026-11-28"
 keywords:
   - "vietnamese-nlp"
@@ -21,14 +21,15 @@ keywords:
   - "temporal-retrieval"
   - "citation-verification"
   - "knowledge-graph"
+  - "continual-alignment"
+  - "contract-review"
   - "benchmark"
   - "zero-dependency"
-  - "swarm-cpu"
   - "verifiable-ai"
-  - "rag"
 abstract: >-
-  Vietnamese AI Framework (v31.2.0) provides ViLegal-TemporalRAG, the open
-  ViLegal-TempBench benchmark (160 clauses, 68 QA), ViEdge-RustEngine,
-  ViAlign-SafeLoop, and a bundled 38,372-word Vietnamese lexicon for
-  reproducible CPU-only Vietnamese AI and deterministic three-tier legal
-  citation verification with optional real LLM integration.
+  Vietnamese AI Framework provides ViLegal-TemporalRAG, the open
+  ViLegal-TempBench v2 benchmark (160 clauses, 38 graph edges, 84 QA across 5 splits
+  including colloquial T5), Contract Review Pro (5 Vietnamese contract rulesets with
+  citation-verified hybrid LLM support), ViEdge-RustEngine, ViAlign-SafeLoop
+  (eval-gated continual alignment with token-level KL and QLoRA orchestration), and a
+  bundled 38,372-word MIT Vietnamese lexicon for reproducible local-first AI.

@@ -19,10 +19,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-31.2.0-blue.svg" alt="version">
+  <img src="https://img.shields.io/badge/version-31.3.0-blue.svg" alt="version">
   <img src="https://img.shields.io/badge/python-3.8%20--%203.14-blue.svg" alt="python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="license">
-  <img src="https://img.shields.io/badge/tests-1380%2B%20passed-brightgreen.svg" alt="tests">
+  <img src="https://img.shields.io/badge/tests-1450%2B%20passed-brightgreen.svg" alt="tests">
   <img src="https://img.shields.io/badge/mypy-0%20errors-brightgreen.svg" alt="mypy">
   <img src="https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg" alt="ruff">
   <img src="https://img.shields.io/badge/public%20APIs-349-indigo.svg" alt="apis">
@@ -31,11 +31,15 @@
 
 ---
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20357082.svg)](https://doi.org/10.5281/zenodo.20357082)
-## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.2.0 — Zero-GPU Local-First Vietnamese AI & Legal Workbench)
+## 🚀 Các Tính Năng Nổi Bật (Phiên bản v31.3.0 — Zero-GPU Local-First Vietnamese AI, Legal Workbench & Research Suite)
 
-- **ViLegal-TemporalRAG & Bộ Chuẩn Học Thuật Mở `ViLegal-TempBench` (v31.1.0 — Applied Research → Production)**:
-  - **Truy hồi Đa bước Có Điều kiện Thời gian**: `BoPhanTichThoiGianPhapLy` (*Statute-Bounded Temporal Disambiguation*, **100% TQPA** trên 68 câu) + Đồ thị cấp Điều/Khoản `DoThiThamChieuPhapLy` (60 điều khoản đa phiên bản + 38 cạnh thời gian + 100 điều khoản nền) + `BoTruyHoiPhapLyThoiGian` (5 tầng Ablation chạy trên CPU Celeron N3050 ~56 ms/truy vấn, đạt **R@3 = 0.992**, **R@5 = 1.000**, **MRR@10 = 0.992**, **nDCG@10 = 0.992**, **TVA = 1.000**, **TCA = 12/12**, **Multi-Hop@3 = 0.929**, **Trap = 1.000**, **Abstention F1 = 1.000**).
-  - **Kiểm chứng Trích dẫn Tất định 3 Tầng**: `BoKiemChungTrichDanPhapLy` kiểm tra *Citation Grounding*, *Temporal Consistency* và *Numeric/Deadline Consistency* cho cả câu trả lời cục bộ lẫn LLM thật (**Google Gemini API**, OpenAI-compatible, Ollama không cần SDK phụ qua `tao_ham_sinh_llm`).
+- **Kho Tri Thức Pháp Lý `.vaidb` 1 Lệnh (`vai pull-kb`), Contract Review Pro & Phân Phối 1-Click (v31.3.0)**:
+  - **Legal Knowledge Hub (`vai pull-kb`)**: 5 gói tri thức pháp lý theo ngành (`vn-business-core-2025`, `vn-labor-bhxh-2025`, `vn-tax-invoice-2025`, `vn-land-housing-2025`, `vn-data-digital-2025`) dựng sẵn FTS5 + HNSW + đồ thị hiệu lực + manifest SHA-256, kèm tách cấp Khoản và kiểm toán chất lượng văn bản đầu vào.
+  - **Contract Review Pro (`vai contract-review --type`)**: Tự động phân loại & rà soát 5 loại hợp đồng Việt Nam (`lao_dong`, `dich_vu`, `mua_ban`, `thue_nha`, `nda`) theo quy định mới nhất (BLLĐ 2019, NĐ 70/2025/NĐ-CP, Luật GTGT 2024, Luật KDBĐS 2023), đọc bảng `.docx` gộp ô (`gridSpan`/`vMerge`), khử dấu đỏ OCR PDF scan bằng NumPy thuần và rà soát Hybrid LLM kiểm chứng 100% trích dẫn qua `BoKiemChungTrichDanPhapLy`.
+  - **Web Studio v2 SSE Streaming + MCP 1-Click**: Stream câu trả lời theo luồng (`/api/legal/temporal-ask/stream`, `/api/chat/stream`), Split-View trích dẫn (nhãn hiệu lực Xanh/Vàng/Đỏ), xem trực quan Diff hợp đồng, sinh cấu hình MCP trong 60 giây (`vai mcp-config --client cursor|claude|vscode|antigravity`), triển khai `docker compose up -d` và [Bộ Triển Khai Pilot Doanh Nghiệp](docs/guides/enterprise-pilot-kit.md).
+- **ViLegal-TemporalRAG & Bộ Chuẩn Học Thuật Mở `ViLegal-TempBench v2` (84 QA, 5 Splits)**:
+  - **Truy hồi Đa bước Có Điều kiện Thời gian**: `BoPhanTichThoiGianPhapLy` (*Statute-Bounded Temporal Disambiguation*, **100% TQPA** trên 84/84 câu) + Đồ thị cấp Điều/Khoản `DoThiThamChieuPhapLy` (60 điều khoản đa phiên bản + 38 cạnh thời gian + 100 điều khoản nền) + `BoTruyHoiPhapLyThoiGian` (6 cấu hình Ablation gồm `naive_date_filter` và split đời thường `T5`, đạt **R@3 = 0.936**, **MRR@10 = 0.907**, **TVA = 0.987**, **TCA = 12/12**, **Multi-Hop@3 = 1.000**, **Trap = 1.000**, **T5-R@3 = 0.688**, **Abstention F1 = 0.923**; vượt `naive_date_filter` với $p < 0.0001$).
+  - **Kiểm chứng Trích dẫn Tất định 3 Tầng & Tái Lập Bài Báo**: `BoKiemChungTrichDanPhapLy` kiểm tra *Citation Grounding*, *Temporal Consistency* và *Numeric/Deadline Consistency*; đi kèm trọn bộ hồ sơ nghiên cứu [paper/paper.md](paper/paper.md) (JOSS), [paper/vilegal_tempbench_acl.tex](paper/vilegal_tempbench_acl.tex) (ACL/IEEE), [paper/DATASHEET_VILEGAL_TEMPBENCH_V2.md](paper/DATASHEET_VILEGAL_TEMPBENCH_V2.md) và kịch bản tái lập `scripts/generate_paper_tables.py` / `scripts/run_safeloop_qlora_experiment.py`.
   - **Đồng bộ 5 Bề mặt & Tái lập 1 Lệnh**: CLI (`vai legal-ask`, `vai benchmark --suite legal-temporal --latex`), REST API (`/v1/legal/temporal-ask`, `/v1/legal/verify-citation`), MCP (`--temporal-legal-tools`), Web Studio UI (bộ chọn mốc ngày + kiểm chứng 3 tầng) và chuẩn trích dẫn [CITATION.cff](CITATION.cff). Xem [Báo cáo Kỹ thuật ViLegal-TemporalRAG](docs/guides/vilegal-temporal-rag.md).
 - **ViEdge-RustEngine & `ViEdge-SysBench` (Zero-GPU Systems for AI — Rust SIMD + HNSW + BitNet 1.58-bit 2-bit)**:
   - **Truy hồi Vector Lượng tử hóa & Native Rust HNSW-SQ8**: `ChiMucVectorLuongTu` (`SQ8 4× RAM` SSE4.1/AVX2, `Binary 1-bit POPCNT 32× RAM`, `Binary+SQ8 Rescore`, `RustHNSWIndex` lưu thẳng trong tệp `.vaidb`). Trên CPU văn phòng 6W Celeron N3050 (`20,000 × 384`), **HNSW-SQ8** đạt **p50 = `0.311 ms`** (**117× nhanh hơn FP32 NumPy**), **2,027.6 QPS lô**, **Recall@10 = 0.9688** và giảm **75% RAM vector**.
@@ -97,22 +101,22 @@
 
 > Tái lập trực tiếp trên máy của bạn bằng `vai benchmark --compare`, `vai benchmark --suite legal-temporal`, `vai benchmark --suite align-safety` hoặc container cố định `benchmarks/Dockerfile.benchmark`.
 
-| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (`v31.2.0`)** | Phương pháp & Tập dữ liệu mở |
+| Chỉ số Đánh giá (Metrics) | **Vietnamese AI (`v31.3.0`)** | Phương pháp & Tập dữ liệu mở |
 |:---|:---:|:---|
 | **Thời gian khởi động lạnh (Cold-start)** | **24.68 ms** | Tiến trình Python cô lập (`import vietnamese_ai`) |
 | **RAM cư trú khi nạp lõi (`VmRSS`)** | **12.82 MB** | `/proc/self/status` `VmRSS` sau import lõi |
 | **RAM khi chạy Legal RAG (100 điều khoản)** | **37.39 MB** | `/proc/self/status` `VmRSS` sau lập chỉ mục & truy vấn |
 | **Tốc độ Tách từ tiếng Việt (Rust Trie)** | **354,047.7 từ/s** | `BoTachTuTiengVietSieuToc` trên 100 điều khoản mở |
 | **Truy hồi Pháp lý mở (100 điều / 35 QA)** | **Hit@1 = 100.0% \| Hit@3 = 100.0% \| MRR = 1.000** | `RAGPipeline` (`onnx_viet`) trên `legal_vn_qa.jsonl` |
-| **`ViLegal-TempBench` (160 điều / 68 QA)** | **R@3 = 1.000 \| MRR@10 = 0.968 \| TVA = 1.000** | TCA = `12/12`, Multi-Hop = `1.000`, Trap = `1.000`, Abstention F1 = `1.000` (`47.02 ms`/câu) |
-| **`ViAlign-SafeBench` (5 vòng, 256-dim proxy)** | **Naive `0.5969` → SafeLoop `1.0000`** | Sàn An toàn `1.0000`, `0` hồi quy ngầm, Paired Bootstrap `+0.2500` ($p=0.0000$) |
+| **`ViLegal-TempBench v2` (160 điều / 84 QA, 5 splits)** | **R@3 = 0.936 \| MRR@10 = 0.907 \| TVA = 0.987** | TQPA = `84/84`, TCA = `12/12`, MH@3 = `1.000`, Trap = `1.000`, T5-R@3 = `0.688`, Abst. F1 = `0.923` |
+| **`ViAlign-SafeBench` (5 vòng, 256-dim proxy)** | **Naive `0.5969` → SafeLoop `1.0000`** | Sàn An toàn `1.0000`, `0` hồi quy ngầm, Paired Bootstrap `+0.2500` ($p<0.0001$) |
 
 ### 📋 Phương Pháp Thực Nghiệm & Thiết Lập Đo Kiểm (Benchmark Methodology & Transparency)
 
 1. **Tập Dữ Liệu Mở Đi Kèm Mã Nguồn (Open Reproducible Datasets)**:
    - Nguồn chuẩn duy nhất nằm trong `vietnamese_ai/rag/legal/data/` và được kiểm toán đồng bộ SHA-256 sang `benchmarks/datasets/` (`scripts/sync_legal_datasets.py --check` + `vai release-check`).
    - **`legal_vn_corpus.jsonl` & `legal_vn_qa.jsonl`**: `100` điều khoản quy phạm pháp luật Việt Nam (Bộ luật Dân sự, Bộ luật Lao động, Luật Doanh nghiệp, Luật Đất đai, Luật BHXH 2024, Luật Thuế GTGT 2024, Nghị định 13/2023/NĐ-CP, v.v.) và `35` câu hỏi chuẩn.
-   - **`ViLegal-TempBench`**: `160` điều khoản (`60` đa phiên bản + `100` nền), `38` cạnh đồ thị điều khoản có mốc hiệu lực và `68` truy vấn thuộc 4 phân nhóm `T1`/`T2`/`T3`/`T4` (bao gồm bẫy chỉ nêu tên luật hết hiệu lực và câu hỏi pháp lý Việt Nam ngoài phạm vi kho).
+   - **`ViLegal-TempBench v2`**: `160` điều khoản (`60` đa phiên bản + `100` nền), `38` cạnh đồ thị điều khoản có mốc hiệu lực và `84` truy vấn thuộc 5 phân nhóm `T1`/`T2`/`T3`/`T4`/`T5` (bao gồm 16 câu hỏi đời thường không nêu số hiệu luật, bẫy luật hết hiệu lực và câu hỏi pháp lý ngoài phạm vi kho).
 
 2. **Cấu Hình Phần Cứng Thực Đo Hiện Tại**:
    - **Bộ vi xử lý (CPU)**: Intel Celeron N3050 @ 1.60 GHz (2 lõi vật lý, 6W TDP, SSE4.2/POPCNT, không AVX2, không GPU rời).
@@ -978,7 +982,7 @@ curl http://localhost:8080/suc_khoe
 
 ```
 ├── rust_core/             # Lõi Rust SIMD/HNSW/BitNet siêu tốc bằng PyO3 (abi3-py39)
-├── packages/              # Manifest 5 gói con PyPI phụ thuộc lõi `vietnamese-ai>=31.2.0,<32.0.0`
+├── packages/              # Manifest 5 gói con PyPI phụ thuộc lõi `vietnamese-ai>=31.3.0,<32.0.0`
 ├── vietnamese_ai/
 │   ├── extreme/           # (v27.0) The Hardware Extreme (C++ JIT, Kernel Fusion, CPU Kernel)
 │   ├── agents/            # StateGraph, MemGPT, DeepResearch, CodeHealing, MayChuMCPThucTe (stdio/SSE)

@@ -48,7 +48,7 @@ class MayChuMCPThucTe(MCPServer):
     def __init__(
         self,
         ten: str = "vietnamese-ai-mcp",
-        phien_ban: str = "31.2.0",
+        phien_ban: str = "31.3.0",
         duong_dan_vaidb: Optional[Union[str, Path]] = None,
         nap_kho_phap_ly_mo: bool = True,
         bat_tuong_lua: bool = True,
@@ -849,17 +849,33 @@ class MayChuMCPThucTe(MCPServer):
     def xuat_cau_hinh_ide(
         ten_ide: str = "cursor",
         duong_dan_vaidb: Optional[str] = None,
+        giao_van: str = "stdio",
+        host: str = "127.0.0.1",
+        port: int = 8090,
+        bat_cong_cu_mo_rong: bool = False,
+        bat_cong_cu_phap_ly_thoi_gian: bool = False,
     ) -> Dict[str, Any]:
-        """Sinh khối cấu hình JSON sẵn sàng dán vào Cursor, Claude Desktop hoặc VS Code."""
+        """Sinh khối cấu hình JSON sẵn sàng dán vào Cursor, Claude Desktop, VS Code hoặc Antigravity."""
+        ide = ten_ide.strip().lower()
+        transport = giao_van.strip().lower()
+        if transport == "sse":
+            sse_url = f"http://{host}:{int(port)}/sse"
+            if ide == "vscode":
+                return {"servers": {"vietnamese-ai": {"type": "sse", "url": sse_url}}}
+            return {"mcpServers": {"vietnamese-ai": {"url": sse_url}}}
+
         args: List[str] = ["-m", "vietnamese_ai.cli.main", "mcp-server", "--transport", "stdio"]
         if duong_dan_vaidb:
             args.extend(["--vaidb", duong_dan_vaidb])
+        if bat_cong_cu_mo_rong:
+            args.append("--extended-tools")
+        if bat_cong_cu_phap_ly_thoi_gian:
+            args.append("--temporal-legal-tools")
 
         entry = {
             "command": sys.executable or "python",
             "args": args,
         }
-        ide = ten_ide.strip().lower()
         if ide == "vscode":
             return {"servers": {"vietnamese-ai": {"type": "stdio", **entry}}}
         return {"mcpServers": {"vietnamese-ai": entry}}

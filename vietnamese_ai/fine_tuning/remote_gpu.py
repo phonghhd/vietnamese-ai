@@ -79,6 +79,13 @@ class CauHinhTinhChinhXa:
     ten_volume_cache: str = "vietnamese-ai-model-cache"
     ten_ung_dung_modal: str = "vietnamese-ai-gpu-trainer"
     chi_phi_gpu_usd_gio: Optional[float] = None
+    che_do_dpo: str = "cdpo"
+    beta_dpo: float = 0.1
+    label_smoothing: float = 0.05
+    he_so_neo_kl: float = 0.05
+    loai_phat_kl: str = "token_kl"
+    dung_4bit_qlora: bool = True
+    loc_nhieu_safeloop: bool = True
 
     def gia_gpu_moi_gio_usd(self) -> float:
         """Lấy đơn giá thuê GPU (USD/giờ) theo cấu hình hoặc bảng giá tham chiếu chuẩn."""
@@ -159,17 +166,29 @@ def main() -> None:
 
     from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh
 
+    nhiem_vu_w = str(cfg.get("nhiem_vu", "sft"))
     tuner = BoTinhChinhMoHinh(
         mo_hinh=str(cfg.get("mo_hinh", "vgpt2")),
-        nhiem_vu=str(cfg.get("nhiem_vu", "sft")),
+        nhiem_vu=nhiem_vu_w,
         dung_lora=True,
         rank_lora=int(cfg.get("rank_lora", 8)),
         che_do_offline=bool(cfg.get("che_do_offline_worker", False)),
     )
+    train_kwargs = {}
+    if nhiem_vu_w.lower() in ("dpo", "simpo", "cdpo", "safeloop"):
+        train_kwargs = {
+            "che_do_dpo": str(cfg.get("che_do_dpo", "cdpo")),
+            "beta": float(cfg.get("beta_dpo", 0.1)),
+            "label_smoothing": float(cfg.get("label_smoothing", 0.05)),
+            "he_so_neo_kl": float(cfg.get("he_so_neo_kl", 0.05)),
+            "loai_phat_kl": str(cfg.get("loai_phat_kl", "token_kl")),
+            "loc_nhieu_safeloop": bool(cfg.get("loc_nhieu_safeloop", True)),
+        }
     kq_train = tuner.huan_luyen(
         samples,
         so_vong=int(cfg.get("so_vong", 3)),
         toc_do_hoc=float(cfg.get("toc_do_hoc", 2e-4)),
+        **train_kwargs,
     )
 
     dinh_dang = str(cfg.get("dinh_dang_xuat", "gguf")).lower()
@@ -361,8 +380,10 @@ image = (
         "transformers>=4.30.0",
         "peft>=0.7.0",
         "trl>=0.8.0",
+        "accelerate>=0.30.0",
+        "bitsandbytes>=0.43.0",
         "datasets>=2.14.0",
-        "vietnamese-ai>=31.2.0",
+        "vietnamese-ai>=31.3.0",
     )
 )
 
@@ -395,17 +416,29 @@ def huan_luyen_tren_modal(du_lieu_jsonl: bytes, cau_hinh_json: str) -> Dict[str,
 
     from vietnamese_ai.fine_tuning.auto_finetuner import BoTinhChinhMoHinh
 
+    nhiem_vu_w = str(cfg.get("nhiem_vu", "sft"))
     tuner = BoTinhChinhMoHinh(
         mo_hinh=str(cfg.get("mo_hinh", "vgpt2")),
-        nhiem_vu=str(cfg.get("nhiem_vu", "sft")),
+        nhiem_vu=nhiem_vu_w,
         dung_lora=True,
         rank_lora=int(cfg.get("rank_lora", 8)),
         che_do_offline=bool(cfg.get("che_do_offline_worker", False)),
     )
+    train_kwargs = {{}}
+    if nhiem_vu_w.lower() in ("dpo", "simpo", "cdpo", "safeloop"):
+        train_kwargs = {{
+            "che_do_dpo": str(cfg.get("che_do_dpo", "cdpo")),
+            "beta": float(cfg.get("beta_dpo", 0.1)),
+            "label_smoothing": float(cfg.get("label_smoothing", 0.05)),
+            "he_so_neo_kl": float(cfg.get("he_so_neo_kl", 0.05)),
+            "loai_phat_kl": str(cfg.get("loai_phat_kl", "token_kl")),
+            "loc_nhieu_safeloop": bool(cfg.get("loc_nhieu_safeloop", True)),
+        }}
     kq_train = tuner.huan_luyen(
         samples,
         so_vong=int(cfg.get("so_vong", 3)),
         toc_do_hoc=float(cfg.get("toc_do_hoc", 2e-4)),
+        **train_kwargs,
     )
 
     dinh_dang = str(cfg.get("dinh_dang_xuat", "gguf")).lower()

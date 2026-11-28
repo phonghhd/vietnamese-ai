@@ -1,0 +1,142 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{\textbf{ViLegal-TempBench: Evaluating Temporal, Clause-Level Graph Retrieval and Deterministic Citation Verification for Vietnamese Statutory Law}}
+
+\author{
+  Duong Phong Huynh \\
+  Independent Researcher, Ho Chi Minh City, Vietnam \\
+  \texttt{huynhduongphong9@gmail.com} \quad ORCID: \texttt{0009-0002-1458-3406}
+}
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Retrieval-Augmented Generation (RAG) for statutory law faces a structural challenge that conventional semantic search ignores: legal validity is time-dependent and multi-hop across nested hierarchies of Laws, Decrees, and Circulars. In Vietnam, major legislative transitions between 2024 and 2026 (including the 2024 Land Law, the 2024 Social Insurance Law, the 2024 VAT Law, and Decree 70/2025/ND-CP on e-invoices) invalidate prior clauses while introducing staggered effective dates. We present \textsc{ViLegal-TempBench v2} and \textsc{ViLegal-TemporalRAG}, an open, reproducible benchmark and local-first retrieval-verification architecture for Vietnamese statutory law. Our benchmark indexes 160 statutory clauses linked by 38 clause-level temporal edges and evaluates 84 queries across five splits: single-hop active lookup (\texttt{T1}), temporal contrast pairs (\texttt{T2}), multi-hop Law--Decree--Circular chains (\texttt{T3}), expired-statute traps and out-of-scope abstention (\texttt{T4}), and colloquial queries without statute identifiers (\texttt{T5}). On commodity zero-GPU hardware, \textsc{ViLegal-TemporalRAG} achieves \textbf{100.0\%} temporal date parsing accuracy (84/84), \textbf{0.936} Recall@3, \textbf{0.987} Temporal Validity Accuracy (TVA), \textbf{12/12} Temporal Contrast Accuracy (TCA), \textbf{1.000} Multi-Hop@3, \textbf{1.000} Trap handling, and \textbf{0.923} Abstention F1---significantly outperforming both BM25 and a start-date-only \texttt{naive\_date\_filter} baseline ($p < 0.0001$ on MRR@10 and TVA). We further evaluate \textsc{ViAlign-SafeLoop}, an eval-gated continual alignment loop with 6-signal preference filtering, anchor replay, cDPO/SimPO, and atomic rollback, demonstrating complete prevention of safety collapse across 5 noisy feedback rounds (55.7\% poisoning rate) and releasing full QLoRA reproduction scripts.
+\end{abstract}
+
+\section{Introduction}
+Legal assistants deployed in Vietnamese enterprises and law offices must answer statutory questions accurately under strict privacy and resource constraints. Standard RAG pipelines retrieve passages purely by lexical or vector similarity, causing three systematic errors on Vietnamese law:
+\begin{enumerate}
+  \item \textbf{Temporal Supersession Failure}: A query about land valuation, pension eligibility, or e-invoice cancellation yields different legal answers before and after effective transition dates (e.g., Land Law \texttt{45/2013/QH13} vs.\ \texttt{31/2024/QH15}; Decree \texttt{123/2020/ND-CP} vs.\ Decree \texttt{70/2025/ND-CP}).
+  \item \textbf{Multi-Hop Statutory Fragmentation}: Concrete operational rules (ceilings, procedures, forms) reside in implementing Decrees and Circulars linked to parent Law articles; single-hop retrieval misses downstream clauses.
+  \item \textbf{Unverified Hallucinations \& Alignment Drift}: Even with retrieved context, generative LLMs frequently hallucinate article numbers, invert numeric thresholds, or regress on safety when fine-tuned continuously on noisy user feedback.
+\end{enumerate}
+
+To address these gaps transparently and reproducibly, we make four contributions:
+\begin{itemize}
+  \item A formal temporal clause-graph retrieval formulation $(C_t, G_t)$ and an open-source, zero-GPU-capable engine (\textsc{ViLegal-TemporalRAG}) paired with a 3-tier deterministic citation, temporal, and numeric verifier (\texttt{BoKiemChungTrichDanPhapLy}).
+  \item \textsc{ViLegal-TempBench v2}, a version-controlled, SHA-256-verified Vietnamese statutory benchmark (160 clauses, 38 graph edges, 84 QA across 5 splits including colloquial \texttt{T5}) with automated error analysis and paired bootstrap significance testing.
+  \item \textsc{Contract Review Pro}, combining deterministic rulesets across five Vietnamese contract classes (Labor, Services, Sales, Leasing, NDA) with citation-verified Hybrid LLM auditing and red-stamp-filtered scanned document parsing.
+  \item \textsc{ViAlign-SafeLoop} and \textsc{ViAlign-SafeBench}, measuring eval-gated continual preference alignment under 55.7\% preference poisoning alongside reproducible 4-bit QLoRA GPU scripts with token-level reverse KL regularization.
+\end{itemize}
+
+\section{Formal Problem Formulation}
+
+\subsection{Time-Indexed Statutory Corpus and Clause Graph}
+Let $\mathcal{C}$ be a statutory corpus where each clause version $c \in \mathcal{C}$ is associated with statute identifier $s(c)$, article identifier $a(c)$, textual content $x(c)$, and a half-open legal validity interval $[t_{\mathrm{eff}}(c), t_{\mathrm{exp}}(c))$ (with $t_{\mathrm{exp}}(c) = +\infty$ for active clauses). For a reference date $t$, the active clause subset is
+\begin{equation}
+  C_t = \{ c \in \mathcal{C} \mid t_{\mathrm{eff}}(c) \le t < t_{\mathrm{exp}}(c) \}.
+\end{equation}
+Cross-statute dependencies are represented as a directed typed multigraph $G_t = (V, E_t)$ where edges $e = (u, v, r, t_{\mathrm{eff}}(e)) \in E_t$ encode relation types $r \in \{\text{replaces}, \text{amends}, \text{implements}, \text{references}\}$ active at date $t$.
+
+\subsection{Temporal Query Disambiguation \& Graph-Augmented Fusion}
+Given a Vietnamese query $q$, \texttt{BoPhanTichThoiGianPhapLy} parses temporal anchors into target date $t_q$. When two temporal expressions appear in $q$ (e.g., an event origin year ``t\u{u} n\u{a}m 2010'' alongside an evaluation year ``\dj\^{e}n n\u{a}m 2025''), the parser disambiguates the operative legal date by selecting the terminal evaluation date rather than the initial event date.
+
+Candidate retrieval fuses Vietnamese compound-word BM25 (38,372-word lexicon with FST tone normalization) and $L_2$-normalized signed feature-hash or optional INT8 ONNX dense vectors via Reciprocal Rank Fusion (RRF):
+\begin{equation}
+  S_{\mathrm{RRF}}(c \mid q) = \frac{1}{k + \mathrm{rank}_{\mathrm{BM25}}(c)} + \frac{1}{k + \mathrm{rank}_{\mathrm{dense}}(c)}, \quad k = 60.
+\end{equation}
+Point-in-time temporal scoring suppresses clauses with $c \notin C_{t_q}$ and redirects repealed references along active \texttt{replaces}/\texttt{amends} edges in $G_{t_q}$. Multi-hop traversal expands top seed clauses up to depth 2 along \texttt{implements} and \texttt{amends} edges to collect Law--Decree--Circular evidence chains. An abstention gate refuses queries whose token overlap and lexical support fall below calibrated thresholds.
+
+\subsection{Deterministic Three-Tier Citation Verification}
+Before returning any extractive or LLM-generated response $y$, \texttt{BoKiemChungTrichDanPhapLy} audits:
+\begin{enumerate}
+  \item \textbf{Tier 1 (Citation Grounding)}: Every statute ID and Article pair cited in $y$ must appear consistently in the retrieved evidence set.
+  \item \textbf{Tier 2 (Temporal Consistency)}: Cited statutes must be valid at $t_q$ unless explicitly accompanied by a supersession/repeal warning.
+  \item \textbf{Tier 3 (Numeric \& Deadline Fidelity)}: Extracted percentages, monetary caps, and statutory deadlines in $y$ must match grounded numeric facts in the retrieved clauses.
+\end{enumerate}
+
+\section{Dataset: ViLegal-TempBench v2}
+\textsc{ViLegal-TempBench v2} is bundled directly inside \texttt{vietnamese-ai} and parity-checked via SHA-256 (\texttt{scripts/sync\_legal\_datasets.py --check}). It comprises 160 statutory clauses (60 multi-version temporal clauses + 100 open background clauses across Labor, Social Insurance, Tax/E-Invoicing, Land, Housing, Real Estate, Data Protection, Enterprise, Civil, and Commercial law), 38 directed clause-level temporal edges, and 84 annotated queries across 5 splits:
+\begin{itemize}
+  \item \texttt{T1} (16 queries): Single-hop current-law factual retrieval.
+  \item \texttt{T2} (24 queries = 12 contrast pairs): Identical legal questions evaluated at $t_{\text{before}}$ and $t_{\text{after}}$ statutory transitions.
+  \item \texttt{T3} (14 queries): Multi-hop Law $\to$ Decree $\to$ Circular chains.
+  \item \texttt{T4} (14 queries): 8 expired-statute traps + 6 out-of-scope abstention queries.
+  \item \texttt{T5} (16 queries): Colloquial, everyday-language queries containing zero statute IDs or verbatim legal headers, designed to expose lexical retrieval gaps.
+\end{itemize}
+
+\section{Experiments}
+
+\subsection{Hardware & Reproducibility Protocol}
+All local experiments were executed on a zero-GPU commodity office machine: \textbf{Intel Celeron N3050 @ 1.60 GHz} (2 physical cores, 6W TDP, SSE4.2, no AVX2, 3.2 GiB RAM), Linux \texttt{x86\_64}, Python 3.14.4, with the compiled \texttt{vietnamese\_ai\_rust} (\texttt{abi3-py39}) extension and \texttt{seed=42}. Every table below is directly reproducible via \texttt{scripts/generate\_paper\_tables.py --seed 42}.
+
+\subsection{Main Ablation on ViLegal-TempBench v2}
+We compare six retrieval configurations, including an explicit \texttt{naive\_date\_filter} baseline (filtering only by $t_{\mathrm{eff}}(c) \le t_q$ without expiration tracking or supersession redirection).
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Six-configuration ablation on \textsc{ViLegal-TempBench v2} (84 queries, 5 splits, \texttt{seed=42}, CPU-only Intel Celeron N3050). Temporal parsing accuracy (TQPA) is 100.0\% (84/84).}
+\label{tab:vilegal_tempbench_v2}
+\begin{tabular}{lcccccccccc}
+\toprule
+Configuration & R@1 & R@3 & MRR@10 & TVA & TCA (T2) & MH@3 (T3) & Trap (T4) & T5-R@3 & Abst.\ F1 & Lat.\ (ms) \\
+\midrule
+\texttt{bm25} & 0.575 & 0.880 & 0.810 & 0.731 & 0.083 & 0.500 & 0.125 & 0.625 & 0.000 & 7.71 \\
+\texttt{hybrid} & 0.575 & 0.900 & 0.804 & 0.705 & 0.167 & 0.571 & 0.125 & 0.688 & 0.000 & 13.86 \\
+\texttt{naive\_date\_filter} & 0.639 & 0.900 & 0.836 & 0.727 & 0.583 & 0.571 & 0.125 & 0.688 & 0.000 & 22.20 \\
+\texttt{temporal} & 0.793 & 0.932 & 0.917 & 1.000 & 1.000 & 0.786 & 1.000 & 0.750 & 0.000 & 23.02 \\
+\texttt{temporal\_graph} & 0.793 & 0.936 & 0.910 & 1.000 & 1.000 & 1.000 & 1.000 & 0.688 & 0.000 & 23.82 \\
+\textbf{\texttt{full}} & \textbf{0.793} & \textbf{0.936} & \textbf{0.907} & \textbf{0.987} & \textbf{1.000} & \textbf{1.000} & \textbf{1.000} & \textbf{0.688} & \textbf{0.923} & \textbf{101.80} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Table~\ref{tab:vilegal_tempbench_v2} reveals three key findings:
+\begin{enumerate}
+  \item \textbf{Naive start-date filtering is insufficient}: \texttt{naive\_date\_filter} improves TCA over \texttt{hybrid} (0.167 $\to$ 0.583) by excluding future laws at past dates, but still fails on post-transition queries where superseded laws remain unfiltered (TVA = 0.727, Trap = 0.125).
+  \item \textbf{Clause-level temporal graph closes multi-hop gaps}: Adding $G_t$ lifts \texttt{T3} Multi-Hop@3 from 0.786 (\texttt{temporal}) to \textbf{1.000} (\texttt{temporal\_graph} and \texttt{full}). Paired bootstrap testing ($n=1000$, \texttt{seed=42}) confirms statistically significant improvements of \texttt{full} over \texttt{naive\_date\_filter} on MRR@10 ($+0.0709$, $p < 0.0001$), TVA ($+0.2607$, $p < 0.0001$), and Multi-Hop@3 ($+0.4286$, $p = 0.0020$).
+  \item \textbf{Colloquial Error Analysis (\texttt{T5})}: Automated error analysis on \texttt{full} identifies 4 lexical-gap misses (\texttt{t5\_01}, \texttt{t5\_03}, \texttt{t5\_06}, \texttt{t5\_12}) where informal phrasing diverges completely from statutory terminology, plus 1 conservative abstention (\texttt{t5\_13}). This directly justifies our optional ONNX INT8 neural embedder/reranker path (\texttt{--onnx-embedder}, \texttt{--onnx-reranker}).
+\end{enumerate}
+
+\subsection{Eval-Gated Continual Alignment (ViAlign-SafeBench)}
+To guard against poisoned user feedback in deployment, we evaluate four continual alignment strategies across 5 sequential rounds totaling 70 preference pairs (39 noisy/poisoned pairs = 55.7\%, including label flips, PII leakage, outdated-law citations, red-team jailbreaks, and subtle Round-5 numeric fabrications) on the deterministic 256-dim CPU ranking proxy (\texttt{seed=42}).
+
+\begin{table*}[t]
+\centering
+\small
+\caption{Five-round continual alignment ablation on \textsc{ViAlign-SafeBench} (70 preference pairs, 55.7\% noise/poisoning, \texttt{seed=42}).}
+\label{tab:vialign_safebench}
+\begin{tabular}{lcccccccc}
+\toprule
+Strategy & Final Score & Citation & Validity & Safety & Safety Floor & Forgetting $\downarrow$ & Filter F1 & Rollbacks \\
+\midrule
+Naive Continual DPO & 0.5969 & 0.5625 & 1.0000 & 0.0000 & 0.0000 & 0.0000 & 0.0000 & 0 \\
+Filtered DPO (6-signal) & 0.9812 & 0.9583 & 1.0000 & 1.0000 & 1.0000 & 0.0000 & 0.9041 & 0 \\
+Filtered + Replay + cDPO & 0.9906 & 0.9792 & 1.0000 & 1.0000 & 1.0000 & 0.0000 & 0.9041 & 0 \\
+\textbf{\textsc{ViAlign-SafeLoop} (Full)} & \textbf{1.0000} & \textbf{1.0000} & \textbf{1.0000} & \textbf{1.0000} & \textbf{1.0000} & \textbf{0.0000} & \textbf{0.9041} & \textbf{1} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+As shown in Table~\ref{tab:vialign_safebench}, Naive Continual DPO suffers catastrophic safety collapse at Round 3 (Safety drops to 0.0000, 1 silent regression). Combining 6-signal filtering, anchor replay, and weighted cDPO achieves 0.9906, while adding the 4-axis Eval Gate automatically rolls back the Round-5 adversarial numeric-fabrication round, maintaining \textbf{1.0000} final score and \textbf{1.0000} safety floor ($\Delta = +0.2500$ vs.\ Naive DPO, 95\% CI $[+0.1260, +0.3740]$, $p < 0.0001$). For neural LLM validation, \texttt{DPOTrainer} implements exact token-level reverse KL regularization $D_{\mathrm{KL}}(\pi_\theta \| \pi_{\mathrm{ref}})$ and \texttt{scripts/run\_safeloop\_qlora\_experiment.py} generates turnkey 4-bit QLoRA Modal/SSH runs for \texttt{Qwen2.5-1.5B/3B-Instruct}.
+
+\section{Limitations and Ethical Considerations}
+\textbf{Corpus & Model Scope}: The bundled version of \textsc{ViLegal-TempBench v2} currently contains 160 curated clauses and 84 queries so that the entire dataset ships inside a lightweight wheel and runs reproducibly in seconds on low-power CPUs. Scaling to 1,500+ full-text statutory clauses and 300+ queries with multi-annotator Cohen's $\kappa$ validation and multi-LLM end-to-end neural evaluations (Gemini, Qwen2.5-3B/7B, and ONNX INT8 dense models) is our active next milestone via \texttt{vai pull-kb}. Similarly, Table~\ref{tab:vialign_safebench} measures the deterministic CPU ranking proxy; neural QLoRA validation on cloud GPUs is scripted and budget-capped but reported separately once executed.
+
+\textbf{Legal Disclaimer}: \textsc{ViLegal-TemporalRAG} and \textsc{Contract Review Pro} are decision-support tools designed to surface statutory references, temporal transitions, and potential contract risks; they do not constitute formal legal counsel and require licensed legal review for binding decisions.
+
+\bibliographystyle{plain}
+\bibliography{paper}
+\end{document}

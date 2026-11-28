@@ -1,14 +1,14 @@
 ---
-title: 'Vietnamese AI: A Lightweight, Zero-Dependency, and Verifiable Framework for Vietnamese-Centric AI and Distributed Swarm CPU Inference'
+title: 'Vietnamese AI: A Local-First, Lightweight Framework for Vietnamese Legal RAG, Edge Inference, and Verifiable Alignment'
 tags:
   - Python
+  - Rust
   - Vietnamese NLP
-  - Zero-Dependency
-  - Distributed Inference
-  - Swarm CPU
-  - Pipeline Parallelism
+  - Legal RAG
+  - Temporal Knowledge Graphs
+  - Continual Alignment
+  - Edge Inference
   - Verifiable AI
-  - Non-Interactive Zero-Knowledge Proofs
 authors:
   - name: Duong Phong Huynh
     orcid: 0009-0002-1458-3406
@@ -16,124 +16,100 @@ authors:
 affiliations:
   - name: Independent Researcher, Ho Chi Minh City, Vietnam
     index: 1
-date: 08 November 2026
+date: 28 November 2026
 bibliography: paper.bib
 ---
 
 # Summary
 
-The rapid expansion of Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG) systems has predominantly targeted high-resource languages and high-end GPU infrastructures. Applying conventional LLM frameworks (e.g., LangChain and LlamaIndex) to low-resource or complex morphosyntactic languages like Vietnamese often introduces severe performance bottlenecks: high cold-start latencies, excessive memory footprints, and token fragmentation caused by compound words and diacritical marks. Furthermore, decentralized edge environments frequently face adversarial threats such as Byzantine nodes falsifying tensor activations during collaborative inference.
+Modern Large Language Model (LLM) and Retrieval-Augmented Generation (RAG) stacks predominantly target English corpora and high-memory GPU clusters. Deploying general-purpose frameworks such as LangChain [@chase2022langchain], LlamaIndex [@liu2022llamaindex], and PyTorch [@paszke2019pytorch] on low-power office hardware for Vietnamese statutory law introduces three recurring failures: (i) multi-second startup latency and >140 MB baseline RAM overhead; (ii) temporal hallucinations when laws are repealed or amended across multi-document Law–Decree–Circular hierarchies; and (iii) safety regressions when continual preference alignment updates ingest noisy or poisoned human feedback.
 
-`Vietnamese AI` is a production-grade, zero-dependency Python framework designed to resolve these challenges. The framework delivers three core technological pillars:
-1. **Vietnamese-Centric Linguistic Engine**: A native compound-word tokenizer, syllable-level vector embedder, and hierarchy-preserving administrative RAG tailored for Vietnamese statutory legal corpora.
-2. **Distributed Swarm CPU Inference**: A model-sharding pipeline parallelism engine (`NutSwarmCPU`, `DieuPhoiSwarmCPU`) that connects commodity office CPUs and Mini PCs across physical local area networks (LAN) to run large models collaboratively without GPU acceleration [@huang2019gpipe].
-3. **Cryptographically Verifiable AI Inference (PoI)**: A zero-knowledge verifiable inference layer combining Fiat-Shamir Schnorr Non-Interactive Zero-Knowledge (NIZK) commitments with $O(\log N)$ Merkle audit paths to enforce 100% Byzantine fault tolerance against activation tampering [@schnorr1991efficient; @fiat1986how; @merkle1987digital].
+`Vietnamese AI` is an MIT-licensed, local-first Python framework (requiring only `numpy` at core install, with an optional Rust `abi3-py39` native extension) designed for reproducible Vietnamese Legal RAG, contract auditing, zero-GPU edge inference, and eval-gated continual alignment. It unites four cohesive pillars:
+
+1. **Vietnamese Linguistic Core & Portable `.vaidb` Legal Knowledge Packs**: A bundled 38,372-word MIT Vietnamese lexicon with Rust/Python-synchronized Trie/Viterbi DAG word segmentation, SQLite/FTS5 + HNSW [@malkov2018efficient] `.vaidb` knowledge stores (`vai pull-kb`), and optional quantized ONNX INT8 semantic retrieval.
+2. **Temporal, Clause-Level Graph Legal RAG & Deterministic 3-Tier Verification (`ViLegal-TemporalRAG`)**: Point-in-time legal retrieval combining BM25 [@robertson2009probabilistic], signed-hash/ONNX vectors via Reciprocal Rank Fusion [@cormack2009reciprocal], clause-level temporal validity tracking, multi-hop Law–Decree–Circular graph traversal, and deterministic citation, temporal, and numeric verification.
+3. **Vietnamese Contract Review Pro & Local-First Surfaces**: Five domain-specific Vietnamese contract rulesets (Labor, Services, Sales, Leasing, NDA), OOXML `.docx` merged-cell parsing, pure-NumPy red-stamp removal for scanned PDF OCR, Hybrid LLM risk review gated by citation verification, Word Track Changes export, Web Studio v2 (SSE streaming + split-view citations), and 1-click MCP integration (`vai mcp-config`) for Cursor, Claude Desktop, VS Code, and Antigravity.
+4. **Eval-Gated Continual Alignment & Verifiable Edge Systems (`ViAlign-SafeLoop` & `ViEdge-RustEngine`)**: Multi-round noisy preference filtering, anchor replay, weighted cDPO/SimPO [@rafailov2023direct; @meng2024simpo; @mitchell2023note] with token-level reverse KL regularization and QLoRA remote GPU orchestration [@hu2022lora], alongside 1.58-bit BitNet T-MAC LUT kernels [@ma2024era], Swarm CPU pipeline parallelism [@huang2019gpipe], and RFC 5114 Schnorr/Fiat-Shamir + RFC 6962 Merkle Tree verification [@schnorr1991efficient; @fiat1986how; @merkle1987digital].
 
 # Statement of Need
 
-Contemporary agentic and RAG workflows rely heavily on large runtime stacks such as PyTorch [@paszke2019pytorch], LangChain [@chase2022langchain], and LlamaIndex [@liu2022llamaindex]. On commodity edge hardware (e.g., office PCs with 2–4 GB RAM and no discrete GPUs), importing these frameworks incurs prohibitive initialization delays (often exceeding 2,000 ms) and consumes over 140 MB of RAM before processing a single token. Moreover, standard subword tokenizers frequently decompose Vietnamese multi-syllabic terms (e.g., *Ủy ban nhân dân* or *Nghị định*) into disjoint phonetic sub-units, corrupting administrative context in specialized domains such as law, governance, and public administration.
+Vietnamese legal and enterprise teams frequently handle sensitive contracts and statutory queries on standard office laptops (2–8 GB RAM, no discrete GPU) where sending confidential documents to external cloud APIs is restricted. Existing Vietnamese NLP libraries such as Underthesea [@vu2019underthesea] address linguistic preprocessing but do not provide point-in-time statutory validity graphs, deterministic numeric/citation verifiers, portable single-file `.vaidb` vector/FTS5 stores, or continual alignment safeguards against poisoned feedback. Conversely, general LLM orchestration libraries impose heavy dependency graphs and lack built-in Vietnamese legal temporal modeling. `Vietnamese AI` fills this gap by providing a lightweight, self-contained, and rigorously tested software stack that serves both immediate local-first enterprise deployment and reproducible academic research.
 
-While existing Vietnamese NLP toolkits like Underthesea [@vu2019underthesea] offer morphological processing, they lack native integration with distributed pipeline parallelism, agentic state graphs, and cryptographic verification for distributed edge environments. `Vietnamese AI` bridges this gap by providing an end-to-end, zero-dependency architecture that maintains high computational throughput, strict memory parsimony, and provable cryptographic authenticity directly on standard CPU infrastructure.
+# Core Architecture
 
-# Core Architecture & System Innovations
+`Vietnamese AI` separates zero-dependency production modules (`Core Production`), optional extras (`Optional Extensions`), and clearly flagged experimental/simulated modules (`vai status-map`):
 
-`Vietnamese AI` is structured into modular, decoupled components conforming to strict zero-dependency and defensive programming guidelines:
-
-```
+```text
 vietnamese_ai/
-├── edge/               # Swarm CPU pipeline parallelism (NutSwarmCPU, DieuPhoiSwarmCPU)
-├── security/           # Verifiable inference (CayMerkleSuyLuan, XacThucSuyLuanMaoHiem)
-├── nlp/                # Native fast tokenizer & vector embedder
-├── rag/                # Administrative context chunker & statutory legal retriever
-├── agents/             # Agentic StateGraph, DeepResearchAgent, CodeHealingAgent
-└── benchmark/          # Comparative benchmark suite (Markdown & LaTeX exporters)
+├── nlp/           # 38,372-word lexicon, FST tone normalization, Trie/Viterbi DAG (Rust parity)
+├── rag/           # RAGPipeline, KhoTriThucVAIDB (.vaidb + HNSW), onnx_semantic
+│   └── legal/     # TemporalRAG, ClauseGraph, CitationVerifier, ContractReviewPro, KBHub
+├── fine_tuning/   # DPO/SimPO/cDPO (token KL), ViAlign-SafeLoop, EvalGate, Remote GPU QLoRA
+├── edge/          # Rust SIMD SQ8/Binary/HNSW, BitNet 1.58-bit LUT, Swarm CPU
+├── security/      # LLM Firewall, Image CDR, RFC 5114 Schnorr & RFC 6962 Merkle PoI
+├── agents/        # StateGraph, MayChuMCPThucTe (stdio/SSE + IDE config generator)
+├── ui/            # StudioDashboard v2 (SSE streaming, split-view citations, SQLite DPO)
+└── benchmark/     # ViLegal-TempBench v2, ViAlign-SafeBench, ViEdge-SysBench (LaTeX/JSON)
 ```
 
-## 1. Vietnamese-Centric Linguistic Engine & Administrative RAG
+## Temporal Legal Retrieval & Deterministic Citation Verification
 
-Vietnamese is an isolating language where words are composed of individual syllables separated by whitespace. The native tokenizer (`BoTachTuTiengVietSieuToc`) implements a maximum-matching compound dictionary lookup, Unicode NFC normalization, modern/traditional diacritic harmonization (`hòa/hoà`, `thúy/thuý`), and diacritic stripping with processing speeds exceeding 20,000 words/second. 
+Let $C_t$ denote statutory clauses active at reference date $t$ where each clause version carries a half-open validity interval $[t_{\text{eff}}(c), t_{\text{exp}}(c))$, linked by a directed clause-level temporal graph $G_t = (V, E_t)$ capturing *replaces*, *amends*, and *implements* relations. Given a Vietnamese query $q$, `BoPhanTichThoiGianPhapLy` extracts the target legal date $t$ (disambiguating event origin dates from evaluation dates), `BoTruyHoiPhapLyThoiGian` fuses lexical/dense rankings with temporal validity filtering and multi-hop graph expansion, and `BoKiemChungTrichDanPhapLy` verifies generated answers across three deterministic tiers: (1) source-grounded citation matching, (2) temporal validity consistency, and (3) numeric/deadline fidelity.
 
-The accompanying vectorizer (`BoNhungVanBanSieuToc`) maps tokens into an $L_2$-normalized 256-dimensional subword hashing space, yielding fast cosine similarity lookups ($< 0.05$ ms) without external neural dependencies. For legal corpora, `BoToiUuNguCanhHanhChinh` parses statutory hierarchies (Constitution, Laws, Decrees, Chapters, Articles, and Clauses) to preserve parental context during chunking and guarantee exact statutory citation.
+## Eval-Gated Continual Alignment (`ViAlign-SafeLoop`)
 
-## 2. Distributed Swarm CPU Pipeline Parallelism
-
-To enable model execution across multiple resource-constrained office computers, `DieuPhoiSwarmCPU` shards linear transformation blocks and feed-forward activation layers across discrete worker nodes (`NutSwarmCPU`). Model inference operates via continuous pipeline parallelism:
-
-$$\mathbf{x}_{l+1} = \sigma\left(\mathbf{x}_l \mathbf{W}_l + \mathbf{b}_l\right) + \alpha \mathbf{x}_l$$
-
-where hidden states $\mathbf{x}_l$ are passed sequentially through worker nodes over local Gigabit LAN. The orchestrator explicitly supports both local in-process simulation (`khoi_tao_cum_gia_lap`) for unit testing and distributed physical network transport (`them_node_mang_vat_ly`) over HTTP/RPC socket endpoints.
-
-## 3. Cryptographic Verifiable AI Inference (Proof of Inference)
-
-To safeguard decentralized swarm inference against Byzantine workers that return falsified tensors or poisoned weights, `XacThucSuyLuanMaoHiem` implements a Schnorr-based Fiat-Shamir NIZK identification protocol over the RFC 5114 2048-bit MODP Group with a 256-bit prime-order subgroup ($p$: 2048-bit prime, $q$: 256-bit prime, $g$ of order $q$):
-
-$$e = H(\text{domain} \parallel g \parallel y \parallel a \parallel \text{node\_id} \parallel \text{layer\_id} \parallel H(\mathbf{x}_{in}) \parallel H(\mathbf{x}_{out})) \pmod q$$
-$$z = (r + e \cdot s) \pmod q$$
-$$\text{Verification: } g^z \equiv a \cdot y^e \pmod p$$
-
-Concurrently, `CayMerkleSuyLuan` constructs an RFC 6962 domain-separated cryptographic Merkle Tree (using `0x00` leaf and `0x01` internal node prefixes without odd-leaf duplication) over hidden-state activation slices, outputting compact $O(\log N)$ audit proofs. For single-layer linear projections $\mathbf{Y} = \mathbf{X}\mathbf{W} + \mathbf{b}$, `KiemChungFreivalds` optionally performs randomized $O(k \cdot n^2)$ matrix multiplication verification.
+To prevent preference-poisoning regressions during iterative feedback collection from Studio workspaces, `VongLapCanChinhAnToan` chains a 6-signal preference filter (`BoLocNhieuCapUuTien`), stratified anchor replay (`BoDemOnTapNeo`), weighted cDPO/SimPO training (`DPOTrainer` supporting both parameter L2 anchoring and token-level reverse KL penalty $D_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})$), and a 4-axis evaluation gate (`CongKiemDinhMoHinh`) with atomic rollback. On GPU backends (`NhaCungCapModal`, `NhaCungCapSSH`), `BoDieuPhoiTinhChinhXa` executes 4-bit QLoRA alignment with PII scrubbing, budget caps, and SHA-256/HMAC artifact verification.
 
 # Empirical Evaluation & Benchmarks
 
-## Experimental Setup & Methodology
+All local benchmarks were measured without GPU acceleration on an **Intel Celeron N3050 @ 1.60 GHz (2 cores, 6W TDP, SSE4.2, no AVX2, 3.2 GiB RAM)** running Linux `x86_64`, Python `3.14.4`, and the compiled `vietnamese_ai_rust` extension. Process startup and `VmRSS` are measured in isolated Python subprocesses. Dataset provenance and limitations are documented in a formal datasheet [@gebru2021datasheets].
 
-All benchmarks were executed directly without GPU acceleration on a commodity low-power office machine: **Intel Celeron N3050 @ 1.60 GHz (2 physical cores, 6W TDP, SSE4.2/POPCNT, no AVX2, no discrete GPU)** with **3.2 GiB RAM**, running Linux `x86_64` and Python `3.14.4` with the compiled `vietnamese_ai_rust` extension (`abi3-py39`).
+## Core Efficiency & `ViLegal-TempBench v2` (84 Queries, 5 Splits, `seed=42`)
 
-Two open, version-controlled Vietnamese legal datasets bundled directly in the package (`vietnamese_ai/rag/legal/data/`, verified via SHA-256 parity with `benchmarks/datasets/`) are used for reproducible evaluation:
-1. **Open Vietnamese Legal Corpus (`legal_vn_corpus.jsonl` & `legal_vn_qa.jsonl`)**: `100` statutory clauses spanning key Vietnamese laws paired with `35` ground-truth question-clause queries evaluated via `Hit@1`, `Hit@3`, and `MRR`.
-2. **`ViLegal-TempBench` (`vilegal_tempbench_*.jsonl`)**: `160` indexed statutory clauses (`60` multi-version temporal clauses + `100` open background clauses), `38` clause-level temporal graph edges, and `68` queries across 4 splits (`T1`: 16 single-hop, `T2`: 24 temporal contrast pairs, `T3`: 14 multi-hop Law–Decree–Circular chains, `T4`: 8 expired-statute traps + 6 out-of-scope abstention queries).
+Core `import vietnamese_ai` cold-start latency is **24.68 ms** at **12.82 MB `VmRSS`** (**37.39 MB** after indexing/querying the 100-clause open corpus at `100.0%` Hit@1 / MRR `1.000`). On `ViLegal-TempBench v2` (`160` statutory clauses, `38` graph edges, `84` queries spanning `T1` single-hop, `T2` temporal contrast pairs, `T3` multi-hop chains, `T4` expired-statute traps and OOD abstention, and `T5` colloquial queries without statute IDs), temporal date extraction achieves **TQPA = 100.0% (84/84)**:
 
-Process startup and memory metrics are measured in isolated Python subprocesses using `time.perf_counter()` and Linux `/proc/self/status` (`VmRSS`) to eliminate parent-process peak RSS contamination. External frameworks (e.g., LangChain or LlamaIndex) are only benchmarked head-to-head when explicitly installed in the same runtime environment; no static external baseline tables are fabricated.
+| Configuration | R@1 | R@3 | MRR@10 | TVA | TCA (T2) | Multi-Hop (T3) | Trap (T4) | T5-R@3 | Abst. F1 | Latency (ms) |
+|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `bm25` (VN Tokenizer) | 0.575 | 0.880 | 0.810 | 0.731 | 0.083 (1/12) | 0.500 | 0.125 | 0.625 | 0.000 | 7.71 |
+| `hybrid` (BM25 + Dense RRF) | 0.575 | 0.900 | 0.804 | 0.705 | 0.167 (2/12) | 0.571 | 0.125 | 0.688 | 0.000 | 13.86 |
+| `naive_date_filter` (Start-Date Only) | 0.639 | 0.900 | 0.836 | 0.727 | 0.583 (7/12) | 0.571 | 0.125 | 0.688 | 0.000 | 22.20 |
+| `temporal` (+ Point-in-Time) | 0.793 | 0.932 | 0.917 | 1.000 | 1.000 (12/12) | 0.786 | 1.000 | 0.750 | 0.000 | 23.02 |
+| `temporal_graph` (+ Clause Graph) | 0.793 | 0.936 | 0.910 | 1.000 | 1.000 (12/12) | 1.000 | 1.000 | 0.688 | 0.000 | 23.82 |
+| **`full` (ViLegal-TemporalRAG)** | **0.793** | **0.936** | **0.907** | **0.987** | **1.000 (12/12)** | **1.000** | **1.000** | **0.688** | **0.923** | **101.80** |
 
-## Direct Quantitative Results (`v31.1.0`)
+Paired bootstrap tests (`n=1000`, `seed=42`) confirm statistically significant gains of `full` over `naive_date_filter` on MRR@10 (`+0.0709`, $p<0.0001$), TVA (`+0.2607`, $p<0.0001$), and Multi-Hop@3 (`+0.4286`, $p=0.0020$). Error analysis on `T5` transparently exposes 4 lexical-gap misses (`t5_01`, `t5_03`, `t5_06`, `t5_12`) and 1 conservative abstention (`t5_13`), motivating optional ONNX INT8 dense embeddings (`--onnx-embedder`, `--onnx-reranker`).
 
-| Evaluation Metric | **Measured Value (`v31.1.0`)** | Measurement Protocol |
-|:---|:---:|:---|
-| **Cold-Start Import Latency** | **24.68 ms** | Isolated subprocess `import vietnamese_ai` |
-| **Core Import Resident RAM (`VmRSS`)** | **12.82 MB** | `/proc/self/status` `VmRSS` after core import |
-| **Legal RAG Resident RAM (`VmRSS`)** | **37.39 MB** | `/proc/self/status` `VmRSS` indexing + querying 100 clauses |
-| **Tokenization Throughput (Rust Trie)** | **354,047.7 words/s** | `BoTachTuTiengVietSieuToc` on 100-clause legal corpus |
-| **Open Legal RAG Hit@1 / Hit@3 / MRR** | **100.0% / 100.0% / 1.000** | `RAGPipeline` (`onnx_viet`) on 100 clauses / 35 QA |
-| **`ViLegal-TempBench` Temporal Parsing (TQPA)** | **100.0% (68/68)** | `BoPhanTichThoiGianPhapLy` zero-leak evaluation |
-| **`ViLegal-TempBench` Full Ablation (`full`)** | **R@3 = 1.000, MRR@10 = 0.968, TVA = 1.000** | TCA = `12/12`, Multi-Hop@3 = `1.000`, Trap = `1.000`, Abstention F1 = `1.000` (`47.02 ms`/query) |
+## Continual Alignment Ablation on `ViAlign-SafeBench` (5 Rounds, 70 Pairs, 55.7% Noise/Poisoning)
 
-## Ablation Study on `ViLegal-TempBench` (68 Queries, `seed=42`)
+Evaluated on the deterministic 256-dim CPU ranking proxy (`seed=42`; GPU QLoRA scripts for `Qwen2.5-1.5B/3B-Instruct` are shipped in `scripts/run_safeloop_qlora_experiment.py`):
 
-| Configuration | R@1 | R@3 | MRR@10 | TVA | TCA (T2) | Multi-Hop (T3) | Trap (T4) | Abst. F1 | Latency (ms) |
+| Strategy | Final Score | Citation | Validity | Safety | Safety Floor | Forgetting $\downarrow$ | Filter F1 | Rollbacks | Silent Reg. $\downarrow$ |
 |:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `bm25` (VN Tokenizer) | 0.562 | 0.973 | 0.839 | 0.720 | 0.000 (0/12) | 0.786 | 0.125 | 0.000 | 6.64 |
-| `hybrid` (BM25 + Dense RRF) | 0.562 | 0.949 | 0.827 | 0.694 | 0.167 (2/12) | 0.714 | 0.125 | 0.000 | 15.13 |
-| `temporal` (+ Point-in-Time) | 0.836 | 0.981 | 0.968 | 1.000 | 1.000 (12/12) | 0.857 | 1.000 | 0.000 | 20.10 |
-| `temporal_graph` (+ Clause Graph) | 0.836 | 1.000 | 0.968 | 1.000 | 1.000 (12/12) | 1.000 | 1.000 | 0.000 | 22.67 |
-| **`full` (ViLegal-TemporalRAG)** | **0.836** | **1.000** | **0.968** | **1.000** | **1.000 (12/12)** | **1.000** | **1.000** | **1.000** | **47.02** |
+| Naive Continual DPO | 0.5969 | 0.5625 | 1.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0 | 1 |
+| Filtered DPO (6-signal filter) | 0.9812 | 0.9583 | 1.0000 | 1.0000 | 1.0000 | 0.0000 | 0.9041 | 0 | 0 |
+| Filtered + Replay + cDPO (+ L2 Anchor) | 0.9906 | 0.9792 | 1.0000 | 1.0000 | 1.0000 | 0.0000 | 0.9041 | 0 | 0 |
+| **`ViAlign-SafeLoop` (Full + Rollback)** | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **1.0000** | **0.0000** | **0.9041** | **1** | **0** |
 
-Paired bootstrap testing (`n=1000`, `seed=42`) confirms statistically significant improvements of `full` over `bm25` on MRR@10 (`+0.1290`, $p=0.0010$) and TVA (`+0.2796`, $p<0.0001$), and over `hybrid` across Recall@3 (`+0.0511`, $p=0.0290$), MRR@10 (`+0.1411`, $p<0.0001$), TVA (`+0.3065`, $p<0.0001$), and Multi-Hop@3 (`+0.2857`, $p=0.0370$).
-
-## Edge Systems & Computational Transparency
-
-In addition to legal retrieval, the framework provides reproducible edge systems benchmarks (`vai benchmark --suite edge-systems`) measuring Rust SIMD SQ8/Binary/HNSW vector search and 2-bit packed BitNet 1.58-bit T-MAC LUT inference directly on the same Celeron N3050 host, as well as physical vs. in-process latency breakdown (`phan_ra_do_tre`) for Swarm CPU pipeline parallelism.
+`ViAlign-SafeLoop` prevents the complete Round-3 safety collapse of Naive DPO (`Safety: 0.0000`) and automatically rolls back the Round-5 subtle numeric-fabrication stress attack (`+0.2500` mean delta vs. Naive DPO, 95% CI `[+0.1260, +0.3740]`, $p<0.0001$).
 
 # Software Quality & Reproducibility
 
-The framework adheres to high standards of software quality:
-- **Comprehensive Automated Testing**: Over 1,076 automated unit and integration tests covering core modules, edge sharding, Byzantine detection, and API endpoints (`pytest tests/ -v`).
-- **Code Hygiene**: 100% compliance with Ruff linting rules and PEP 561 static type stub definitions (`vietnamese_ai/py.typed`, `vietnamese_ai/__init__.pyi`).
-- **Reproducibility CLI**: All benchmark tables and swarm verification runs are reproducible with standalone CLI commands:
+- **Automated Testing & CI**: Over 1,450 unit, security, and integration tests pass across Python 3.9–3.14 and Rust `abi3-py39` wheels (Linux, macOS, Windows), with 0 Ruff errors, 0 Mypy errors across 343 source files (`check_untyped_defs = true` on core packages), and 349 PEP 561 stub exports.
+- **One-Command Reproducibility**:
   ```bash
-  pip install -e .
-  vai benchmark --compare
-  vai swarm --prompt "Chuyển đổi số quốc gia" --nodes 2 --bench
-  vai verify
+  pip install vietnamese-ai
+  vai pull-kb vn-business-core-2025
+  vai mcp-config --client cursor --kb vn-business-core-2025.vaidb
+  python scripts/generate_paper_tables.py --seed 42
+  python scripts/run_safeloop_qlora_experiment.py --mode cpu-proxy --rounds 5 --seed 42
   ```
 
 # AI Use Disclosure
 
-During the preparation of this project and manuscript, the author utilized generative AI coding assistants (including Google Antigravity / Gemini models) to assist with code refactoring, test suite scaffolding, PEP 561 static type stub generation, and English grammar/academic drafting of the manuscript. 
-
-The human author confirms that all core system architectures, algorithm designs (including the zero-dependency pipeline parallelism, Vietnamese administrative RAG hierarchy, and Fiat-Shamir Schnorr cryptographic commitments), and experimental methodologies were conceived, directed, and evaluated by the author. The author thoroughly reviewed, debugged, tested, and validated all software code and text, and assumes full scientific, legal, and ethical responsibility for the entirety of the submitted work.
+During development and manuscript preparation, generative AI coding assistants (including Google Antigravity / Gemini models) assisted with refactoring, test scaffolding, PEP 561 type stub maintenance, and English academic editing. The human author conceived and directed all core architectures, benchmarks, legal dataset curation, and experimental protocols, personally reviewed and verified all executed outputs and tests, and assumes full scientific, legal, and ethical responsibility for the submission.
 
 # Acknowledgements
 
-The author thanks the Vietnamese open-source AI community for valuable insights, testing feedback, and continuous support in advancing native AI technologies for low-resource environments.
+The author thanks the Vietnamese open-source AI community for feedback and testing support on local-first, low-resource deployments.
 
 # References

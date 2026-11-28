@@ -157,7 +157,7 @@ def test_p1_2_legal_corpus_accuracy_named_traps_ood_and_parity() -> None:
     assert "tb_dd_2013_d100" not in corpus_ids
     assert "tb_dd_2013_d101" in corpus_ids
     assert all(e["dich_nut"] != "tb_dd_2013_d100" for e in tb_edges)
-    assert len(tb_qa) == 68
+    assert len(tb_qa) == 84
     qa_map = {str(q["id"]): q for q in tb_qa}
     assert qa_map["t2_08a"]["tap_id_ky_vong"] == ["tb_dd_2013_d101"]
 

@@ -2,9 +2,9 @@
   <h1>Vietnamese AI Framework</h1>
   <p>Hệ sinh thái Trí tuệ Nhân tạo thuần tiếng Việt cho Python. Thiết kế theo triết lý Zero-Dependency Micro-Core, tích hợp Kho tri thức `.vaidb`, RAG Pháp lý 100 điều khoản, Rà soát hợp đồng Redline, MCP IDE Server, Zalo/Telegram Connectors, Zero-GPU Edge LLM và Remote GPU Flywheel.</p>
   <div class="hero-badges">
-    <span class="badge-pill">🚀 Phiên bản 31.2.0</span>
+    <span class="badge-pill">🚀 Phiên bản 31.3.0</span>
     <span class="badge-pill">🐍 Python 3.8 – 3.14</span>
-    <span class="badge-pill">✅ 1,380+ Tests Passed</span>
+    <span class="badge-pill">✅ 1,450+ Tests Passed</span>
     <span class="badge-pill">📦 349 Public APIs (.pyi)</span>
     <span class="badge-pill">🛡️ 0 Mypy / 0 Ruff Errors</span>
     <span class="badge-pill">📄 MIT License</span>
@@ -71,7 +71,7 @@
 
 > Đo trực tiếp ngày `2026-11-27` trên máy văn phòng **Intel Celeron N3050 @ 1.60 GHz (2 lõi CPU, 3.2 GiB RAM, không GPU)**, Linux `x86_64`, Python `3.14.4` qua lệnh `vai benchmark --compare` và `vai benchmark --suite legal-temporal`.
 
-| Chỉ số Đo lường | Giá trị Thực đo (`v31.2.0`) | Phương pháp / Tập dữ liệu |
+| Chỉ số Đo lường | Giá trị Thực đo (`v31.3.0`) | Phương pháp / Tập dữ liệu |
 | :--- | :---: | :--- |
 | **Khởi động lạnh (Cold-start)** | **24.68 ms** | Tiến trình Python cô lập (`import vietnamese_ai`) |
 | **RAM cư trú khi nạp lõi (VmRSS)** | **12.82 MB** | `/proc/self/status` `VmRSS` sau import lõi |
@@ -79,7 +79,7 @@
 | **Thư viện phụ thuộc lõi bắt buộc** | **1 gói (`numpy`)** | Các nhánh NLP/ML/DL/API đều tách `optional-dependencies` |
 | **Tốc độ Tách từ Tiếng Việt (Rust Trie)** | **354,047 từ/s** | `BoTachTuTiengVietSieuToc` trên 100 điều khoản mở |
 | **Truy hồi Pháp lý mở (100 điều / 35 QA)** | **Hit@1 = 100.0% \| MRR = 1.000** | `RAGPipeline` (`onnx_viet`) trên `legal_vn_qa.jsonl` |
-| **ViLegal-TempBench (160 điều / 68 QA)** | **R@3 = 0.992 \| MRR@10 = 0.992 \| TVA = 1.000 \| TCA = 12/12** | `vai benchmark --suite legal-temporal` (R@5 = `1.000`, Abstention F1 = `1.000`) |
+| **ViLegal-TempBench v2 (160 điều / 84 QA, 5 splits)** | **R@3 = 0.936 \| MRR@10 = 0.907 \| TVA = 0.987 \| TCA = 12/12** | `vai benchmark --suite legal-temporal` (MH@3 = `1.000`, T5-R@3 = `0.688`, Abst. F1 = `0.923`) |
 | **Xác thực Mật mã (PoI & Freivalds)** | **RFC 5114 (2048-bit $p$, 256-bit $q$)** | Schnorr Fiat-Shamir + Merkle RFC 6962 + Freivalds 1-layer |
 
 ---

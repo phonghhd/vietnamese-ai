@@ -21,7 +21,7 @@ _SEMVER_RE = re.compile(
     r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
 )
 
-PHIEN_BAN_CHUAN = "31.2.0"
+PHIEN_BAN_CHUAN = "31.3.0"
 
 DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
     "vietnamese-ai": {
@@ -49,7 +49,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "Lõi NLP tiếng Việt: BoTachTuTiengVietSieuToc, BoNhungVanBanSieuToc, GanNhanTuLoai, NER & PhoBERT",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.nlp", "vietnamese_ai.preprocessing.text"],
-        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.3.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {
             "vietnamese-nlp": ["underthesea>=6.0"],
             "phobert": ["transformers>=4.30.0", "torch>=2.0.0"],
@@ -60,7 +60,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "Động cơ suy luận Zero-GPU Edge CPU: GGUF mmap, Q2_K/Q3_K/Q4_K/Q4_0/Q4_1/Q8_0, Swarm CPU LAN",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.edge", "vietnamese_ai.core.edge"],
-        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.3.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {
             "local-llm": ["llama-cpp-python>=0.2.0"],
             "export": ["onnxruntime>=1.16.0", "gguf>=0.6.0"],
@@ -71,7 +71,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "RAG Hành chính & Pháp lý Việt Nam: Hierarchy-Preserving Chunking, OCR/PDF/DOCX Parser & Legal Prompts",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.rag.legal", "vietnamese_ai.legal", "vietnamese_ai.legal.rag"],
-        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.3.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {
             "ocr-pdf": [
                 "pypdf>=3.0.0",
@@ -87,7 +87,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "mo_ta": "Mật mã học xác thực suy luận AI: CayMerkleSuyLuan, Schnorr/Fiat-Shamir RFC 5114 & KiemToanMatMa",
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.crypto", "vietnamese_ai.zkml"],
-        "phu_thuoc": ["vietnamese-ai>=31.2.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
+        "phu_thuoc": ["vietnamese-ai>=31.3.0,<32.0.0", "numpy>=1.20.0,<3.0.0"],
         "phu_thuoc_tuy_chon": {},
     },
     "vietnamese-ai-classic-ml": {
@@ -96,7 +96,7 @@ DANH_MUC_GOI_DOC_LAP: Dict[str, Dict[str, Any]] = {
         "phien_ban": PHIEN_BAN_CHUAN,
         "namespaces": ["vietnamese_ai.classic_ml", "vietnamese_ai.models"],
         "phu_thuoc": [
-            "vietnamese-ai>=31.2.0,<32.0.0",
+            "vietnamese-ai>=31.3.0,<32.0.0",
             "numpy>=1.20.0,<3.0.0",
             "scikit-learn>=1.0.0",
             "pandas>=1.3.0",

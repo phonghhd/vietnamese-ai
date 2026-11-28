@@ -42,6 +42,8 @@ _LAZY = {
     "LegalCitationVerifier": ("vietnamese_ai.rag.legal.citation_verifier", "LegalCitationVerifier"),
     "BoTruyHoiPhapLyThoiGian": ("vietnamese_ai.rag.legal.temporal_rag", "BoTruyHoiPhapLyThoiGian"),
     "TemporalGraphLegalRAG": ("vietnamese_ai.rag.legal.temporal_rag", "TemporalGraphLegalRAG"),
+    "LOAI_HOP_DONG_HO_TRO": ("vietnamese_ai.rag.legal.contract_review", "LOAI_HOP_DONG_HO_TRO"),
+    "phan_loai_hop_dong": ("vietnamese_ai.rag.legal.contract_review", "phan_loai_hop_dong"),
     "CanhBaoRuiRoHopDong": ("vietnamese_ai.rag.legal.contract_review", "CanhBaoRuiRoHopDong"),
     "KhacBietDieuKhoan": ("vietnamese_ai.rag.legal.contract_review", "KhacBietDieuKhoan"),
     "BoSoSanhRaSoatHopDong": ("vietnamese_ai.rag.legal.contract_review", "BoSoSanhRaSoatHopDong"),
@@ -49,6 +51,10 @@ _LAZY = {
     "KetQuaPhanTichVanBanPhapQuy": ("vietnamese_ai.rag.legal.auto_ingest", "KetQuaPhanTichVanBanPhapQuy"),
     "BoNapVanBanPhapQuyTuDong": ("vietnamese_ai.rag.legal.auto_ingest", "BoNapVanBanPhapQuyTuDong"),
     "AutoLegalCorpusPipeline": ("vietnamese_ai.rag.legal.auto_ingest", "AutoLegalCorpusPipeline"),
+    "ThongTinGoiTriThucPhapLy": ("vietnamese_ai.rag.legal.kb_hub", "ThongTinGoiTriThucPhapLy"),
+    "DANH_MUC_KHO_PHAP_LY_VN": ("vietnamese_ai.rag.legal.kb_hub", "DANH_MUC_KHO_PHAP_LY_VN"),
+    "QuanLyKhoTriThucPhapLy": ("vietnamese_ai.rag.legal.kb_hub", "QuanLyKhoTriThucPhapLy"),
+    "LegalKnowledgeHub": ("vietnamese_ai.rag.legal.kb_hub", "LegalKnowledgeHub"),
 }
 
 __all__ = list(_LAZY.keys())

@@ -7,7 +7,7 @@ import json
 import platform
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -103,6 +103,22 @@ class StudioDashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", cors_origin)
         self.end_headers()
         self.wfile.write(payload)
+
+    def _tra_ve_sse(self, events: Iterable[Tuple[str, Any]], status: int = 200) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        cors_origin = self._lay_cors_origin()
+        if cors_origin is not None:
+            self.send_header("Access-Control-Allow-Origin", cors_origin)
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.end_headers()
+        for event_name, payload in events:
+            body = json.dumps(payload, ensure_ascii=False)
+            frame = f"event: {event_name}\ndata: {body}\n\n".encode("utf-8")
+            self.wfile.write(frame)
+            self.wfile.flush()
 
     def _kiem_tra_quyen_studio(self, token: Optional[str], quyen: str) -> Optional[str]:
         if self.server_dashboard is None or not getattr(self.server_dashboard, "bat_xac_thuc", False):
@@ -227,6 +243,8 @@ class StudioDashboardHandler(BaseHTTPRequestHandler):
                 self._tra_ve_json(self.server_dashboard.tra_cuu_dieu_khoan_studio(data))
             elif path == "/api/legal/temporal-ask":
                 self._tra_ve_json(self.server_dashboard.hoi_phap_ly_thoi_gian_studio(data))
+            elif path == "/api/legal/temporal-ask/stream":
+                self._tra_ve_sse(self.server_dashboard.luong_sse_phap_ly_thoi_gian_studio(data))
             elif path == "/api/legal/verify-citation":
                 self._tra_ve_json(self.server_dashboard.kiem_chung_trich_dan_studio(data))
             elif path == "/api/legal/citation-graph":
@@ -241,6 +259,8 @@ class StudioDashboardHandler(BaseHTTPRequestHandler):
                 self._tra_ve_json(self.server_dashboard.tao_phien_chat_studio(data, token=token))
             elif path == "/api/chat/messages":
                 self._tra_ve_json(self.server_dashboard.gui_tin_nhan_chat_studio(data, token=token))
+            elif path == "/api/chat/stream":
+                self._tra_ve_sse(self.server_dashboard.luong_sse_chat_studio(data, token=token))
             elif path == "/api/chat/feedback":
                 self._tra_ve_json(self.server_dashboard.danh_gia_chat_studio(data, token=token))
             elif path == "/api/flywheel/export-dpo":
@@ -353,7 +373,17 @@ class StudioDashboard:
         .result-box { background: #090d16; border: 1px solid #1e293b; border-radius: 8px; padding: 1rem; margin-top: 1rem; font-family: 'Courier New', monospace; font-size: 0.85rem; color: #38bdf8; max-height: 280px; overflow-y: auto; white-space: pre-wrap; }
         .tag { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
         .tag-safe { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .tag-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
         .tag-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .split-view { display: grid; grid-template-columns: 1.35fr 1fr; gap: 1rem; margin-top: 1rem; }
+        @media (max-width: 900px) { .split-view { grid-template-columns: 1fr; } }
+        .pane-box { background: #090d16; border: 1px solid #1e293b; border-radius: 8px; padding: 0.9rem; max-height: 360px; overflow-y: auto; }
+        .citation-card { background: #111827; border: 1px solid #334155; border-radius: 8px; padding: 0.65rem 0.8rem; margin-bottom: 0.6rem; cursor: pointer; transition: border-color 0.2s; }
+        .citation-card:hover { border-color: #6366f1; }
+        .diff-line { font-family: 'Courier New', monospace; font-size: 0.82rem; padding: 0.15rem 0.45rem; white-space: pre-wrap; border-radius: 4px; margin-bottom: 2px; }
+        .diff-add { background: rgba(16, 185, 129, 0.16); color: #6ee7b7; }
+        .diff-del { background: rgba(239, 68, 68, 0.16); color: #fca5a5; }
+        .diff-ctx { color: #cbd5e1; }
 
         canvas { max-width: 100%; background: #090d16; border-radius: 8px; border: 1px solid var(--border); }
         footer { border-top: 1px solid var(--border); padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
@@ -365,7 +395,7 @@ class StudioDashboard:
             <div class="logo-badge">V</div>
             <div class="title">
                 <h1>Vietnamese AI Web Studio</h1>
-                <p>Nền tảng Trực quan Toàn năng (Version 31.2.0)</p>
+                <p>Nền tảng Trực quan Toàn năng (Version 31.3.0)</p>
             </div>
         </div>
         <div class="status-pill">Hệ thống Sẵn sàng (Micro-Core Active)</div>
@@ -549,7 +579,22 @@ class StudioDashboard:
                         </select>
                     </div>
                 </div>
-                <button class="btn" onclick="queryTemporalLegalRAG()">⚖️ Truy hồi Thời gian-Đồ thị &amp; Kiểm chứng 3 Tầng</button>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                    <button class="btn" onclick="queryTemporalLegalRAG()">⚖️ Truy hồi Thời gian-Đồ thị &amp; Kiểm chứng 3 Tầng</button>
+                    <button class="btn btn-success" onclick="streamTemporalLegalRAG()">⚡ Stream Trực tiếp (SSE) + Split-View Căn cứ</button>
+                </div>
+                <div class="split-view" id="temporal-split-view">
+                    <div class="pane-box">
+                        <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:0.5rem;">Câu trả lời trực tuyến (SSE) &amp; Kiểm chứng 3 tầng</div>
+                        <div id="temporal-verify-bar" style="margin-bottom:0.5rem;"></div>
+                        <div id="temporal-stream-answer" style="white-space:pre-wrap; font-size:0.9rem; color:#f8fafc;">Nhấn "Stream Trực tiếp (SSE)" để xem câu trả lời theo luồng cùng căn cứ pháp lý đối chiếu...</div>
+                    </div>
+                    <div class="pane-box">
+                        <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:0.5rem;">Căn cứ pháp lý (Nhấn thẻ để xem toàn văn Điều luật)</div>
+                        <div id="temporal-citations-list"></div>
+                        <div id="temporal-clause-detail" style="margin-top:0.65rem; padding-top:0.65rem; border-top:1px solid #334155; font-size:0.82rem; color:#cbd5e1; white-space:pre-wrap;"></div>
+                    </div>
+                </div>
                 <div class="result-box" id="temporal-ask-result">Câu trả lời, đường dẫn đồ thị đa bước và báo cáo kiểm chứng 3 tầng...</div>
             </div>
         </div>
@@ -664,12 +709,28 @@ Có giá trị đến: 15/08/2035</textarea>
                 <label>Dự thảo hợp đồng đối tác gửi:</label>
                 <textarea id="contract-partner-text" rows="4">Điều 1. Đối tượng hợp đồng: Cung cấp dịch vụ phần mềm và hạ tầng.
 Điều 2. Phạt vi phạm: Bên B chịu mức phạt vi phạm 20% giá trị hợp đồng và miễn trừ toàn bộ trách nhiệm cho Bên A. Căn cứ Luật Đất đai 45/2013/QH13.</textarea>
-                <label>Ngày kiểm toán hiệu lực luật (tùy chọn, YYYY-MM-DD):</label>
-                <input type="text" id="contract-audit-date" placeholder="Mặc định: hôm nay (VD: 2026-01-15)">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem;">
+                    <div>
+                        <label>Loại hợp đồng Việt Nam (Contract Review Pro):</label>
+                        <select id="contract-type">
+                            <option value="tu_dong">Tự động nhận diện (Auto-Detect)</option>
+                            <option value="lao_dong">Hợp đồng Lao động (BLLĐ 2019)</option>
+                            <option value="dich_vu">Hợp đồng Dịch vụ / Phần mềm (IP &amp; GTGT)</option>
+                            <option value="mua_ban">Hợp đồng Mua bán Hàng hóa (NĐ 70 &amp; GTGT 2025)</option>
+                            <option value="thue_nha">Hợp đồng Thuê nhà / Bất động sản</option>
+                            <option value="nda">Thỏa thuận Bảo mật &amp; Không cạnh tranh (NDA)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Ngày kiểm toán hiệu lực luật (tùy chọn, YYYY-MM-DD):</label>
+                        <input type="text" id="contract-audit-date" placeholder="Mặc định: hôm nay (VD: 2026-01-15)">
+                    </div>
+                </div>
                 <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-                    <button class="btn" onclick="runContractReview()">Rà soát Rủi ro & Sinh Redline</button>
+                    <button class="btn" onclick="runContractReview()">Rà soát Rủi ro &amp; Sinh Redline</button>
                     <button class="btn btn-success" onclick="downloadContractTrackChangesDocx()">📝 Tải Word Track Changes + Comments (.docx)</button>
                 </div>
+                <div class="pane-box" id="contract-visual-diff" style="margin-top:1rem; display:none;"></div>
                 <div class="result-box" id="contract-review-res">Báo cáo rà soát hợp đồng sẽ hiển thị tại đây...</div>
             </div>
 
@@ -683,7 +744,10 @@ Có giá trị đến: 15/08/2035</textarea>
                 <input type="hidden" id="last-chat-msg-id" value="">
                 <label>Câu hỏi gửi vào phiên hiện tại:</label>
                 <input type="text" id="ws-chat-input" value="Thời giờ làm việc bình thường tối đa là bao nhiêu?">
-                <button class="btn" onclick="sendWorkspaceChat()">Gửi & Lưu Lịch Sử Kèm Trích Dẫn</button>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                    <button class="btn" onclick="sendWorkspaceChat()">Gửi &amp; Lưu Lịch Sử Kèm Trích Dẫn</button>
+                    <button class="btn btn-success" onclick="streamWorkspaceChat()">⚡ Gửi Stream (SSE)</button>
+                </div>
                 <div class="result-box" id="ws-chat-res">Lịch sử hội thoại và đoạn nguồn trích dẫn...</div>
                 <div style="margin-top:0.85rem; padding-top:0.85rem; border-top:1px solid var(--border);">
                     <label>Đánh giá câu trả lời gần nhất để nạp Vòng lặp DPO (tùy chọn nhập đáp án chuẩn hóa khi chọn Thumbs Down):</label>
@@ -699,7 +763,7 @@ Có giá trị đến: 15/08/2035</textarea>
     </div>
 
     <footer>
-        Vietnamese AI Framework v31.2.0 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
+        Vietnamese AI Framework v31.3.0 — Nền tảng Trí tuệ Nhân tạo Tiếng Việt Chuyên sâu & Siêu nhẹ.
     </footer>
 
     <script>
@@ -841,6 +905,83 @@ Có giá trị đến: 15/08/2035</textarea>
             document.getElementById('nlp-tok-result').innerText = JSON.stringify(res, null, 2);
         }
 
+        async function streamSSE(endpoint, data, onEvent) {
+            const res = await fetch('/api/' + endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data || {})
+            });
+            if (!res.ok || !res.body) {
+                throw new Error('SSE request failed: ' + res.status);
+            }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                let idx;
+                while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                    const rawBlock = buffer.slice(0, idx);
+                    buffer = buffer.slice(idx + 2);
+                    let evName = 'message';
+                    let evData = '';
+                    for (const line of rawBlock.split('\n')) {
+                        if (line.startsWith('event:')) evName = line.slice(6).trim();
+                        else if (line.startsWith('data:')) evData += line.slice(5).trim();
+                    }
+                    if (evData) {
+                        try {
+                            onEvent(evName, JSON.parse(evData));
+                        } catch (e) {
+                            onEvent(evName, { raw: evData });
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderTemporalCitations(items) {
+            const listEl = document.getElementById('temporal-citations-list');
+            const detailEl = document.getElementById('temporal-clause-detail');
+            listEl.replaceChildren();
+            detailEl.textContent = '';
+            (items || []).forEach(function(item) {
+                const card = document.createElement('div');
+                card.className = 'citation-card';
+                const head = document.createElement('div');
+                head.style.display = 'flex';
+                head.style.justifyContent = 'space-between';
+                head.style.gap = '0.5rem';
+                head.style.alignItems = 'center';
+                const title = document.createElement('strong');
+                title.style.fontSize = '0.84rem';
+                title.textContent = (item.so_hieu || '') + ' — ' + (item.dieu || '');
+                const badge = document.createElement('span');
+                const conHl = item.con_hieu_luc !== false;
+                const suaDoi = Boolean(item.da_sua_doi);
+                badge.className = 'tag ' + (!conHl ? 'tag-danger' : (suaDoi ? 'tag-warn' : 'tag-safe'));
+                badge.textContent = !conHl ? 'Hết hiệu lực' : (suaDoi ? 'Đã sửa đổi' : 'Còn hiệu lực');
+                head.appendChild(title);
+                head.appendChild(badge);
+                const sub = document.createElement('div');
+                sub.style.fontSize = '0.78rem';
+                sub.style.color = '#94a3b8';
+                sub.style.marginTop = '0.25rem';
+                sub.textContent = item.ten_van_ban || '';
+                card.appendChild(head);
+                card.appendChild(sub);
+                card.onclick = function() {
+                    detailEl.textContent =
+                        '[' + (item.so_hieu || '') + ' | ' + (item.dieu || '') + ']\n' +
+                        (item.ten_van_ban ? item.ten_van_ban + '\n\n' : '') +
+                        (item.noi_dung || item.trich_doan || '');
+                };
+                listEl.appendChild(card);
+            });
+        }
+
         async function queryTemporalLegalRAG() {
             const q = document.getElementById('temporal-ask-query').value.trim();
             const d = document.getElementById('temporal-ask-date').value.trim();
@@ -852,7 +993,44 @@ Có giá trị đến: 15/08/2035</textarea>
                 che_do: mode,
                 top_k: 5
             });
+            document.getElementById('temporal-stream-answer').textContent = res.tra_loi || '';
+            renderTemporalCitations(res.ket_qua || []);
             document.getElementById('temporal-ask-result').innerText = JSON.stringify(res, null, 2);
+        }
+
+        async function streamTemporalLegalRAG() {
+            const q = document.getElementById('temporal-ask-query').value.trim();
+            const d = document.getElementById('temporal-ask-date').value.trim();
+            const mode = document.getElementById('temporal-ask-mode').value;
+            const ansEl = document.getElementById('temporal-stream-answer');
+            const barEl = document.getElementById('temporal-verify-bar');
+            ansEl.textContent = '';
+            barEl.replaceChildren();
+            const metaSummary = {};
+            await streamSSE('legal/temporal-ask/stream', {
+                cau_hoi: q,
+                ngay_tra_cuu: d || null,
+                che_do: mode,
+                top_k: 5
+            }, function(ev, payload) {
+                if (ev === 'metadata') {
+                    metaSummary.metadata = payload;
+                    renderTemporalCitations(payload.ket_qua || []);
+                } else if (ev === 'token') {
+                    ansEl.textContent += (payload.chunk || '');
+                } else if (ev === 'verification') {
+                    metaSummary.verification = payload;
+                    const pill = document.createElement('span');
+                    pill.className = 'tag ' + (payload.hop_le ? 'tag-safe' : 'tag-danger');
+                    pill.textContent = payload.hop_le
+                        ? ('✓ Kiểm chứng 3 tầng HỢP LỆ | Trung thực: ' + payload.diem_trung_thuc)
+                        : ('⚠ Cảnh báo kiểm chứng: ' + (payload.canh_bao || []).join('; '));
+                    barEl.replaceChildren(pill);
+                } else if (ev === 'done') {
+                    metaSummary.done = payload;
+                    document.getElementById('temporal-ask-result').innerText = JSON.stringify(metaSummary, null, 2);
+                }
+            });
         }
 
         async function runStudioEvalGate(soSanhBanGoc) {
@@ -947,29 +1125,70 @@ Có giá trị đến: 15/08/2035</textarea>
             document.getElementById('sol-cskh-res').innerText = JSON.stringify(res, null, 2);
         }
 
+        function renderContractVisualDiff(res) {
+            const box = document.getElementById('contract-visual-diff');
+            box.replaceChildren();
+            const items = res.chi_tiet_so_sanh || [];
+            const alerts = res.danh_sach_canh_bao || [];
+            if (!items.length && !alerts.length) {
+                box.style.display = 'none';
+                return;
+            }
+            box.style.display = 'block';
+            const header = document.createElement('div');
+            header.style.marginBottom = '0.6rem';
+            header.style.fontWeight = '700';
+            header.textContent =
+                'Loại hợp đồng: ' + (res.loai_hop_dong || 'chung') +
+                ' | Điểm an toàn: ' + (res.diem_an_toan_phap_ly ?? 0) + '/100 (' + (res.xep_loai_rui_ro || '') + ')';
+            box.appendChild(header);
+            items.forEach(function(it) {
+                const sec = document.createElement('div');
+                sec.style.marginBottom = '0.6rem';
+                const title = document.createElement('div');
+                title.style.fontSize = '0.84rem';
+                title.style.fontWeight = '600';
+                title.style.marginBottom = '0.25rem';
+                title.textContent = (it.dieu || '') + ' — ' + (it.tieu_de || '') + ' [' + (it.trang_thai || '') + ']';
+                sec.appendChild(title);
+                (it.diff_dong || []).forEach(function(line) {
+                    const row = document.createElement('div');
+                    row.className = 'diff-line ' + (line.startsWith('+') ? 'diff-add' : (line.startsWith('-') ? 'diff-del' : 'diff-ctx'));
+                    row.textContent = line;
+                    sec.appendChild(row);
+                });
+                box.appendChild(sec);
+            });
+        }
+
         async function runContractReview() {
             const chuan = document.getElementById('contract-template-text').value;
             const doiTac = document.getElementById('contract-partner-text').value;
+            const loai = document.getElementById('contract-type').value;
             const ngay = document.getElementById('contract-audit-date').value.trim();
             document.getElementById('contract-review-res').innerText = 'Đang so sánh điều khoản và quét rủi ro pháp lý...';
-            const payload = { hop_dong_chuan: chuan, hop_dong_doi_tac: doiTac };
+            const payload = { hop_dong_chuan: chuan, hop_dong_doi_tac: doiTac, loai_hop_dong: loai };
             if (ngay) payload.ngay_tra_cuu = ngay;
             const res = await fetchAPI('legal/contract-review', payload);
+            renderContractVisualDiff(res);
             document.getElementById('contract-review-res').innerText = res.bao_cao_markdown || JSON.stringify(res, null, 2);
         }
 
         async function downloadContractTrackChangesDocx() {
             const chuan = document.getElementById('contract-template-text').value;
             const doiTac = document.getElementById('contract-partner-text').value;
+            const loai = document.getElementById('contract-type').value;
             const ngay = document.getElementById('contract-audit-date').value.trim();
             document.getElementById('contract-review-res').innerText = 'Đang sinh tệp Word Track Changes + Comments (.docx)...';
             const payload = {
                 hop_dong_chuan: chuan,
                 hop_dong_doi_tac: doiTac,
+                loai_hop_dong: loai,
                 xuat_track_changes_docx: true
             };
             if (ngay) payload.ngay_tra_cuu = ngay;
             const res = await fetchAPI('legal/contract-review', payload);
+            renderContractVisualDiff(res);
             if (res.track_changes_docx_base64) {
                 const raw = atob(res.track_changes_docx_base64);
                 const bytes = new Uint8Array(raw.length);
@@ -1006,6 +1225,26 @@ Có giá trị đến: 15/08/2035</textarea>
                 document.getElementById('last-chat-msg-id').value = String(res.id_tin_nhan);
             }
             document.getElementById('ws-chat-res').innerText = JSON.stringify(res, null, 2);
+        }
+
+        async function streamWorkspaceChat() {
+            let sessId = document.getElementById('active-chat-session').value;
+            if (!sessId) {
+                await createChatSession();
+                sessId = document.getElementById('active-chat-session').value;
+            }
+            const q = document.getElementById('ws-chat-input').value;
+            const box = document.getElementById('ws-chat-res');
+            box.textContent = '';
+            await streamSSE('chat/stream', { ma_phien: sessId, question: q }, function(ev, payload) {
+                if (ev === 'metadata' && payload.id_tin_nhan) {
+                    document.getElementById('last-chat-msg-id').value = String(payload.id_tin_nhan);
+                } else if (ev === 'token') {
+                    box.textContent += (payload.chunk || '');
+                } else if (ev === 'done' && payload.id_tin_nhan) {
+                    document.getElementById('last-chat-msg-id').value = String(payload.id_tin_nhan);
+                }
+            });
         }
 
         async function sendChatFeedback(danhGia) {
@@ -1118,7 +1357,7 @@ Có giá trị đến: 15/08/2035</textarea>
         chan_doan = QuanLyPhuThuoc.chan_doan_he_thong()
         import vietnamese_ai
 
-        ver = getattr(vietnamese_ai, "__version__", "31.2.0")
+        ver = getattr(vietnamese_ai, "__version__", "31.3.0")
         so_bieu_tuong = len(getattr(vietnamese_ai, "__all__", []))
         return {
             "trang_thai": "ONLINE",
@@ -1522,6 +1761,81 @@ Có giá trị đến: 15/08/2035</textarea>
         )
         return {"thanh_cong": True, **kq}
 
+    @staticmethod
+    def _chia_luong_token(van_ban: str, so_tu_moi_goi: int = 6) -> List[str]:
+        """Chia câu trả lời thành các gói token tự nhiên bảo toàn khoảng trắng và xuống dòng cho luồng SSE."""
+        import re
+
+        if not van_ban:
+            return []
+        cac_tu = re.findall(r"\S+\s*", van_ban)
+        if not cac_tu:
+            return [van_ban]
+        step = max(1, int(so_tu_moi_goi))
+        return ["".join(cac_tu[i : i + step]) for i in range(0, len(cac_tu), step)]
+
+    def luong_sse_phap_ly_thoi_gian_studio(self, data: Dict[str, Any]) -> List[Tuple[str, Any]]:
+        """Tạo chuỗi sự kiện SSE (`metadata`, `token`, `verification`, `done`) cho ViLegal-TemporalRAG trên Studio."""
+        kq = self.hoi_phap_ly_thoi_gian_studio(data)
+        if not kq.get("thanh_cong", False):
+            return [("error", kq), ("done", {"thanh_cong": False})]
+        su_kien: List[Tuple[str, Any]] = [
+            (
+                "metadata",
+                {
+                    "ngay_tra_cuu": kq.get("ngay_tra_cuu"),
+                    "che_do": kq.get("che_do"),
+                    "canh_bao_thoi_gian": kq.get("canh_bao_thoi_gian", []),
+                    "ket_qua": kq.get("ket_qua", []),
+                    "thoi_gian_ms": kq.get("thoi_gian_ms"),
+                },
+            )
+        ]
+        for chunk in self._chia_luong_token(str(kq.get("tra_loi", ""))):
+            su_kien.append(("token", {"chunk": chunk}))
+        su_kien.append(("verification", kq.get("kiem_chung_trich_dan") or {}))
+        su_kien.append(
+            (
+                "done",
+                {
+                    "thanh_cong": True,
+                    "ngay_tra_cuu": kq.get("ngay_tra_cuu"),
+                    "so_nguon": len(kq.get("ket_qua") or []),
+                },
+            )
+        )
+        return su_kien
+
+    def luong_sse_chat_studio(self, data: Dict[str, Any], token: Optional[str] = None) -> List[Tuple[str, Any]]:
+        """Tạo chuỗi sự kiện SSE (`metadata`, `token`, `done`) cho phiên chat Workspace có trích dẫn nguồn."""
+        kq = self.gui_tin_nhan_chat_studio(data, token=token)
+        if not kq.get("thanh_cong", False):
+            return [("error", kq), ("done", {"thanh_cong": False})]
+        su_kien: List[Tuple[str, Any]] = [
+            (
+                "metadata",
+                {
+                    "ma_phien": kq.get("ma_phien"),
+                    "id_tin_nhan": kq.get("id_tin_nhan"),
+                    "trich_dan": kq.get("trich_dan", []),
+                    "diem_bam_sat": kq.get("diem_bam_sat"),
+                },
+            )
+        ]
+        for chunk in self._chia_luong_token(str(kq.get("tra_loi", ""))):
+            su_kien.append(("token", {"chunk": chunk}))
+        su_kien.append(
+            (
+                "done",
+                {
+                    "thanh_cong": True,
+                    "ma_phien": kq.get("ma_phien"),
+                    "id_tin_nhan": kq.get("id_tin_nhan"),
+                },
+            )
+        )
+        return su_kien
+
     def hoi_phap_ly_thoi_gian_studio(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Chạy ViLegal-TemporalRAG (truy hồi theo mốc thời gian + đồ thị đa bước + kiểm chứng 3 tầng) cho Studio."""
         from vietnamese_ai.rag.legal.temporal_rag import tao_dong_co_phap_ly_thoi_gian_mac_dinh
@@ -1620,6 +1934,7 @@ Có giá trị đến: 15/08/2035</textarea>
                 hop_dong_chuan=nguon_chuan,
                 ngay_tra_cuu=data.get("ngay_tra_cuu"),
                 cho_phep_doc_tep=False,
+                loai_hop_dong=str(data.get("loai_hop_dong") or "tu_dong"),
             )
             kq["thanh_cong"] = True
             kq["bao_cao_markdown"] = self._bo_so_sanh_hd.xuat_bao_cao_markdown(kq)

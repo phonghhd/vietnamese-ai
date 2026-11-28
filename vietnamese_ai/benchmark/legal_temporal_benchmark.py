@@ -216,11 +216,12 @@ def tao_ham_sinh_llm(
     nhom_extra="core",
 )
 class BoDanhGiaLegalTemporalRAG:
-    """Bộ đánh giá khoa học tái lập trên `ViLegal-TempBench` (T1, T2 Contrast, T3 Multi-Hop, T4 Traps/Abstention)."""
+    """Bộ đánh giá khoa học tái lập trên `ViLegal-TempBench v2` (T1, T2 Contrast, T3 Multi-Hop, T4 Traps/Abstention, T5 Colloquial)."""
 
     TEN_CAU_HINH: Dict[str, str] = {
         "bm25": "BM25-only (Vietnamese Tokenizer)",
         "hybrid": "Hybrid (BM25 + Dense RRF)",
+        "naive_date_filter": "Hybrid + Naive Date Filter (Start-Date Only)",
         "temporal": "Hybrid + Point-in-Time Temporal",
         "temporal_graph": "Temporal + Clause Graph Multi-Hop",
         "full": "Full ViLegal-TemporalRAG (+Rerank & Gate)",
@@ -234,9 +235,32 @@ class BoDanhGiaLegalTemporalRAG:
         bo_xep_hang_cheo: Optional[Any] = None,
         ham_sinh_llm: Optional[Callable[[str], str]] = None,
         ten_mo_hinh_llm: str = "extractive-grounded",
+        duong_dan_onnx_embed: Optional[str] = None,
+        duong_dan_onnx_rerank: Optional[str] = None,
     ) -> None:
         self.gop_kho_phap_ly_mo = gop_kho_phap_ly_mo
         self.ngay_mac_dinh = ngay_mac_dinh
+        self.ten_bo_nhung = "cpu_lexicon_hash"
+        self.ten_bo_rerank = "cross_interaction_cpu"
+
+        if ham_nhung is None and duong_dan_onnx_embed:
+            from vietnamese_ai.rag.onnx_semantic import BoNhungONNXTiengViet
+
+            emb_onnx = BoNhungONNXTiengViet(duong_dan_onnx=duong_dan_onnx_embed)
+            ham_nhung = emb_onnx.nhung
+            self.ten_bo_nhung = f"{emb_onnx.che_do} ({duong_dan_onnx_embed})"
+        elif ham_nhung is not None:
+            self.ten_bo_nhung = "custom_callable"
+
+        if bo_xep_hang_cheo is None and duong_dan_onnx_rerank:
+            from vietnamese_ai.rag.onnx_semantic import BoSapXepLaiONNXTiengViet
+
+            rr_onnx = BoSapXepLaiONNXTiengViet(duong_dan_onnx=duong_dan_onnx_rerank)
+            bo_xep_hang_cheo = rr_onnx
+            self.ten_bo_rerank = f"{rr_onnx.che_do} ({duong_dan_onnx_rerank})"
+        elif bo_xep_hang_cheo is not None:
+            self.ten_bo_rerank = type(bo_xep_hang_cheo).__name__
+
         self.ham_nhung = ham_nhung
         self.bo_xep_hang_cheo = bo_xep_hang_cheo
         self.ham_sinh_llm = ham_sinh_llm
@@ -339,9 +363,10 @@ class BoDanhGiaLegalTemporalRAG:
         mh_list: List[float] = []
         trap_list: List[float] = []
 
-        theo_nhom_r3: Dict[str, List[float]] = {"T1": [], "T2": [], "T3": [], "T4": []}
-        theo_nhom_mrr: Dict[str, List[float]] = {"T1": [], "T2": [], "T3": [], "T4": []}
-        theo_nhom_tva: Dict[str, List[float]] = {"T1": [], "T2": [], "T3": [], "T4": []}
+        theo_nhom_r3: Dict[str, List[float]] = {"T1": [], "T2": [], "T3": [], "T4": [], "T5": []}
+        theo_nhom_mrr: Dict[str, List[float]] = {"T1": [], "T2": [], "T3": [], "T4": [], "T5": []}
+        theo_nhom_tva: Dict[str, List[float]] = {"T1": [], "T2": [], "T3": [], "T4": [], "T5": []}
+        phan_tich_loi: List[Dict[str, Any]] = []
 
         nhom_tuong_phan: Dict[str, List[bool]] = {}
         tp_abs = 0
@@ -369,8 +394,26 @@ class BoDanhGiaLegalTemporalRAG:
                 tp_abs += 1
             elif (not ky_vong_tu_choi) and du_doan_tu_choi:
                 fp_abs += 1
+                phan_tich_loi.append(
+                    {
+                        "id": str(q.get("id", "")),
+                        "loai": loai,
+                        "nguyen_nhan": "tu_choi_nham_false_abstention",
+                        "ky_vong": gold_ids,
+                        "top3_du_doan": [],
+                    }
+                )
             elif ky_vong_tu_choi and (not du_doan_tu_choi):
                 fn_abs += 1
+                phan_tich_loi.append(
+                    {
+                        "id": str(q.get("id", "")),
+                        "loai": loai,
+                        "nguyen_nhan": "khong_tu_choi_cau_ngoai_pham_vi",
+                        "ky_vong": [],
+                        "top3_du_doan": [str(item["id"]) for item in list(kq.get("ket_qua", []))[:3]],
+                    }
+                )
 
             kc = kq.get("kiem_chung_trich_dan", {})
             faith_list.append(float(kc.get("diem_trung_thuc", 1.0)))
@@ -418,6 +461,22 @@ class BoDanhGiaLegalTemporalRAG:
                 theo_nhom_mrr[loai].append(mrr)
                 theo_nhom_tva[loai].append(tva_q)
 
+            if (not du_doan_tu_choi) and (rec3 < 1.0 or tva_q < 1.0):
+                ly_do_loi = (
+                    "sai_hieu_luc_thoi_gian"
+                    if tva_q < 1.0
+                    else ("thieu_cau_noi_da_buoc" if loai == "T3" else "bo_sot_top3")
+                )
+                phan_tich_loi.append(
+                    {
+                        "id": str(q.get("id", "")),
+                        "loai": loai,
+                        "nguyen_nhan": ly_do_loi,
+                        "ky_vong": gold_ids,
+                        "top3_du_doan": pred_ids[:3],
+                    }
+                )
+
             if loai == "T2" and q.get("nhom_tuong_phan"):
                 nhom_key = str(q["nhom_tuong_phan"])
                 dat_rank1 = bool(pred_ids and pred_ids[0] in gold_set)
@@ -459,6 +518,8 @@ class BoDanhGiaLegalTemporalRAG:
             "so_cap_tca_dat": f"{so_cap_dat}/{so_cap_tp}",
             "multi_hop_bridge_recall": _tb(mh_list),
             "trap_correction_rate": _tb(trap_list),
+            "colloquial_recall_at_3": _tb(theo_nhom_r3["T5"]),
+            "colloquial_mrr_at_10": _tb(theo_nhom_mrr["T5"]),
             "citation_faithfulness": _tb(faith_list),
             "numeric_consistency": _tb(numeric_list),
             "temporal_conflict_rate": _tb(conflict_list),
@@ -466,6 +527,8 @@ class BoDanhGiaLegalTemporalRAG:
             "abstention_recall": round(rec_abs, 4),
             "abstention_f1": round(f1_abs, 4),
             "do_tre_trung_binh_ms": round(float(np.mean(latency_list)), 3) if latency_list else 0.0,
+            "so_ca_loi": len(phan_tich_loi),
+            "phan_tich_loi": phan_tich_loi[:30],
             "theo_nhom": {
                 nhom: {
                     "so_cau": len(theo_nhom_r3[nhom]),
@@ -473,7 +536,7 @@ class BoDanhGiaLegalTemporalRAG:
                     "mrr_at_10": _tb(theo_nhom_mrr[nhom]),
                     "tva": _tb(theo_nhom_tva[nhom]),
                 }
-                for nhom in ("T1", "T2", "T3", "T4")
+                for nhom in ("T1", "T2", "T3", "T4", "T5")
             },
         }
         chi_tiet_vector = {
@@ -495,7 +558,7 @@ class BoDanhGiaLegalTemporalRAG:
         ds_che_do = list(cac_che_do or BoTruyHoiPhapLyThoiGian.CAC_CHE_DO_HOP_LE)
         tap_qa = list(self.du_lieu_qa)
         if nhanh:
-            gioi_han = {"T1": 6, "T2": 8, "T3": 6}
+            gioi_han = {"T1": 6, "T2": 8, "T3": 6, "T5": 6}
             dem: Dict[str, int] = {}
             dem_t4_con: Dict[str, int] = {}
             loc: List[Dict[str, Any]] = []
@@ -544,8 +607,10 @@ class BoDanhGiaLegalTemporalRAG:
 
         return {
             "ten_bo_chuan": "ViLegal-TempBench",
-            "phien_ban_bo_chuan": "1.0",
+            "phien_ban_bo_chuan": "2.0",
             "mo_hinh_sinh": self.ten_mo_hinh_llm,
+            "bo_nhung": self.ten_bo_nhung,
+            "bo_rerank": self.ten_bo_rerank,
             "ngay_mac_dinh": self.ngay_mac_dinh,
             "seed": int(seed),
             "che_do_nhanh": bool(nhanh),
@@ -561,20 +626,21 @@ class BoDanhGiaLegalTemporalRAG:
         }
 
     def xuat_bao_cao_markdown(self, ket_qua: Dict[str, Any]) -> str:
-        """Xuất báo cáo khoa học Markdown đầy đủ gồm bảng Ablation, phân tách T1–T4 và kiểm định Bootstrap."""
+        """Xuất báo cáo khoa học Markdown đầy đủ gồm bảng Ablation, phân tách T1–T5, Bootstrap và Error Analysis."""
         tk = ket_qua["thong_ke_du_lieu"]
         tqpa = ket_qua["boc_tach_thoi_gian_tqpa"]
+        so_ch = len(ket_qua["ablation"])
         lines = [
-            "# Báo Cáo Thực Nghiệm ViLegal-TempBench (Temporal & Graph-Grounded Legal RAG)",
+            f"# Báo Cáo Thực Nghiệm ViLegal-TempBench v{ket_qua.get('phien_ban_bo_chuan', '2.0')} (Temporal & Graph-Grounded Legal RAG)",
             "",
             f"- **Kho chỉ mục pháp lý**: `{tk['tong_dieu_khoan_chi_muc']}` điều khoản | `{tk['so_canh_do_thi_dieu_khoan']}` cạnh đồ thị điều khoản có hiệu lực thời gian.",
-            f"- **Tập đánh giá**: `{tk['tong_cau_hoi_danh_gia']}` truy vấn ({tk['phan_bo_nhom_cau_hoi']}) | Mô hình sinh: `{ket_qua.get('mo_hinh_sinh', 'extractive-grounded')}` | Ngày mặc định: `{ket_qua['ngay_mac_dinh']}` | Seed: `{ket_qua['seed']}`.",
+            f"- **Tập đánh giá**: `{tk['tong_cau_hoi_danh_gia']}` truy vấn ({tk['phan_bo_nhom_cau_hoi']}) | Bộ nhúng: `{ket_qua.get('bo_nhung', 'cpu_lexicon_hash')}` | Reranker: `{ket_qua.get('bo_rerank', 'cross_interaction_cpu')}` | Mô hình sinh: `{ket_qua.get('mo_hinh_sinh', 'extractive-grounded')}` | Ngày mặc định: `{ket_qua['ngay_mac_dinh']}` | Seed: `{ket_qua['seed']}`.",
             f"- **Độ chính xác bóc tách mốc thời gian tự động (TQPA)**: `{tqpa['do_chinh_xac_tqpa'] * 100:.2f}%` ({tqpa['so_cau_dung_vung_hieu_luc']}/{tqpa['tong_cau_hoi']}).",
             "",
-            "## 1. Bảng Đối Chứng 5 Cấu Hình (Main Ablation Study)",
+            f"## 1. Bảng Đối Chứng {so_ch} Cấu Hình (Main Ablation Study)",
             "",
-            "| Cấu hình | R@1 | R@3 | R@5 | MRR@10 | nDCG@10 | TVA | TCA (T2) | Multi-Hop (T3) | Trap (T4) | Faith. | Temp.Conf ↓ | Abst. F1 | Latency (ms) |",
-            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+            "| Cấu hình | R@1 | R@3 | R@5 | MRR@10 | nDCG@10 | TVA | TCA (T2) | Multi-Hop (T3) | Trap (T4) | Colloq R@3 (T5) | Faith. | Temp.Conf ↓ | Abst. F1 | Latency (ms) |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
         for mode, row in ket_qua["ablation"].items():
             lines.append(
@@ -588,6 +654,7 @@ class BoDanhGiaLegalTemporalRAG:
                 f"| {row['tca']:.3f} ({row['so_cap_tca_dat']}) "
                 f"| {row['multi_hop_bridge_recall']:.3f} "
                 f"| {row['trap_correction_rate']:.3f} "
+                f"| {row.get('colloquial_recall_at_3', 0.0):.3f} "
                 f"| {row['citation_faithfulness']:.3f} "
                 f"| {row['temporal_conflict_rate']:.3f} "
                 f"| {row['abstention_f1']:.3f} "
@@ -615,6 +682,21 @@ class BoDanhGiaLegalTemporalRAG:
                 f"| {_fmt(metrics['tva'])} "
                 f"| {_fmt(metrics['multi_hop_bridge_recall'])} |"
             )
+
+        full_row = ket_qua.get("ablation", {}).get("full")
+        if isinstance(full_row, dict):
+            ds_loi = full_row.get("phan_tich_loi") or []
+            lines.extend(["", "## 3. Phân Tích Lỗi Tự Động (Error Analysis — `full`)", ""])
+            if not ds_loi:
+                lines.append("- Không ghi nhận ca sai lệch nào ở cấu hình `full` trên tập đánh giá hiện tại.")
+            else:
+                lines.append("| Mã câu | Nhóm | Nguyên nhân | Kỳ vọng | Top-3 dự đoán |")
+                lines.append("|---|---|---|---|---|")
+                for err in ds_loi[:15]:
+                    lines.append(
+                        f"| `{err['id']}` | `{err['loai']}` | `{err['nguyen_nhan']}` "
+                        f"| `{', '.join(err['ky_vong'])}` | `{', '.join(err['top3_du_doan'])}` |"
+                    )
         return "\n".join(lines)
 
     def xuat_bang_latex(self, ket_qua: Dict[str, Any]) -> str:
@@ -623,21 +705,23 @@ class BoDanhGiaLegalTemporalRAG:
             r"\begin{table*}[t]",
             r"\centering",
             r"\small",
-            r"\caption{Ablation study of \textsc{ViLegal-TemporalRAG} on \textsc{ViLegal-TempBench} (CPU-only reproducible evaluation).}",
+            r"\caption{Ablation study of \textsc{ViLegal-TemporalRAG} on \textsc{ViLegal-TempBench v2} (CPU-only reproducible evaluation).}",
             r"\label{tab:vilegal_tempbench_ablation}",
-            r"\begin{tabular}{lcccccccccc}",
+            r"\begin{tabular}{lccccccccccc}",
             r"\toprule",
-            r"Configuration & R@1 & R@3 & MRR@10 & nDCG@10 & TVA & TCA & MH-Rec & Trap & Faith. & Abst. F1 \\",
+            r"Configuration & R@1 & R@3 & MRR@10 & nDCG@10 & TVA & TCA & MH-Rec & Trap & T5-R@3 & Faith. & Abst. F1 \\",
             r"\midrule",
         ]
         for mode, row in ket_qua["ablation"].items():
             ten = row["ten_hien_thi"].replace("&", r"\&").replace("_", r"\_")
+            t5_r3 = float(row.get("colloquial_recall_at_3", 0.0))
             if mode == "full":
                 lines.append(
                     f"\\textbf{{{ten}}} & \\textbf{{{row['recall_at_1']:.3f}}} & \\textbf{{{row['recall_at_3']:.3f}}} "
                     f"& \\textbf{{{row['mrr_at_10']:.3f}}} & \\textbf{{{row['ndcg_at_10']:.3f}}} "
                     f"& \\textbf{{{row['tva']:.3f}}} & \\textbf{{{row['tca']:.3f}}} "
                     f"& \\textbf{{{row['multi_hop_bridge_recall']:.3f}}} & \\textbf{{{row['trap_correction_rate']:.3f}}} "
+                    f"& \\textbf{{{t5_r3:.3f}}} "
                     f"& \\textbf{{{row['citation_faithfulness']:.3f}}} & \\textbf{{{row['abstention_f1']:.3f}}} \\\\"
                 )
             else:
@@ -646,6 +730,7 @@ class BoDanhGiaLegalTemporalRAG:
                     f"& {row['mrr_at_10']:.3f} & {row['ndcg_at_10']:.3f} "
                     f"& {row['tva']:.3f} & {row['tca']:.3f} "
                     f"& {row['multi_hop_bridge_recall']:.3f} & {row['trap_correction_rate']:.3f} "
+                    f"& {t5_r3:.3f} "
                     f"& {row['citation_faithfulness']:.3f} & {row['abstention_f1']:.3f} \\\\"
                 )
         lines.extend(

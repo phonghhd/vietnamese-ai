@@ -256,7 +256,7 @@ def test_vilegal_tempbench_dataset_sync_ablation_and_exports() -> None:
 
     assert len(tai_bo_phap_ly_thoi_gian()) == 60
     assert len(tai_canh_do_thi_phap_ly_thoi_gian()) == 38
-    assert len(tai_bo_hoi_dap_phap_ly_thoi_gian()) == 68
+    assert len(tai_bo_hoi_dap_phap_ly_thoi_gian()) == 84
 
     assert tinh_ndcg_at_k(["a", "b"], ["a"], k=10) == pytest.approx(1.0)
     boot = kiem_dinh_bootstrap_cap([1.0] * 20, [0.5] * 20, n_bootstrap=300, seed=42)
@@ -268,15 +268,19 @@ def test_vilegal_tempbench_dataset_sync_ablation_and_exports() -> None:
     assert kq["boc_tach_thoi_gian_tqpa"]["do_chinh_xac_tqpa"] == 1.0
 
     bm25 = kq["ablation"]["bm25"]
+    naive = kq["ablation"]["naive_date_filter"]
     full = kq["ablation"]["full"]
     assert full["tva"] > bm25["tva"]
-    assert full["tva"] == 1.0
-    assert full["tca"] >= 0.90 and bm25["tca"] <= 0.25
+    assert full["tva"] > naive["tva"]
+    assert full["tva"] >= 0.95
+    assert full["tca"] >= 0.90 and bm25["tca"] <= 0.25 and naive["tca"] < full["tca"]
     assert full["mrr_at_10"] > bm25["mrr_at_10"]
+    assert full["mrr_at_10"] > naive["mrr_at_10"]
     assert full["trap_correction_rate"] == 1.0
     assert full["temporal_conflict_rate"] == 0.0
-    assert full["abstention_f1"] == 1.0
-    assert full["multi_hop_bridge_recall"] >= bm25["multi_hop_bridge_recall"]
+    assert full["abstention_f1"] >= 0.85
+    assert full["multi_hop_bridge_recall"] == 1.0
+    assert full["multi_hop_bridge_recall"] > bm25["multi_hop_bridge_recall"]
 
     md = bench.xuat_bao_cao_markdown(kq)
     tex = bench.xuat_bang_latex(kq)
@@ -316,7 +320,7 @@ def test_stage3_zero_dep_llm_adapter_gemini_openai_ollama_and_citation_cff() -> 
     goc = Path(__file__).resolve().parents[1]
     cff = yaml.safe_load((goc / "CITATION.cff").read_text(encoding="utf-8"))
     assert cff["cff-version"] == "1.2.0"
-    assert cff["version"] == "31.2.0"
+    assert cff["version"] == "31.3.0"
     assert "zenodo" in cff["doi"]
     assert (goc / "docs" / "guides" / "vilegal-temporal-rag.md").is_file()
 

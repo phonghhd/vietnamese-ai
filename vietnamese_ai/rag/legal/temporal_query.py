@@ -94,7 +94,7 @@ class BoPhanTichThoiGianPhapLy:
         re.IGNORECASE | re.UNICODE,
     )
     _RE_NAM = re.compile(
-        r"(?:(đầu|giữa|cuối|trước|kể\s+từ|từ|sau|vào|tại|trong)\s+)?năm\s+((?:19|20)\d{2})\b",
+        r"(?:(đầu|giữa|cuối|trước|kể\s+từ|từ|sau|vào|tại|trong|đến|sang)\s+)?năm\s+((?:19|20)\d{2})\b",
         re.IGNORECASE | re.UNICODE,
     )
     _RE_HIEN_HANH = re.compile(
@@ -290,8 +290,9 @@ class BoPhanTichThoiGianPhapLy:
                     do_tin_cay=0.86,
                 )
 
-        m_nam = self._RE_NAM.search(sach)
-        if m_nam:
+        ds_nam = list(self._RE_NAM.finditer(sach))
+        if ds_nam:
+            m_nam = ds_nam[-1] if len(ds_nam) >= 2 else ds_nam[0]
             tien_to = (m_nam.group(1) or "").strip().lower()
             nam = int(m_nam.group(2))
             if tien_to == "trước":

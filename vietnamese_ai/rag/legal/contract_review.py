@@ -4,17 +4,28 @@ from __future__ import annotations
 
 import difflib
 import html
+import json
 import re
 import zipfile
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from vietnamese_ai.rag.legal.citation_graph import DoThiThamChieuPhapLy
+from vietnamese_ai.rag.legal.citation_verifier import BoKiemChungTrichDanPhapLy
 from vietnamese_ai.rag.legal.document_parser import BoDocTaiLieuPhapLy
-from vietnamese_ai.rag.legal.validity_tracker import BoTheoDoiHieuLucPhapLy
+from vietnamese_ai.rag.legal.validity_tracker import BoTheoDoiHieuLucPhapLy, _phan_tich_ngay
 from vietnamese_ai.utils.feature_status import TrangThaiTinhNang, gan_nhan_tinh_nang
+
+LOAI_HOP_DONG_HO_TRO: Tuple[str, ...] = (
+    "tu_dong",
+    "lao_dong",
+    "dich_vu",
+    "mua_ban",
+    "thue_nha",
+    "nda",
+)
 
 
 @dataclass
@@ -28,6 +39,8 @@ class CanhBaoRuiRoHopDong:
     chi_tiet: str
     can_cu_phap_ly: str
     khuyen_nghi: str
+    nguon_phat_hien: str = "quy_tac"
+    kiem_chung_trich_dan: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Chuyển cảnh báo rủi ro sang dict thuần JSON."""
@@ -58,6 +71,122 @@ _RE_DIEU_HEADER = re.compile(
 )
 _RE_PHAN_TRAM = re.compile(r"(\d+(?:[\.,]\d+)?)\s*%")
 _RE_LAI_SUAT_NAM = re.compile(r"(\d+(?:[\.,]\d+)?)\s*%\s*/\s*năm", re.IGNORECASE | re.UNICODE)
+_RE_SO_NGAY = re.compile(r"(\d+)\s*ngày\b", re.IGNORECASE | re.UNICODE)
+_RE_SO_THANG = re.compile(r"(\d+)\s*tháng\b", re.IGNORECASE | re.UNICODE)
+_RE_SO_TIEN_TRIEU_TY = re.compile(
+    r"(\d+(?:[\.,]\d+)?)\s*(triệu|tỷ)\s*(?:đồng|vnđ|vnd)?",
+    re.IGNORECASE | re.UNICODE,
+)
+_RE_SO_TIEN_DONG = re.compile(
+    r"\b(\d{1,3}(?:[\.,]\d{3})+)\s*(?:đồng|vnđ|vnd)\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+_TU_KHOA_LOAI_HOP_DONG: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
+    "lao_dong": (
+        ("hợp đồng lao động", "hợp đồng thử việc"),
+        (
+            "người lao động",
+            "người sử dụng lao động",
+            "thử việc",
+            "bảo hiểm xã hội",
+            "tiền lương",
+            "kỷ luật lao động",
+            "45/2019/qh14",
+        ),
+    ),
+    "thue_nha": (
+        ("hợp đồng thuê nhà", "hợp đồng thuê mặt bằng", "hợp đồng thuê căn hộ", "hợp đồng thuê văn phòng"),
+        (
+            "bên cho thuê",
+            "bên thuê nhà",
+            "tiền thuê nhà",
+            "bàn giao mặt bằng",
+            "nhà ở hình thành trong tương lai",
+            "thu hồi nhà",
+            "giá thuê",
+        ),
+    ),
+    "nda": (
+        ("thỏa thuận bảo mật", "hợp đồng bảo mật", "cam kết bảo mật", "non-disclosure agreement", "nda"),
+        (
+            "bên tiết lộ",
+            "bên tiếp nhận thông tin",
+            "thông tin mật",
+            "không cạnh tranh",
+            "bí mật kinh doanh",
+            "non-disclosure",
+            "ngoại lệ bảo mật",
+        ),
+    ),
+    "mua_ban": (
+        ("hợp đồng mua bán", "hợp đồng cung cấp hàng hóa"),
+        (
+            "mua bán hàng hóa",
+            "giao nhận hàng hóa",
+            "bên bán",
+            "bên mua",
+            "hóa đơn gtgt",
+            "hóa đơn điện tử",
+            "quy cách hàng hóa",
+        ),
+    ),
+    "dich_vu": (
+        ("hợp đồng dịch vụ", "hợp đồng cung cấp dịch vụ", "hợp đồng phát triển phần mềm"),
+        (
+            "cung cấp dịch vụ",
+            "nghiệm thu dịch vụ",
+            "dịch vụ phần mềm",
+            "bên cung cấp dịch vụ",
+            "quyền sở hữu trí tuệ",
+            "mã nguồn",
+            "sla",
+        ),
+    ),
+}
+
+
+def phan_loai_hop_dong(van_ban: str) -> str:
+    """Tự động nhận diện loại hợp đồng Việt Nam (`lao_dong`, `dich_vu`, `mua_ban`, `thue_nha`, `nda`, hoặc `chung`)."""
+    if not van_ban or not van_ban.strip():
+        return "chung"
+    toan_van = van_ban.lower()
+    phan_dau = toan_van[:320]
+    diem_tot_nhat = 0
+    loai_tot_nhat = "chung"
+    for loai, (tieu_de_kws, noi_dung_kws) in _TU_KHOA_LOAI_HOP_DONG.items():
+        diem = 0
+        for kw in tieu_de_kws:
+            if kw in phan_dau:
+                diem += 6
+            elif kw in toan_van:
+                diem += 3
+        for kw in noi_dung_kws:
+            if kw in toan_van:
+                diem += 1
+        if diem > diem_tot_nhat:
+            diem_tot_nhat = diem
+            loai_tot_nhat = loai
+    return loai_tot_nhat if diem_tot_nhat >= 2 else "chung"
+
+
+def _truyen_so_tien_lon_nhat_vnd(van_ban: str) -> float:
+    """Trích xuất giá trị tiền tệ lớn nhất (đơn vị VNĐ) xuất hiện trong một đoạn điều khoản."""
+    lon_nhat = 0.0
+    for so_str, don_vi in _RE_SO_TIEN_TRIEU_TY.findall(van_ban):
+        try:
+            so = float(so_str.replace(",", "."))
+        except ValueError:
+            continue
+        he_so = 1_000_000_000.0 if don_vi.lower() == "tỷ" else 1_000_000.0
+        lon_nhat = max(lon_nhat, so * he_so)
+    for so_str in _RE_SO_TIEN_DONG.findall(van_ban):
+        sach = so_str.replace(".", "").replace(",", "")
+        try:
+            lon_nhat = max(lon_nhat, float(sach))
+        except ValueError:
+            continue
+    return lon_nhat
 
 _DIEU_KHOAN_BAT_BUOC: List[Tuple[str, str, Tuple[str, ...]]] = [
     ("doi_tuong", "Đối tượng & Phạm vi hợp đồng", ("đối tượng", "phạm vi công việc", "hàng hóa", "dịch vụ")),
@@ -230,15 +359,463 @@ class BoSoSanhRaSoatHopDong:
     ) -> None:
         self.bo_theo_doi = bo_theo_doi or BoTheoDoiHieuLucPhapLy()
         self.do_thi_tham_chieu = do_thi_tham_chieu or DoThiThamChieuPhapLy(bo_theo_doi=self.bo_theo_doi)
+        self.bo_kiem_chung = BoKiemChungTrichDanPhapLy(bo_theo_doi=self.bo_theo_doi)
+
+    def _quet_quy_tac_chuyen_biet(
+        self,
+        loai_thuc_te: str,
+        cac_dieu: List[Dict[str, str]],
+        toan_van_low: str,
+        moc_ngay: date,
+    ) -> List[CanhBaoRuiRoHopDong]:
+        """Quét bộ quy tắc pháp lý chuyên biệt theo 5 loại hợp đồng Việt Nam (`lao_dong`, `dich_vu`, `mua_ban`, `thue_nha`, `nda`)."""
+        ket_qua: List[CanhBaoRuiRoHopDong] = []
+
+        for dieu_item in cac_dieu:
+            ten_dieu = dieu_item["dieu"]
+            nd = dieu_item["noi_dung"]
+            nd_low = nd.lower()
+
+            if loai_thuc_te == "lao_dong":
+                if "thử việc" in nd_low:
+                    la_quan_ly = any(
+                        ql in toan_van_low
+                        for ql in ("quản lý doanh nghiệp", "người quản lý", "giám đốc", "tổng giám đốc")
+                    )
+                    tran_ngay = 180 if la_quan_ly else 60
+                    so_ngay_lon_nhat = 0
+                    for ve in re.split(r"[.\n;:]+", nd):
+                        ve_low = ve.lower()
+                        if "thử việc" not in ve_low and "thời gian" not in ve_low and "thời hạn" not in ve_low:
+                            continue
+                        for m_n in _RE_SO_NGAY.findall(ve_low):
+                            so_ngay_lon_nhat = max(so_ngay_lon_nhat, int(m_n))
+                        for m_t in _RE_SO_THANG.findall(ve_low):
+                            so_ngay_lon_nhat = max(so_ngay_lon_nhat, int(m_t) * 30)
+                    if so_ngay_lon_nhat > tran_ngay:
+                        ket_qua.append(
+                            CanhBaoRuiRoHopDong(
+                                ma_quy_tac="thu_viec_vuot_tran_blld",
+                                muc_do="cao",
+                                dieu_khoan=ten_dieu,
+                                tieu_de=f"Thời gian thử việc {so_ngay_lon_nhat} ngày vượt trần tối đa {tran_ngay} ngày",
+                                chi_tiet=f"Phát hiện thời gian thử việc {so_ngay_lon_nhat} ngày tại {ten_dieu}, vượt quy định Bộ luật Lao động.",
+                                can_cu_phap_ly="Điều 25 Bộ luật Lao động 45/2019/QH14",
+                                khuyen_nghi=f"Điều chỉnh thời gian thử việc xuống tối đa {tran_ngay} ngày tương ứng trình độ/chức danh công việc.",
+                            )
+                        )
+
+                    if any(tk in nd_low for tk in ("lương", "tiền lương", "mức lương", "hưởng")):
+                        ty_le_thap: Optional[float] = None
+                        for ve in re.split(r"[.\n;:]+", nd):
+                            ve_low = ve.lower()
+                            if not any(tk in ve_low for tk in ("lương", "thử việc", "hưởng")):
+                                continue
+                            for m_pt in _RE_PHAN_TRAM.findall(ve):
+                                gt = float(m_pt.replace(",", "."))
+                                if 10.0 <= gt < 85.0:
+                                    ty_le_thap = gt
+                                    break
+                            if ty_le_thap is not None:
+                                break
+                        if ty_le_thap is not None:
+                            ket_qua.append(
+                                CanhBaoRuiRoHopDong(
+                                    ma_quy_tac="luong_thu_viec_duoi_85pct",
+                                    muc_do="cao",
+                                    dieu_khoan=ten_dieu,
+                                    tieu_de=f"Mức lương thử việc {ty_le_thap:g}% thấp hơn mức sàn luật định 85%",
+                                    chi_tiet=f"Phát hiện mức lương thử việc {ty_le_thap:g}% tại {ten_dieu}, trái sàn tối thiểu 85% mức lương chính thức.",
+                                    can_cu_phap_ly="Điều 26 Bộ luật Lao động 45/2019/QH14",
+                                    khuyen_nghi="Nâng mức lương thử việc lên tối thiểu 85% mức lương của công việc đó.",
+                                )
+                            )
+
+                if any(
+                    cum in nd_low
+                    for cum in (
+                        "giữ bản chính",
+                        "thu giữ bản chính",
+                        "giữ cccd gốc",
+                        "giữ bằng cấp gốc",
+                        "nộp tiền đặt cọc",
+                        "đặt cọc bằng tiền",
+                        "ký quỹ đảm bảo thực hiện hợp đồng lao động",
+                        "thế chấp bằng tiền",
+                    )
+                ) and not any(cam in nd_low for cam in ("không được giữ bản chính", "nghiêm cấm giữ bản chính", "không yêu cầu đặt cọc")):
+                    ket_qua.append(
+                        CanhBaoRuiRoHopDong(
+                            ma_quy_tac="hanh_vi_bi_nghiem_cam_blld_d17",
+                            muc_do="cao",
+                            dieu_khoan=ten_dieu,
+                            tieu_de="Hành vi bị nghiêm cấm: giữ bản chính giấy tờ/văn bằng hoặc buộc đặt cọc lao động",
+                            chi_tiet=f"Phát hiện quy định giữ bản chính giấy tờ tùy thân/văn bằng hoặc yêu cầu đặt cọc tại {ten_dieu}.",
+                            can_cu_phap_ly="Điều 17 Bộ luật Lao động 45/2019/QH14",
+                            khuyen_nghi="Xóa bỏ hoàn toàn điều khoản giữ bản chính giấy tờ hoặc yêu cầu đặt cọc tiền/tài sản của người lao động.",
+                        )
+                    )
+
+                if (
+                    any(tk in nd_low for tk in ("phạt tiền", "cắt lương", "trừ lương", "khấu trừ lương"))
+                    and any(tk in nd_low for tk in ("kỷ luật", "vi phạm nội quy", "đi muộn", "sai sót", "thay cho xử lý kỷ luật"))
+                    and "không áp dụng phạt tiền" not in nd_low
+                ):
+                    ket_qua.append(
+                        CanhBaoRuiRoHopDong(
+                            ma_quy_tac="phat_tien_cat_luong_ky_luat_blld",
+                            muc_do="cao",
+                            dieu_khoan=ten_dieu,
+                            tieu_de="Áp dụng hình thức phạt tiền hoặc cắt lương thay cho xử lý kỷ luật lao động",
+                            chi_tiet=f"Điều khoản tại {ten_dieu} áp dụng phạt tiền/cắt lương đối với hành vi vi phạm nội quy lao động.",
+                            can_cu_phap_ly="Điều 127 Bộ luật Lao động 45/2019/QH14",
+                            khuyen_nghi="Thay bằng các hình thức kỷ luật hợp pháp (khiển trách, kéo dài thời hạn nâng lương, cách chức, sa thải) theo Điều 124 BLLĐ.",
+                        )
+                    )
+
+            if loai_thuc_te == "dich_vu":
+                if (
+                    any(
+                        cum in nd_low
+                        for cum in (
+                            "toàn bộ quyền sở hữu trí tuệ",
+                            "mọi quyền sở hữu trí tuệ",
+                            "chuyển giao toàn bộ mã nguồn nền tảng",
+                            "sở hữu trí tuệ có sẵn",
+                            "background ip",
+                        )
+                    )
+                    and any(cum in nd_low for cum in ("thuộc quyền sở hữu tuyệt đối", "chuyển giao toàn bộ", "thuộc về bên a vô điều kiện"))
+                    and not any(ex in nd_low for ex in ("trừ công cụ nền tảng", "không bao gồm mã nguồn nền tảng", "giữ lại background ip"))
+                ):
+                    ket_qua.append(
+                        CanhBaoRuiRoHopDong(
+                            ma_quy_tac="chuyen_giao_ip_nen_tang_dich_vu",
+                            muc_do="trung_binh",
+                            dieu_khoan=ten_dieu,
+                            tieu_de="Chuyển giao quá rộng quyền sở hữu trí tuệ bao gồm công cụ nền tảng (Background IP)",
+                            chi_tiet=f"Điều khoản tại {ten_dieu} chuyển giao toàn bộ quyền SHTT mà không tách biệt tài sản nền tảng có sẵn.",
+                            can_cu_phap_ly="Điều 39 Luật Sở hữu trí tuệ 50/2005/QH11 (sửa đổi bởi Luật 07/2022/QH15)",
+                            khuyen_nghi="Tách rõ Foreground IP (sản phẩm làm riêng cho khách hàng) và Background IP (thư viện/công cụ có sẵn của bên cung cấp).",
+                        )
+                    )
+
+            if loai_thuc_te in ("dich_vu", "mua_ban"):
+                if (
+                    moc_ngay >= date(2025, 6, 1)
+                    and "hóa đơn" in nd_low
+                    and any(
+                        cum in nd_low
+                        for cum in (
+                            "hủy hóa đơn điện tử",
+                            "hủy bỏ hóa đơn đã lập",
+                            "hủy hóa đơn đã cấp mã",
+                            "hủy hóa đơn sai sót",
+                        )
+                    )
+                    and not any(ok in nd_low for ok in ("không được hủy", "không hủy hóa đơn", "lập hóa đơn điều chỉnh"))
+                ):
+                    ket_qua.append(
+                        CanhBaoRuiRoHopDong(
+                            ma_quy_tac="huy_hoa_don_dien_tu_trai_nd70",
+                            muc_do="cao",
+                            dieu_khoan=ten_dieu,
+                            tieu_de="Điều khoản hủy hóa đơn điện tử sai sót trái quy định Nghị định 70/2025/NĐ-CP",
+                            chi_tiet=f"Từ 01/06/2025, Nghị định 70/2025/NĐ-CP bỏ thủ tục hủy hóa đơn đã lập sai sót nhưng {ten_dieu} vẫn quy định hủy hóa đơn.",
+                            can_cu_phap_ly="Khoản 13 Điều 1 Nghị định 70/2025/NĐ-CP (sửa đổi Điều 19 Nghị định 123/2020/NĐ-CP)",
+                            khuyen_nghi="Sửa thành lập văn bản thỏa thuận và xuất hóa đơn điện tử điều chỉnh hoặc thay thế theo Điều 19 Nghị định 123/2020/NĐ-CP (sửa đổi 2025).",
+                        )
+                    )
+
+                if (
+                    moc_ngay >= date(2025, 7, 1)
+                    and "tiền mặt" in nd_low
+                    and "không dùng tiền mặt" not in nd_low
+                    and "không thanh toán bằng tiền mặt" not in nd_low
+                ):
+                    gia_tri_tien = _truyen_so_tien_lon_nhat_vnd(nd)
+                    if gia_tri_tien >= 5_000_000.0:
+                        ket_qua.append(
+                            CanhBaoRuiRoHopDong(
+                                ma_quy_tac="thanh_toan_tien_mat_gtgt_5_trieu",
+                                muc_do="trung_binh",
+                                dieu_khoan=ten_dieu,
+                                tieu_de="Thanh toán tiền mặt từ 5 triệu đồng trở lên rủi ro mất khấu trừ thuế GTGT",
+                                chi_tiet=f"Phát hiện giao dịch bằng tiền mặt giá trị {gia_tri_tien:,.0f} đồng tại {ten_dieu} áp dụng từ mốc {moc_ngay.isoformat()}.",
+                                can_cu_phap_ly="Điều 14 Luật Thuế GTGT 48/2024/QH15 & Nghị định 181/2025/NĐ-CP (hiệu lực từ 01/07/2025)",
+                                khuyen_nghi="Chuyển phương thức thanh toán sang chuyển khoản ngân hàng (chứng từ không dùng tiền mặt) để đủ điều kiện khấu trừ thuế GTGT.",
+                            )
+                        )
+
+            if loai_thuc_te == "thue_nha":
+                if "hình thành trong tương lai" in toan_van_low and "đặt cọc" in nd_low:
+                    coc_vuot: Optional[float] = None
+                    for m_pt in _RE_PHAN_TRAM.findall(nd):
+                        gt = float(m_pt.replace(",", "."))
+                        if gt > 5.0:
+                            coc_vuot = gt
+                            break
+                    if coc_vuot is not None:
+                        ket_qua.append(
+                            CanhBaoRuiRoHopDong(
+                                ma_quy_tac="dat_coc_nha_tuong_lai_vuot_5pct",
+                                muc_do="cao",
+                                dieu_khoan=ten_dieu,
+                                tieu_de=f"Tiền đặt cọc nhà ở hình thành trong tương lai {coc_vuot:g}% vượt trần 5%",
+                                chi_tiet=f"Phát hiện tỷ lệ đặt cọc {coc_vuot:g}% tại {ten_dieu}, vượt giới hạn 5% giá bán/thuê mua.",
+                                can_cu_phap_ly="Khoản 5 Điều 23 Luật Kinh doanh bất động sản 29/2023/QH15",
+                                khuyen_nghi="Điều chỉnh khoản tiền đặt cọc không vượt quá 5% giá bán, cho thuê mua nhà ở hình thành trong tương lai.",
+                            )
+                        )
+
+                if any(
+                    cum in nd_low
+                    for cum in (
+                        "tăng giá thuê bất kỳ lúc nào",
+                        "điều chỉnh giá thuê không giới hạn",
+                        "đơn phương tăng giá thuê",
+                        "thu hồi nhà ngay lập tức",
+                        "buộc trả nhà trong 24 giờ",
+                        "lấy lại nhà không cần báo trước",
+                    )
+                ):
+                    ket_qua.append(
+                        CanhBaoRuiRoHopDong(
+                            ma_quy_tac="tang_gia_hoac_thu_hoi_nha_mot_chieu",
+                            muc_do="trung_binh",
+                            dieu_khoan=ten_dieu,
+                            tieu_de="Quyền tăng giá thuê không giới hạn hoặc thu hồi nhà thiếu thông báo trước 30 ngày",
+                            chi_tiet=f"Phát hiện điều khoản bất lợi cho bên thuê về giá thuê hoặc thu hồi mặt bằng tại {ten_dieu}.",
+                            can_cu_phap_ly="Điều 172 Luật Nhà ở 27/2023/QH15 & Điều 482 Bộ luật Dân sự 91/2015/QH13",
+                            khuyen_nghi="Quy định trần biên độ tăng giá thuê định kỳ (ví dụ tối đa 5–10%/năm) và nghĩa vụ thông báo chấm dứt trước tối thiểu 30 ngày.",
+                        )
+                    )
+
+            if loai_thuc_te == "nda":
+                if (
+                    any(cum in nd_low for cum in ("vĩnh viễn", "vô thời hạn", "không giới hạn thời gian", "suốt đời"))
+                    and any(cum in nd_low for cum in ("không cạnh tranh", "cấm làm việc", "bảo mật", "không được làm việc cho đối thủ"))
+                ):
+                    ket_qua.append(
+                        CanhBaoRuiRoHopDong(
+                            ma_quy_tac="nda_cam_ket_vinh_vien",
+                            muc_do="cao",
+                            dieu_khoan=ten_dieu,
+                            tieu_de="Cam kết bảo mật hoặc không cạnh tranh vô thời hạn/vĩnh viễn có rủi ro vô hiệu",
+                            chi_tiet=f"Phát hiện nghĩa vụ bảo mật/không cạnh tranh không giới hạn thời gian tại {ten_dieu}.",
+                            can_cu_phap_ly="Điều 10, Điều 21 Bộ luật Lao động 45/2019/QH14 & Điều 3 Bộ luật Dân sự 91/2015/QH13",
+                            khuyen_nghi="Giới hạn thời hạn bảo mật cụ thể (thường 2–5 năm sau chấm dứt) và xác định phạm vi không cạnh tranh hợp lý có bồi hoàn tương xứng.",
+                        )
+                    )
+
+        if loai_thuc_te == "nda":
+            co_ngoai_le = any(
+                cum in toan_van_low
+                for cum in (
+                    "thông tin công khai",
+                    "phạm vi công cộng",
+                    "theo yêu cầu của cơ quan nhà nước",
+                    "cơ quan có thẩm quyền",
+                    "ngoại lệ bảo mật",
+                    "đã được công bố rộng rãi",
+                )
+            )
+            if not co_ngoai_le:
+                ket_qua.append(
+                    CanhBaoRuiRoHopDong(
+                        ma_quy_tac="nda_thieu_ngoai_le_cong_khai",
+                        muc_do="trung_binh",
+                        dieu_khoan="Toàn hợp đồng",
+                        tieu_de="Thỏa thuận NDA thiếu điều khoản ngoại lệ thông tin công khai và yêu cầu cơ quan nhà nước",
+                        chi_tiet="Không tìm thấy quy định loại trừ thông tin đã công khai hợp pháp hoặc buộc cung cấp theo yêu cầu pháp luật.",
+                        can_cu_phap_ly="Điều 3 Bộ luật Dân sự 91/2015/QH13 & thông lệ bảo mật thông tin",
+                        khuyen_nghi="Bổ sung danh mục ngoại lệ bảo mật (thông tin công khai, tự phát triển độc lập, cung cấp theo yêu cầu cơ quan có thẩm quyền).",
+                    )
+                )
+
+        return ket_qua
+
+    def _lay_nguon_kiem_chung_llm(
+        self,
+        truy_van: str,
+        bo_truy_hoi_phap_ly: Optional[Any],
+        ngay_tra_cuu: Optional[Union[str, date]],
+    ) -> List[Dict[str, Any]]:
+        """Thu thập danh sách điều khoản nguồn để `BoKiemChungTrichDanPhapLy` xác minh trích dẫn do LLM đề xuất."""
+        nguon: List[Dict[str, Any]] = []
+        if bo_truy_hoi_phap_ly is not None and hasattr(bo_truy_hoi_phap_ly, "truy_hoi"):
+            try:
+                kq_th = bo_truy_hoi_phap_ly.truy_hoi(truy_van, ngay_tra_cuu=ngay_tra_cuu, top_k=5)
+                if isinstance(kq_th, dict) and isinstance(kq_th.get("ket_qua"), list):
+                    nguon.extend(x for x in kq_th["ket_qua"] if isinstance(x, dict))
+                elif isinstance(kq_th, list):
+                    nguon.extend(x for x in kq_th if isinstance(x, dict))
+            except Exception:
+                pass
+        if not nguon:
+            from vietnamese_ai.rag.legal.open_corpus import (
+                tai_bo_phap_ly_mo,
+                tai_bo_phap_ly_thoi_gian,
+            )
+
+            for ban_ghi in tai_bo_phap_ly_thoi_gian():
+                nguon.append(
+                    {
+                        "so_hieu": ban_ghi.get("so_hieu", ""),
+                        "dieu": ban_ghi.get("dieu", ""),
+                        "tieu_de": ban_ghi.get("ten_van_ban", ""),
+                        "noi_dung": ban_ghi.get("noi_dung", ""),
+                    }
+                )
+            for ban_ghi in tai_bo_phap_ly_mo():
+                nguon.append(
+                    {
+                        "so_hieu": ban_ghi.get("so_hieu", ""),
+                        "dieu": ban_ghi.get("dieu", ""),
+                        "tieu_de": ban_ghi.get("van_ban", ""),
+                        "noi_dung": ban_ghi.get("noi_dung", ""),
+                    }
+                )
+        return nguon
+
+    @staticmethod
+    def _phan_tich_json_canh_bao_llm(raw_text: str) -> List[Dict[str, Any]]:
+        """Bóc tách danh sách cảnh báo JSON từ chuỗi phản hồi LLM (hỗ trợ cả khối ```json ... ```)."""
+        s = (raw_text or "").strip()
+        if not s:
+            return []
+        m_fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", s, re.IGNORECASE)
+        if m_fence:
+            s = m_fence.group(1).strip()
+        parsed: Any = None
+        try:
+            parsed = json.loads(s)
+        except Exception:
+            m_arr = re.search(r"\[[\s\S]*\]", s)
+            if m_arr:
+                try:
+                    parsed = json.loads(m_arr.group(0))
+                except Exception:
+                    parsed = None
+        if isinstance(parsed, dict):
+            for key in ("canh_bao", "danh_sach_canh_bao", "risks", "items"):
+                val = parsed.get(key)
+                if isinstance(val, list):
+                    parsed = val
+                    break
+        if not isinstance(parsed, list):
+            return []
+        return [item for item in parsed if isinstance(item, dict)]
+
+    def _ra_soat_bo_sung_bang_llm(
+        self,
+        van_ban_hop_dong: str,
+        loai_thuc_te: str,
+        ngay_tra_cuu: Optional[Union[str, date]],
+        ham_sinh_llm: Callable[[str], str],
+        bo_truy_hoi_phap_ly: Optional[Any],
+    ) -> Tuple[List[CanhBaoRuiRoHopDong], Dict[str, Any]]:
+        """Gọi LLM rà soát bổ sung ngữ nghĩa và kiểm chứng 100% trích dẫn pháp lý qua `BoKiemChungTrichDanPhapLy`."""
+        moc_str = _phan_tich_ngay(ngay_tra_cuu).isoformat()
+        prompt = (
+            "Bạn là luật sư rà soát hợp đồng Việt Nam. Hãy phân tích hợp đồng loại "
+            f"'{loai_thuc_te}' tại mốc hiệu lực ngày {moc_str} và trả về duy nhất một mảng JSON "
+            "gồm các đối tượng rủi ro với các khóa: dieu_khoan, muc_do (cao|trung_binh|thap), "
+            "tieu_de, chi_tiet, can_cu_phap_ly, khuyen_nghi.\n\n"
+            f"Nội dung hợp đồng:\n{van_ban_hop_dong[:6000]}"
+        )
+        try:
+            raw_resp = str(ham_sinh_llm(prompt) or "")
+        except Exception as exc:
+            return [], {
+                "kich_hoat": True,
+                "thanh_cong": False,
+                "loi": str(exc),
+                "so_goi_y_llm": 0,
+                "so_hop_le": 0,
+                "so_can_xac_minh": 0,
+                "canh_bao_ao_giac": [],
+            }
+
+        ds_tho = self._phan_tich_json_canh_bao_llm(raw_resp)
+        canh_bao_llm: List[CanhBaoRuiRoHopDong] = []
+        so_hop_le = 0
+        so_can_xac_minh = 0
+        canh_bao_ao_giac: List[str] = []
+
+        for idx, item in enumerate(ds_tho, 1):
+            tieu_de = str(item.get("tieu_de") or "").strip()
+            chi_tiet = str(item.get("chi_tiet") or "").strip()
+            if not tieu_de and not chi_tiet:
+                continue
+            dieu_khoan = str(item.get("dieu_khoan") or "Toàn hợp đồng").strip()
+            muc_do = str(item.get("muc_do") or "trung_binh").strip().lower()
+            if muc_do not in ("cao", "trung_binh", "thap"):
+                muc_do = "trung_binh"
+            can_cu = str(item.get("can_cu_phap_ly") or "").strip()
+            khuyen_nghi = str(item.get("khuyen_nghi") or "Cần luật sư rà soát chi tiết.").strip()
+
+            van_ban_kiem_chung = f"{tieu_de}. {chi_tiet} Căn cứ: {can_cu}".strip()
+            nguon = self._lay_nguon_kiem_chung_llm(
+                truy_van=f"{can_cu} {tieu_de}".strip(),
+                bo_truy_hoi_phap_ly=bo_truy_hoi_phap_ly,
+                ngay_tra_cuu=ngay_tra_cuu,
+            )
+            kq_kc = self.bo_kiem_chung.kiem_chung(
+                cau_tra_loi=van_ban_kiem_chung,
+                nguon_truy_hoi=nguon,
+                ngay_tra_cuu=ngay_tra_cuu,
+            ).to_dict()
+
+            da_xac_minh = bool(kq_kc.get("hop_le", False)) and not bool(kq_kc.get("co_trich_dan_ao", False)) and not bool(
+                kq_kc.get("co_xung_dot_thoi_gian", False)
+            )
+            if da_xac_minh:
+                so_hop_le += 1
+            else:
+                so_can_xac_minh += 1
+                ly_do_kc = "; ".join(kq_kc.get("canh_bao") or ["Trích dẫn pháp lý chưa khớp nguồn hiện hành."])
+                canh_bao_ao_giac.append(f"LLM #{idx} ({tieu_de}): {ly_do_kc}")
+                chi_tiet = f"{chi_tiet} [CẦN KIỂM CHỨNG TRÍCH DẪN: {ly_do_kc}]".strip()
+
+            canh_bao_llm.append(
+                CanhBaoRuiRoHopDong(
+                    ma_quy_tac=f"llm_semantic_risk_{idx}",
+                    muc_do=muc_do,
+                    dieu_khoan=dieu_khoan,
+                    tieu_de=tieu_de or f"Rủi ro ngữ nghĩa LLM #{idx}",
+                    chi_tiet=chi_tiet,
+                    can_cu_phap_ly=can_cu or "Phân tích ngữ nghĩa LLM",
+                    khuyen_nghi=khuyen_nghi,
+                    nguon_phat_hien="llm_da_kiem_chung" if da_xac_minh else "llm_can_xac_minh",
+                    kiem_chung_trich_dan=kq_kc,
+                )
+            )
+
+        tom_tat = {
+            "kich_hoat": True,
+            "thanh_cong": True,
+            "so_goi_y_llm": len(canh_bao_llm),
+            "so_hop_le": so_hop_le,
+            "so_can_xac_minh": so_can_xac_minh,
+            "canh_bao_ao_giac": canh_bao_ao_giac,
+        }
+        return canh_bao_llm, tom_tat
 
     def quet_rui_ro_don_le(
         self,
         van_ban_hop_dong: str,
         ngay_tra_cuu: Optional[Union[str, date]] = None,
+        loai_hop_dong: str = "tu_dong",
+        ham_sinh_llm: Optional[Callable[[str], str]] = None,
+        bo_truy_hoi_phap_ly: Optional[Any] = None,
     ) -> Dict[str, Any]:
-        """Quét rủi ro pháp lý, điều khoản bất lợi, điều khoản thiếu và văn bản luật hết hiệu lực trên một hợp đồng."""
+        """Quét rủi ro pháp lý, quy tắc chuyên biệt theo 5 loại hợp đồng, điều khoản thiếu, văn bản hết hiệu lực và rà soát bổ sung LLM kèm kiểm chứng trích dẫn."""
         cac_dieu = _tach_cac_dieu_hop_dong(van_ban_hop_dong)
         canh_bao: List[CanhBaoRuiRoHopDong] = []
+        loai_yeu_cau = (loai_hop_dong or "tu_dong").strip().lower()
+        loai_thuc_te = phan_loai_hop_dong(van_ban_hop_dong) if loai_yeu_cau == "tu_dong" else loai_yeu_cau
+        moc_ngay = _phan_tich_ngay(ngay_tra_cuu)
 
         for dieu_item in cac_dieu:
             ten_dieu = dieu_item["dieu"]
@@ -369,6 +946,15 @@ class BoSoSanhRaSoatHopDong:
                 )
 
         toan_van_low = van_ban_hop_dong.lower()
+        canh_bao.extend(
+            self._quet_quy_tac_chuyen_biet(
+                loai_thuc_te=loai_thuc_te,
+                cac_dieu=cac_dieu,
+                toan_van_low=toan_van_low,
+                moc_ngay=moc_ngay,
+            )
+        )
+
         dieu_khoan_thieu: List[str] = []
         for ma_bb, ten_bb, tu_khoa in _DIEU_KHOAN_BAT_BUOC:
             if not any(tk in toan_van_low for tk in tu_khoa):
@@ -416,12 +1002,24 @@ class BoSoSanhRaSoatHopDong:
                 )
             )
 
+        phan_tich_llm: Optional[Dict[str, Any]] = None
+        if ham_sinh_llm is not None:
+            cb_llm, phan_tich_llm = self._ra_soat_bo_sung_bang_llm(
+                van_ban_hop_dong=van_ban_hop_dong,
+                loai_thuc_te=loai_thuc_te,
+                ngay_tra_cuu=ngay_tra_cuu,
+                ham_sinh_llm=ham_sinh_llm,
+                bo_truy_hoi_phap_ly=bo_truy_hoi_phap_ly,
+            )
+            canh_bao.extend(cb_llm)
+
         diem_tru = sum(22 if c.muc_do == "cao" else (10 if c.muc_do == "trung_binh" else 4) for c in canh_bao)
         diem_an_toan = max(0, 100 - diem_tru)
         so_hieu_phat_hien = [str(x["so_hieu"]) for x in kiem_toan_hl.get("chi_tiet", [])]
         do_thi_lien_quan = self.do_thi_tham_chieu.mo_rong_ngu_canh_rag(so_hieu_phat_hien, ngay_tra_cuu=ngay_tra_cuu)
 
-        return {
+        ket_qua_quet: Dict[str, Any] = {
+            "loai_hop_dong": loai_thuc_te,
             "so_dieu_khoan": len(cac_dieu),
             "diem_an_toan_phap_ly": diem_an_toan,
             "xep_loai_rui_ro": "CAO" if diem_an_toan < 50 else ("TRUNG BÌNH" if diem_an_toan < 80 else "THẤP"),
@@ -431,6 +1029,9 @@ class BoSoSanhRaSoatHopDong:
             "kiem_toan_hieu_luc": kiem_toan_hl,
             "do_thi_tham_chieu": do_thi_lien_quan,
         }
+        if phan_tich_llm is not None:
+            ket_qua_quet["phan_tich_llm"] = phan_tich_llm
+        return ket_qua_quet
 
     def so_sanh_va_ra_soat(
         self,
@@ -438,12 +1039,21 @@ class BoSoSanhRaSoatHopDong:
         hop_dong_chuan: Optional[Union[str, Path]] = None,
         ngay_tra_cuu: Optional[Union[str, date]] = None,
         cho_phep_doc_tep: bool = True,
+        loai_hop_dong: str = "tu_dong",
+        ham_sinh_llm: Optional[Callable[[str], str]] = None,
+        bo_truy_hoi_phap_ly: Optional[Any] = None,
     ) -> Dict[str, Any]:
-        """So sánh từng Điều khoản giữa `hop_dong_chuan` và `hop_dong_doi_tac` kết hợp quét rủi ro pháp lý toàn diện."""
+        """So sánh từng Điều khoản giữa `hop_dong_chuan` và `hop_dong_doi_tac` kết hợp quét rủi ro chuyên sâu 5 loại hợp đồng & Hybrid LLM."""
         nd_doi_tac, ten_doi_tac = _doc_noi_dung_hop_dong(
             hop_dong_doi_tac, cho_phep_doc_tep=cho_phep_doc_tep
         )
-        rui_ro = self.quet_rui_ro_don_le(nd_doi_tac, ngay_tra_cuu=ngay_tra_cuu)
+        rui_ro = self.quet_rui_ro_don_le(
+            nd_doi_tac,
+            ngay_tra_cuu=ngay_tra_cuu,
+            loai_hop_dong=loai_hop_dong,
+            ham_sinh_llm=ham_sinh_llm,
+            bo_truy_hoi_phap_ly=bo_truy_hoi_phap_ly,
+        )
 
         khac_biet_list: List[KhacBietDieuKhoan] = []
         cau_truc_tach_gop: List[Dict[str, Any]] = []
@@ -687,6 +1297,7 @@ class BoSoSanhRaSoatHopDong:
             "# BÁO CÁO RÀ SOÁT & SO SÁNH HỢP ĐỒNG (REDLINE LEGAL AUDIT)",
             "",
             f"- **Hợp đồng đối tác**: `{ket_qua.get('ten_hop_dong_doi_tac', 'N/A')}`",
+            f"- **Loại hợp đồng**: `{ket_qua.get('loai_hop_dong', 'chung')}`",
         ]
         if ket_qua.get("ten_hop_dong_chuan"):
             lines.append(f"- **Hợp đồng mẫu chuẩn**: `{ket_qua['ten_hop_dong_chuan']}`")
@@ -966,6 +1577,8 @@ ContractRiskAlert = CanhBaoRuiRoHopDong
 ContractClauseDiff = KhacBietDieuKhoan
 
 __all__ = [
+    "LOAI_HOP_DONG_HO_TRO",
+    "phan_loai_hop_dong",
     "CanhBaoRuiRoHopDong",
     "ContractRiskAlert",
     "KhacBietDieuKhoan",

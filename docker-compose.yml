@@ -1,16 +1,93 @@
 services:
-  vietnamese-ai-studio:
+  studio:
     build:
       context: .
       dockerfile: Dockerfile
+    image: vietnamese-ai:latest
     container_name: vietnamese-ai-studio
-    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data/vaidb:/data/vaidb
+      - ./data/workspace:/data/workspace
     environment:
       - PYTHONUNBUFFERED=1
+    entrypoint:
+      - vai
+      - studio
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+      - --workspace-dir
+      - /data/workspace
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/overview')"]
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  mcp-sse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vietnamese-ai:latest
+    container_name: vietnamese-ai-mcp-sse
+    profiles:
+      - mcp
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./data/vaidb:/data/vaidb
+    environment:
+      - PYTHONUNBUFFERED=1
+    entrypoint:
+      - vai
+      - mcp-server
+      - --transport
+      - sse
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8090"
+      - --extended-tools
+      - --temporal-legal-tools
+    restart: unless-stopped
+
+  connectors:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vietnamese-ai:latest
+    container_name: vietnamese-ai-connectors
+    profiles:
+      - connectors
+    ports:
+      - "127.0.0.1:8095:8095"
+    volumes:
+      - ./data/vaidb:/data/vaidb
+      - ./data/workspace:/data/workspace
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ZALO_APP_ID=${ZALO_APP_ID:-}
+      - ZALO_OA_SECRET=${ZALO_OA_SECRET:-}
+      - ZALO_OA_ACCESS_TOKEN=${ZALO_OA_ACCESS_TOKEN:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+    entrypoint:
+      - vai
+      - connector
+      - both
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8095"
+      - --workspace-dir
+      - /data/workspace
+    restart: unless-stopped

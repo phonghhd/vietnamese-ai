@@ -2,6 +2,23 @@
 
 All notable changes to Vietnamese AI Framework will be documented in this file.
 
+## v31.3.0 (2026-11-28 — Dual-Track Product & Research Release: M1 → M4)
+
+### 📚 Kho Tri Thức `.vaidb` 1 Lệnh & `ViLegal-TempBench v2` (M1)
+- **Legal Knowledge Hub (`vietnamese_ai/rag/legal/kb_hub.py`, CLI `vai pull-kb`)**: Bổ sung danh mục 5 gói tri thức pháp lý theo ngành (`vn-business-core-2025`, `vn-labor-bhxh-2025`, `vn-tax-invoice-2025`, `vn-land-housing-2025`, `vn-data-digital-2025`), dựng gói `.vaidb` có HNSW + manifest SHA-256, kiểm toán chất lượng bộ văn bản (`kiem_tra_chat_luong_bo_van_ban`) và tách cấu trúc đến cấp Khoản (`tach_khoan_dieu_dai`) trong `auto_ingest.py`.
+- **`ViLegal-TempBench v2` (84 QA, 5 splits)**: Bổ sung 16 câu hỏi đời thường không chứa số hiệu luật (`T5`), đối chứng 6 cấu hình kèm baseline khoa học `naive_date_filter` (chỉ lọc ngày bắt đầu), hỗ trợ truyền ONNX INT8 thật (`--onnx-embedder`, `--onnx-reranker`) và tự động sinh bảng phân tích lỗi (*Error Analysis*).
+- **Sửa 2 lỗi cốt lõi phát hiện từ `T5`**: phân giải đúng mốc năm cuối trong câu hỏi 2 mốc thời gian (**TQPA = 100%, 84/84**) và bật `noi_tu_ghep=True` + chống đếm trùng âm tiết con trong `temporal_rag.py` (`full`: **R@3 = 0.936**, **MRR@10 = 0.907**, **TVA = 0.987**, **TCA = 12/12**, **Multi-Hop@3 = 1.000**, **Trap = 1.000**, **T5-R@3 = 0.688**, **Abstention F1 = 0.923**; Paired Bootstrap vs `naive_date_filter`: $p < 0.0001$).
+
+### 📑 Contract Review Pro, OCR Dấu Đỏ, Studio v2 SSE & Phân Phối 1-Click (M2)
+- **DOCX gộp ô & PDF Scan OCR khử dấu đỏ (`document_parser.py`)**: Bổ sung `loc_dau_do_anh_numpy()` thuần NumPy khử mực dấu đỏ hành chính Việt Nam, hỗ trợ `w:gridSpan` / `w:vMerge` trong `_doc_docx_ooxml()` và tự phát hiện + chạy OCR trên PDF scan.
+- **Contract Review Pro (`contract_review.py`, `vai contract-review --type`)**: Tự động phân loại và rà soát chuyên sâu 5 loại hợp đồng Việt Nam (`lao_dong`, `dich_vu`, `mua_ban`, `thue_nha`, `nda`) theo BLLĐ 2019, NĐ 70/2025/NĐ-CP, Luật GTGT 48/2024/QH15, Luật KDBĐS 29/2023/QH15, Luật Nhà ở 27/2023/QH15; hỗ trợ chế độ Hybrid LLM kiểm chứng 100% trích dẫn qua `BoKiemChungTrichDanPhapLy`.
+- **Web Studio v2 (`studio_dashboard.py`)**: Bổ sung 2 endpoint SSE Streaming có bảo vệ RBAC (`/api/legal/temporal-ask/stream`, `/api/chat/stream`), giao diện Split-View trích dẫn điều luật (nhãn hiệu lực Xanh/Vàng/Đỏ, render DOM an toàn không XSS) và xem trực quan Diff hợp đồng.
+- **Phân phối 1-Click**: Lệnh `vai mcp-config --client cursor|claude|vscode|antigravity` (hỗ trợ `stdio`/`sse` và `--write` gộp JSON an toàn), nâng cấp `docker-compose.yml` (bind `127.0.0.1:8080`, volume bền vững, profile `mcp`/`connectors`) và tài liệu [docs/guides/mcp-cursor-claude.md](docs/guides/mcp-cursor-claude.md).
+
+### 🧪 `ViAlign-SafeLoop` Token-KL / QLoRA & Hồ Sơ Công Bố Khoa Học Kép (M3 & M4)
+- **True Token-Level Reverse KL & QLoRA Flywheel (`dpo_trainer.py`, `auto_finetuner.py`, `remote_gpu.py`)**: Bổ sung `loai_phat_kl="token_kl"` tính $D_{\mathrm{KL}}(\pi_\theta \| \pi_{\mathrm{ref}})$ trên riêng token phản hồi, cDPO `label_smoothing` theo từng mẫu, hỗ trợ nhiệm vụ `simpo`/`cdpo`/`safeloop` và sinh script QLoRA 4-bit (`bitsandbytes`/`accelerate`) cho Modal/Local.
+- **Kịch bản tái lập & Hồ sơ bài báo (`scripts/`, `paper/`)**: Bổ sung `scripts/run_safeloop_qlora_experiment.py`, `scripts/generate_paper_tables.py`, hoàn thiện bài báo JOSS ([paper/paper.md](paper/paper.md), 18 mục BibTeX chuẩn trong [paper/paper.bib](paper/paper.bib), [paper/JOSS_CHECKLIST.md](paper/JOSS_CHECKLIST.md)), bản thảo nghiên cứu LaTeX ([paper/vilegal_tempbench_acl.tex](paper/vilegal_tempbench_acl.tex)), Datasheet ([paper/DATASHEET_VILEGAL_TEMPBENCH_V2.md](paper/DATASHEET_VILEGAL_TEMPBENCH_V2.md)) và bộ tài liệu triển khai Pilot Doanh nghiệp ([docs/guides/enterprise-pilot-kit.md](docs/guides/enterprise-pilot-kit.md)).
+
 ## v31.2.0 (2026-11-28 — Security Hardening, Scientific Honesty, Core Bugfixes, Soft Deprecation & Depth Upgrades)
 
 ### 🛡️ Bảo Mật & Mật Mã Học (P0 — Security Hardening)

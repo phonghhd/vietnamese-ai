@@ -36,6 +36,7 @@ _RE_CHUONG_HEADER = re.compile(
     r"(?m)^\s*(Chương\s+[IVXLCDM\d]+)(?:\s*[\.\:\-]\s*|\s+)?(.*)$",
     re.IGNORECASE | re.UNICODE,
 )
+_RE_KHOAN_HEADER = re.compile(r"(?m)^\s*(\d{1,2})\.\s+(.+)$", re.UNICODE)
 _RE_CUOC_CHU_DEF = re.compile(
     r"(?m)^\s*\[(\d{1,3})\]\s+(.+?)(?=\n\s*\[\d{1,3}\]\s+|\Z)",
     re.DOTALL | re.UNICODE,
@@ -238,6 +239,8 @@ class BoNapVanBanPhapQuyTuDong:
         self,
         nguon: Union[str, Path],
         noi_dung_truc_tiep: Optional[str] = None,
+        tach_khoan_dieu_dai: bool = False,
+        nguong_tach_khoan_tu: int = 180,
     ) -> KetQuaPhanTichVanBanPhapQuy:
         """Phân tích một văn bản pháp quy hoặc tệp `.docx`/`.pdf`/`.txt`/`.md` thành cấu trúc đầy đủ."""
         if noi_dung_truc_tiep is not None:
@@ -325,17 +328,22 @@ class BoNapVanBanPhapQuyTuDong:
             refs = _RE_CUOC_CHU_REF.findall(noi_dung_tho)
             noi_dung_sach = re.sub(r"\[\d{1,3}\]", "", noi_dung_tho).strip()
 
-            cac_dieu.append(
-                {
-                    "ma": f"{so_hieu_chinh.lower().replace('/', '_')}_dieu_{m_d.group(2).lower()}",
-                    "van_ban": ten_vb,
-                    "so_hieu": so_hieu_chinh,
-                    "chuong": chuong_hien_tai,
-                    "dieu": ten_dieu,
-                    "tieu_de": tieu_de_dieu,
-                    "noi_dung": noi_dung_sach,
-                }
-            )
+            dieu_goc = {
+                "ma": f"{so_hieu_chinh.lower().replace('/', '_')}_dieu_{m_d.group(2).lower()}",
+                "van_ban": ten_vb,
+                "so_hieu": so_hieu_chinh,
+                "chuong": chuong_hien_tai,
+                "dieu": ten_dieu,
+                "khoan": "",
+                "tieu_de": tieu_de_dieu,
+                "noi_dung": noi_dung_sach,
+            }
+            if tach_khoan_dieu_dai:
+                cac_dieu.extend(
+                    self.tach_khoan_dieu_dai(dieu_goc, nguong_tu=nguong_tach_khoan_tu)
+                )
+            else:
+                cac_dieu.append(dieu_goc)
 
             ghi_chu_sd = ""
             sh_sua_dieu: Optional[str] = None
@@ -430,6 +438,104 @@ class BoNapVanBanPhapQuyTuDong:
             la_van_ban_hop_nhat=la_vbhn,
         )
 
+    @staticmethod
+    def tach_khoan_dieu_dai(
+        dieu_item: Dict[str, Any],
+        nguong_tu: int = 180,
+    ) -> List[Dict[str, Any]]:
+        """Tách các Điều dài có từ 2 Khoản đánh số trở lên thành từng đoạn Khoản kèm ngữ cảnh cha."""
+        noi_dung = str(dieu_item.get("noi_dung", "")).strip()
+        if len(noi_dung.split()) < max(40, int(nguong_tu)):
+            return [dieu_item]
+
+        khoan_matches = list(_RE_KHOAN_HEADER.finditer(noi_dung))
+        if len(khoan_matches) < 2:
+            return [dieu_item]
+
+        phan_dau_dieu = noi_dung[: khoan_matches[0].start()].strip()
+        ket_qua: List[Dict[str, Any]] = []
+        for idx_k, m_k in enumerate(khoan_matches):
+            bat_dau = m_k.start()
+            ket_thuc = (
+                khoan_matches[idx_k + 1].start()
+                if idx_k + 1 < len(khoan_matches)
+                else len(noi_dung)
+            )
+            so_khoan = m_k.group(1)
+            doan_khoan = noi_dung[bat_dau:ket_thuc].strip()
+            noi_dung_kem_cha = (
+                f"{phan_dau_dieu}\n{doan_khoan}".strip() if phan_dau_dieu else doan_khoan
+            )
+            ban_sao = dict(dieu_item)
+            ban_sao["ma"] = f"{dieu_item['ma']}_khoan_{so_khoan}"
+            ban_sao["khoan"] = f"Khoản {so_khoan}"
+            ban_sao["noi_dung"] = noi_dung_kem_cha
+            ket_qua.append(ban_sao)
+        return ket_qua
+
+    @staticmethod
+    def kiem_tra_chat_luong_bo_van_ban(
+        ket_qua_list: Sequence[KetQuaPhanTichVanBanPhapQuy],
+    ) -> Dict[str, Any]:
+        """Kiểm định tự động chất lượng bộ văn bản pháp quy trước khi đóng gói `.vaidb`."""
+        canh_bao: List[str] = []
+        loi: List[str] = []
+        so_hieu_da_nap = {kq.so_hieu_chinh for kq in ket_qua_list if kq.so_hieu_chinh}
+        tong_dieu = 0
+
+        for kq in ket_qua_list:
+            tong_dieu += len(kq.cac_dieu_khoan)
+            if not kq.cac_dieu_khoan:
+                loi.append(f"{kq.so_hieu_chinh}: không trích xuất được điều khoản nào.")
+            if not kq.ngay_hieu_luc:
+                canh_bao.append(f"{kq.so_hieu_chinh}: thiếu ngày có hiệu lực.")
+
+            so_dieu_thu_tu: List[int] = []
+            dieu_da_thay: set[Tuple[str, str]] = set()
+            for item in kq.cac_dieu_khoan:
+                dieu_lbl = str(item.get("dieu", ""))
+                khoan_lbl = str(item.get("khoan", ""))
+                khoa_trung = (dieu_lbl, khoan_lbl)
+                if khoa_trung in dieu_da_thay:
+                    canh_bao.append(
+                        f"{kq.so_hieu_chinh}: trùng lặp {dieu_lbl}{' ' + khoan_lbl if khoan_lbl else ''}."
+                    )
+                dieu_da_thay.add(khoa_trung)
+
+                nd = str(item.get("noi_dung", "")).strip()
+                if len(nd.split()) < 8:
+                    canh_bao.append(f"{kq.so_hieu_chinh} {dieu_lbl}: nội dung quá ngắn ({len(nd.split())} từ).")
+
+                m_num = re.search(r"Điều\s+(\d+)", dieu_lbl)
+                if m_num:
+                    n_val = int(m_num.group(1))
+                    if not so_dieu_thu_tu or so_dieu_thu_tu[-1] != n_val:
+                        so_dieu_thu_tu.append(n_val)
+
+            if len(so_dieu_thu_tu) >= 2:
+                sap_xep = sorted(set(so_dieu_thu_tu))
+                for truoc, sau in zip(sap_xep, sap_xep[1:]):
+                    if sau - truoc > 1:
+                        canh_bao.append(
+                            f"{kq.so_hieu_chinh}: số Điều nhảy cóc từ Điều {truoc} sang Điều {sau}."
+                        )
+
+            for qh in kq.quan_he_do_thi:
+                if qh.dich and qh.dich not in so_hieu_da_nap:
+                    canh_bao.append(
+                        f"{kq.so_hieu_chinh}: quan hệ '{qh.loai_quan_he}' trỏ tới '{qh.dich}' chưa có trong tập đầu vào."
+                    )
+
+        return {
+            "dat_chat_luong": len(loi) == 0,
+            "so_van_ban": len(ket_qua_list),
+            "tong_dieu": tong_dieu,
+            "so_loi": len(loi),
+            "so_canh_bao": len(canh_bao),
+            "loi": loi,
+            "canh_bao": canh_bao,
+        }
+
     def dong_goi_kho_vaidb(
         self,
         nguon_dau_vao: Union[str, Path, Sequence[Union[str, Path]]],
@@ -439,6 +545,9 @@ class BoNapVanBanPhapQuyTuDong:
         hnsw_ef_construction: int = 64,
         hnsw_ef_search: int = 48,
         de_quy: bool = True,
+        tach_khoan_dieu_dai: bool = False,
+        nguong_tach_khoan_tu: int = 180,
+        xuat_manifest: bool = False,
     ) -> Dict[str, Any]:
         """Nạp 1 tệp, nhiều tệp hoặc cả thư mục pháp quy và đóng gói thành 1 tệp `.vaidb` đã dựng sẵn HNSW + Point-in-Time + Đồ thị."""
         from vietnamese_ai.rag.rag_pipeline import RAGPipeline
@@ -478,11 +587,17 @@ class BoNapVanBanPhapQuyTuDong:
         phien_ban_list: List[Dict[str, Any]] = []
         quan_he_list: List[Dict[str, Any]] = []
         ket_qua_van_ban: List[Dict[str, Any]] = []
+        ket_qua_phan_tich_list: List[KetQuaPhanTichVanBanPhapQuy] = []
         tong_dieu_nap = 0
 
         try:
             for tep in danh_sach_tep:
-                kq = self.phan_tich_van_ban(tep)
+                kq = self.phan_tich_van_ban(
+                    tep,
+                    tach_khoan_dieu_dai=tach_khoan_dieu_dai,
+                    nguong_tach_khoan_tu=nguong_tach_khoan_tu,
+                )
+                ket_qua_phan_tich_list.append(kq)
                 ho_so_list.append(kq.ho_so_hieu_luc.to_dict())
                 phien_ban_list.extend(pb.to_dict() for pb in kq.phien_ban_dieu_khoan)
                 quan_he_list.extend(qh.to_dict() for qh in kq.quan_he_do_thi)
@@ -498,8 +613,9 @@ class BoNapVanBanPhapQuyTuDong:
                     }
                 )
                 for dieu_item in kq.cac_dieu_khoan:
+                    khoan_tag = f" | {dieu_item['khoan']}" if dieu_item.get("khoan") else ""
                     noi_dung_day_du = (
-                        f"[{dieu_item['van_ban']} - {dieu_item['so_hieu']}]\n"
+                        f"[{dieu_item['van_ban']} - {dieu_item['so_hieu']}{khoan_tag}]\n"
                         f"{dieu_item['dieu']}: {dieu_item['tieu_de']}\n"
                         f"{dieu_item['noi_dung']}"
                     )
@@ -512,6 +628,7 @@ class BoNapVanBanPhapQuyTuDong:
                             "so_hieu": dieu_item["so_hieu"],
                             "chuong": dieu_item["chuong"],
                             "dieu": dieu_item["dieu"],
+                            "khoan": dieu_item.get("khoan", ""),
                             "tieu_de": dieu_item["tieu_de"],
                             "tep_nguon": tep.name,
                         },
@@ -540,14 +657,40 @@ class BoNapVanBanPhapQuyTuDong:
         finally:
             rag.dong()
 
+        bao_cao_chat_luong = self.kiem_tra_chat_luong_bo_van_ban(ket_qua_phan_tich_list)
+        sha256_db = hashlib.sha256(out_db.read_bytes()).hexdigest() if out_db.is_file() else ""
+        duong_dan_manifest: Optional[str] = None
+        if xuat_manifest and out_db.is_file():
+            from datetime import datetime, timezone
+
+            manifest_path = Path(f"{out_db}.manifest.json")
+            manifest_data = {
+                "ten_tep": out_db.name,
+                "sha256": sha256_db,
+                "kich_thuoc_bytes": out_db.stat().st_size,
+                "ngay_tao_utc": datetime.now(timezone.utc).isoformat(),
+                "so_tep_da_nap": len(danh_sach_tep),
+                "tong_dieu_khoan": tong_dieu_nap,
+                "tach_khoan_dieu_dai": bool(tach_khoan_dieu_dai),
+                "chat_luong": bao_cao_chat_luong,
+            }
+            manifest_path.write_text(
+                json.dumps(manifest_data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            duong_dan_manifest = str(manifest_path)
+
         return {
             "duong_dan_vaidb": str(out_db),
+            "duong_dan_manifest": duong_dan_manifest,
+            "sha256": sha256_db,
             "so_tep_da_nap": len(danh_sach_tep),
             "tong_dieu_khoan": tong_dieu_nap,
             "so_ho_so_hieu_luc": len(ho_so_list),
             "so_phien_ban_point_in_time": len(phien_ban_list),
             "so_quan_he_do_thi": len(quan_he_list),
             "hnsw": hnsw_info,
+            "chat_luong": bao_cao_chat_luong,
             "thong_ke_vaidb": thong_ke_db,
             "chi_tiet_van_ban": ket_qua_van_ban,
         }

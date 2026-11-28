@@ -49,6 +49,8 @@ nav:
     - LLM Tiếng Việt Zero-GPU (vai pull / run): guides/edge-cpu-llm-runtime.md
     - RAG Pháp lý, Hiệu lực & Studio Kéo-Thả: guides/vietnamese-rag.md
     - Hợp đồng Redline, MCP IDE & Zalo/Telegram: guides/workbench-mcp-connectors.md
+    - Cắm MCP vào Cursor, Claude & Docker Compose: guides/mcp-cursor-claude.md
+    - Bộ Triển Khai Pilot Doanh Nghiệp (15 Phút): guides/enterprise-pilot-kit.md
     - Kiến trúc Chiều sâu & 5 Bề mặt: guides/deep-architecture-and-surfaces.md
     - Swarm CPU & LAN Parallelism: guides/swarm-cpu.md
     - Verifiable AI (Proof of Inference): guides/verifiable-ai.md
